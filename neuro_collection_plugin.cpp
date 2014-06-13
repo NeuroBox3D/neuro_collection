@@ -194,16 +194,12 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "TwoSidedMembraneTransportFV1", tag);
 	}
 
-	// implementation of two-sided ER membrane transport systems
+	// implementation of two-sided ER membrane calcium transport systems
 	{
 		typedef TwoSidedERCalciumTransportFV1<TDomain> TE0;
 		typedef TwoSidedMembraneTransportFV1<TDomain> TEBase;
 		string name = string("TwoSidedERCalciumTransportFV1").append(suffix);
-		reg.add_class_<TE0, TEBase >(name, grp)
-			.add_method("set_density_function", static_cast<void (TE0::*) (const char*)> (&TE0::set_density_function),
-							"", "", "add a density function")
-			.add_method("set_density_function", static_cast<void (TE0::*) (SmartPtr<UserData<number,dim> >)>
-					(&TE0::set_density_function), "", "", "add a density function");
+		reg.add_class_<TE0, TEBase >(name, grp);
 		reg.add_class_to_group(name, "TwoSidedERCalciumTransportFV1", tag);
 
 		typedef TwoSidedIP3RFV1<TDomain> TE1;

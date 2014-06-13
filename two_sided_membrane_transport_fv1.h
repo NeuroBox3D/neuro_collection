@@ -100,42 +100,13 @@ class TwoSidedERCalciumTransportFV1
 
 	public:
 	///	world dimension
-		static const int dim = FV1InnerBoundaryElemDisc<TDomain>::dim;
+		static const int dim = TwoSidedMembraneTransportFV1<TDomain>::dim;
 
 	public:
 	/// constructor
 		TwoSidedERCalciumTransportFV1(const char* functions, const char* subsets)
 					: TwoSidedMembraneTransportFV1<TDomain>(functions, subsets),
 					  REF_CA_ER(2.5e-4), CF(1.0) {};
-
-	public:
-	/// adding density information for pumps/channels in membrane
-		void set_density_function(SmartPtr<UserData<number,dim> > densityFct)
-		{
-			this->m_spDensityFct = densityFct;
-		}
-
-	/// adding density information for pumps/channels in membrane
-		void set_density_function(const char* name)
-		{
-			// name must be a valid lua function name conforming to LuaUserNumber specs
-			if (LuaUserData<number, dim>::check_callback_returns(name))
-			{
-				set_density_function(LuaUserDataFactory<number, dim>::create(name));
-				return;
-			}
-
-			// no match found
-			if (!CheckLuaCallbackName(name))
-				UG_THROW("Lua-Callback with name '" << name << "' does not exist.");
-
-			// name exists, but wrong signature
-			UG_THROW("Cannot find matching callback signature. Use:\n"
-					"Number - Callback\n" << (LuaUserData<number, dim>::signature()) << "\n");
-		}
-
-	protected:
-		SmartPtr<UserData<number,dim> > m_spDensityFct;
 };
 
 
