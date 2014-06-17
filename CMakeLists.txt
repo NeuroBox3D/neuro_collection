@@ -79,6 +79,7 @@ if(buildEmbeddedPlugins)
 	# add the sources to ug4's sources
 	EXPORTSOURCES(${pluginPath} ${SOURCES})
 	exportDependencies(${ANN_LIBRARY})
+	exportIncludes(${ANN_INCLUDE_DIR})
 else(buildEmbeddedPlugins)
 	# create a shared library from the sources and link it against ug4.
 	add_library(${pluginName} SHARED ${SOURCES})
