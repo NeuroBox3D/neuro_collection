@@ -122,7 +122,7 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_<T0, TBase >(name, grp)
 			.add_method("set_density_function", static_cast<void (T0::*) (const char*)> (&T0::set_density_function),
 							"", "", "add a density function")
-			.add_method("set_density_function", static_cast<void (T0::*) (SmartPtr<UserData<number,dim> >)>
+			.add_method("set_density_function", static_cast<void (T0::*) (SmartPtr<CplUserData<number,dim> >)>
 					(&T0::set_density_function), "", "", "add a density function");
 		reg.add_class_to_group(name, "OneSidedMembraneTransportFV1", tag);
 	}
@@ -189,7 +189,7 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_<T, TBase >(name, grp)
 			.add_method("set_density_function", static_cast<void (T::*) (const char*)> (&T::set_density_function),
 							"", "", "add a density function")
-			.add_method("set_density_function", static_cast<void (T::*) (SmartPtr<UserData<number,dim> >)>
+			.add_method("set_density_function", static_cast<void (T::*) (SmartPtr<CplUserData<number,dim> >)>
 					(&T::set_density_function), "", "", "add a density function");
 		reg.add_class_to_group(name, "TwoSidedMembraneTransportFV1", tag);
 	}

@@ -47,7 +47,7 @@ class OneSidedMembraneTransportFV1
 
 	public:
 	/// adding density information for pumps/channels in membrane
-		void set_density_function(SmartPtr<UserData<number,dim> > densityFct)
+		void set_density_function(SmartPtr<CplUserData<number,dim> > densityFct)
 		{
 			this->m_spDensityFct = densityFct;
 		}
@@ -72,7 +72,7 @@ class OneSidedMembraneTransportFV1
 		}
 
 	protected:
-		SmartPtr<UserData<number,dim> > m_spDensityFct;
+		SmartPtr<CplUserData<number,dim> > m_spDensityFct;
 };
 
 
