@@ -40,8 +40,7 @@ bool DependentNeumannBoundaryFV1<TDomain>::use_hanging() const
 
 template<typename TDomain>
 template<typename TElem, typename TFVGeom>
-void DependentNeumannBoundaryFV1<TDomain>::prep_elem_loop(
-		const ReferenceObjectID roid, const int si)
+void DependentNeumannBoundaryFV1<TDomain>::prep_elem_loop(const ReferenceObjectID roid, const int si)
 {}
 
 template<typename TDomain>
@@ -51,8 +50,12 @@ void DependentNeumannBoundaryFV1<TDomain>::fsh_elem_loop()
 
 template<typename TDomain>
 template<typename TElem, typename TFVGeom>
-void DependentNeumannBoundaryFV1<TDomain>::prep_elem(const LocalVector& u,
-		GridObject* elem, const MathVector<dim> vCornerCoords[])
+void DependentNeumannBoundaryFV1<TDomain>::prep_elem
+(
+	const LocalVector& u,
+	GridObject* elem,
+	const MathVector<dim> vCornerCoords[]
+)
 {
 	// update geometry for this element
 	static TFVGeom& geo = GeomProvider<TFVGeom>::get();
@@ -81,14 +84,20 @@ void DependentNeumannBoundaryFV1<TDomain>::prep_elem(const LocalVector& u,
 
 template<typename TDomain>
 template<typename TElem, typename TFVGeom>
-void DependentNeumannBoundaryFV1<TDomain>::add_def_A_elem(LocalVector& d,
-		const LocalVector& u, GridObject* elem,
-		const MathVector<dim> vCornerCoords[]) {
+void DependentNeumannBoundaryFV1<TDomain>::add_def_A_elem
+(
+	LocalVector& d,
+	const LocalVector& u,
+	GridObject* elem,
+	const MathVector<dim> vCornerCoords[]
+)
+{
 	// get finite volume geometry
 	const static TFVGeom& fvgeom = GeomProvider<TFVGeom>::get();
 
 	// loop Boundary Faces
-	for (std::size_t i = 0; i < fvgeom.num_bf(); ++i) {
+	for (std::size_t i = 0; i < fvgeom.num_bf(); ++i)
+	{
 		// get current BF
 		const typename TFVGeom::BF& bf = fvgeom.bf(i);
 
@@ -128,21 +137,31 @@ void DependentNeumannBoundaryFV1<TDomain>::add_def_A_elem(LocalVector& d,
 
 template<typename TDomain>
 template<typename TElem, typename TFVGeom>
-void DependentNeumannBoundaryFV1<TDomain>::add_def_M_elem(LocalVector& d,
-		const LocalVector& u, GridObject* elem,
-		const MathVector<dim> vCornerCoords[]) {
-}
+void DependentNeumannBoundaryFV1<TDomain>::add_def_M_elem
+(
+	LocalVector& d,
+	const LocalVector& u,
+	GridObject* elem,
+	const MathVector<dim> vCornerCoords[]
+)
+{}
 
 // assemble stiffness part of Jacobian
 template<typename TDomain>
 template<typename TElem, typename TFVGeom>
-void DependentNeumannBoundaryFV1<TDomain>::add_jac_A_elem(LocalMatrix& J,
-		const LocalVector& u, GridObject* elem,
-		const MathVector<dim> vCornerCoords[]) {
+void DependentNeumannBoundaryFV1<TDomain>::add_jac_A_elem
+(
+	LocalMatrix& J,
+	const LocalVector& u,
+	GridObject* elem,
+	const MathVector<dim> vCornerCoords[]
+)
+{
 	// get finite volume geometry
 	const static TFVGeom& fvgeom = GeomProvider<TFVGeom>::get();
 
-	for (std::size_t i = 0; i < fvgeom.num_bf(); ++i) {
+	for (std::size_t i = 0; i < fvgeom.num_bf(); ++i)
+	{
 		// get current BF
 		const typename TFVGeom::BF& bf = fvgeom.bf(i);
 
@@ -181,16 +200,24 @@ void DependentNeumannBoundaryFV1<TDomain>::add_jac_A_elem(LocalMatrix& J,
 
 template<typename TDomain>
 template<typename TElem, typename TFVGeom>
-void DependentNeumannBoundaryFV1<TDomain>::add_jac_M_elem(LocalMatrix& J,
-		const LocalVector& u, GridObject* elem,
-		const MathVector<dim> vCornerCoords[]) {
-}
+void DependentNeumannBoundaryFV1<TDomain>::add_jac_M_elem
+(
+	LocalMatrix& J,
+	const LocalVector& u,
+	GridObject* elem,
+	const MathVector<dim> vCornerCoords[]
+)
+{}
 
 template<typename TDomain>
 template<typename TElem, typename TFVGeom>
-void DependentNeumannBoundaryFV1<TDomain>::add_rhs_elem(LocalVector& d,
-		GridObject* elem, const MathVector<dim> vCornerCoords[]) {
-}
+void DependentNeumannBoundaryFV1<TDomain>::add_rhs_elem
+(
+	LocalVector& d,
+	GridObject* elem,
+	const MathVector<dim> vCornerCoords[]
+)
+{}
 
 // ///////////////////////////////
 //   error estimation (begin)   //
@@ -198,92 +225,87 @@ void DependentNeumannBoundaryFV1<TDomain>::add_rhs_elem(LocalVector& d,
 //	prepares the loop over all elements of one type for the computation of the error estimator
 template<typename TDomain>
 template<typename TElem, typename TFVGeom>
-void DependentNeumannBoundaryFV1<TDomain>::prep_err_est_elem_loop(
-		const ReferenceObjectID roid, const int si) {
+void DependentNeumannBoundaryFV1<TDomain>::prep_err_est_elem_loop(const ReferenceObjectID roid, const int si)
+{
 	//	get the error estimator data object and check that it is of the right type
 	//	we check this at this point in order to be able to dispense with this check later on
 	//	(i.e. in prep_err_est_elem and compute_err_est_A_elem())
-	if (this->m_spErrEstData.get() == NULL) {
-		UG_THROW("No ErrEstData object has been given to this ElemDisc!");
+	if (this->m_spErrEstData.get() == NULL)
+		{UG_THROW("No ErrEstData object has been given to this ElemDisc!");}
+
+	err_est_type* err_est_data = dynamic_cast<err_est_type*>(this->m_spErrEstData.get());
+
+	if (!err_est_data)
+	{
+		UG_THROW("Dynamic cast to MultipleSideAndElemErrEstData failed." << std::endl
+				  << "Make sure you handed the correct type of ErrEstData to this discretization.");
 	}
 
-	err_est_type* err_est_data =
-			dynamic_cast<err_est_type*>(this->m_spErrEstData.get());
-
-	if (!err_est_data) {
-		UG_THROW(
-				"Dynamic cast to MultipleSideAndElemErrEstData failed." << std::endl << "Make sure you handed the correct type of ErrEstData to this discretization.");
+	if (!err_est_data->equal_side_order())
+	{
+		UG_THROW("The underlying error estimator data objects of this discretization's "
+				 "error estimator do not all have the same integration orders. This case "
+				 "is not supported by the implementation. If you need it, implement!");
 	}
 
-	if (!err_est_data->equal_side_order()) {
-		UG_THROW(
-				"The underlying error estimator data objects of this discretization's "
-						"error estimator do not all have the same integration orders. This case "
-						"is not supported by the implementation. If you need it, implement!");
-	}
-
-	if (err_est_data->num() < 1) {
-		UG_THROW(
-				"No underlying error estimator data objects present. No IPs can be determined.");
-	}
+	if (err_est_data->num() < 1)
+		{UG_THROW("No underlying error estimator data objects present. No IPs can be determined.");}
 
 	//	set local positions
-	if (!TFVGeom::usesHangingNodes) {
+	if (!TFVGeom::usesHangingNodes)
+	{
 		static const int refDim = TElem::dim;
 
 		// get local IPs
 		std::size_t numSideIPs;
 		const MathVector<refDim>* sideIPs;
-		try {
+		try
+		{
 			numSideIPs = err_est_data->get(0)->num_side_ips(roid);
-			sideIPs = err_est_data->get(0)->template side_local_ips<refDim>(
-					roid);
+			sideIPs = err_est_data->get(0)->template side_local_ips<refDim>(roid);
 		}
 		UG_CATCH_THROW("Integration points for error estimator cannot be set.");
 
 		// store values of shape functions in local IPs
-		LagrangeP1<
-				typename reference_element_traits<TElem>::reference_element_type> trialSpace =
-				Provider<
-						LagrangeP1<
-								typename reference_element_traits<TElem>::reference_element_type> >::get();
+		LagrangeP1<typename reference_element_traits<TElem>::reference_element_type> trialSpace =
+			Provider<LagrangeP1<typename reference_element_traits<TElem>::reference_element_type> >::get();
 
 		m_shapeValues.resize(numSideIPs, trialSpace.num_sh());
 		for (std::size_t ip = 0; ip < numSideIPs; ip++)
 			trialSpace.shapes(m_shapeValues.shapesAtSideIP(ip), sideIPs[ip]);
 	}
 }
-;
 
 template<typename TDomain>
 template<typename TElem, typename TFVGeom>
-void DependentNeumannBoundaryFV1<TDomain>::prep_err_est_elem(
-		const LocalVector& u, GridObject* elem,
-		const MathVector<dim> vCornerCoords[]) {
+void DependentNeumannBoundaryFV1<TDomain>::prep_err_est_elem
+(
+	const LocalVector& u,
+	GridObject* elem,
+	const MathVector<dim> vCornerCoords[]
+)
+{
 	// get error estimator
-	err_est_type* err_est_data =
-			dynamic_cast<err_est_type*>(this->m_spErrEstData.get());
+	err_est_type* err_est_data = dynamic_cast<err_est_type*>(this->m_spErrEstData.get());
 
 	// set local positions
-	if (TFVGeom::usesHangingNodes) {
+	if (TFVGeom::usesHangingNodes)
+	{
 		static const int refDim = TElem::dim;
 		ReferenceObjectID roid = elem->reference_object_id();
 
 		std::size_t numSideIPs;
 		const MathVector<refDim>* sideIPs;
-		try {
+		try
+		{
 			numSideIPs = err_est_data->get(0)->num_side_ips(roid);
-			sideIPs = err_est_data->get(0)->template side_local_ips<refDim>(
-					roid);
+			sideIPs = err_est_data->get(0)->template side_local_ips<refDim>(roid);
 		}
 		UG_CATCH_THROW("Integration points for error estimator cannot be set.");
 
 		// store values of shape functions in local IPs
-		LagrangeP1<
-				typename reference_element_traits<TElem>::reference_element_type> trialSpace =
-				Provider<
-						LagrangeP1<
-								typename reference_element_traits<TElem>::reference_element_type> >::get();
+		LagrangeP1<typename reference_element_traits<TElem>::reference_element_type> trialSpace =
+			Provider<LagrangeP1<typename reference_element_traits<TElem>::reference_element_type> >::get();
 
 		m_shapeValues.resize(numSideIPs, trialSpace.num_sh());
 		for (std::size_t ip = 0; ip < numSideIPs; ip++)
@@ -294,24 +316,25 @@ void DependentNeumannBoundaryFV1<TDomain>::prep_err_est_elem(
 //	computes the error estimator contribution for one element
 template<typename TDomain>
 template<typename TElem, typename TFVGeom>
-void DependentNeumannBoundaryFV1<TDomain>::compute_err_est_A_elem(
-		const LocalVector& u, GridObject* elem,
-		const MathVector<dim> vCornerCoords[], const number& scale)
+void DependentNeumannBoundaryFV1<TDomain>::compute_err_est_A_elem
+(
+	const LocalVector& u,
+	GridObject* elem,
+	const MathVector<dim> vCornerCoords[],
+	const number& scale
+)
 {
 	// get error estimator
 	err_est_type* err_est_data = dynamic_cast<err_est_type*>(this->m_spErrEstData.get());
 
 	// cast this elem to side_type of error estimator
-	if (err_est_data->get(0)->surface_view().get() == NULL)
+	typename SideAndElemErrEstData<TDomain>::side_type* side =
+		dynamic_cast<typename SideAndElemErrEstData<TDomain>::side_type*>(elem);
+	if (!side)
 	{
-		UG_THROW("Error estimator has NULL surface view.");
+		UG_THROW("Error in DependentNeumannBoundaryFV1<TDomain>::compute_err_est_A_elem():\n"
+				 "Element that error assembling routine is called for has the wrong type.");
 	}
-
-	MultiGrid* pErrEstGrid = (MultiGrid*) (err_est_data->get(0)->surface_view()->subset_handler()->multi_grid());
-	typename MultiGrid::traits<typename SideAndElemErrEstData<TDomain>::side_type>::secure_container side_list;
-	pErrEstGrid->associated_elements_sorted(side_list, (TElem*) elem);
-	if (side_list.size() != 1)
-		UG_THROW("Mismatch of numbers of sides in 'FV1InnerBoundaryElemDisc::compute_err_est_A_elem'");
 
 	// global IPs
 	ReferenceObjectID roid = elem->reference_object_id();
@@ -326,7 +349,7 @@ void DependentNeumannBoundaryFV1<TDomain>::compute_err_est_A_elem(
 		{
 			// get values of u at ip (interpolate)
 			std::size_t nFct = u.num_fct();
-			std::vector<LocalVector::value_type> uAtIP = std::vector<LocalVector::value_type>(nFct);
+			std::vector<LocalVector::value_type> uAtIP(nFct);
 
 			for (std::size_t fct = 0; fct < nFct; fct++)
 			{
@@ -344,15 +367,13 @@ void DependentNeumannBoundaryFV1<TDomain>::compute_err_est_A_elem(
 			NFluxCond fc;
 			if (!fluxDensityFct(uAtIP, ipCoords, si, fc))
 			{
-				UG_THROW("FV1InnerBoundaryElemDisc::compute_err_est_A_elem:"
+				UG_THROW("DependentNeumannBoundaryFV1::compute_err_est_A_elem:"
 						" Call to fluxDensityFct did not succeed.");
 			}
 
 			// add to estimator values
-			// sign must be opposite of that in add_def_A_elem
-			// as the difference between this and the actual flux of the unknown is calculated
 			for (std::size_t j = 0; j < fc.flux.size(); j++)
-				(*err_est_data->get(fc.to[j]))(side_list[0], sip) += scale * fc.flux[j];
+				(*err_est_data->get(fc.to[j]))(side, sip) += scale * fc.flux[j];
 		}
 	}
 	UG_CATCH_THROW("Values for the error estimator could not be assembled at every IP."
@@ -363,7 +384,8 @@ void DependentNeumannBoundaryFV1<TDomain>::compute_err_est_A_elem(
 //	postprocesses the loop over all elements of one type in the computation of the error estimator
 template<typename TDomain>
 template<typename TElem, typename TFVGeom>
-void DependentNeumannBoundaryFV1<TDomain>::fsh_err_est_elem_loop() {
+void DependentNeumannBoundaryFV1<TDomain>::fsh_err_est_elem_loop()
+{
 	// nothing to do
 }
 
@@ -376,7 +398,8 @@ void DependentNeumannBoundaryFV1<TDomain>::fsh_err_est_elem_loop() {
 
 // register for 1D
 template<typename TDomain>
-void DependentNeumannBoundaryFV1<TDomain>::register_all_fv1_funcs() {
+void DependentNeumannBoundaryFV1<TDomain>::register_all_fv1_funcs()
+{
 //	get all grid element types in this dimension and below
 	typedef typename domain_traits<dim>::ManifoldElemList ElemList;
 
@@ -386,34 +409,26 @@ void DependentNeumannBoundaryFV1<TDomain>::register_all_fv1_funcs() {
 
 template<typename TDomain>
 template<typename TElem, typename TFVGeom>
-void DependentNeumannBoundaryFV1<TDomain>::register_fv1_func() {
+void DependentNeumannBoundaryFV1<TDomain>::register_fv1_func()
+{
 	ReferenceObjectID id = geometry_traits<TElem>::REFERENCE_OBJECT_ID;
 	typedef this_type T;
 
 	this->clear_add_fct(id);
-	this->set_prep_elem_loop_fct(id,
-			&T::template prep_elem_loop<TElem, TFVGeom>);
+	this->set_prep_elem_loop_fct(id, &T::template prep_elem_loop<TElem, TFVGeom>);
 	this->set_prep_elem_fct(id, &T::template prep_elem<TElem, TFVGeom>);
 	this->set_fsh_elem_loop_fct(id, &T::template fsh_elem_loop<TElem, TFVGeom>);
-	this->set_add_jac_A_elem_fct(id,
-			&T::template add_jac_A_elem<TElem, TFVGeom>);
-	this->set_add_jac_M_elem_fct(id,
-			&T::template add_jac_M_elem<TElem, TFVGeom>);
-	this->set_add_def_A_elem_fct(id,
-			&T::template add_def_A_elem<TElem, TFVGeom>);
-	this->set_add_def_M_elem_fct(id,
-			&T::template add_def_M_elem<TElem, TFVGeom>);
+	this->set_add_jac_A_elem_fct(id, &T::template add_jac_A_elem<TElem, TFVGeom>);
+	this->set_add_jac_M_elem_fct(id, &T::template add_jac_M_elem<TElem, TFVGeom>);
+	this->set_add_def_A_elem_fct(id, &T::template add_def_A_elem<TElem, TFVGeom>);
+	this->set_add_def_M_elem_fct(id, &T::template add_def_M_elem<TElem, TFVGeom>);
 	this->set_add_rhs_elem_fct(id, &T::template add_rhs_elem<TElem, TFVGeom>);
 
 	// error estimator parts
-	this->set_prep_err_est_elem_loop(id,
-			&T::template prep_err_est_elem_loop<TElem, TFVGeom>);
-	this->set_prep_err_est_elem(id,
-			&T::template prep_err_est_elem<TElem, TFVGeom>);
-	this->set_compute_err_est_A_elem(id,
-			&T::template compute_err_est_A_elem<TElem, TFVGeom>);
-	this->set_fsh_err_est_elem_loop(id,
-			&T::template fsh_err_est_elem_loop<TElem, TFVGeom>);
+	this->set_prep_err_est_elem_loop(id, &T::template prep_err_est_elem_loop<TElem, TFVGeom>);
+	this->set_prep_err_est_elem(id, &T::template prep_err_est_elem<TElem, TFVGeom>);
+	this->set_compute_err_est_A_elem(id, &T::template compute_err_est_A_elem<TElem, TFVGeom>);
+	this->set_fsh_err_est_elem_loop(id, &T::template fsh_err_est_elem_loop<TElem, TFVGeom>);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
