@@ -1,4 +1,4 @@
-/**
+/*
  * NEURO collection
  *
  * This plugin aims to collect and unify any neuro-related functionality that is
@@ -7,7 +7,7 @@
  *
  *  Created on: 13.06.2014
  *      Author: mbreit
-**/
+ */
 
 #include "bridge/util.h"
 
@@ -31,7 +31,8 @@ namespace neuro_collection{
 /** 
  *  \defgroup plugin_neuro_collection Plugin neuro_collection
  *  \ingroup plugins_experimental
- *  This is a plugin for neuro-related functionality.
+ *  This plugin aims to collect and unify any neuro-related functionality that is
+ *  developed for ug4 and that the author thinks of as usable for others.
  *  \{
  */
 
@@ -48,8 +49,8 @@ struct Functionality
  * are to be placed here when registering. The method is called for all
  * available Domain and Algebra types, based on the current build options.
  *
- * @param reg				registry
- * @param parentGroup		group for sorting of functionality
+ * @param reg		registry
+ * @param grp		group for sorting of functionality
  */
 template <typename TDomain, typename TAlgebra>
 static void DomainAlgebra(Registry& reg, string grp)
@@ -65,8 +66,8 @@ static void DomainAlgebra(Registry& reg, string grp)
  * are to be placed here when registering. The method is called for all
  * available Domain types, based on the current build options.
  *
- * @param reg				registry
- * @param parentGroup		group for sorting of functionality
+ * @param reg		registry
+ * @param grp		group for sorting of functionality
  */
 template <typename TDomain>
 static void Domain(Registry& reg, string grp)
@@ -238,8 +239,8 @@ static void Domain(Registry& reg, string grp)
  * are to be placed here when registering. The method is called for all
  * available Dimension types, based on the current build options.
  *
- * @param reg				registry
- * @param parentGroup		group for sorting of functionality
+ * @param reg		registry
+ * @param grp		group for sorting of functionality
  */
 template <int dim>
 static void Dimension(Registry& reg, string grp)
@@ -255,8 +256,8 @@ static void Dimension(Registry& reg, string grp)
  * are to be placed here when registering. The method is called for all
  * available Algebra types, based on the current build options.
  *
- * @param reg				registry
- * @param parentGroup		group for sorting of functionality
+ * @param reg		registry
+ * @param grp		group for sorting of functionality
  */
 template <typename TAlgebra>
 static void Algebra(Registry& reg, string grp)
@@ -271,8 +272,8 @@ static void Algebra(Registry& reg, string grp)
  * All Functions and Classes not depending on Domain and Algebra
  * are to be placed here when registering.
  *
- * @param reg				registry
- * @param parentGroup		group for sorting of functionality
+ * @param reg		registry
+ * @param grp		group for sorting of functionality
  */
 static void Common(Registry& reg, string grp)
 {

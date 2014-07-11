@@ -28,6 +28,10 @@
 #include "lib_disc/spatial_disc/disc_util/geom_provider.h"
 
 
+
+namespace ug{
+namespace neuro_collection{
+
 /// discretization for a buffering equation
 /**
  * This class implements the IElemDisc interface to provide element local
@@ -46,20 +50,19 @@
  * <li>	\f$ k_u \f$ is the dissociation rate for the buffering reaction.
  * </ul>
  *
- * NOTE: This discretization must always be used in conjunction with another
- * time-dependent process such as diffusion which carries out the discretization
- * of the time derivative. NO MASS ASSEMBLINGS ARE PERFORMED IN THIS DISCRETIZATION.
- * This has the advantage that the discretization can simply be added to a domain
- * disc already containing a diffusion disc e.g.
  * \tparam	TDomain		Domain
+ *
+ * \note This discretization must always be used in conjunction with another
+ * 		 time-dependent process such as diffusion which carries out the discretization
+ * 		 of the time derivative. NO MASS ASSEMBLINGS ARE PERFORMED IN THIS DISCRETIZATION.
+ * 		 This has the advantage that the discretization can simply be added to a domain
+ * 		 disc already containing a diffusion disc e.g.
+ *
+ * \date 07.11.2012
+ * \author mbreit
+ *
  */
 
-
-
-namespace ug
-{
-namespace neuro_collection
-{
 
 /// struct that holds information about the unknowns involved in a reaction
 /// as well as the kinetics constants for their reaction
@@ -208,15 +211,15 @@ class BufferFV1
 
 		struct RegisterFV1
 		{
-				RegisterFV1(this_type* pThis) : m_pThis(pThis) {};
-				this_type* m_pThis;
-				template<typename TElem > void operator()(TElem&)
-				{
-					if (m_pThis->m_bNonRegularGrid)
-						m_pThis->register_fv1_func<TElem, HFV1Geometry<TElem, dim> >();
-					else
-						m_pThis->register_fv1_func<TElem, FV1Geometry<TElem, dim> >();
-				}
+			RegisterFV1(this_type* pThis) : m_pThis(pThis) {};
+			this_type* m_pThis;
+			template<typename TElem > void operator()(TElem&)
+			{
+				if (m_pThis->m_bNonRegularGrid)
+					m_pThis->register_fv1_func<TElem, HFV1Geometry<TElem, dim> >();
+				else
+					m_pThis->register_fv1_func<TElem, FV1Geometry<TElem, dim> >();
+			}
 		};
 
 		template <typename TElem, typename TFVGeom> void register_fv1_func();

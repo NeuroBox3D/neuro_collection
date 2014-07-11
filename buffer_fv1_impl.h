@@ -197,6 +197,7 @@ add_def_A_elem(LocalVector& d, const LocalVector& u, GridObject* elem, const Mat
 					  "Data import for buffering reaction has no data.");
 			number def =   r.k_bind[ip] * u(r.buffer, co) * u(r.buffered, co)
 						 - r.k_unbind[ip] * (r.tot_buffer[ip] - u(r.buffer, co));
+
 			// scale with scv volume and add to defect
 			d(r.buffer, co) +=	def * scv.volume();
 			d(r.buffered, co) += def * scv.volume();
