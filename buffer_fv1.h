@@ -32,14 +32,39 @@
 namespace ug{
 namespace neuro_collection{
 
-/// discretization for a buffering equation
+
+/// Struct that holds information about the unknowns involved in a reaction
+/// as well as the kinetics constants for their reaction.
+template<int dim> struct ReactionInfo
+{
+	ReactionInfo(std::size_t _b, std::size_t _bd,
+				 SmartPtr<CplUserData<number, dim> > _tb,
+			     SmartPtr<CplUserData<number, dim> > _kb,
+			     SmartPtr<CplUserData<number, dim> > _ku)
+		: buffer(_b), buffered(_bd)
+	{
+		tot_buffer.set_data(_tb);
+		k_bind.set_data(_kb);
+		k_unbind.set_data(_ku);
+	};
+
+	std::size_t buffer;		// index of buffer
+	std::size_t buffered;	// index of buffered agent
+	DataImport<number, dim> tot_buffer; // data import for total buffer concentration
+	DataImport<number, dim> k_bind;		// binding constant
+	DataImport<number, dim> k_unbind;	// unbinding constant
+};
+
+/// Discretization for a buffering equation.
 /**
  * This class implements the IElemDisc interface to provide element local
  * assemblings for a buffering process involving one buffer and one "buffee".
  * The equations have the form
  * \f[
- * 	\partial_t c + k_b \cdot c \cdot  b - k_u \cdot \left( b_{tot} - b \right) = 0
- * 	\partial_t b + k_b \cdot c \cdot  b - k_u \cdot \left( b_{tot} - b \right) = 0
+ * 		\partial_t c + k_b \cdot c \cdot  b - k_u \cdot \left( b_{tot} - b \right) = 0
+ * \f]
+ * \f[
+ * 		\partial_t b + k_b \cdot c \cdot  b - k_u \cdot \left( b_{tot} - b \right) = 0
  * \f]
  * where
  * <ul>
@@ -62,30 +87,6 @@ namespace neuro_collection{
  * \author mbreit
  *
  */
-
-
-/// struct that holds information about the unknowns involved in a reaction
-/// as well as the kinetics constants for their reaction
-template<int dim> struct ReactionInfo
-{
-	ReactionInfo(std::size_t _b, std::size_t _bd,
-				 SmartPtr<CplUserData<number, dim> > _tb,
-			     SmartPtr<CplUserData<number, dim> > _kb,
-			     SmartPtr<CplUserData<number, dim> > _ku)
-		: buffer(_b), buffered(_bd)
-	{
-		tot_buffer.set_data(_tb);
-		k_bind.set_data(_kb);
-		k_unbind.set_data(_ku);
-	};
-
-	std::size_t buffer;		// index of buffer
-	std::size_t buffered;	// index of buffered agent
-	DataImport<number, dim> tot_buffer; // data import for total buffer concentration
-	DataImport<number, dim> k_bind;		// binding constant
-	DataImport<number, dim> k_unbind;	// unbinding constant
-};
-
 
 template<typename TDomain>
 class BufferFV1
