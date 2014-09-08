@@ -339,8 +339,7 @@ void DependentNeumannBoundaryFV1<TDomain>::compute_err_est_A_elem
 	// global IPs
 	ReferenceObjectID roid = elem->reference_object_id();
 	std::size_t numSideIPs = err_est_data->get(0)->num_side_ips(roid);
-	std::vector<MathVector<dim> > globIPs = std::vector<MathVector<dim> >(numSideIPs);
-	err_est_data->get(0)->side_global_ips(&globIPs[0], elem, vCornerCoords);
+	MathVector<dim>* globIPs = err_est_data->get(0)->side_global_ips(elem, vCornerCoords);
 
 	// loop IPs
 	try
