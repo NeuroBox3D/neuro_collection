@@ -112,14 +112,14 @@ class DependentNeumannBoundaryFV1
 	 *	depending on the unknowns on the boundary;
 	 *	shall be defined in a specialized class that is derived from FV1MyNeumannBoundaryElemDisc.
 	 */
-		virtual bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& cc,
+		virtual bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& cc,
 									int si, NFluxCond& fc) = 0;
 
 	/**	This is the flux derivative function defining the flux density derivatives over the boundary
 	 *	depending on the unknowns on the boundary;
 	 *	shall be defined in a specialized class that is derived from FV1MyNeumannBoundaryElemDisc.
 	 */
-		virtual bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& cc,
+		virtual bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& cc,
 										 int si, NFluxDerivCond& fdc) = 0;
 	
 	///	prepares the loop over all elements

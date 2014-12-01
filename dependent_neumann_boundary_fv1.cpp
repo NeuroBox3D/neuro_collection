@@ -17,12 +17,12 @@ void DependentNeumannBoundaryFV1<TDomain>::prepare_setting(const std::vector<LFE
 {
 	// check number
 	if (vLfeID.size() != this->num_fct())
-		UG_THROW("FV1MyNeumannBoundaryElemDisc: needs exactly ? functions.");
+		UG_THROW("DependentNeumannBoundaryFV1: needs exactly " << this->num_fct() << " functions.");
 
 	// check that Lagrange 1st order
 	for (std::size_t i = 0; i < vLfeID.size(); ++i)
 		if (vLfeID[i] != LFEID(LFEID::LAGRANGE, dim, 1))
-			UG_THROW("FV1MyNeumannBoundaryElemDisc: Only first order implemented.");
+			UG_THROW("DependentNeumannBoundaryFV1: Only first order implemented.");
 
 	// remember
 	m_bNonRegularGrid = bNonRegularGrid;
@@ -123,7 +123,7 @@ void DependentNeumannBoundaryFV1<TDomain>::add_def_A_elem
 
 		// get flux densities in that node
 		NFluxCond fc;
-		if (!fluxDensityFct(uAtCorner, cc, si, fc))
+		if (!fluxDensityFct(uAtCorner, elem, cc, si, fc))
 			UG_THROW("Call to fluxDensityFct did not succeed.");
 
 		// scale with volume of BF
@@ -184,7 +184,7 @@ void DependentNeumannBoundaryFV1<TDomain>::add_jac_A_elem
 		m_currVertex = m_vVertices[co];
 
 		NFluxDerivCond fdc;
-		if (!fluxDensityDerivFct(uAtCorner, cc, si, fdc))
+		if (!fluxDensityDerivFct(uAtCorner, elem, cc, si, fdc))
 			UG_THROW("Call to fluxDensityDerivFct did not succeed.");
 
 		// scale with volume of BF
@@ -365,7 +365,7 @@ void DependentNeumannBoundaryFV1<TDomain>::compute_err_est_A_elem
 			int si = this->subset_handler().get_subset_index(elem);
 
 			NFluxCond fc;
-			if (!fluxDensityFct(uAtIP, ipCoords, si, fc))
+			if (!fluxDensityFct(uAtIP, elem, ipCoords, si, fc))
 			{
 				UG_THROW("DependentNeumannBoundaryFV1::compute_err_est_A_elem:"
 						" Call to fluxDensityFct did not succeed.");

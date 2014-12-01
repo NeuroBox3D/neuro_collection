@@ -26,8 +26,8 @@ namespace neuro_collection
 
 /// Class interface for Borg Graham type VGCCs of the plasma membrane.
 /** This class is an interface the Borg-Graham-type voltage-gated calcium channels
- *	in the plasma membrane (see chapter 8 of ��Interpretations of data and mechanisms
- *	for hippocampal pyramidal cell models��, Borg-Graham (1998) in Cerebral Cortex,
+ *	in the plasma membrane (see chapter 8 of "Interpretations of data and mechanisms
+ *	for hippocampal pyramidal cell models", Borg-Graham (1998) in Cerebral Cortex,
  *	Vol. 13: Models of Cortical Circuits.
  *
  *	The unknowns of the discretization (the so-called "particles" of the channel) are
@@ -43,10 +43,11 @@ namespace neuro_collection
  *	This class does not handle the procuration of the values for the membrane
  *	potential. This must be dealt with in a specialization of this class.
  *
- *	Any class specializing this interface must implement the virtual methods:
- *	- void init(number time);
- *	- void update_gating(number newTime);
- *	- number ionic_current(Vertex* v);
+ *	Any class specializing this interface _must_ implement the virtual method:
+ *	- void update_potential(number newTime);
+ *	they _can_ reimplement the virtual method
+ *	- void init(number time).
+ *
  *
  *	The units required for this discretization are:
  * 		V_m	: mV		membrane voltage
@@ -70,8 +71,11 @@ class OneSidedBorgGrahamFV1 : public OneSidedMembraneTransportFV1<TDomain>
 		const number RHO_BG;			//!< default channel density in the membrane
 
 	private:
+		typedef OneSidedBorgGrahamFV1<TDomain> this_type;
 		typedef typename DependentNeumannBoundaryFV1<TDomain>::NFluxCond NFluxCond;
 		typedef typename DependentNeumannBoundaryFV1<TDomain>::NFluxDerivCond NFluxDerivCond;
+		typedef typename GeomObjBaseTypeByDim<dim>::base_obj_type elem_t;
+		typedef typename elem_t::side side_t;
 
 	private:
 		/// holds the paramters of a channel type
@@ -85,11 +89,7 @@ class OneSidedBorgGrahamFV1 : public OneSidedMembraneTransportFV1<TDomain>
 
 	public:
 		/// constructor
-		OneSidedBorgGrahamFV1(const char* functions, const char* subsets, ApproximationSpace<TDomain>& approx)
-			: OneSidedMembraneTransportFV1<TDomain>(functions, subsets), RHO_BG(5.0),
-			  m_dom(approx.domain()), m_mg(approx.domain()->grid()), m_dd(approx.dof_distribution(GridLevel::TOP)),
-			  m_gpMGate(3.4, -21.0, 1.5), m_gpHGate(-2.0, -40.0, 75.0), m_time(0.0), m_lambda(2.0e-11),
-			  m_mp(2), m_hp(1), m_channelType(BG_Ntype), m_initiated(false) {};
+		OneSidedBorgGrahamFV1(const char* functions, const char* subsets, ApproximationSpace<TDomain>& approx);
 
 		/// destructor
 		virtual	~OneSidedBorgGrahamFV1() {};
@@ -101,17 +101,37 @@ class OneSidedBorgGrahamFV1 : public OneSidedMembraneTransportFV1<TDomain>
 		/** During the initialization, the necessary attachments are attached to the vertices
 		 *	and their values calculated by the equilibrium state for the start membrane potential.
 		**/
-		virtual void init(number time) = 0;
+		virtual void init(number time);
+
+		/// updates the potential values in the corresponding attachments to new time.
+		/**
+		 * This method needs to be called before update_gating() if potential is non-constant.
+		 * @param newTime new point in time
+		 */
+		virtual void update_potential(side_t* elem) = 0;
 
 		/// updates the gating parameters
-		virtual void update_gating(number newTime) = 0;
+		/**
+		 * This method needs to be called before ionic_current().
+		 * @param newTime new point in time
+		 */
+		void update_gating(side_t* elem);
 
 		/// provides the ionic current (mol*s^-1) at a given vertex
-		virtual number ionic_current(Vertex* v) = 0;
+		number ionic_current(side_t* e);
+
+		/// updates internal time if necessary
+		virtual void update_time(number newTime) {m_oldTime = m_time; m_time = newTime;};
+
+		// inherited from IElemDisc
+		virtual void prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid);
+
+		template<typename TElem>
+		void prep_timestep_elem(const number time, const LocalVector& u, GridObject* elem, const MathVector<dim> vCornerCoords[]);
 
 		// inherited from FV1MyNeumannBoundaryElemDisc
-		virtual bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, NFluxCond& fc);
-		virtual bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, NFluxDerivCond& fdc);
+		virtual bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, NFluxCond& fc);
+		virtual bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, NFluxDerivCond& fdc);
 
 	protected:
 		/// calculates the equilibrium state of a gating "particle"
@@ -129,28 +149,60 @@ class OneSidedBorgGrahamFV1 : public OneSidedMembraneTransportFV1<TDomain>
 
 
 	protected:
+		/// whether this channel disposes of an inactivating gate
+		bool has_hGate() {return this->m_channelType == OneSidedBorgGrahamFV1<TDomain>::BG_Ntype
+								|| this->m_channelType == OneSidedBorgGrahamFV1<TDomain>::BG_Ttype;}
+
+	protected:
 		SmartPtr<TDomain> m_dom;					//!< underlying domain
 		SmartPtr<Grid> m_mg;						//!< underlying multigrid
 		SmartPtr<DoFDistribution> m_dd;				//!< underlying surface dof distribution
+		ConstSmartPtr<MGSubsetHandler> m_sh;		//!< underlying subset handler
+		typename TDomain::position_accessor_type& m_aaPos;	//!< underlying position accessor
 
 		ADouble m_MGate;							//!< activating gating "particle"
 		ADouble m_HGate;							//!< inactivating gating "particle"
 		ADouble m_Vm;								//!< membrane voltage (in Volt)
 
-		Grid::AttachmentAccessor<Vertex, ADouble> m_aaMGate;	//!< accessor for activating gate
-		Grid::AttachmentAccessor<Vertex, ADouble> m_aaHGate;	//!< accessor for inactivating gate
-		Grid::AttachmentAccessor<Vertex, ADouble> m_aaVm;		//!< accessor for membrane potential
+		Grid::AttachmentAccessor<side_t, ADouble> m_aaMGate;	//!< accessor for activating gate
+		Grid::AttachmentAccessor<side_t, ADouble> m_aaHGate;	//!< accessor for inactivating gate
+		Grid::AttachmentAccessor<side_t, ADouble> m_aaVm;		//!< accessor for membrane potential
 
 		GatingParams m_gpMGate;						//!< gating parameter set for activating gate
 		GatingParams m_gpHGate;						//!< gating parameter set for inactivating gate
 
 		number m_time;								//!< current time
+		number m_oldTime;							//!< time step before current time
+
 		number m_lambda;							//!< channel conductivity (C/(V*s))
 		int m_mp, m_hp;								//!< powers for gating parameters
 
 		int m_channelType;							//!< channel type
 
 		bool m_initiated;							//!< indicates whether channel has been initialized by init()
+
+	private:
+		struct RegisterFV1
+		{
+				RegisterFV1(this_type* pThis) : m_pThis(pThis){}
+				this_type* m_pThis;
+				template< typename TElem > void operator()(TElem&)
+				{
+					if (m_pThis->m_bNonRegularGrid)
+						m_pThis->register_fv1_func<TElem, HFV1ManifoldGeometry<TElem, dim> >();
+					else
+						m_pThis->register_fv1_func<TElem, FV1ManifoldGeometry<TElem, dim> >();
+
+				}
+		};
+
+		void register_all_fv1_funcs();
+
+		template <typename TElem, typename TFVGeom>
+		void register_fv1_func();
+
+	private:
+		bool m_bNonRegularGrid;
 };
 
 
@@ -167,6 +219,9 @@ class OneSidedBorgGrahamFV1WithVM2UG : public OneSidedBorgGrahamFV1<TDomain>
 		using OneSidedBorgGrahamFV1<TDomain>::R;		//!< universal gas constant
 		using OneSidedBorgGrahamFV1<TDomain>::T;		//!< temperature (310K)
 		using OneSidedBorgGrahamFV1<TDomain>::F;		//!< Faraday constant
+		using OneSidedBorgGrahamFV1<TDomain>::has_hGate;//!< Faraday constant
+		typedef typename GeomObjBaseTypeByDim<TDomain::dim>::base_obj_type elem_t;
+		typedef typename elem_t::side side_t;
 
 	public:
 		typedef Vm2uG<std::string> vmProvType;
@@ -181,28 +236,35 @@ class OneSidedBorgGrahamFV1WithVM2UG : public OneSidedBorgGrahamFV1<TDomain>
 							const std::string ext = ".dat",
 							const bool posCanChange = false)
 			: OneSidedBorgGrahamFV1<TDomain>(functions, subsets, approx),
-			  m_vmProvider(baseName, ext, !posCanChange), m_tFmt(timeFmt), m_vmTime(0.0) {};
+			  m_vmProvider(baseName, ext, !posCanChange), m_tFmt(timeFmt),
+			  m_fileInterval(0.0), m_fileOffset(0.0) {};
 
 		/// destructor
 		virtual ~OneSidedBorgGrahamFV1WithVM2UG() {};
 
 		// inherited from BorgGraham
 		virtual void init(number time);
-		virtual void update_gating(number newTime);
-		virtual number ionic_current(Vertex* v);
 
 		// update membrane potential
-		void update_potential(number newTime);
+		virtual void update_potential(side_t* elem);
 
-	private:
-		/// whether this channel disposes of an inactivating gate
-		bool has_hGate() {return this->m_channelType == OneSidedBorgGrahamFV1<TDomain>::BG_Ntype
-								|| this->m_channelType == OneSidedBorgGrahamFV1<TDomain>::BG_Ttype;}
+		// update internal time if necessary
+		virtual void update_time(number newTime);
+
+		// set times for which files with potential values are available
+		void set_file_times(const number fileInterval, const number fileOffset = 0.0)
+		{
+			m_fileInterval = fileInterval;
+			m_fileOffset = fileOffset;
+		}
 
 	private:
 		vmProvType m_vmProvider;		//!< the Vm2uG object
 		std::string m_tFmt;				//!< time format for the membrane potential files
-		number m_vmTime;
+		number m_fileInterval;			//!< intervals in which voltage files are available
+		number m_fileOffset;				//!< offset of time intervals for which voltage files are available
+
+		std::string m_timeAsString;
 };
 
 #ifdef MPMNEURON
@@ -221,6 +283,9 @@ private:
 		using OneSidedBorgGrahamFV1<TDomain>::R;		//!< universal gas constant
 		using OneSidedBorgGrahamFV1<TDomain>::T;		//!< temperature (310K)
 		using OneSidedBorgGrahamFV1<TDomain>::F;		//!< Faraday constant
+
+		typedef typename GeomObjBaseTypeByDim<TDomain::dim>::base_obj_type elem_t;
+		typedef typename elem_t::side side_t;
 
 	public:
 		typedef Vm2uG<std::string> vmProvType;
@@ -243,11 +308,12 @@ private:
 
 		// inherited from BorgGraham
 		virtual void init(number time);
-		virtual void update_gating(number newTime);
-		virtual number ionic_current(Vertex* v);
+
+		// update internal time if necessary
+		virtual void update_time(number newTime);
 
 		// update membrane potential
-		void update_potential(number newTime);
+		virtual void update_potential(side_t* elem);
 
 	private:
 		/// whether this channel disposes of an inactivating gate
@@ -260,6 +326,51 @@ private:
 		number m_vmTime;
 };
 #endif
+
+
+
+/// Borg Graham type VGCCs with UserData membrane potential supply.
+/** This class is a specialization of the Borg-Graham interface.
+ *	It supplies the channel with the necessary membrane potential values by a UserData object,
+ *	i.e. constant UserData or UserData provided by a lua function.
+**/
+template<typename TDomain>
+class OneSidedBorgGrahamFV1WithUserData : public OneSidedBorgGrahamFV1<TDomain>
+{
+	protected:
+		using OneSidedBorgGrahamFV1<TDomain>::R;		//!< universal gas constant
+		using OneSidedBorgGrahamFV1<TDomain>::T;		//!< temperature (310K)
+		using OneSidedBorgGrahamFV1<TDomain>::F;		//!< Faraday constant
+		using OneSidedBorgGrahamFV1<TDomain>::has_hGate;//!< Faraday constant
+		typedef typename GeomObjBaseTypeByDim<TDomain::dim>::base_obj_type elem_t;
+		typedef typename elem_t::side side_t;
+
+		///	world dimension
+		using OneSidedBorgGrahamFV1<TDomain>::dim;	//!< world dimension
+
+	public:
+		/// constructor
+		OneSidedBorgGrahamFV1WithUserData(const char* functions,
+							const char* subsets,
+							ApproximationSpace<TDomain>& approx)
+			: OneSidedBorgGrahamFV1<TDomain>(functions, subsets, approx), m_bIsConstData(false) {};
+
+		/// destructor
+		virtual ~OneSidedBorgGrahamFV1WithUserData() {};
+
+		/// adding potential information for pumps/channels in membrane
+		void set_potential_function(const char* name);
+		void set_potential_function(const number value);
+		void set_potential_function(SmartPtr<CplUserData<number, dim> > spPotFct);
+
+		// update membrane potential
+		virtual void update_potential(side_t* elem);
+
+	private:
+		SmartPtr<CplUserData<number,dim> > m_spPotential;		//!< the UserData for potential
+		bool m_bIsConstData;
+};
+
 
 } // namespace neuro_collection
 } // namespace ug

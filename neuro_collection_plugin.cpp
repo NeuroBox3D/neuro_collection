@@ -165,9 +165,12 @@ static void Domain(Registry& reg, string grp)
 						"", "", "set the channel type to L")
 			.add_method("set_channel_type_T", &TBG0::template set_channel_type<TBG0::BG_Ttype>,
 						"", "", "set the channel type to T")
-			.add_method("init", &TBG0::init, "", "time", "initialize the Borg-Graham object")
-			.add_method("update_gating", &TBG0::update_gating, "", "time",
-						"update gating \"particles\" to new time");
+			.add_method("init", &TBG0::init, "", "time", "initialize the Borg-Graham object");
+			//.add_method("update_gating", &TBG0::update_gating, "", "time",
+			//			"update gating \"particles\" to new time")
+			//.add_method("update_potential", &TBG0::update_potential, "", "time",
+			//			"update membrane potential to new time");
+
 		reg.add_class_to_group(name, "OneSidedBorgGrahamFV1", tag);
 
 		typedef OneSidedBorgGrahamFV1WithVM2UG<TDomain> TBG1;
@@ -175,8 +178,8 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_<TBG1, TBG0 >(name, grp)
 			.template add_constructor<void (*)(const char*, const char*, ApproximationSpace<TDomain>&,
 											   const std::string, const char*, const std::string, const bool)>
-				("function(s)#subset(s)#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#vertexOrderOrPositionCanChange")
-			.add_method("update_potential", &TBG1::update_potential, "", "time", "update membrane potential to new time")
+				("function(s)#subset(s)#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#fileInterval#fileOffset#vertexOrderOrPositionCanChange")
+			.add_method("set_file_times", &TBG1::set_file_times, "", "file interval#file offset (first file)", "set times for which files with potential values are available")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "OneSidedBorgGrahamFV1WithVM2UG", tag);
 
@@ -188,10 +191,23 @@ static void Domain(Registry& reg, string grp)
 			.template add_constructor<void (*)(const char*, const char*, ApproximationSpace<TDomain>&, SmartPtr<Transformator>,
 											   const std::string, const char*, const std::string, const bool)>
 				("function(s)#subset(s)#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#vertexOrderOrPositionCanChange")
-			.add_method("update_potential", &TBG2::update_potential, "", "time", "update membrane potential to new time")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "OneSidedBorgGrahamFV1WithVM2UGNEURON", tag);
 		#endif
+
+		typedef OneSidedBorgGrahamFV1WithUserData<TDomain> TBG2;
+		name = string("OneSidedBorgGrahamFV1WithUserData").append(suffix);
+		reg.add_class_<TBG2, TBG0 >(name, grp)
+			.template add_constructor<void (*)(const char*, const char*, ApproximationSpace<TDomain>&)>
+				("function(s)#subset(s)#approxSpace")
+			.add_method("set_potential_function", static_cast<void (TBG2::*) (const char*)> (&TBG2::set_potential_function),
+				"", "", "add a potential function")
+			.add_method("set_potential_function", static_cast<void (TBG2::*) (const number)> (&TBG2::set_potential_function),
+				"", "", "add a potential function")
+			.add_method("set_potential_function", static_cast<void (TBG2::*) (SmartPtr<CplUserData<number, dim> >)> (&TBG2::set_potential_function),
+				"", "", "add a potential function")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "OneSidedBorgGrahamFV1WithUserData", tag);
 	}
 
 

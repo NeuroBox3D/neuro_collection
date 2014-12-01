@@ -35,7 +35,6 @@ class OneSidedMembraneTransportFV1
 		const number T;		// temperature
 		const number F;		// Faraday constant
 
-
 	///	world dimension
 		static const int dim = DependentNeumannBoundaryFV1<TDomain>::dim;
 
@@ -109,7 +108,7 @@ class OneSidedPMCAFV1
 
 	private:
 		// virtual functions inherited from FV1MyNeumannBoundaryElemDisc
-		bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, NFluxCond& fc)
+		bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, NFluxCond& fc)
 		{
 			if (u.size() < 1)
 			{
@@ -140,7 +139,7 @@ class OneSidedPMCAFV1
 			return true;
 		}
 
-		bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, NFluxDerivCond& fdc)
+		bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, NFluxDerivCond& fdc)
 		{
 			// get values of the unknowns in associated node
 			number caCyt = u[0];
@@ -202,7 +201,7 @@ class OneSidedNCXFV1
 
 	private:
 		// virtual functions inherited from FV1MyNeumannBoundaryElemDisc
-		bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, NFluxCond& fc)
+		bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, NFluxCond& fc)
 		{
 			if (u.size() < 1)
 			{
@@ -233,7 +232,7 @@ class OneSidedNCXFV1
 			return true;
 		}
 
-		bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, NFluxDerivCond& fdc)
+		bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, NFluxDerivCond& fdc)
 		{
 			// get values of the unknowns in associated node
 			number caCyt = u[0];
@@ -292,7 +291,7 @@ class OneSidedPMCalciumLeakFV1
 
 	private:
 		// virtual functions inherited from FV1MyNeumannBoundaryElemDisc
-		bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, NFluxCond& fc)
+		bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, NFluxCond& fc)
 		{
 			// cheating a little here: utilizing density for leakage flux "density" constant,
 			// since the leakage flux is not really caused by a density, but depends of course
@@ -313,7 +312,7 @@ class OneSidedPMCalciumLeakFV1
 			return true;
 		}
 
-		bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, NFluxDerivCond& fdc)
+		bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, NFluxDerivCond& fdc)
 		{
 			// add to Jacobian
 			fdc.fluxDeriv.resize(1);
