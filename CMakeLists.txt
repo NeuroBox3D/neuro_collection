@@ -17,53 +17,45 @@ set(SOURCES    neuro_collection_plugin.cpp
    )
 
 
-
+message(STATUS "")
+message(STATUS "Info: Additional options for the neuro_collection (-DNC for setting options) plugin:")
 ## ANN (requirement for vm2ug) ###############################################
 
 # get the path to annlib and set annlib include path and linker options
-option(ANN "Sets the path in which ann shall be searched." OFF)
-
-if(ANN)
-    # the user can suply a ANN for his own compiled ANN   
-    set(INTERNAL_ANN_PATH "${ANN}")
-    message(STATUS "Info: ANN is ON, using user provided path ${ANN}")
-else(ANN)
-    UGInstall("ANN" INTERNAL_ANN_PATH)   	 
-    message(STATUS "Info: ANN is ON, using uginstall provided path ${INTERNAL_ANN_PATH}")    
-endif(ANN)
-
-
-# find includes
-FIND_PATH(ANN_INCLUDE_DIR ANN/ANN.h PATHS ${INTERNAL_ANN_PATH}/include)
-IF (ANN_INCLUDE_DIR STREQUAL "ANN_INCLUDE_DIR-NOTFOUND")
-	MESSAGE(FATAL_ERROR "ERROR: Could not find ANN header file ANN.h in ${INTERNAL_ANN_PATH}/include.")
-ELSE (ANN_INCLUDE_DIR STREQUAL "ANN_INCLUDE_DIR-NOTFOUND")
-	MESSAGE(STATUS "Info: ANN include:   ${ANN_INCLUDE_DIR}/ANN/ANN.h")
-ENDIF (ANN_INCLUDE_DIR STREQUAL "ANN_INCLUDE_DIR-NOTFOUND")
-
-# find libraries
-SET(ANN_NAMES ${ANN_NAMES} ANN)
-FIND_LIBRARY(ANN_LIBRARY NAMES ${ANN_NAMES} PATHS ${INTERNAL_ANN_PATH}/lib)
-IF (ANN_LIBRARY STREQUAL "ANN_LIBRARY-NOTFOUND")
-	MESSAGE(FATAL_ERROR "ERROR: Could not find ANN libraries.")
-ELSE (ANN_LIBRARY STREQUAL "ANN_LIBRARY-NOTFOUND")
-	MESSAGE(STATUS "Info: ANN library:   ${ANN_LIBRARY}")
-ENDIF (ANN_LIBRARY STREQUAL "ANN_LIBRARY-NOTFOUND")
-
-IF (ANN_LIBRARY AND ANN_INCLUDE_DIR)
-	SET(ANN_LIBRARIES ${ANN_LIBRARY})
-	SET(ANN_FOUND "YES")
-ELSE (ANN_LIBRARY AND ANN_INCLUDE_DIR)
-	SET(ANN_FOUND "NO")
-ENDIF (ANN_LIBRARY AND ANN_INCLUDE_DIR)
-
-IF (ANN_FOUND)
-	include_directories(${ANN_INCLUDE_DIR})
-	set(linkLibraries ${linkLibraries} ${ANN_LIBRARY})
-endif(ANN_FOUND)
 
 ##############################################################################
 
+# get the path to annlib and set annlib include path
+option(ANNLIB "Sets the path in which annlib shall be searched." OFF)
+
+if(NOT ANNLIB)
+	message(FATAL_ERROR "ERROR: libann is required. Please set the option -DANNLIB=path_to_libann.")
+endif(NOT ANNLIB)
+
+# add include directoris for ANNLIB
+find_library(ANNLIB_LIBS NAMES ANN PATHS ${ANNLIB}/lib)
+include_directories(${ANNLIB}/include)
+
+if(${ANNLIB_LIBS} STREQUAL "ANNLIB_LIBS-NOTFOUND")
+	message(FATAL_ERROR "ERROR: Couldn't find ANNLIB in the sporecified path: " ${ANNLIB}/lib)
+else(${ANNLIB_LIBS} STREQUAL "ANNLIB_LIBS-NOTFOUND")
+	include_directories(${ANNLIB}/include)		
+	message(STATUS "ANN Library API is on (by -ANNLIB=${ANNLIB}).")
+endif(${ANNLIB_LIBS} STREQUAL "ANNLIB_LIBS-NOTFOUND")
+
+######################
+# NEURON interpreter #
+######################
+option(NCNEURON "Activates the NEURON interpreter." OFF)
+if (NOT NCNEURON)
+    message(STATUS "NEURON interpreter is deactivated. One can activate it with -DNCNEURON=ON.")
+else(NOT NCNEURON)
+    message(STATUS "NEURON interpreter is activated.")
+    add_definitions(-DMPMNEURON)
+    ExportDefinitions(-DMPMNEURON)
+endif(NOT NCNEURON)
+
+message(STATUS "")
 
 ################################################################################
 # The code below doesn't have to be changed (usually)
@@ -78,8 +70,8 @@ include("../../../cmake/ug_plugin_includes.cmake")
 if(buildEmbeddedPlugins)
 	# add the sources to ug4's sources
 	EXPORTSOURCES(${pluginPath} ${SOURCES})
-	exportDependencies(${ANN_LIBRARY})
-	exportIncludes(${ANN_INCLUDE_DIR})
+	exportDependencies(${ANNLIB_LIBS})
+	exportIncludes(${ANNLIB}/include)
 else(buildEmbeddedPlugins)
 	# create a shared library from the sources and link it against ug4.
 	add_library(${pluginName} SHARED ${SOURCES})

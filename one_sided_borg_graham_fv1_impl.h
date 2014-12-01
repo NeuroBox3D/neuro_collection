@@ -322,6 +322,169 @@ number OneSidedBorgGrahamFV1WithVM2UG<TDomain>::ionic_current(Vertex* v)
 }
 
 
+///////////////////////////////////////////////////////////
+///////////   BorgGrahamWithNEURON   ///////////////////////
+///////////////////////////////////////////////////////////
+#ifdef MPMNEURON
+template<typename TDomain>
+void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::init(number time)
+{
+	// attach attachments
+	if (this->m_mg->has_vertex_attachment(this->m_MGate))
+		UG_THROW("Attachment necessary for Borg-Graham channel dynamics "
+				 "could not be made, since it already exists.");
+	this->m_mg->attach_to_vertices(this->m_MGate);
+
+	if (has_hGate())
+	{
+		if (this->m_mg->has_vertex_attachment(this->m_HGate))
+			UG_THROW("Attachment necessary for Borg-Graham channel dynamics "
+					 "could not be made, since it already exists.");
+		this->m_mg->attach_to_vertices(this->m_HGate);
+	}
+
+	if (this->m_mg->has_vertex_attachment(this->m_Vm))
+		UG_THROW("Attachment necessary for Borg-Graham channel dynamics "
+				 "could not be made, since it already exists.");
+	this->m_mg->attach_to_vertices(this->m_Vm);
+
+
+	// create attachment accessors
+	this->m_aaMGate = Grid::AttachmentAccessor<Vertex, ADouble>(*this->m_mg, this->m_MGate);
+	if (has_hGate()) this->m_aaHGate = Grid::AttachmentAccessor<Vertex, ADouble>(*this->m_mg, this->m_HGate);
+	this->m_aaVm = Grid::AttachmentAccessor<Vertex, ADouble>(*this->m_mg, this->m_Vm);
+
+	try {
+		// this can be improved todo
+		m_NrnInterpreter.get()->setup_hoc(time, 10000, 0.001, -75);
+	}
+	UG_CATCH_THROW("Either underlying NEURON interpreter not available or not constructable or vm2ug tree could not be built.");
+
+	typedef typename DoFDistribution::traits<Vertex>::const_iterator itType;
+	SubsetGroup ssGrp;
+	try { ssGrp = SubsetGroup(this->m_dom->subset_handler(), this->m_vSubset);}
+	UG_CATCH_THROW("Subset group creation failed.");
+
+	const typename TDomain::position_accessor_type& aaPos = this->m_dom->position_accessor();
+	for (std::size_t si = 0; si < ssGrp.size(); si++)
+	{
+		itType iterBegin = this->m_dd->template begin<Vertex>(ssGrp[si]);
+		itType iterEnd = this->m_dd->template end<Vertex>(ssGrp[si]);
+
+		for (itType iter = iterBegin; iter != iterEnd; ++iter)
+		{
+			// retrieve membrane potential via vm2ug
+			number vm;
+			try
+			{
+				const typename TDomain::position_type& coords = aaPos[*iter];
+				vm = m_vmProvider.get_potential(coords[0], coords[1], coords[2]);
+			}
+			UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
+
+			this->m_aaMGate[*iter] = this->calc_gating_start(this->m_gpMGate, vm);
+			if (has_hGate()) this->m_aaHGate[*iter] = this->calc_gating_start(this->m_gpHGate, vm);
+			this->m_aaVm[*iter] = 0.001 * vm; // what is this? 0.001 -> should this not be dt todo
+		}
+	}
+
+	this->m_time = time;
+	this->m_initiated = true;
+}
+
+
+template<typename TDomain>
+void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::update_potential(number newTime)
+{
+	// only work if really necessary
+	if (newTime == this->m_vmTime) return;
+
+	if (!m_vmProvider.treeBuild())
+	UG_THROW("Underlying Vm2uG object's tree is not yet built.\n"
+		  << "Do not forget to initialize the Borg-Graham object first by calling init(initTime).");
+
+	// set new timestep file in vm2ug object (not strictly necessary)
+	const std::string ts = this->timeAsString;
+	// todo advance by predefined dt in init method of OneSidedBorgGrahamFV1WithVM2UG above... (see above)
+	m_NrnInterpreter.get()->fadvance();
+
+	typedef typename DoFDistribution::traits<Vertex>::const_iterator itType;
+	SubsetGroup ssGrp;
+	try { ssGrp = SubsetGroup(this->m_dom->subset_handler(), this->m_vSubset);}
+	UG_CATCH_THROW("Subset group creation failed.");
+
+	const typename TDomain::position_accessor_type& aaPos = this->m_dom->position_accessor();
+	for (std::size_t si = 0; si < ssGrp.size(); si++)
+	{
+		itType iterBegin = this->m_dd->template begin<Vertex>(ssGrp[si]);
+		itType iterEnd = this->m_dd->template end<Vertex>(ssGrp[si]);
+
+		for (itType iter = iterBegin; iter != iterEnd; ++iter)
+		{
+			// retrieve membrane potential via vm2ug
+			number vm;
+			try
+			{
+				const typename TDomain::position_type& coords = aaPos[*iter];
+				vm = m_vmProvider.get_potential(coords[0], coords[1], coords[2]);
+			}
+			UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
+
+			// set membrane potential value
+			this->m_aaVm[*iter] = 0.001 * vm; // todo: next step by dt * vm not by 0.001?
+		}
+	}
+
+	this->m_vmTime = newTime;
+}
+
+
+template<typename TDomain>
+void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::update_gating(number newTime)
+{
+	if (!this->m_initiated)
+		UG_THROW("Borg-Graham not initialized.\n"
+				  << "Do not forget to do so before any updates by calling init(initTime).");
+
+	typedef typename DoFDistribution::traits<Vertex>::const_iterator itType;
+	SubsetGroup ssGrp;
+	try { ssGrp = SubsetGroup(this->m_dom->subset_handler(), this->m_vSubset);}
+	UG_CATCH_THROW("Subset group creation failed.");
+
+	for (std::size_t si = 0; si < ssGrp.size(); si++)
+	{
+		itType iterBegin = this->m_dd->template begin<Vertex>(ssGrp[si]);
+		itType iterEnd = this->m_dd->template end<Vertex>(ssGrp[si]);
+
+		for (itType iter = iterBegin; iter != iterEnd; ++iter)
+		{
+			// set new gating particle values
+			number dt = 1000.0*(newTime - this->m_time);	// calculating in ms
+			this->calc_gating_step(this->m_gpMGate, 1000.0*this->m_aaVm[*iter], dt, this->m_aaMGate[*iter]);
+			if (has_hGate()) this->calc_gating_step(this->m_gpHGate, 1000.0*this->m_aaVm[*iter], dt, this->m_aaHGate[*iter]);
+		}
+	}
+
+	this->m_time = newTime;
+}
+
+
+template<typename TDomain>
+number OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::ionic_current(Vertex* v)
+{
+	number gating = pow(this->m_aaMGate[v], this->m_mp);
+	if (has_hGate()) gating *= pow(this->m_aaHGate[v], this->m_hp);
+
+	// simplified form of the correct flux derived from Goldman-Hodgkin-Katz equation,
+	// very accurate for Vm < 0mV and still reasonably accurate for Vm < 50mV
+	number maxFlux;
+	// just to be on the safe side near V_m == 0:
+	if (fabs(this->m_aaVm[v]) < 1e-8) maxFlux = this->m_lambda * R*T/(2*F);
+	else maxFlux = - this->m_lambda * this->m_aaVm[v] / (1.0 - exp(2*F/(R*T) * this->m_aaVm[v]));
+
+	return gating * maxFlux / (2*F);
+}
+#endif
 
 } // neuro_collection
 } // namespace ug

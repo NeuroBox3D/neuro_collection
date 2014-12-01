@@ -26,8 +26,8 @@ namespace neuro_collection
 
 /// Class interface for Borg Graham type VGCCs of the plasma membrane.
 /** This class is an interface the Borg-Graham-type voltage-gated calcium channels
- *	in the plasma membrane (see chapter 8 of »Interpretations of data and mechanisms
- *	for hippocampal pyramidal cell models«, Borg-Graham (1998) in Cerebral Cortex,
+ *	in the plasma membrane (see chapter 8 of ��Interpretations of data and mechanisms
+ *	for hippocampal pyramidal cell models��, Borg-Graham (1998) in Cerebral Cortex,
  *	Vol. 13: Models of Cortical Circuits.
  *
  *	The unknowns of the discretization (the so-called "particles" of the channel) are
@@ -205,6 +205,61 @@ class OneSidedBorgGrahamFV1WithVM2UG : public OneSidedBorgGrahamFV1<TDomain>
 		number m_vmTime;
 };
 
+#ifdef MPMNEURON
+/// Borg Graham type VGCCs with Vm2uG membrane potential supply by NEURON.
+/** This class is a specialization of the Borg-Graham interface.
+ *	It supplies the channel with the necessary membrane potential values by a Vm2uG object,
+ *	that has to be fed file names for the files containing the V_m values produced by Neuron.
+**/
+template<typename TDomain>
+class OneSidedBorgGrahamFV1WithVM2UGNEURON : public OneSidedBorgGrahamFV1<TDomain>
+{
+private:
+	SmartPtr<Transformator> m_NrnInterpreter;
+	std::string timeAsString = "";
+	protected:
+		using OneSidedBorgGrahamFV1<TDomain>::R;		//!< universal gas constant
+		using OneSidedBorgGrahamFV1<TDomain>::T;		//!< temperature (310K)
+		using OneSidedBorgGrahamFV1<TDomain>::F;		//!< Faraday constant
+
+	public:
+		typedef Vm2uG<std::string> vmProvType;
+
+	public:
+		/// constructor
+		OneSidedBorgGrahamFV1WithVM2UGNEURON(const char* functions,
+							const char* subsets,
+							ApproximationSpace<TDomain>& approx,
+							SmartPtr<Transformator> transformator = Transformator(),
+							const std::string baseName = "timesteps/timestep_",
+							const char* timeFmt = "%.4f",
+							const std::string ext = ".dat",
+							const bool posCanChange = false)
+			: OneSidedBorgGrahamFV1<TDomain>(functions, subsets, approx),
+			  m_NrnInterpreter(transformator), m_tFmt(timeFmt), m_vmTime(0.0), m_vmProvider(transformator) {};
+
+		/// destructor
+		virtual ~OneSidedBorgGrahamFV1WithVM2UGNEURON() {};
+
+		// inherited from BorgGraham
+		virtual void init(number time);
+		virtual void update_gating(number newTime);
+		virtual number ionic_current(Vertex* v);
+
+		// update membrane potential
+		void update_potential(number newTime);
+
+	private:
+		/// whether this channel disposes of an inactivating gate
+		bool has_hGate() {return this->m_channelType == OneSidedBorgGrahamFV1<TDomain>::BG_Ntype
+								|| this->m_channelType == OneSidedBorgGrahamFV1<TDomain>::BG_Ttype;}
+
+	private:
+		vmProvType m_vmProvider;		//!< the Vm2uG object
+		std::string m_tFmt;				//!< time format for the membrane potential files
+		number m_vmTime;
+};
+#endif
 
 } // namespace neuro_collection
 } // namespace ug

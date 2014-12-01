@@ -179,6 +179,19 @@ static void Domain(Registry& reg, string grp)
 			.add_method("update_potential", &TBG1::update_potential, "", "time", "update membrane potential to new time")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "OneSidedBorgGrahamFV1WithVM2UG", tag);
+
+		/// register OneSidedBorgGrahamFV1WithVM2UGNEURON in case we have a NEURON interpreter available
+		#ifdef MPMNEURON
+		typedef OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain> TBG2;
+		name = string("OneSidedBorgGrahamFV1WithVM2UGNEURON").append(suffix);
+		reg.add_class_<TBG2, TBG0 >(name, grp)
+			.template add_constructor<void (*)(const char*, const char*, ApproximationSpace<TDomain>&, SmartPtr<Transformator>,
+											   const std::string, const char*, const std::string, const bool)>
+				("function(s)#subset(s)#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#vertexOrderOrPositionCanChange")
+			.add_method("update_potential", &TBG2::update_potential, "", "time", "update membrane potential to new time")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "OneSidedBorgGrahamFV1WithVM2UGNEURON", tag);
+		#endif
 	}
 
 
