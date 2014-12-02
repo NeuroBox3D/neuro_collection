@@ -301,7 +301,7 @@ private:
 							const std::string ext = ".dat",
 							const bool posCanChange = false)
 			: OneSidedBorgGrahamFV1<TDomain>(functions, subsets, approx),
-			  m_NrnInterpreter(transformator), m_tFmt(timeFmt), m_vmTime(0.0), m_vmProvider(transformator) {};
+			  m_NrnInterpreter(transformator), m_tFmt(timeFmt), m_vmTime(0.0) {};
 
 		/// destructor
 		virtual ~OneSidedBorgGrahamFV1WithVM2UGNEURON() {};
@@ -314,6 +314,11 @@ private:
 
 		// update membrane potential
 		virtual void update_potential(side_t* elem);
+
+		// prepare setup
+		void prepare_setup(const std::string& filename) {
+			m_vmProvider(m_NrnInterpreter);
+		}
 
 	private:
 		/// whether this channel disposes of an inactivating gate
