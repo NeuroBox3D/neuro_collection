@@ -301,7 +301,8 @@ private:
 							const std::string ext = ".dat",
 							const bool posCanChange = false)
 			: OneSidedBorgGrahamFV1<TDomain>(functions, subsets, approx),
-			  m_NrnInterpreter(transformator), m_tFmt(timeFmt), m_vmTime(0.0) {};
+			  m_NrnInterpreter(transformator), m_tFmt(timeFmt), m_vmTime(0.0) {
+		};
 
 		/// destructor
 		virtual ~OneSidedBorgGrahamFV1WithVM2UGNEURON() {};
