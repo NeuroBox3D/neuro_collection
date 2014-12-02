@@ -191,6 +191,7 @@ static void Domain(Registry& reg, string grp)
 			.template add_constructor<void (*)(const char*, const char*, ApproximationSpace<TDomain>&, SmartPtr<Transformator>,
 											   const std::string, const char*, const std::string, const bool)>
 				("function(s)#subset(s)#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#vertexOrderOrPositionCanChange")
+				.add_method("set_transformator", static_cast<void (TBG2::*) (SmartPtr<Transformator>)> (&TBG2::set_transformator), "", "", "")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "OneSidedBorgGrahamFV1WithVM2UGNEURON", tag);
 		#endif

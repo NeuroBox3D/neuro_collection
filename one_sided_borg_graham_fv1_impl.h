@@ -404,14 +404,11 @@ void OneSidedBorgGrahamFV1WithVM2UG<TDomain>::update_potential(side_t* elem)
 ///////////////////////////////////////////////////////////
 #ifdef MPMNEURON
 template<typename TDomain>
-void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::init(number time)
-{
-	try
-	{
-		// this can be improved todo
-		m_NrnInterpreter.get()->setup_hoc(time, 10000, 0.001, -75);
-	}
-	UG_CATCH_THROW("Either underlying NEURON interpreter not available or not constructable or vm2ug tree could not be built.");
+void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::init(number time) {
+	/// make zero steps (e. g. init) and extract the membrane potentials
+	this->m_NrnInterpreter.get()->extract_vms(1, 0);
+	/// with the extracted vms we build the tree then
+	this->m_vmProvider = Vm2uG<std::string>(this->m_NrnInterpreter);
 
 	typedef typename DoFDistribution::traits<side_t>::const_iterator itType;
 	SubsetGroup ssGrp;
@@ -455,13 +452,21 @@ void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::init(number time)
 template<typename TDomain>
 void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::update_time(number newTime)
 {
+	/// set dt for neuron interpreter
+	number dt = this->m_time - this->m_oldTime;
+	this->m_oldTime = this->m_time;
+	this->m_time = newTime;
+	std::stringstream ss;
+	ss << "dt = " << dt;
+	m_NrnInterpreter.get()->execute_hoc_stmt(ss.str());
+	ss.str(""); ss.clear();
+
 	// only work if really necessary
 	if (newTime == this->m_time)
 		return;
 
 	// todo advance by predefined dt in init method of OneSidedBorgGrahamFV1WithVM2UG above... (see above)
 	m_NrnInterpreter.get()->fadvance();
-
 
 	this->m_oldTime = this->m_time;
 	this->m_time = newTime;

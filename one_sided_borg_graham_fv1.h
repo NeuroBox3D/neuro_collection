@@ -316,9 +316,9 @@ private:
 		// update membrane potential
 		virtual void update_potential(side_t* elem);
 
-		// prepare setup
-		void prepare_setup(const std::string& filename) {
-			m_vmProvider(m_NrnInterpreter);
+		// set the transformator
+		inline void set_transformator(SmartPtr<Transformator> transformator) {
+			this->m_NrnInterpreter = transformator;
 		}
 
 	private:
