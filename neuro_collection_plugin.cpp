@@ -200,9 +200,9 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_<TBG2, TBG0 >(name, grp)
 			.template add_constructor<void (*)(const char*, const char*, ApproximationSpace<TDomain>&)>
 				("function(s)#subset(s)#approxSpace")
-			.add_method("set_potential_function", static_cast<void (TBG2::*) (const char*)> (&TBG2::set_potential_function),
-				"", "", "add a potential function")
 			.add_method("set_potential_function", static_cast<void (TBG2::*) (const number)> (&TBG2::set_potential_function),
+				"", "", "add a potential function")
+			.add_method("set_potential_function", static_cast<void (TBG2::*) (const char*)> (&TBG2::set_potential_function),
 				"", "", "add a potential function")
 			.add_method("set_potential_function", static_cast<void (TBG2::*) (SmartPtr<CplUserData<number, dim> >)> (&TBG2::set_potential_function),
 				"", "", "add a potential function")
