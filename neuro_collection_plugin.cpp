@@ -192,6 +192,7 @@ static void Domain(Registry& reg, string grp)
 											   const std::string, const char*, const std::string, const bool)>
 				("function(s)#subset(s)#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#vertexOrderOrPositionCanChange")
 				.add_method("set_transformator", static_cast<void (TBG2::*) (SmartPtr<Transformator>)> (&TBG2::set_transformator), "", "", "")
+				.add_method("set_mapper", static_cast<void (TBG2::*) (SmartPtr<Vm2uG<std::string> >)> (&TBG2::set_mapper), "", "", "")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "OneSidedBorgGrahamFV1WithVM2UGNEURON", tag);
 		#endif

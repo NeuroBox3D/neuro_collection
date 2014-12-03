@@ -278,6 +278,8 @@ class OneSidedBorgGrahamFV1WithVM2UGNEURON : public OneSidedBorgGrahamFV1<TDomai
 {
 private:
 	SmartPtr<Transformator> m_NrnInterpreter;
+	SmartPtr<Vm2uG<std::string> > m_vmProvider;
+
 	std::string timeAsString = "";
 	protected:
 		using OneSidedBorgGrahamFV1<TDomain>::R;		//!< universal gas constant
@@ -321,13 +323,17 @@ private:
 			this->m_NrnInterpreter = transformator;
 		}
 
+		// set the mapper
+		inline void set_mapper(SmartPtr<Vm2uG<std::string> > mapper) {
+			this->m_vmProvider = mapper;
+		}
+
 	private:
 		/// whether this channel disposes of an inactivating gate
 		bool has_hGate() {return this->m_channelType == OneSidedBorgGrahamFV1<TDomain>::BG_Ntype
 								|| this->m_channelType == OneSidedBorgGrahamFV1<TDomain>::BG_Ttype;}
 
 	private:
-		vmProvType m_vmProvider;		//!< the Vm2uG object
 		std::string m_tFmt;				//!< time format for the membrane potential files
 		number m_vmTime;
 };

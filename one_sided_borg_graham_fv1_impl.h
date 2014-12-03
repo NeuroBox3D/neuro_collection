@@ -405,10 +405,15 @@ void OneSidedBorgGrahamFV1WithVM2UG<TDomain>::update_potential(side_t* elem)
 #ifdef MPMNEURON
 template<typename TDomain>
 void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::init(number time) {
-	/// make zero steps (e. g. init) and extract the membrane potentials
-	this->m_NrnInterpreter.get()->extract_vms(1, 0);
-	/// with the extracted vms we build the tree then
-	this->m_vmProvider = Vm2uG<std::string>(this->m_NrnInterpreter);
+	try {
+		/// make zero steps (e. g. init) and extract the membrane potentials
+		this->m_NrnInterpreter.get()->extract_vms(1, 3);
+		/// with the extracted vms we build the tree then
+		std::cout << "vms could be extracted" << std::endl;
+		std::cout << "Our NEURON setup: " << std::endl;
+		this->m_NrnInterpreter.get()->print_setup(true);
+		std::cout << "Our potential: " << this->m_vmProvider.get()->get_potential(0, 0, 0);
+	} UG_CATCH_THROW("NEURON interpreter could not advance, vmProvider could not be created.");
 
 	typedef typename DoFDistribution::traits<side_t>::const_iterator itType;
 	SubsetGroup ssGrp;
@@ -429,9 +434,9 @@ void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::init(number time) {
 			{
 				const typename TDomain::position_type& coords = CalculateCenter(*iter, aaPos);
 				if (coords.size() == 2)
-					vm = m_vmProvider.get_potential(coords[0], coords[1], 0.0);
+					vm = this->m_vmProvider.get()->get_potential(coords[0], coords[1], 0.0);
 				else if (coords.size() == 3)
-					vm = m_vmProvider.get_potential(coords[0], coords[1], coords[2]);
+					vm = this->m_vmProvider.get()->get_potential(coords[0], coords[1], coords[2]);
 				else
 					UG_THROW("Coordinates of vertex are not 2d or 3d"
 						  << "(which are the only valid dimensionalities for this discretization).");
@@ -462,12 +467,12 @@ void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::update_time(number newTime)
 	ss.str(""); ss.clear();
 
 	// only work if really necessary
-	if (newTime == this->m_time)
+	if (newTime == this->m_time) {
 		return;
+	}
 
-	// todo advance by predefined dt in init method of OneSidedBorgGrahamFV1WithVM2UG above... (see above)
+	// advance by dt (set above)
 	m_NrnInterpreter.get()->fadvance();
-
 	this->m_oldTime = this->m_time;
 	this->m_time = newTime;
 }
@@ -476,7 +481,7 @@ void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::update_time(number newTime)
 template<typename TDomain>
 void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::update_potential(side_t* elem)
 {
-	if (!m_vmProvider.treeBuild())
+	if (!this->m_vmProvider.get()->treeBuild())
 	UG_THROW("Underlying Vm2uG object's tree is not yet built.\n"
 		  << "Do not forget to initialize the Borg-Graham object first by calling init(initTime).");
 
@@ -486,9 +491,9 @@ void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::update_potential(side_t* ele
 	{
 		const typename TDomain::position_type& coords = CalculateCenter(elem, this->m_aaPos);
 		if (coords.size() == 2)
-			vm = m_vmProvider.get_potential(coords[0], coords[1], 0.0);
+			vm = this->m_vmProvider.get()->get_potential(coords[0], coords[1], 0.0);
 		else if (coords.size() == 3)
-			vm = m_vmProvider.get_potential(coords[0], coords[1], coords[2]);
+			vm = this->m_vmProvider.get()->get_potential(coords[0], coords[1], coords[2]);
 		else
 			UG_THROW("Coordinates of vertex are not 2d or 3d"
 				  << "(which are the only valid dimensionalities for this discretization).");
