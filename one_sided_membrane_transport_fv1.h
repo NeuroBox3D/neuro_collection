@@ -30,13 +30,14 @@ template<typename TDomain>
 class OneSidedMembraneTransportFV1
 : public DependentNeumannBoundaryFV1<TDomain>
 {
+	public:
+	///	world dimension
+		static const int dim = DependentNeumannBoundaryFV1<TDomain>::dim;
+
 	protected:
 		const number R;		// universal gas constant
 		const number T;		// temperature
 		const number F;		// Faraday constant
-
-	///	world dimension
-		static const int dim = DependentNeumannBoundaryFV1<TDomain>::dim;
 
 	public:
 	/// constructor

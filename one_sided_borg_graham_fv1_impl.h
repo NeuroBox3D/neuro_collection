@@ -52,7 +52,7 @@ OneSidedBorgGrahamFV1<TDomain>::OneSidedBorgGrahamFV1
 	m_aaMGate = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_MGate);
 	if (has_hGate()) m_aaHGate = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_HGate);
 	m_aaVm = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_Vm);
-};
+}
 
 
 template<typename TDomain>

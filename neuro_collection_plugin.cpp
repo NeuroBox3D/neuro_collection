@@ -13,7 +13,8 @@
 
 // replace this with util_domain_dependent.h or util_algebra_dependent.h
 // to speed up compilation time
-#include "bridge/util_domain_algebra_dependent.h"
+//#include "bridge/util_domain_algebra_dependent.h"
+#include "bridge/util_domain_dependent.h"
 
 #include "buffer_fv1.h"
 #include "one_sided_borg_graham_fv1.h"
@@ -72,10 +73,10 @@ static void DomainAlgebra(Registry& reg, string grp)
 template <typename TDomain>
 static void Domain(Registry& reg, string grp)
 {
+	const int dim = TDomain::dim;
 	string suffix = GetDomainSuffix<TDomain>();
 	string tag = GetDomainTag<TDomain>();
 
-	const int dim = TDomain::dim;
 
 	// implementation of buffering reaction disc
 	{
@@ -325,17 +326,17 @@ static void Common(Registry& reg, string grp)
 extern "C" void
 InitUGPlugin_neuro_collection(Registry* reg, string grp)
 {
-	grp.append("neuro_collection");
+	grp.append("/neuro_collection");
 	typedef neuro_collection::Functionality Functionality;
 
 	try{
-		RegisterCommon<Functionality>(*reg,grp);
-		RegisterDimensionDependent<Functionality>(*reg,grp);
+		//RegisterCommon<Functionality>(*reg,grp);
+		//RegisterDimensionDependent<Functionality>(*reg,grp);
 		RegisterDomainDependent<Functionality>(*reg,grp);
-		RegisterAlgebraDependent<Functionality>(*reg,grp);
-		RegisterDomainAlgebraDependent<Functionality>(*reg,grp);
+		//RegisterAlgebraDependent<Functionality>(*reg,grp);
+		//RegisterDomainAlgebraDependent<Functionality>(*reg,grp);
 	}
 	UG_REGISTRY_CATCH_THROW(grp);
 }
 
-}// namespace ug
+} // namespace ug

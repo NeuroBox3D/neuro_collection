@@ -62,11 +62,12 @@ class OneSidedBorgGrahamFV1 : public OneSidedMembraneTransportFV1<TDomain>
 		/// channel types N, L and T
 		enum {BG_Ntype, BG_Ltype, BG_Ttype};
 
+		static const int dim = OneSidedMembraneTransportFV1<TDomain>::dim;	//!< world dimension
+
 	protected:
 		using OneSidedMembraneTransportFV1<TDomain>::R;		//!< universal gas constant
 		using OneSidedMembraneTransportFV1<TDomain>::T;		//!< temperature (310K)
 		using OneSidedMembraneTransportFV1<TDomain>::F;		//!< Faraday constant
-		using OneSidedMembraneTransportFV1<TDomain>::dim;	//!< world dimension
 
 		const number RHO_BG;			//!< default channel density in the membrane
 
@@ -349,6 +350,9 @@ private:
 template<typename TDomain>
 class OneSidedBorgGrahamFV1WithUserData : public OneSidedBorgGrahamFV1<TDomain>
 {
+	public:
+		static const int dim = OneSidedBorgGrahamFV1<TDomain>::dim;	//!< world dimension
+
 	protected:
 		using OneSidedBorgGrahamFV1<TDomain>::R;		//!< universal gas constant
 		using OneSidedBorgGrahamFV1<TDomain>::T;		//!< temperature (310K)
@@ -357,8 +361,6 @@ class OneSidedBorgGrahamFV1WithUserData : public OneSidedBorgGrahamFV1<TDomain>
 		typedef typename GeomObjBaseTypeByDim<TDomain::dim>::base_obj_type elem_t;
 		typedef typename elem_t::side side_t;
 
-		///	world dimension
-		using OneSidedBorgGrahamFV1<TDomain>::dim;	//!< world dimension
 
 	public:
 		/// constructor
