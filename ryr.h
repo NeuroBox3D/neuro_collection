@@ -1,12 +1,12 @@
 /*
- *	Discretization for the IP3R calcium channel in the ER membrane
+ *	Discretization for the RyR calcium channel in the ER membrane
  *
  *  Created on: 20.12.2011
  *      Author: mbreit
  */
 
-#ifndef __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__IP3R_H__
-#define __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__IP3R_H__
+#ifndef __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__RYR_H__
+#define __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__RYR_H__
 
 #include <string>
 
@@ -15,52 +15,48 @@ namespace ug{
 namespace neuro_collection{
 
 
-/// Discretization for the IP3R calcium channel in the ER membrane
+/// Discretization for the RyR calcium channel in the ER membrane
 /**
  * This class implements the InnerBoundaryElemDisc to provide flux densities
- * and their derivatives for the De Young & Keizer (1992) model of IP3R channels.
+ * and their derivatives for the Keizer & Levine (1996) RyR model.
  *
  * \tparam	TDomain		domain
  */
 
-class IP3R : public IMembraneTransporter
+class RyR : public IMembraneTransporter
 {
 	protected:
 		const number R;			// universal gas constant
 		const number T;			// temperature
 		const number F;			// Faraday constant
 
-		const number D1;		// IP3 binding (w/o Ca2+ inhibition)
-		const number D2;		// Ca2+ inhibiting binding
-		const number D3;		// IP3 binding (w/ Ca2+ inhibition)
-		const number D5;		// Ca2+ activating binding
-		const number RHO_IP3R;	// average channel density for IP3R channel
-		const number MU_IP3R;	// IP3R channel conductance
+		const number KA;		// calcium binding (C1 <--> O1)
+		const number KB;		// calcium binding (O1 <--> O2)
+		const number KC;		// O1 <--> C2
+		const number RHO_RYR;	// average channel density for RyR channel
+		const number MU_RYR;	// RyR channel conductance
 
 		const number REF_CA_ER;	// reference endoplasmatic Ca2+ concentration (for conductances)
 
 	public:
 		// constructor
-		IP3R() : IMembraneTransporter(),
+		RyR() : IMembraneTransporter(),
 		R(8.314), T(310.0), F(96485.0),
-		D1(1.3e-7), D2(1.05e-6), D3(9.4e-7), D5(8.23e-8), RHO_IP3R(17.3), MU_IP3R(1.6e-12),
+		KA(5.21e25), KB(3.89e18), KC(17.5), RHO_RYR(0.86), MU_RYR(5.0e-11),
 		REF_CA_ER(2.5e-4) {};
 
 		// destructor
-		virtual ~IP3R() {};
+		virtual ~RyR() {};
 
 		// flux output functions
 		virtual void flux(const std::vector<number>& u, std::vector<number>& flux)
 		{
 			number caCyt = u[0];	// cytosolic Ca2+ concentration
 			number caER = u[1];		// ER Ca2+ concentration
-			number ip3 = u[2];		// IP3 concentration
 
-			// membrane current corresponding to diffusion pressure
-			number current = R*T/(4*F*F) * MU_IP3R/REF_CA_ER * (caER - caCyt);
-
-			// flux calculation
-			number pOpen = pow(caCyt*ip3*D2 / ((caCyt*ip3 + ip3*D2 + D1*D2 + caCyt*D3) * (caCyt+D5)),3);
+			// RyR flux calculation
+			number current = R*T/(4*F*F) * MU_RYR/REF_CA_ER * (caER - caCyt);
+			number pOpen =  (1.0 + KB*pow(caCyt,3)) / (1.0 + KC + 1.0/(KA*pow(caCyt,4)) + KB*pow(caCyt,3));
 
 			flux[0] = pOpen * current;
 
@@ -74,25 +70,21 @@ class IP3R : public IMembraneTransporter
 			// get values of the unknowns in associated node
 			number caCyt = u[0];
 			number caER = u[1];
-			number ip3 = u[2];
 
 			// membrane potential
-			number current = R*T/(4*F*F) * MU_IP3R/REF_CA_ER * (caER - caCyt);
-			number dI_dCyt = - R*T/(4*F*F) * MU_IP3R/REF_CA_ER;
+			number current = R*T/(4*F*F) * MU_RYR/REF_CA_ER * (caER - caCyt);
+			number dI_dCyt = - R*T/(4*F*F) * MU_RYR/REF_CA_ER;
 			number dI_dER = -dI_dCyt;
 
-			// IP3R flux derivatives
-			number schlonz1 = caCyt*ip3 + ip3*D2 + D1*D2 + caCyt*D3;
-			number schlonz2 = schlonz1 * (caCyt+D5);
-			number schlonz3 = (caCyt*ip3*D2) / schlonz2;
-			number pOpen = pow(schlonz3,3);
+			// RyR flux derivs
+			number schlonz1 = 1.0 + KB*pow(caCyt,3);
+			number schlonz2 = 1.0 + KC + 1.0/(KA*pow(caCyt,4)) + KB*pow(caCyt,3);
+			number pOpen = schlonz1 / schlonz2;
 
-			number dOpen_dCyt = 3.0*schlonz3*schlonz3*ip3*D2 * (1.0 - caCyt/schlonz2 * ( (ip3+D3)*(caCyt+D5) + schlonz1 )) / schlonz2;
-			number dOpen_dIP3 = 3.0*schlonz3*schlonz3*caCyt*D2 * (1.0 - ip3/schlonz2 * (caCyt+D2)*(caCyt+D5)) / schlonz2;
+			number dOpen_dCyt = (3.0*KB*caCyt*caCyt + schlonz1/schlonz2*(4.0/(KA*pow(caCyt,5)) - 3.0*KB*caCyt*caCyt)) / schlonz2;
 
 			flux_derivs[0][0] = dOpen_dCyt * current + pOpen * dI_dCyt;
 			flux_derivs[0][1] = pOpen * dI_dER;
-			flux_derivs[0][2] = dOpen_dIP3 * current;
 
 			// dimensional correction: concentrations are mol/dm^3, but length unit is um
 			for (size_t i = 0; i < u.size(); i++)
@@ -103,7 +95,7 @@ class IP3R : public IMembraneTransporter
 		// return number of unknowns this transport mechanism depends on
 		virtual size_t n_dependencies()
 		{
-			return 3;
+			return 2;
 		}
 
 		// return number of fluxes calculated by this machanism
@@ -120,7 +112,7 @@ class IP3R : public IMembraneTransporter
 
 		virtual std::string name()
 		{
-			return std::string("IP3R");
+			return std::string("RyR");
 		};
 };
 
@@ -128,5 +120,5 @@ class IP3R : public IMembraneTransporter
 } // namespace neuro_collection
 } // namespace ug
 
-#endif // __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__IP3R_H__
+#endif // __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__RYR_H__
 

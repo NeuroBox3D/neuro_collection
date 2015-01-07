@@ -23,6 +23,9 @@
 #include "two_sided_membrane_transport_fv1.h"
 #include "membrane_transporter_interface.h"
 #include "ip3r.h"
+#include "ryr.h"
+#include "serca.h"
+#include "leak.h"
 
 
 using namespace std;
@@ -322,6 +325,30 @@ static void Common(Registry& reg, string grp)
 		typedef IP3R T;
 		typedef IMembraneTransporter TBase;
 		std::string name = std::string("IP3R");
+		reg.add_class_<T, TBase>(name, grp)
+			.add_constructor<void (*)()>()
+			.set_construct_as_smart_pointer(true);
+	}
+	{
+		typedef RyR T;
+		typedef IMembraneTransporter TBase;
+		std::string name = std::string("RyR");
+		reg.add_class_<T, TBase>(name, grp)
+			.add_constructor<void (*)()>()
+			.set_construct_as_smart_pointer(true);
+	}
+	{
+		typedef SERCA T;
+		typedef IMembraneTransporter TBase;
+		std::string name = std::string("SERCA");
+		reg.add_class_<T, TBase>(name, grp)
+			.add_constructor<void (*)()>()
+			.set_construct_as_smart_pointer(true);
+	}
+	{
+		typedef Leak T;
+		typedef IMembraneTransporter TBase;
+		std::string name = std::string("Leak");
 		reg.add_class_<T, TBase>(name, grp)
 			.add_constructor<void (*)()>()
 			.set_construct_as_smart_pointer(true);

@@ -1,20 +1,19 @@
 /*
-------------------------------------------------------------------------------------
-General channel/pump transport interface class
-------------------------------------------------------------------------------------
-*/
+ *  General channel/pump transport interface class
+ *
+ *  Created on: 07.01.2015
+ *     Authors: mbreit, mstepniewski
+ */
 
-#ifndef __MEMBRANE_TRANSPORTER_H__
-#define __MEMBRANE_TRANSPORTER_H__
+#ifndef __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__MEMBRANE_TRANSPORTER_H__
+#define __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__MEMBRANE_TRANSPORTER_H__
 
-#include <iostream>
-#include <cmath>
+
 #include <string>
 
 
 namespace ug{
 namespace neuro_collection{
-
 
 
 class IMembraneTransporter
@@ -46,5 +45,5 @@ class IMembraneTransporter
 } // namespace neuro_collection
 } // namespace ug
 
-#endif // __MEMBRANE_TRANSPORTER_H__
+#endif // __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__MEMBRANE_TRANSPORTER_H__
 

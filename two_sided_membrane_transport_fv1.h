@@ -378,11 +378,11 @@ class TwoSidedRyRFV1
 		static const int dim = TwoSidedERCalciumTransportFV1<TDomain>::dim;
 
 	public:
-		
+
 		TwoSidedRyRFV1(const char* functions, const char* subsets)
 			: TwoSidedERCalciumTransportFV1<TDomain>(functions, subsets),
 			  KA(5.21e25), KB(3.89e18), KC(17.5), RHO_RYR(0.86), MU_RYR(5.0e-11) {};
-	
+
 	private:
 		// virtual functions inherited from FV1InnerBoundaryElemDisc
 		bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, FluxCond& fc)
@@ -394,10 +394,10 @@ class TwoSidedRyRFV1
 						" (has " << u.size() << ", but needs at least 2).");
 				return false;
 			}
-			
+
 			number caCyt = u[0];	// cytosolic Ca2+ concentration
 			number caER = u[1];		// ER Ca2+ concentration
-			
+
 			// RyR flux calculation
 			number current = R*T/(4*F*F) * MU_RYR/REF_CA_ER * (caER - caCyt);
 			number pOpen =  (1.0 + KB*pow(caCyt,3)) / (1.0 + KC + 1.0/(KA*pow(caCyt,4)) + KB*pow(caCyt,3));
@@ -416,16 +416,16 @@ class TwoSidedRyRFV1
 			fc.flux.resize(1, 0.0);	fc.flux[0] = flux;
 			fc.from.resize(1);	fc.from[0] = 1;		// ER
 			fc.to.resize(1);	fc.to[0] = 0;		// cytosol
-			
+
 			return true;
 		}
-		
+
 		bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, FluxDerivCond& fdc)
 		{
 			// get values of the unknowns in associated node
 			number caCyt = u[0];
 			number caER = u[1];
-			
+
 			// membrane potential
 			number current = R*T/(4*F*F) * MU_RYR/REF_CA_ER * (caER - caCyt);
 			number dI_dCyt = - R*T/(4*F*F) * MU_RYR/REF_CA_ER;
@@ -435,7 +435,7 @@ class TwoSidedRyRFV1
 			number schlonz1 = 1.0 + KB*pow(caCyt,3);
 			number schlonz2 = 1.0 + KC + 1.0/(KA*pow(caCyt,4)) + KB*pow(caCyt,3);
 			number pOpen = schlonz1 / schlonz2;
-			
+
 			number density;
 			if (this->m_spDensityFct.valid())
 				(*this->m_spDensityFct)(density, coords, this->time(), si);
@@ -443,7 +443,7 @@ class TwoSidedRyRFV1
 				density = CF * RHO_RYR;
 
 			number dOpen_dCyt = (3.0*KB*caCyt*caCyt + schlonz1/schlonz2*(4.0/(KA*pow(caCyt,5)) - 3.0*KB*caCyt*caCyt)) / schlonz2;
-			
+
 			number d_dCyt = density * (dOpen_dCyt * current + pOpen * dI_dCyt);
 			number d_dER  = density * pOpen * dI_dER;
 
@@ -454,13 +454,13 @@ class TwoSidedRyRFV1
 			// add to Jacobian
 			fdc.fluxDeriv.resize(1);
 			fdc.fluxDeriv[0].resize(2, 0.0);
-			
+
 			fdc.fluxDeriv[0][0] = d_dCyt;
 			fdc.fluxDeriv[0][1] = d_dER;
-			
+
 			fdc.from.resize(1);	fdc.from[0] = 1;	// ER
 			fdc.to.resize(1);	fdc.to[0] = 0;		// cytosol
-			
+
 			return true;
 		}
 };

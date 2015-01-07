@@ -25,16 +25,17 @@ namespace neuro_collection
 {
 
 /// Class interface for Borg Graham type VGCCs of the plasma membrane.
-/** This class is an interface the Borg-Graham-type voltage-gated calcium channels
+/** This class is an interface for the Borg-Graham-type voltage-gated calcium channels
  *	in the plasma membrane (see chapter 8 of "Interpretations of data and mechanisms
  *	for hippocampal pyramidal cell models", Borg-Graham (1998) in Cerebral Cortex,
  *	Vol. 13: Models of Cortical Circuits.
  *
- *	The unknowns of the discretization (the so-called "particles" of the channel) are
+ *	The unknowns of the discretization (the so-called "gates" of the channel) are
  *	not added to the system unknowns, but held separately as vertex attachments, since
- *	they are governed by ODEs ans are therefore merely updated by an explicit time
+ *	they are governed by ODEs and are therefore merely updated by an implicit time
  *	schema once per time step. This will have to be done by the user (in the lua script)
- *	via the method update_gating() before the execution of every time step assembling.
+ *	via the ITimeDiscretization method prepare_step_elem() before the execution of any
+ *	time step assembling.
  *
  *	The class implements simple versions of N-, L- and T type channels but may very
  *	well be generalized to more complex models thereof. The type of channel can be set
@@ -79,7 +80,7 @@ class OneSidedBorgGrahamFV1 : public OneSidedMembraneTransportFV1<TDomain>
 		typedef typename elem_t::side side_t;
 
 	private:
-		/// holds the paramters of a channel type
+		/// holds the parameters of a channel type
 		struct GatingParams
 		{
 			GatingParams(number _z, number _v, number _t) : z(_z), V_12(_v), tau_0(_t){};
