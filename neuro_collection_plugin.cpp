@@ -21,6 +21,8 @@
 #include "dependent_neumann_boundary_fv1.h"
 #include "one_sided_membrane_transport_fv1.h"
 #include "two_sided_membrane_transport_fv1.h"
+#include "membrane_transporter_interface.h"
+#include "ip3r.h"
 
 
 using namespace std;
@@ -220,10 +222,13 @@ static void Domain(Registry& reg, string grp)
 		typedef FV1InnerBoundaryElemDisc<TDomain> TBase;
 		string name = string("TwoSidedMembraneTransportFV1").append(suffix);
 		reg.add_class_<T, TBase >(name, grp)
+			.template add_constructor<void (*)(const char*, const char*)>("Function(s)#Subset(s)")
 			.add_method("set_density_function", static_cast<void (T::*) (const char*)> (&T::set_density_function),
 							"", "", "add a density function")
 			.add_method("set_density_function", static_cast<void (T::*) (SmartPtr<CplUserData<number,dim> >)>
-					(&T::set_density_function), "", "", "add a density function");
+					(&T::set_density_function), "", "", "add a density function")
+			.add_method("set_membrane_transporter", &T::set_membrane_transporter, "", "", "sets the membrane transport mechanism")
+			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "TwoSidedMembraneTransportFV1", tag);
 	}
 
@@ -308,8 +313,19 @@ static void Algebra(Registry& reg, string grp)
  * @param grp		group for sorting of functionality
  */
 static void Common(Registry& reg, string grp)
-{
-
+{	{
+		typedef IMembraneTransporter T;
+		std::string name = std::string("MembraneTransporter");
+		reg.add_class_<T>(name, grp);
+	}
+	{
+		typedef IP3R T;
+		typedef IMembraneTransporter TBase;
+		std::string name = std::string("IP3R");
+		reg.add_class_<T, TBase>(name, grp)
+			.add_constructor<void (*)()>()
+			.set_construct_as_smart_pointer(true);
+	}
 }
 
 }; // end Functionality
@@ -330,7 +346,7 @@ InitUGPlugin_neuro_collection(Registry* reg, string grp)
 	typedef neuro_collection::Functionality Functionality;
 
 	try{
-		//RegisterCommon<Functionality>(*reg,grp);
+		RegisterCommon<Functionality>(*reg,grp);
 		//RegisterDimensionDependent<Functionality>(*reg,grp);
 		RegisterDomainDependent<Functionality>(*reg,grp);
 		//RegisterAlgebraDependent<Functionality>(*reg,grp);

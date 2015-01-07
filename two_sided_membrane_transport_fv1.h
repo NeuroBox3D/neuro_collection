@@ -12,6 +12,7 @@
 #include "lib_disc/spatial_disc/elem_disc/inner_boundary/inner_boundary.h"
 #include "bindings/lua/lua_user_data.h"
 #include "common/util/smart_pointer.h"
+#include "membrane_transporter_interface.h"
 
 
 namespace ug
@@ -35,6 +36,9 @@ class TwoSidedMembraneTransportFV1
 		const number T;			// temperature
 		const number F;			// Faraday constant
 
+		typedef typename FV1InnerBoundaryElemDisc<TDomain>::FluxCond FluxCond;
+		typedef typename FV1InnerBoundaryElemDisc<TDomain>::FluxDerivCond FluxDerivCond;
+
 	public:
 	///	world dimension
 		static const int dim = FV1InnerBoundaryElemDisc<TDomain>::dim;
@@ -44,6 +48,9 @@ class TwoSidedMembraneTransportFV1
 		TwoSidedMembraneTransportFV1(const char* functions, const char* subsets)
 					: FV1InnerBoundaryElemDisc<TDomain>(functions, subsets),
 					  R(8.314), T(310.0), F(96485.0) {};
+
+	/// destructor
+		virtual ~TwoSidedMembraneTransportFV1() {};
 
 	public:
 	/// adding density information for pumps/channels in membrane
@@ -71,8 +78,103 @@ class TwoSidedMembraneTransportFV1
 					"Number - Callback\n" << (LuaUserData<number, dim>::signature()) << "\n");
 		}
 
+		// TODO
+		void set_density_function(number)
+		{
+
+		}
+
+	/// set transport mechanism
+		void set_membrane_transporter(SmartPtr<IMembraneTransporter> mt)
+		{
+			m_spMembraneTransporter = mt;
+		}
+
+	/// flux assembling routines inherited from FV1InnerBoundaryElemDisc
+		virtual bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, FluxCond& fc)
+		{
+			size_t n_dep = m_spMembraneTransporter->n_dependencies();
+			size_t n_flux = m_spMembraneTransporter->n_fluxes();
+
+
+			if (u.size() != n_dep)
+			{
+				UG_THROW(" LocalVector u does not have enough functions"
+						" (has " << u.size() << ", but needs exactly " << n_dep
+						<< " as defined in " << m_spMembraneTransporter->name() << ").");
+			}
+
+			// calculate single-channel flux
+			fc.flux.resize(n_flux);
+			fc.from.resize(n_flux);
+			fc.to.resize(n_flux);
+
+			m_spMembraneTransporter->flux(u, fc.flux);
+
+			number density;
+			if (this->m_spDensityFct.valid())
+				(*this->m_spDensityFct)(density, coords, this->time(), si);
+			else
+			{
+				UG_THROW("No density information available for " << m_spMembraneTransporter->name()
+						<< " membrane transport mechanism. Please set using set_density_function().");
+			}
+
+			for (size_t i = 0; i < n_flux; i++)
+			{
+				fc.flux[i] *= density;
+				fc.from[i] = m_spMembraneTransporter->flux_from_to(i).first;
+				fc.to[i] = m_spMembraneTransporter->flux_from_to(i).second;
+			}
+
+			return true;
+		}
+
+		bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, FluxDerivCond& fdc)
+		{
+			size_t n_dep = m_spMembraneTransporter->n_dependencies();
+			size_t n_flux = m_spMembraneTransporter->n_fluxes();
+
+
+			if (u.size() != n_dep)
+			{
+				UG_THROW(" LocalVector u does not have enough functions"
+						" (has " << u.size() << ", but needs exactly " << n_dep
+						<< " as defined in " << m_spMembraneTransporter->name() << ").");
+			}
+
+			// calculate single-channel flux
+			fdc.fluxDeriv.resize(n_flux);
+			fdc.from.resize(n_flux);
+			fdc.to.resize(n_flux);
+			for (size_t i = 0; i < n_flux; i++)
+				fdc.fluxDeriv[i].resize(n_dep,0.0);
+
+			m_spMembraneTransporter->flux_derivative(u, fdc.fluxDeriv);
+
+			number density;
+			if (this->m_spDensityFct.valid())
+				(*this->m_spDensityFct)(density, coords, this->time(), si);
+			else
+			{
+				UG_THROW("No density information available for " << m_spMembraneTransporter->name()
+						<< " membrane transport mechanism. Please set using set_density_function().");
+			}
+
+			for (size_t i = 0; i < n_flux; i++)
+			{
+				for (size_t j = 0; j < n_dep; j++)
+					fdc.fluxDeriv[i][j] *= density;
+				fdc.from[i] = m_spMembraneTransporter->flux_from_to(i).first;
+				fdc.to[i] = m_spMembraneTransporter->flux_from_to(i).second;
+			}
+
+			return true;
+		}
+
 	protected:
 		SmartPtr<CplUserData<number,dim> > m_spDensityFct;
+		SmartPtr<IMembraneTransporter> m_spMembraneTransporter;
 };
 
 

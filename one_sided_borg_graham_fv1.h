@@ -130,7 +130,7 @@ class OneSidedBorgGrahamFV1 : public OneSidedMembraneTransportFV1<TDomain>
 		template<typename TElem>
 		void prep_timestep_elem(const number time, const LocalVector& u, GridObject* elem, const MathVector<dim> vCornerCoords[]);
 
-		// inherited from FV1MyNeumannBoundaryElemDisc
+		// inherited from OneSidedMembraneTransportFV1
 		virtual bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, NFluxCond& fc);
 		virtual bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, NFluxDerivCond& fdc);
 
