@@ -36,18 +36,17 @@ class IP3R : public IMembraneTransporter
 		enum{_CCYT_=0, _CER_, _IP3_};
 
 	protected:
-		const number R;			// universal gas constant
-		const number T;			// temperature
-		const number F;			// Faraday constant
+		const number R;			///< universal gas constant
+		const number T;			///< temperature
+		const number F;			///< Faraday constant
 
-		const number D1;		// IP3 binding (w/o Ca2+ inhibition)
-		const number D2;		// Ca2+ inhibiting binding
-		const number D3;		// IP3 binding (w/ Ca2+ inhibition)
-		const number D5;		// Ca2+ activating binding
-		const number RHO_IP3R;	// average channel density for IP3R channel
-		const number MU_IP3R;	// IP3R channel conductance
+		const number D1;		///< IP3 binding (w/o Ca2+ inhibition)
+		const number D2;		///< Ca2+ inhibiting binding
+		const number D3;		///< IP3 binding (w/ Ca2+ inhibition)
+		const number D5;		///< Ca2+ activating binding
+		const number MU_IP3R;	///< IP3R channel conductance
 
-		const number REF_CA_ER;	// reference endoplasmatic Ca2+ concentration (for conductances)
+		const number REF_CA_ER;	///< reference endoplasmic Ca2+ concentration (for conductances)
 
 	public:
 		/// constructor
@@ -56,33 +55,28 @@ class IP3R : public IMembraneTransporter
 		/// destructor
 		virtual ~IP3R();
 
-		/// flux output function
+		/// @copydoc IMembraneTransporter::calc_flux()
 		virtual void calc_flux(const std::vector<number>& u, std::vector<number>& flux) const;
 
-		/// flux derivative output function
+		/// @copydoc IMembraneTransporter::calc_flux_deriv()
 		virtual void calc_flux_deriv(const std::vector<number>& u, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
 
-		/// return number of unknowns this transport mechanism depends on
+		/// @copydoc IMembraneTransporter::n_dependencies()
 		virtual const size_t n_dependencies() const;
 
-		/// return number of fluxes calculated by this machanism
+		/// @copydoc IMembraneTransporter::n_fluxes()
 		virtual size_t n_fluxes() const;
 
-		/// from where to where do the fluxes occur
+		/// @copydoc IMembraneTransporter::flux_from_to()
 		virtual const std::pair<size_t,size_t> flux_from_to(size_t flux_i) const;
 
-		/// return supplied function names
+		/// @copydoc IMembraneTransporter::name()
 		virtual const std::string name() const;
 
-		/// Check whether setting the i-th unknown to a constant value of val is allowed.
-		/**
-		 * UG_THROWs, if not allowed.
-		 * @param i		index of the unknown
-		 * @param val	constant value to be set
-		 */
+		/// @copydoc IMembraneTransporter::check_constant_allowed()
 		virtual void check_constant_allowed(const size_t i, const number val) const;
 
-		/// prints the units this implementation uses
+		/// @copydoc IMembraneTransporter::print_units()
 		virtual void print_units() const;
 };
 

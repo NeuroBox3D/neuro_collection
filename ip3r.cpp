@@ -14,7 +14,7 @@ namespace neuro_collection{
 
 IP3R::IP3R(std::vector<std::string> fcts) : IMembraneTransporter(fcts),
 R(8.314), T(310.0), F(96485.0),
-D1(1.3e-4), D2(1.05e-3), D3(9.4e-4), D5(8.23e-5), RHO_IP3R(17.3), MU_IP3R(1.6e-12),
+D1(1.3e-4), D2(1.05e-3), D3(9.4e-4), D5(8.23e-5), MU_IP3R(1.6e-12),
 REF_CA_ER(2.5e-1)
 {
 	// nothing to do
