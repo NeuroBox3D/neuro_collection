@@ -20,6 +20,10 @@ namespace ug{
 namespace neuro_collection{
 
 
+///@addtogroup plugin_neuro_collection
+///@{
+
+
 /**
  * @brief Interface class for membrane transport mechanisms
  *
@@ -172,7 +176,7 @@ class IMembraneTransporter
 		virtual const std::string name() const = 0;
 
 		/**
-		 * Return supplied function names
+		 * @brief Return supplied function names
 		 *
 		 * Supplied functions are those which are not passed to the constructor as "".
 		 * This method is called by the constructor TwoSidedMembraneTransportFV1::TwoSidedMembraneTransportFV1().
@@ -208,7 +212,7 @@ class IMembraneTransporter
 		void set_constant(const size_t i, const number val);
 
 		/**
-		 * Check whether the unknown of an index is set constant
+		 * @brief Check whether the unknown of an index is set constant
 		 *
 		 * If it is, the constant value set is returned in the second argument.
 		 * Otherwise, the second argument remains unchanged.
@@ -222,7 +226,7 @@ class IMembraneTransporter
 		const bool has_constant_value(const size_t i, number& val) const;
 
 		/**
-		 * Check whether the unknown of an index is set constant
+		 * @brief Check whether the unknown of an index is set constant
 		 *
 		 * The ordering of indices corresponds to that of the constructor.
 		 *
@@ -232,7 +236,7 @@ class IMembraneTransporter
 		const bool has_constant_value(const size_t i) const;
 
 		/**
-		 * Check whether the unknown of an index is a supplied function
+		 * @brief Check whether the unknown of an index is a supplied function
 		 *
 		 * Supplied functions are those which are not passed to the constructor as "".
 		 * Of course, only supplied functions allow flux being directed to or from them.
@@ -333,6 +337,7 @@ class IMembraneTransporter
 		bool m_bLocked;
 };
 
+///@}
 
 } // namespace neuro_collection
 } // namespace ug
