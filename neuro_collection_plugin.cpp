@@ -23,9 +23,9 @@
 #include "two_sided_membrane_transport_fv1.h"
 #include "membrane_transporter_interface.h"
 #include "ip3r.h"
-#include "ryr.h"
-#include "serca.h"
-#include "leak.h"
+//#include "ryr.h"
+//#include "serca.h"
+//#include "leak.h"
 
 
 using namespace std;
@@ -127,10 +127,14 @@ static void Domain(Registry& reg, string grp)
 		typedef DependentNeumannBoundaryFV1<TDomain> TBase;
 		string name = string("OneSidedMembraneTransportFV1").append(suffix);
 		reg.add_class_<T0, TBase >(name, grp)
+			.add_method("set_density_function", static_cast<void (T0::*) (const number)> (&T0::set_density_function),
+						"", "", "add a constant density")
+#ifdef UG_FOR_LUA
 			.add_method("set_density_function", static_cast<void (T0::*) (const char*)> (&T0::set_density_function),
 							"", "", "add a density function")
+#endif
 			.add_method("set_density_function", static_cast<void (T0::*) (SmartPtr<CplUserData<number,dim> >)>
-					(&T0::set_density_function), "", "", "add a density function");
+					    (&T0::set_density_function), "", "", "add a density function");
 		reg.add_class_to_group(name, "OneSidedMembraneTransportFV1", tag);
 	}
 
@@ -225,9 +229,14 @@ static void Domain(Registry& reg, string grp)
 		typedef FV1InnerBoundaryElemDisc<TDomain> TBase;
 		string name = string("TwoSidedMembraneTransportFV1").append(suffix);
 		reg.add_class_<T, TBase >(name, grp)
-			.template add_constructor<void (*)(const char*, const char*)>("Function(s)#Subset(s)")
+			.template add_constructor<void (*)(const char*, SmartPtr<IMembraneTransporter>)>("Function(s)#MembraneTransporter")
+			.template add_constructor<void (*)(const char*, const char*)>("Function(s)#MSubset(s)")	//TODO: delete
+			.add_method("set_density_function", static_cast<void (T::*) (const number)> (&T::set_density_function),
+						"", "", "add a constant density")
+#ifdef UG_FOR_LUA
 			.add_method("set_density_function", static_cast<void (T::*) (const char*)> (&T::set_density_function),
-							"", "", "add a density function")
+						"", "", "add a density function")
+#endif
 			.add_method("set_density_function", static_cast<void (T::*) (SmartPtr<CplUserData<number,dim> >)>
 					(&T::set_density_function), "", "", "add a density function")
 			.add_method("set_membrane_transporter", &T::set_membrane_transporter, "", "", "sets the membrane transport mechanism")
@@ -319,16 +328,36 @@ static void Common(Registry& reg, string grp)
 {	{
 		typedef IMembraneTransporter T;
 		std::string name = std::string("MembraneTransporter");
-		reg.add_class_<T>(name, grp);
+		reg.add_class_<T>(name, grp)
+			.add_method("set_constant", &T::set_constant, "", "index i#value v",
+						"sets a constant value v for the i-th passed unknown", "")
+			.add_method("num_fluxes", &T::n_fluxes, "number of fluxes this transport mechanism calculates", "", "", "")
+			.add_method("print_units", &T::print_units, "", "",
+						"prints out the units used in the implementation of this membrane transport mechanism", "")
+			.add_method("set_scale_inputs", &T::set_scale_inputs, "", "scaling factors (same number and order as for the constructor)",
+						"Sets scaling factors for conversion of user's input variable units to the units of the implementation of "
+						"this membrane transport mechanism.", "Default values: 1.0 (no scaling).")
+			.add_method("set_scale_fluxes", &T::set_scale_fluxes, "", "scaling factors",
+						"Sets scaling factors for conversion of calculated fluxes to the units employed by the user.",
+						"Default values: 1.0 (no scaling).");
+			/* does not work, since vectors have to be const for exchange with lua
+			.add_method("calc_flux", &T::calc_flux, "", "input values#output flux(es)",
+						"calculates the flux(es) through this mechanism", "")
+			.add_method("calc_flux_deriv", &T::calc_flux_deriv, "", "input values#output flux derivatives",
+						"calculates the flux derivatives through this mechanism", "");
+			*/
 	}
 	{
 		typedef IP3R T;
 		typedef IMembraneTransporter TBase;
 		std::string name = std::string("IP3R");
 		reg.add_class_<T, TBase>(name, grp)
-			.add_constructor<void (*)()>()
+			.add_constructor<void (*)(std::vector<std::string>)>
+				("Subset vector with the following order: "
+				 "{\"cytosolic calcium\", \"endoplasmic calcium\", \"ip3\"}")
 			.set_construct_as_smart_pointer(true);
 	}
+	/*
 	{
 		typedef RyR T;
 		typedef IMembraneTransporter TBase;
@@ -353,6 +382,7 @@ static void Common(Registry& reg, string grp)
 			.add_constructor<void (*)()>()
 			.set_construct_as_smart_pointer(true);
 	}
+	*/
 }
 
 }; // end Functionality

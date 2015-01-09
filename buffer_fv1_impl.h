@@ -20,7 +20,7 @@ void BufferFV1<TDomain>::prepare_setting(const std::vector<LFEID>& vLfeID, bool 
 		UG_THROW("FV1BufferElemDisc: needs exactly " << this->num_fct() << " functions.");
 
 	// check that Lagrange 1st order
-	for (std::size_t i = 0; i < vLfeID.size(); ++i)
+	for (size_t i = 0; i < vLfeID.size(); ++i)
 		if (vLfeID[i] != LFEID(LFEID::LAGRANGE, dim, 1))
 			UG_THROW("FV1BufferElemDisc: Only first order implemented.");
 
@@ -49,9 +49,9 @@ add_reaction(const char* fct1, const char* fct2,
 	// determine function indices
 	// check if agents already in functions schema; if not: add
 	std::vector<std::string> fcts = this->symb_fcts();
-	std::size_t fctIndex1 = 0; bool found1 = false;
-	std::size_t fctIndex2 = 0; bool found2 = false;
-	for (std::size_t i = 0; i < fcts.size(); i++)
+	size_t fctIndex1 = 0; bool found1 = false;
+	size_t fctIndex2 = 0; bool found2 = false;
+	for (size_t i = 0; i < fcts.size(); i++)
 	{
 		if (!fcts[i].compare(fct1)) // compare evaluates to 0 iff equal
 		{
@@ -115,9 +115,9 @@ prep_elem_loop(const ReferenceObjectID roid, const int si)
 		static const int refDim = TElem::dim;
 		static const TFVGeom& geo = GeomProvider<TFVGeom>::get();
 		const MathVector<refDim>* vSCVip = geo.scv_local_ips();
-		const std::size_t numSCVip = geo.num_scv_ips();
+		const size_t numSCVip = geo.num_scv_ips();
 
-		for (std::size_t i=0; i<m_reactions.size(); i++)
+		for (size_t i=0; i<m_reactions.size(); i++)
 		{
 			m_reactions[i].tot_buffer.template set_local_ips<refDim>(vSCVip, numSCVip, false);
 			m_reactions[i].k_bind.template set_local_ips<refDim>(vSCVip, numSCVip, false);
@@ -148,9 +148,9 @@ prep_elem(const LocalVector& u, GridObject* elem, const ReferenceObjectID roid, 
 	{
 		const int refDim = TElem::dim;
 		const MathVector<refDim>* vSCVip = geo.scv_local_ips();
-		const std::size_t numSCVip = geo.num_scv_ips();
+		const size_t numSCVip = geo.num_scv_ips();
 
-		for (std::size_t i=0; i<m_reactions.size(); i++)
+		for (size_t i=0; i<m_reactions.size(); i++)
 		{
 			m_reactions[i].tot_buffer.template set_local_ips<refDim>(vSCVip, numSCVip);
 			m_reactions[i].k_bind.template set_local_ips<refDim>(vSCVip, numSCVip);
@@ -160,9 +160,9 @@ prep_elem(const LocalVector& u, GridObject* elem, const ReferenceObjectID roid, 
 
 	//	set global positions
 	const MathVector<dim>* vSCVip = geo.scv_global_ips();
-	const std::size_t numSCVip = geo.num_scv_ips();
+	const size_t numSCVip = geo.num_scv_ips();
 
-	for (std::size_t i=0; i<m_reactions.size(); i++)
+	for (size_t i=0; i<m_reactions.size(); i++)
 	{
 		m_reactions[i].tot_buffer.set_global_ips(vSCVip, numSCVip);
 		m_reactions[i].k_bind.set_global_ips(vSCVip, numSCVip);
@@ -180,7 +180,7 @@ add_def_A_elem(LocalVector& d, const LocalVector& u, GridObject* elem, const Mat
 	static const TFVGeom& fvgeom = GeomProvider<TFVGeom>::get();
 
 	// loop subcontrol volumes
-	for (std::size_t ip = 0; ip < fvgeom.num_scv(); ++ip)
+	for (size_t ip = 0; ip < fvgeom.num_scv(); ++ip)
 	{
 		// get current SCV
 		const typename TFVGeom::SCV& scv = fvgeom.scv(ip);
@@ -189,7 +189,7 @@ add_def_A_elem(LocalVector& d, const LocalVector& u, GridObject* elem, const Mat
 		const int co = scv.node_id();
 
 		// loop reactions
-		for (std::size_t j = 0; j < m_reactions.size(); j++)
+		for (size_t j = 0; j < m_reactions.size(); j++)
 		{
 			// compute local defect
 			const struct ReactionInfo<dim>& r = m_reactions[j];
@@ -223,7 +223,7 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u, GridObject* elem, const Mat
 	static const TFVGeom& fvgeom = GeomProvider<TFVGeom>::get();
 
 	// loop scvs
-	for (std::size_t ip = 0; ip < fvgeom.num_scv(); ++ip)
+	for (size_t ip = 0; ip < fvgeom.num_scv(); ++ip)
 	{
 		// get current SCV
 		const typename TFVGeom::SCV& scv = fvgeom.scv(ip);
@@ -232,7 +232,7 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u, GridObject* elem, const Mat
 		const int co = scv.node_id();
 
 		// loop reactions
-		for (std::size_t j = 0; j < m_reactions.size(); j++)
+		for (size_t j = 0; j < m_reactions.size(); j++)
 		{
 			// compute local derivatives
 			const struct ReactionInfo<dim>& r = m_reactions[j];
@@ -314,7 +314,7 @@ prep_err_est_elem_loop(const ReferenceObjectID roid, const int si)
 		}
 
 		// get local IPs
-		std::size_t numElemIPs;
+		size_t numElemIPs;
 		const MathVector<refDim>* elemIPs;
 		try
 		{
@@ -327,7 +327,7 @@ prep_err_est_elem_loop(const ReferenceObjectID roid, const int si)
 		UG_CATCH_THROW("Integration points for error estimator cannot be set.");
 
 		// set local IPs in imports
-		for (std::size_t i=0; i<m_reactions.size(); i++)
+		for (size_t i=0; i<m_reactions.size(); i++)
 		{
 			m_reactions[i].tot_buffer.template set_local_ips<refDim>(elemIPs, numElemIPs, false);
 			m_reactions[i].k_bind.template set_local_ips<refDim>(elemIPs, numElemIPs, false);
@@ -339,7 +339,7 @@ prep_err_est_elem_loop(const ReferenceObjectID roid, const int si)
 					= Provider<LagrangeP1<typename reference_element_traits<TElem>::reference_element_type> >::get();
 
 		m_shapeValues.resize(numElemIPs, trialSpace.num_sh());
-		for (std::size_t ip = 0; ip < numElemIPs; ip++)
+		for (size_t ip = 0; ip < numElemIPs; ip++)
 			trialSpace.shapes(m_shapeValues.shapesAtElemIP(ip), elemIPs[ip]);
 	}
 };
@@ -368,7 +368,7 @@ prep_err_est_elem(const LocalVector& u, GridObject* elem, const MathVector<dim> 
 					"This should not happen.");
 		}
 
-		std::size_t numElemIPs;
+		size_t numElemIPs;
 		const MathVector<refDim>* elemIPs;
 		try
 		{
@@ -381,7 +381,7 @@ prep_err_est_elem(const LocalVector& u, GridObject* elem, const MathVector<dim> 
 		UG_CATCH_THROW("Integration points for error estimator cannot be set.");
 
 		// set local IPs in imports
-		for (std::size_t i=0; i<m_reactions.size(); i++)
+		for (size_t i=0; i<m_reactions.size(); i++)
 		{
 			m_reactions[i].tot_buffer.template set_local_ips<refDim>(elemIPs, numElemIPs);
 			m_reactions[i].k_bind.template set_local_ips<refDim>(elemIPs, numElemIPs);
@@ -393,12 +393,12 @@ prep_err_est_elem(const LocalVector& u, GridObject* elem, const MathVector<dim> 
 					= Provider<LagrangeP1<typename reference_element_traits<TElem>::reference_element_type> >::get();
 
 		m_shapeValues.resize(numElemIPs, trialSpace.num_sh());
-		for (std::size_t ip = 0; ip < numElemIPs; ip++)
+		for (size_t ip = 0; ip < numElemIPs; ip++)
 			trialSpace.shapes(m_shapeValues.shapesAtElemIP(ip), elemIPs[ip]);
 	}
 
 //	set global positions
-	std::size_t numElemIPs;
+	size_t numElemIPs;
 	MathVector<dim>* elemIPs;
 
 	try
@@ -409,7 +409,7 @@ prep_err_est_elem(const LocalVector& u, GridObject* elem, const MathVector<dim> 
 	UG_CATCH_THROW("Global integration points for error estimator cannot be set.");
 
 	// set local IPs in imports
-	for (std::size_t i=0; i<m_reactions.size(); i++)
+	for (size_t i=0; i<m_reactions.size(); i++)
 	{
 		m_reactions[i].tot_buffer.set_global_ips(&elemIPs[0], numElemIPs);
 		m_reactions[i].k_bind.set_global_ips(&elemIPs[0], numElemIPs);
@@ -448,10 +448,10 @@ compute_err_est_A_elem(const LocalVector& u, GridObject* elem, const MathVector<
 	try
 	{
 		// loop ips for both
-		for (std::size_t ip = 0; ip < err_est_data->get(0)->num_elem_ips(elem->reference_object_id()); ip++)
+		for (size_t ip = 0; ip < err_est_data->get(0)->num_elem_ips(elem->reference_object_id()); ip++)
 		{
 			// loop reactions
-			for (std::size_t j = 0; j < m_reactions.size(); j++)
+			for (size_t j = 0; j < m_reactions.size(); j++)
 			{
 				const struct ReactionInfo<dim>& r = m_reactions[j];
 				if (!r.k_bind.data_given() || !r.k_unbind.data_given() ||  !r.tot_buffer.data_given())
@@ -459,7 +459,7 @@ compute_err_est_A_elem(const LocalVector& u, GridObject* elem, const MathVector<
 
 				number val_c = 0.0;
 				number val_b = 0.0;
-				for (std::size_t sh = 0; sh < m_shapeValues.num_sh(); sh++)
+				for (size_t sh = 0; sh < m_shapeValues.num_sh(); sh++)
 				{
 					val_c += u(r.buffered,sh) * m_shapeValues.shapeAtElemIP(sh,ip);
 					val_b += u(r.buffer,sh) * m_shapeValues.shapeAtElemIP(sh,ip);

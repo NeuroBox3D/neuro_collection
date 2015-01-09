@@ -8,7 +8,8 @@
 #ifndef __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__IP3R_H__
 #define __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__IP3R_H__
 
-#include <string>
+#include "membrane_transporter_interface.h"
+#include "lib_disc/spatial_disc/elem_disc/inner_boundary/inner_boundary.h"
 
 
 namespace ug{
@@ -17,14 +18,23 @@ namespace neuro_collection{
 
 /// Discretization for the IP3R calcium channel in the ER membrane
 /**
- * This class implements the InnerBoundaryElemDisc to provide flux densities
+ * This class implements the MembraneTransport interface to provide flux densities
  * and their derivatives for the De Young & Keizer (1992) model of IP3R channels.
  *
- * \tparam	TDomain		domain
+ * Units used in the implementation of this channel:
+ * [Ca_cyt]  mM (= mol/m^3)
+ * [Ca_er]   mM (= mol/m^3)
+ * [IP3]     mM (= mol/m^3)
+ *
+ * Ca flux   mol/s
+ *
  */
 
 class IP3R : public IMembraneTransporter
 {
+	public:
+		enum{_CCYT_=0, _CER_, _IP3_};
+
 	protected:
 		const number R;			// universal gas constant
 		const number T;			// temperature
@@ -40,88 +50,40 @@ class IP3R : public IMembraneTransporter
 		const number REF_CA_ER;	// reference endoplasmatic Ca2+ concentration (for conductances)
 
 	public:
-		// constructor
-		IP3R() : IMembraneTransporter(),
-		R(8.314), T(310.0), F(96485.0),
-		D1(1.3e-7), D2(1.05e-6), D3(9.4e-7), D5(8.23e-8), RHO_IP3R(17.3), MU_IP3R(1.6e-12),
-		REF_CA_ER(2.5e-4) {};
+		/// constructor
+		IP3R(std::vector<std::string> fcts);
 
-		// destructor
-		virtual ~IP3R() {};
+		/// destructor
+		virtual ~IP3R();
 
-		// flux output functions
-		virtual void flux(const std::vector<number>& u, std::vector<number>& flux)
-		{
-			number caCyt = u[0];	// cytosolic Ca2+ concentration
-			number caER = u[1];		// ER Ca2+ concentration
-			number ip3 = u[2];		// IP3 concentration
+		/// flux output function
+		virtual void calc_flux(const std::vector<number>& u, std::vector<number>& flux) const;
 
-			// membrane current corresponding to diffusion pressure
-			number current = R*T/(4*F*F) * MU_IP3R/REF_CA_ER * (caER - caCyt);
+		/// flux derivative output function
+		virtual void calc_flux_deriv(const std::vector<number>& u, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
 
-			// flux calculation
-			number pOpen = pow(caCyt*ip3*D2 / ((caCyt*ip3 + ip3*D2 + D1*D2 + caCyt*D3) * (caCyt+D5)),3);
+		/// return number of unknowns this transport mechanism depends on
+		virtual const size_t n_dependencies() const;
 
-			flux[0] = pOpen * current;
+		/// return number of fluxes calculated by this machanism
+		virtual size_t n_fluxes() const;
 
-			// dimensional correction: concentrations are mol/dm^3, but length unit is um
-			flux[0] *= 1e15;
-		}
+		/// from where to where do the fluxes occur
+		virtual const std::pair<size_t,size_t> flux_from_to(size_t flux_i) const;
 
+		/// return supplied function names
+		virtual const std::string name() const;
 
-		virtual void flux_derivative(const std::vector<number>& u, std::vector<std::vector<number> >& flux_derivs)
-		{
-			// get values of the unknowns in associated node
-			number caCyt = u[0];
-			number caER = u[1];
-			number ip3 = u[2];
+		/// Check whether setting the i-th unknown to a constant value of val is allowed.
+		/**
+		 * UG_THROWs, if not allowed.
+		 * @param i		index of the unknown
+		 * @param val	constant value to be set
+		 */
+		virtual void check_constant_allowed(const size_t i, const number val) const;
 
-			// membrane potential
-			number current = R*T/(4*F*F) * MU_IP3R/REF_CA_ER * (caER - caCyt);
-			number dI_dCyt = - R*T/(4*F*F) * MU_IP3R/REF_CA_ER;
-			number dI_dER = -dI_dCyt;
-
-			// IP3R flux derivatives
-			number schlonz1 = caCyt*ip3 + ip3*D2 + D1*D2 + caCyt*D3;
-			number schlonz2 = schlonz1 * (caCyt+D5);
-			number schlonz3 = (caCyt*ip3*D2) / schlonz2;
-			number pOpen = pow(schlonz3,3);
-
-			number dOpen_dCyt = 3.0*schlonz3*schlonz3*ip3*D2 * (1.0 - caCyt/schlonz2 * ( (ip3+D3)*(caCyt+D5) + schlonz1 )) / schlonz2;
-			number dOpen_dIP3 = 3.0*schlonz3*schlonz3*caCyt*D2 * (1.0 - ip3/schlonz2 * (caCyt+D2)*(caCyt+D5)) / schlonz2;
-
-			flux_derivs[0][0] = dOpen_dCyt * current + pOpen * dI_dCyt;
-			flux_derivs[0][1] = pOpen * dI_dER;
-			flux_derivs[0][2] = dOpen_dIP3 * current;
-
-			// dimensional correction: concentrations are mol/dm^3, but length unit is um
-			for (size_t i = 0; i < u.size(); i++)
-				flux_derivs[0][i] *= 1e15;
-		}
-
-
-		// return number of unknowns this transport mechanism depends on
-		virtual size_t n_dependencies()
-		{
-			return 3;
-		}
-
-		// return number of fluxes calculated by this machanism
-		virtual size_t n_fluxes()
-		{
-			return 1;
-		};
-
-		// from where to where do the fluxes occur
-		virtual std::pair<size_t,size_t> flux_from_to(size_t flux_i)
-		{
-			return std::make_pair<size_t, size_t>(1,0);
-		}
-
-		virtual std::string name()
-		{
-			return std::string("IP3R");
-		};
+		/// prints the units this implementation uses
+		virtual void print_units() const;
 };
 
 

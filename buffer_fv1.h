@@ -37,7 +37,7 @@ namespace neuro_collection{
 /// as well as the kinetics constants for their reaction.
 template<int dim> struct ReactionInfo
 {
-	ReactionInfo(std::size_t _b, std::size_t _bd,
+	ReactionInfo(size_t _b, size_t _bd,
 				 SmartPtr<CplUserData<number, dim> > _tb,
 			     SmartPtr<CplUserData<number, dim> > _kb,
 			     SmartPtr<CplUserData<number, dim> > _ku)
@@ -48,8 +48,8 @@ template<int dim> struct ReactionInfo
 		k_unbind.set_data(_ku);
 	};
 
-	std::size_t buffer;		// index of buffer
-	std::size_t buffered;	// index of buffered agent
+	size_t buffer;		// index of buffer
+	size_t buffered;	// index of buffered agent
 	DataImport<number, dim> tot_buffer; // data import for total buffer concentration
 	DataImport<number, dim> k_bind;		// binding constant
 	DataImport<number, dim> k_unbind;	// unbinding constant
@@ -229,17 +229,17 @@ class BufferFV1
 		struct ShapeValues
 		{
 			public:
-				void resize(std::size_t nEip, std::size_t _nSh)
+				void resize(size_t nEip, size_t _nSh)
 				{
 					nSh = _nSh;
 					elemVals.resize(nEip);
-					for (std::size_t i = 0; i < nEip; i++) elemVals[i].resize(nSh);
+					for (size_t i = 0; i < nEip; i++) elemVals[i].resize(nSh);
 				}
-				number& shapeAtElemIP(std::size_t sh, std::size_t ip) {return elemVals[ip][sh];}
-				number* shapesAtElemIP(std::size_t ip) {return &elemVals[ip][0];}
-				std::size_t num_sh() {return nSh;}
+				number& shapeAtElemIP(size_t sh, size_t ip) {return elemVals[ip][sh];}
+				number* shapesAtElemIP(size_t ip) {return &elemVals[ip][0];}
+				size_t num_sh() {return nSh;}
 			private:
-				std::size_t nSh;
+				size_t nSh;
 				std::vector<std::vector<number> > elemVals;
 		} m_shapeValues;
 

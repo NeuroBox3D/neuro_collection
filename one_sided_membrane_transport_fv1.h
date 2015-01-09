@@ -71,6 +71,11 @@ class OneSidedMembraneTransportFV1
 					"Number - Callback\n" << (LuaUserData<number, dim>::signature()) << "\n");
 		}
 
+		void set_density_function(const number dens)
+		{
+			set_density_function(make_sp(new ConstUserNumber<dim>(dens)));
+		}
+
 	protected:
 		SmartPtr<CplUserData<number,dim> > m_spDensityFct;
 };

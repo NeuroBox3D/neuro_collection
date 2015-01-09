@@ -13,7 +13,9 @@
 set(pluginName	neuro_collection)
 set(pluginPath	plugins/experimental/neuro_collection)
 set(SOURCES    neuro_collection_plugin.cpp
-               dependent_neumann_boundary_fv1.cpp             
+			   membrane_transporter_interface.cpp
+			   ip3r.cpp
+               dependent_neumann_boundary_fv1.cpp
    )
 
 

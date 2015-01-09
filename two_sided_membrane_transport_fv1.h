@@ -20,6 +20,10 @@ namespace ug
 namespace neuro_collection
 {
 
+// foreward declaration of IMembraneTransporter
+class IMembraneTransporter;
+
+
 /// finite volume element discretization for the inner BndCond on a two-sided membrane
 /**
  * This class implements the InnerBoundary interface to provide element local
@@ -44,10 +48,22 @@ class TwoSidedMembraneTransportFV1
 		static const int dim = FV1InnerBoundaryElemDisc<TDomain>::dim;
 
 	public:
-	/// constructor
+	/// constructor (can be deleted after successful implementation of unified membrane transport) TODO
 		TwoSidedMembraneTransportFV1(const char* functions, const char* subsets)
 					: FV1InnerBoundaryElemDisc<TDomain>(functions, subsets),
-					  R(8.314), T(310.0), F(96485.0) {};
+					  R(8.314), T(310.0), F(96485.0){};
+
+	/// constructor
+		TwoSidedMembraneTransportFV1(const char* subsets, SmartPtr<IMembraneTransporter> mt)
+					: FV1InnerBoundaryElemDisc<TDomain>(),
+					  R(8.314), T(310.0), F(96485.0), m_spMembraneTransporter(mt)
+		{
+			// check validity of transporter setup and then lock
+			mt->check_and_lock();
+
+			static_cast<IElemDisc<TDomain>*>(this)->set_subsets(subsets);
+			static_cast<IElemDisc<TDomain>*>(this)->set_functions(mt->symb_fcts());
+		};
 
 	/// destructor
 		virtual ~TwoSidedMembraneTransportFV1() {};
@@ -78,10 +94,9 @@ class TwoSidedMembraneTransportFV1
 					"Number - Callback\n" << (LuaUserData<number, dim>::signature()) << "\n");
 		}
 
-		// TODO
-		void set_density_function(number)
+		void set_density_function(const number dens)
 		{
-
+			set_density_function(make_sp(new ConstUserNumber<dim>(dens)));
 		}
 
 	/// set transport mechanism
@@ -93,16 +108,7 @@ class TwoSidedMembraneTransportFV1
 	/// flux assembling routines inherited from FV1InnerBoundaryElemDisc
 		virtual bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, FluxCond& fc)
 		{
-			size_t n_dep = m_spMembraneTransporter->n_dependencies();
 			size_t n_flux = m_spMembraneTransporter->n_fluxes();
-
-
-			if (u.size() != n_dep)
-			{
-				UG_THROW(" LocalVector u does not have enough functions"
-						" (has " << u.size() << ", but needs exactly " << n_dep
-						<< " as defined in " << m_spMembraneTransporter->name() << ").");
-			}
 
 			// calculate single-channel flux
 			fc.flux.resize(n_flux);
@@ -111,14 +117,14 @@ class TwoSidedMembraneTransportFV1
 
 			m_spMembraneTransporter->flux(u, fc.flux);
 
-			number density;
-			if (this->m_spDensityFct.valid())
-				(*this->m_spDensityFct)(density, coords, this->time(), si);
-			else
+			// get density in membrane
+			if (!this->m_spDensityFct.valid())
 			{
 				UG_THROW("No density information available for " << m_spMembraneTransporter->name()
-						<< " membrane transport mechanism. Please set using set_density_function().");
+						 << " membrane transport mechanism. Please set using set_density_function().");
 			}
+			number density;
+			(*this->m_spDensityFct)(density, coords, this->time(), si);
 
 			for (size_t i = 0; i < n_flux; i++)
 			{
@@ -135,22 +141,14 @@ class TwoSidedMembraneTransportFV1
 			size_t n_dep = m_spMembraneTransporter->n_dependencies();
 			size_t n_flux = m_spMembraneTransporter->n_fluxes();
 
-
-			if (u.size() != n_dep)
-			{
-				UG_THROW(" LocalVector u does not have enough functions"
-						" (has " << u.size() << ", but needs exactly " << n_dep
-						<< " as defined in " << m_spMembraneTransporter->name() << ").");
-			}
-
 			// calculate single-channel flux
 			fdc.fluxDeriv.resize(n_flux);
 			fdc.from.resize(n_flux);
 			fdc.to.resize(n_flux);
 			for (size_t i = 0; i < n_flux; i++)
-				fdc.fluxDeriv[i].resize(n_dep,0.0);
+				fdc.fluxDeriv[i].resize(n_dep);
 
-			m_spMembraneTransporter->flux_derivative(u, fdc.fluxDeriv);
+			m_spMembraneTransporter->flux_deriv(u, fdc.fluxDeriv);
 
 			number density;
 			if (this->m_spDensityFct.valid())
@@ -164,7 +162,7 @@ class TwoSidedMembraneTransportFV1
 			for (size_t i = 0; i < n_flux; i++)
 			{
 				for (size_t j = 0; j < n_dep; j++)
-					fdc.fluxDeriv[i][j] *= density;
+					fdc.fluxDeriv[i][j].second *= density;
 				fdc.from[i] = m_spMembraneTransporter->flux_from_to(i).first;
 				fdc.to[i] = m_spMembraneTransporter->flux_from_to(i).second;
 			}
@@ -333,9 +331,12 @@ class TwoSidedIP3RFV1
 			fdc.fluxDeriv.resize(1);
 			fdc.fluxDeriv[0].resize(3);
 
-			fdc.fluxDeriv[0][0] = d_dCyt;
-			fdc.fluxDeriv[0][1] = d_dER;
-			fdc.fluxDeriv[0][2] = d_dIP3;
+			for (int i = 0; i < 3; i++)
+				fdc.fluxDeriv[0][i].first = i;
+
+			fdc.fluxDeriv[0][0].second = d_dCyt;
+			fdc.fluxDeriv[0][1].second = d_dER;
+			fdc.fluxDeriv[0][2].second = d_dIP3;
 
 			fdc.from.resize(1);	fdc.from[0] = 1;	// ER
 			fdc.to.resize(1);	fdc.to[0] = 0;		// cytosol
@@ -453,10 +454,13 @@ class TwoSidedRyRFV1
 
 			// add to Jacobian
 			fdc.fluxDeriv.resize(1);
-			fdc.fluxDeriv[0].resize(2, 0.0);
+			fdc.fluxDeriv[0].resize(2);
 
-			fdc.fluxDeriv[0][0] = d_dCyt;
-			fdc.fluxDeriv[0][1] = d_dER;
+			for (int i = 0; i < 2; i++)
+				fdc.fluxDeriv[0][i].first = i;
+
+			fdc.fluxDeriv[0][0].second = d_dCyt;
+			fdc.fluxDeriv[0][1].second = d_dER;
 
 			fdc.from.resize(1);	fdc.from[0] = 1;	// ER
 			fdc.to.resize(1);	fdc.to[0] = 0;		// cytosol
@@ -553,10 +557,13 @@ class TwoSidedSERCAFV1
 
 			// add to Jacobian
 			fdc.fluxDeriv.resize(1);
-			fdc.fluxDeriv[0].resize(2, 0.0);
+			fdc.fluxDeriv[0].resize(2);
 
-			fdc.fluxDeriv[0][0] = d_dCyt;
-			fdc.fluxDeriv[0][1] = d_dER;
+			for (int i = 0; i < 2; i++)
+				fdc.fluxDeriv[0][i].first = i;
+
+			fdc.fluxDeriv[0][0].second = d_dCyt;
+			fdc.fluxDeriv[0][1].second = d_dER;
 
 			fdc.from.resize(1);	fdc.from[0] = 1;	// ER
 			fdc.to.resize(1);	fdc.to[0] = 0;		// cytosol
@@ -649,10 +656,13 @@ class TwoSidedERCalciumLeakFV1
 
 			// add to Jacobian
 			fdc.fluxDeriv.resize(1);
-			fdc.fluxDeriv[0].resize(2, 0.0);
+			fdc.fluxDeriv[0].resize(2);
 
-			fdc.fluxDeriv[0][0] = d_dCyt;
-			fdc.fluxDeriv[0][1] = d_dER;
+			for (int i = 0; i < 2; i++)
+				fdc.fluxDeriv[0][i].first = i;
+
+			fdc.fluxDeriv[0][0].second = d_dCyt;
+			fdc.fluxDeriv[0][1].second = d_dER;
 
 			fdc.from.resize(1);	fdc.from[0] = 1;	// ER
 			fdc.to.resize(1);	fdc.to[0] = 0;		// cytosol
