@@ -16,6 +16,10 @@ namespace ug{
 namespace neuro_collection{
 
 
+///@addtogroup plugin_neuro_collection
+///@{
+
+
 /// Discretization for the IP3R calcium channel in the ER membrane
 /**
  * This class implements the MembraneTransport interface to provide flux densities
@@ -49,10 +53,10 @@ class IP3R : public IMembraneTransporter
 		const number REF_CA_ER;	///< reference endoplasmic Ca2+ concentration (for conductances)
 
 	public:
-		/// constructor
+		/// @copydoc IMembraneTransporter::IMembraneTransporter()
 		IP3R(std::vector<std::string> fcts);
 
-		/// destructor
+		/// @copydoc IMembraneTransporter::IMembraneTransporter()
 		virtual ~IP3R();
 
 		/// @copydoc IMembraneTransporter::calc_flux()
@@ -80,6 +84,7 @@ class IP3R : public IMembraneTransporter
 		virtual void print_units() const;
 };
 
+///@}
 
 } // namespace neuro_collection
 } // namespace ug

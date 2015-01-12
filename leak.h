@@ -8,81 +8,72 @@
 #ifndef __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__LEAK_H__
 #define __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__LEAK_H__
 
-#include <string>
+#include "membrane_transporter_interface.h"
+#include "lib_disc/spatial_disc/elem_disc/inner_boundary/inner_boundary.h"
 
 
 namespace ug{
 namespace neuro_collection{
 
 
+///@addtogroup plugin_neuro_collection
+///@{
+
+
 /// Discretization for the leakage flux through a membrane
 /**
- * This class implements the leakage flux through a membrane.
+ * This class implements the leakage flux through a membrane. It assumes a linear dependency
+ * of the flowing substance from the difference between source and target concentrations,
+ * i.e. j = c * ([source]-[target]). The constant c can be set using parent class method
+ * IMembraneTransporter::set_density_function(). Although this constitutes a slight misuse of
+ * terminology (as the constant does not in fact represent a physical density of some kind of
+ * "leakage channels" in the membrane), doing so allows a straightforward implementation.
  *
- * \tparam	TDomain		domain
+ * Units used in the implementation of this channel:
+ * Concentrations:                    mM (= mol/m^3)
+ * Leakage constant:                  m/s
+ * Output unit of the "flux" method:  mM
+ * Resulting flux density:            mol/(m^2 s)
  */
 
 class Leak : public IMembraneTransporter
 {
 	public:
-		// constructor
-		Leak() : IMembraneTransporter() {};
+		enum{_S_=0, _T_};
 
-		// destructor
-		virtual ~Leak() {};
+	public:
+	/// @copydoc IMembraneTransporter::IMembraneTransporter()
+	Leak(std::vector<std::string> fcts);
 
-		// flux output functions
-		virtual void flux(const std::vector<number>& u, std::vector<number>& flux)
-		{
-			number caCyt = u[0];	// cytosolic Ca2+ concentration
-			number caER = u[1];		// ER Ca2+ concentration
+	/// @copydoc IMembraneTransporter::IMembraneTransporter()
+	virtual ~Leak();
 
-			// membrane current corresponding to diffusion pressure
-			// cheating a little here: utilizing density for leakage flux "density" constant,
-			// since the leakage flux is not really caused by a density, but depends of course
-			// on the densities of all the pumps/channels in the membrane and is therefore
-			// position/subset dependent
-			flux[0] = caER-caCyt;
+	/// @copydoc IMembraneTransporter::calc_flux()
+	virtual void calc_flux(const std::vector<number>& u, std::vector<number>& flux) const;
 
-			// dimensional correction: concentrations are mol/dm^3, but length unit is um
-			flux[0] *= 1e15;
-		}
+	/// @copydoc IMembraneTransporter::calc_flux_deriv()
+	virtual void calc_flux_deriv(const std::vector<number>& u, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
 
+	/// @copydoc IMembraneTransporter::n_dependencies()
+	virtual const size_t n_dependencies() const;
 
-		virtual void flux_derivative(const std::vector<number>& u, std::vector<std::vector<number> >& flux_derivs)
-		{
-			flux_derivs[0][0] = -1.0;
-			flux_derivs[0][1] = 1.0;
+	/// @copydoc IMembraneTransporter::n_fluxes()
+	virtual size_t n_fluxes() const;
 
-			// dimensional correction: concentrations are mol/dm^3, but length unit is um
-			for (size_t i = 0; i < u.size(); i++)
-				flux_derivs[0][i] *= 1e15;
-		}
+	/// @copydoc IMembraneTransporter::flux_from_to()
+	virtual const std::pair<size_t,size_t> flux_from_to(size_t flux_i) const;
 
+	/// @copydoc IMembraneTransporter::name()
+	virtual const std::string name() const;
 
-		// return number of unknowns this transport mechanism depends on
-		virtual size_t n_dependencies()
-		{
-			return 2;
-		}
+	/// @copydoc IMembraneTransporter::check_constant_allowed()
+	virtual void check_constant_allowed(const size_t i, const number val) const;
 
-		// return number of fluxes calculated by this machanism
-		virtual size_t n_fluxes()
-		{
-			return 1;
-		};
-
-		// from where to where do the fluxes occur
-		virtual std::pair<size_t,size_t> flux_from_to(size_t flux_i)
-		{
-			return std::make_pair<size_t, size_t>(1,0);
-		}
-
-		virtual std::string name()
-		{
-			return std::string("Leak");
-		};
+	/// @copydoc IMembraneTransporter::print_units()
+	virtual void print_units() const;
 };
+
+///@}
 
 
 } // namespace neuro_collection

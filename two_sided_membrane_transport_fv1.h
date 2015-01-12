@@ -20,11 +20,13 @@ namespace ug
 namespace neuro_collection
 {
 
-// foreward declaration of IMembraneTransporter
+// forward declaration of IMembraneTransporter
 class IMembraneTransporter;
 
+///@addtogroup plugin_neuro_collection
+///@{
 
-/// finite volume element discretization for the inner BndCond on a two-sided membrane
+/// Finite Volume element discretization for the inner BndCond on a two-sided membrane
 /**
  * This class implements the InnerBoundary interface to provide element local
  * assemblings for the unknown-dependent Neumann flux over a membrane, where the flowing
@@ -670,6 +672,8 @@ class TwoSidedERCalciumLeakFV1
 			return true;
 		}
 };
+
+///@}
 
 } // end namespace neuro_collection
 } // end namespace ug

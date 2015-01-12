@@ -32,6 +32,9 @@
 namespace ug{
 namespace neuro_collection{
 
+///@addtogroup plugin_neuro_collection
+///@{
+
 
 /// Struct that holds information about the unknowns involved in a reaction
 /// as well as the kinetics constants for their reaction.
@@ -246,6 +249,8 @@ class BufferFV1
 	private:
 		bool m_bNonRegularGrid;
 };
+
+///@}
 
 } // namespace neuro_collection
 } // namespace ug

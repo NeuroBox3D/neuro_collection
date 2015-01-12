@@ -1,68 +1,64 @@
 /*
- *	Discretization for the IP3R calcium channel in the ER membrane
+ *	Discretization for the RyR calcium channel in the ER membrane
  *
  *  Created on: 20.12.2011
  *      Author: mbreit
  */
 
-#include "ip3r.h"
+#include "ryr.h"
 
 
 namespace ug{
 namespace neuro_collection{
 
 
-IP3R::IP3R(std::vector<std::string> fcts) : IMembraneTransporter(fcts),
+RyR::RyR(std::vector<std::string> fcts) : IMembraneTransporter(fcts),
 R(8.314), T(310.0), F(96485.0),
-D1(1.3e-4), D2(1.05e-3), D3(9.4e-4), D5(8.23e-5), MU_IP3R(1.6e-12),
+KA(5.21e13), KB(3.89e9), KC(17.5), MU_RYR(5.0e-11),
 REF_CA_ER(2.5e-1)
 {
 	// nothing to do
-}
+};
 
 
-IP3R::~IP3R()
+RyR::~RyR()
 {
 	// nothing to do
-}
+};
 
 
-void IP3R::calc_flux(const std::vector<number>& u, std::vector<number>& flux) const
+void RyR::calc_flux(const std::vector<number>& u, std::vector<number>& flux) const
 {
 	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
 	number caER = u[_CER_];		// ER Ca2+ concentration
-	number ip3 = u[_IP3_];		// IP3 concentration
 
 	// membrane current corresponding to diffusion pressure
-	number current = R*T/(4*F*F) * MU_IP3R/REF_CA_ER * (caER - caCyt);
+	number current = R*T/(4*F*F) * MU_RYR/REF_CA_ER * (caER - caCyt);
 
 	// open probability
-	number pOpen = pow(caCyt*ip3*D2 / ((caCyt*ip3 + ip3*D2 + D1*D2 + caCyt*D3) * (caCyt+D5)),3);
+	number pOpen =  (1.0 + KB*pow(caCyt,3)) / (1.0 + KC + 1.0/(KA*pow(caCyt,4)) + KB*pow(caCyt,3));
 
 	flux[0] = pOpen * current;
 }
 
 
-void IP3R::calc_flux_deriv(const std::vector<number>& u, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
+void RyR::calc_flux_deriv(const std::vector<number>& u, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
 	// get values of the unknowns in associated node
 	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
 	number caER = u[_CER_];		// ER Ca2+ concentration
-	number ip3 = u[_IP3_];		// IP3 concentration
 
 	// membrane potential
-	number current = R*T/(4*F*F) * MU_IP3R/REF_CA_ER * (caER - caCyt);
-	number dI_dCyt = - R*T/(4*F*F) * MU_IP3R/REF_CA_ER;
+	number current = R*T/(4*F*F) * MU_RYR/REF_CA_ER * (caER - caCyt);
+	number dI_dCyt = - R*T/(4*F*F) * MU_RYR/REF_CA_ER;
 	number dI_dER = -dI_dCyt;
 
-	// IP3R flux derivatives
-	number schlonz1 = caCyt*ip3 + ip3*D2 + D1*D2 + caCyt*D3;
-	number schlonz2 = schlonz1 * (caCyt+D5);
-	number schlonz3 = (caCyt*ip3*D2) / schlonz2;
-	number pOpen = pow(schlonz3,3);
+	// RyR flux derivs
+	number schlonz1 = 1.0 + KB*pow(caCyt,3);
+	number schlonz2 = 1.0 + KC + 1.0/(KA*pow(caCyt,4)) + KB*pow(caCyt,3);
+	number pOpen = schlonz1 / schlonz2;
 
-	number dOpen_dCyt = 3.0*schlonz3*schlonz3*ip3*D2 * (1.0 - caCyt/schlonz2 * ( (ip3+D3)*(caCyt+D5) + schlonz1 )) / schlonz2;
-	number dOpen_dIP3 = 3.0*schlonz3*schlonz3*caCyt*D2 * (1.0 - ip3/schlonz2 * (caCyt+D2)*(caCyt+D5)) / schlonz2;
+	number dOpen_dCyt = (3.0*KB*caCyt*caCyt + schlonz1/schlonz2*(4.0/(KA*pow(caCyt,5)) - 3.0*KB*caCyt*caCyt)) / schlonz2;
 
 	size_t i = 0;
 	if (!has_constant_value(_CCYT_))
@@ -77,50 +73,44 @@ void IP3R::calc_flux_deriv(const std::vector<number>& u, std::vector<std::vector
 		flux_derivs[0][i].second = pOpen * dI_dER;
 		i++;
 	}
-	if (!has_constant_value(_IP3_))
-	{
-		flux_derivs[0][i].first = local_fct_index(_IP3_);
-		flux_derivs[0][i].second = dOpen_dIP3 * current;
-	}
 }
 
 
-const size_t IP3R::n_dependencies() const
+const size_t RyR::n_dependencies() const
 {
-	size_t n = 3;
-	for (size_t i = 0; i < 3; i++)
-	{
-		if (has_constant_value(i))
-			n--;
-	}
+	size_t n = 2;
+	if (has_constant_value(_CCYT_))
+		n--;
+	if (has_constant_value(_CER_))
+		n--;
 
 	return n;
 }
 
 
-size_t IP3R::n_fluxes() const
+size_t RyR::n_fluxes() const
 {
 	return 1;
-}
+};
 
 
-const std::pair<size_t,size_t> IP3R::flux_from_to(size_t flux_i) const
+const std::pair<size_t,size_t> RyR::flux_from_to(size_t flux_i) const
 {
-	size_t from, to;
-	if (allows_flux(_CCYT_)) to = local_fct_index(_CCYT_); else to = InnerBoundaryConstants::_IGNORE_;
-	if (allows_flux(_CER_)) from = local_fct_index(_CER_); else from = InnerBoundaryConstants::_IGNORE_;
-
-	return std::pair<size_t, size_t>(from, to);
+    size_t from, to;
+    if (allows_flux(_CCYT_)) to = local_fct_index(_CCYT_); else to = InnerBoundaryConstants::_IGNORE_;
+    if (allows_flux(_CER_)) from = local_fct_index(_CER_); else from = InnerBoundaryConstants::_IGNORE_;
+    
+    return std::pair<size_t, size_t>(from, to);
 }
 
 
-const std::string IP3R::name() const
+const std::string RyR::name() const
 {
-	return std::string("IP3R");
-}
+	return std::string("RyR");
+};
 
 
-void IP3R::check_constant_allowed(const size_t i, const number val) const
+void RyR::check_constant_allowed(const size_t i, const number val) const
 {
 	// Check that not both, inner and outer calcium concentrations are set constant;
 	// in that case, calculation of a flux would be of no consequence.
@@ -135,7 +125,7 @@ void IP3R::check_constant_allowed(const size_t i, const number val) const
 }
 
 
-void IP3R::print_units() const
+void RyR::print_units() const
 {
 	std::string nm = name();
 	size_t n = nm.size();
@@ -146,7 +136,6 @@ void IP3R::print_units() const
 	UG_LOG("|    Input                                                                     |"<< std::endl);
 	UG_LOG("|      [Ca_cyt]  mM (= mol/m^3)                                                |"<< std::endl);
 	UG_LOG("|      [Ca_er]   mM (= mol/m^3)                                                |"<< std::endl);
-	UG_LOG("|      [IP3]     mM (= mol/m^3)                                                |"<< std::endl);
 	UG_LOG("|                                                                              |"<< std::endl);
 	UG_LOG("|    Output                                                                    |"<< std::endl);
 	UG_LOG("|      Ca flux   mol/s                                                         |"<< std::endl);
@@ -157,4 +146,3 @@ void IP3R::print_units() const
 
 } // namespace neuro_collection
 } // namespace ug
-

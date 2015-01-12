@@ -8,11 +8,17 @@
 #ifndef __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__NCX_H__
 #define __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__NCX_H__
 
-#include <string>
+
+#include "membrane_transporter_interface.h"
+#include "lib_disc/spatial_disc/elem_disc/inner_boundary/inner_boundary.h"
 
 
 namespace ug{
 namespace neuro_collection{
+
+
+///@addtogroup plugin_neuro_collection
+///@{
 
 
 /// Discretization for the NCX pump in the PM
@@ -20,74 +26,56 @@ namespace neuro_collection{
  * This class implements the InnerBoundaryElemDisc to provide flux densities
  * and their derivatives for the Graupner (2003) model of NCX pumps.
  *
- * \tparam	TDomain		domain
+ * Units used in the implementation of this channel:
+ * [Ca_cyt]  mM (= mol/m^3)
+ * [Ca_out]  mM (= mol/m^3)
+ *
+ * Ca flux   mol/s
  */
 
 class NCX : public IMembraneTransporter
 {
-	protected:
-		const number KD_N;			// mol*dm^-3
+	public:
+        enum{_CCYT_=0, _COUT_};
+
+
+    protected:
+		const number KD_N;			// mol*m^-3
 		const number IMAX_N;		// mol*s^-1
-		const number RHO_N;//1.0e02	// um^-2
 
 	public:
-		// constructor
-		NCX() : IMembraneTransporter(),
-		KD_N(1.8e-6), IMAX_N(2.5e-21), RHO_N(15.0) {};
+		/// @copydoc IMembraneTransporter::IMembraneTransporter()
+		NCX(std::vector<std::string> fcts);
 
-		// destructor
-		virtual ~NCX() {};
+		/// @copydoc IMembraneTransporter::IMembraneTransporter()
+		virtual ~NCX();
 
-		// flux output functions
-		virtual void flux(const std::vector<number>& u, std::vector<number>& flux)
-		{
-			number caCyt = u[0];	// cytosolic Ca2+ concentration
+		/// @copydoc IMembraneTransporter::calc_flux()
+		virtual void calc_flux(const std::vector<number>& u, std::vector<number>& flux) const;
 
-			number gatingFactor = caCyt / (KD_N + caCyt);
+		/// @copydoc IMembraneTransporter::calc_flux_deriv()
+		virtual void calc_flux_deriv(const std::vector<number>& u, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
 
-			flux[0] = - gatingFactor * IMAX_N;
+		/// @copydoc IMembraneTransporter::n_dependencies()
+		virtual const size_t n_dependencies() const;
 
-			// dimensional correction: concentrations are mol/dm^3, but length unit is um
-			flux[0] *= 1e15;
-		}
+		/// @copydoc IMembraneTransporter::n_fluxes()
+		virtual size_t n_fluxes() const;
 
+		/// @copydoc IMembraneTransporter::flux_from_to()
+		virtual const std::pair<size_t,size_t> flux_from_to(size_t flux_i) const;
 
-		virtual void flux_derivative(const std::vector<number>& u, std::vector<std::vector<number> >& flux_derivs)
-		{
-			// get values of the unknowns in associated node
-			number caCyt = u[0];
+		/// @copydoc IMembraneTransporter::name()
+		virtual const std::string name() const;
 
-			number dGating_dCyt = KD_N / std::pow(KD_N + caCyt, 2);
-			flux_derivs[0][0] = - dGating_dCyt * IMAX_N;
+		/// @copydoc IMembraneTransporter::check_constant_allowed()
+		virtual void check_constant_allowed(const size_t i, const number val) const;
 
-			// dimensional correction: concentrations are mol/dm^3, but length unit is um
-			flux_derivs[0][0] *= 1e15;
-		}
-
-
-		// return number of unknowns this transport mechanism depends on
-		virtual size_t n_dependencies()
-		{
-			return 1;
-		}
-
-		// return number of fluxes calculated by this machanism
-		virtual size_t n_fluxes()
-		{
-			return 1;
-		};
-
-		// from where to where do the fluxes occur
-		virtual std::pair<size_t,size_t> flux_from_to(size_t flux_i)
-		{
-			return std::make_pair<size_t, size_t>(-1,0);
-		}
-
-		virtual std::string name()
-		{
-			return std::string("NCX");
-		};
+		/// @copydoc IMembraneTransporter::print_units()
+		virtual void print_units() const;
 };
+
+///@}
 
 
 } // namespace neuro_collection

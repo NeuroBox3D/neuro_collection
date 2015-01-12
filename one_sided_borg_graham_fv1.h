@@ -19,10 +19,11 @@
 #include "lib_disc/spatial_disc/disc_util/hfv1_geom.h"
 #include "lib_disc/spatial_disc/disc_util/geom_provider.h"
 
-namespace ug
-{
-namespace neuro_collection
-{
+namespace ug{
+namespace neuro_collection{
+
+///@addtogroup plugin_neuro_collection
+///@{
 
 /// Class interface for Borg Graham type VGCCs of the plasma membrane.
 /** This class is an interface for the Borg-Graham-type voltage-gated calcium channels
@@ -386,6 +387,7 @@ class OneSidedBorgGrahamFV1WithUserData : public OneSidedBorgGrahamFV1<TDomain>
 		bool m_bIsConstData;
 };
 
+///@}
 
 } // namespace neuro_collection
 } // namespace ug

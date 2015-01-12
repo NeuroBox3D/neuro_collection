@@ -96,6 +96,17 @@ const std::vector<std::string>& IMembraneTransporter::symb_fcts() const
 	return m_vFct;
 }
 
+const size_t IMembraneTransporter::local_fct_index(const size_t i) const
+{
+	std::map<size_t,size_t>::const_iterator it = m_mfInd.find(i);
+	if (it == m_mfInd.end())
+	{
+		UG_THROW("Requested local function index of a function that is not supplied.")
+	}
+
+	return it->second;
+}
+
 
 void IMembraneTransporter::check_constant_allowed(const size_t i, const number val) const
 {

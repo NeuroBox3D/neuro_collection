@@ -25,10 +25,11 @@
 
 
 
-namespace ug
-{
-namespace neuro_collection
-{
+namespace ug{
+namespace neuro_collection{
+
+///@addtogroup plugin_neuro_collection
+///@{
 
 /// Neumann boundary condition that depends on the unknowns (on the bnd)
 /**
@@ -231,6 +232,8 @@ class DependentNeumannBoundaryFV1
 	private:
 		bool m_bNonRegularGrid;
 };
+
+///@}
 
 } // end namespace neuro_collection
 } // end namspace ug

@@ -155,7 +155,8 @@ class IMembraneTransporter
 		/**
 		 * @brief Information on the direction of the i-th flux
 		 *
-		 * The ordering is the same as for the constructor.
+		 * The ordering is the same as for the constructor for parameter i.
+		 * The ordering of the return indices is that of m_mfInd.
 		 * If one of the indices is to be ignored (in the case of a unilateral flux) this can be
 		 * achieved by setting the index to the value InnerBoundaryConstants::_IGNORE_.
 		 *
@@ -183,6 +184,31 @@ class IMembraneTransporter
 		 * @return supplied function names
 		 */
 		const std::vector<std::string>& symb_fcts() const;
+
+		/**
+		 * @brief Information on the local function index of the given unknown.
+		 *
+		 * This method is to be called to retrieve the local function index of an unknown of
+		 * a transport mechanism. If none of the unknowns is passed as "" in the constructor
+		 * this is the same index as in the constructor.
+		 * Otherwise the method will invoke an error if the specified index i does not belong
+		 * to a supplied function. If it does belong to one then the index according to the
+		 * local map m_mfInd is returned.
+		 *
+		 * This method is useful when implementing the flux_from_to() method for any transport
+		 * mechanism.
+		 *
+		 * --------
+		 * Example
+		 * --------
+		 * Suppose the membrane transport mechanism has been constructed with {"", "a", "", "b"}.
+		 * Then local_fct_index(3) would return 1, since "b" is the second supplied function,
+		 * local_fct_index(2) would throw an error as the third unknown is not a supplied function.
+		 *
+		 * @param i   index (from constructor) which a supplied function index is requested for
+		 * @return    local function index for the requested unknown index
+		 */
+		const size_t local_fct_index(const size_t i) const;
 
 		/**
 		 * @brief Check whether setting the i-th unknown to a constant value of val is allowed

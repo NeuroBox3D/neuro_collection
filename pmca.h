@@ -8,11 +8,16 @@
 #ifndef __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__PMCA_H__
 #define __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__PMCA_H__
 
-#include <string>
+#include "membrane_transporter_interface.h"
+#include "lib_disc/spatial_disc/elem_disc/inner_boundary/inner_boundary.h"
 
 
 namespace ug{
 namespace neuro_collection{
+
+
+///@addtogroup plugin_neuro_collection
+///@{
 
 
 /// Discretization for the PMCA pump in the PM
@@ -20,75 +25,57 @@ namespace neuro_collection{
  * This class implements the InnerBoundaryElemDisc to provide flux densities
  * and their derivatives for the Graupner (2003) model of PMCA pumps (saturated CaM).
  *
- * \tparam	TDomain		domain
+ * Units used in the implementation of this channel:
+ * [Ca_cyt]  mM (= mol/m^3)
+ * [Ca_out]  mM (= mol/m^3)
+ *
+ * Ca flux   mol/s
  */
 
 class PMCA : public IMembraneTransporter
 {
-	protected:
-		const number KD_P;					// mol*dm^-3 (Elwess et al.)
-		//const number KD_P = 3.4e-07;		// mol*dm^-3 (Graupner)
-		const number IMAX_P;				// mol*s^-1
-		const number RHO_P;		//3.0e03;	// um^-2
-
 	public:
-		// constructor
-		PMCA() : IMembraneTransporter(),
-		KD_P(6.0e-8), IMAX_P(1.7e-23), RHO_P(500.0) {};
-
-		// destructor
-		virtual ~PMCA() {};
-
-		// flux output functions
-		virtual void flux(const std::vector<number>& u, std::vector<number>& flux)
-		{
-			number caCyt = u[0];	// cytosolic Ca2+ concentration
-
-			number gatingFactor = caCyt*caCyt / (KD_P*KD_P + caCyt*caCyt);
-
-			flux[0] = - gatingFactor * IMAX_P;
-
-			// dimensional correction: concentrations are mol/dm^3, but length unit is um
-			flux[0] *= 1e15;
-		}
+        enum{_CCYT_=0, _COUT_};
 
 
-		virtual void flux_derivative(const std::vector<number>& u, std::vector<std::vector<number> >& flux_derivs)
-		{
-			// get values of the unknowns in associated node
-			number caCyt = u[0];
+    protected:
+		const number KD_P;					// mol*m^-3 (Elwess et al.)
+		//const number KD_P = 3.4e-04;		// mol*m^-3 (Graupner)
+		const number IMAX_P;				// mol*s^-1
 
-			number dGating_dCyt = 2*KD_P*KD_P*caCyt / std::pow(KD_P*KD_P + caCyt*caCyt, 2);
-			flux_derivs[0][0] = - dGating_dCyt * IMAX_P;
+    public:
+		/// @copydoc IMembraneTransporter::IMembraneTransporter()
+		PMCA(std::vector<std::string> fcts);
 
-			// dimensional correction: concentrations are mol/dm^3, but length unit is um
-			flux_derivs[0][0] *= 1e15;
-		}
+		/// @copydoc IMembraneTransporter::IMembraneTransporter()
+		virtual ~PMCA();
 
+		/// @copydoc IMembraneTransporter::calc_flux()
+		virtual void calc_flux(const std::vector<number>& u, std::vector<number>& flux) const;
 
-		// return number of unknowns this transport mechanism depends on
-		virtual size_t n_dependencies()
-		{
-			return 1;
-		}
+		/// @copydoc IMembraneTransporter::calc_flux_deriv()
+		virtual void calc_flux_deriv(const std::vector<number>& u, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
 
-		// return number of fluxes calculated by this machanism
-		virtual size_t n_fluxes()
-		{
-			return 1;
-		};
+		/// @copydoc IMembraneTransporter::n_dependencies()
+		virtual const size_t n_dependencies() const;
 
-		// from where to where do the fluxes occur
-		virtual std::pair<size_t,size_t> flux_from_to(size_t flux_i)
-		{
-			return std::make_pair<size_t, size_t>(-1,0);
-		}
+		/// @copydoc IMembraneTransporter::n_fluxes()
+		virtual size_t n_fluxes() const;
 
-		virtual std::string name()
-		{
-			return std::string("PMCA");
-		};
+		/// @copydoc IMembraneTransporter::flux_from_to()
+		virtual const std::pair<size_t,size_t> flux_from_to(size_t flux_i) const;
+
+		/// @copydoc IMembraneTransporter::name()
+		virtual const std::string name() const;
+
+		/// @copydoc IMembraneTransporter::check_constant_allowed()
+		virtual void check_constant_allowed(const size_t i, const number val) const;
+
+		/// @copydoc IMembraneTransporter::print_units()
+		virtual void print_units() const;
 };
+
+///@}
 
 
 } // namespace neuro_collection
