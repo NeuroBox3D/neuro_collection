@@ -476,7 +476,7 @@ void VDCC_BG_VM2UG<TDomain>::update_potential(side_t* elem)
 ///////////////////////////////////////////////////////////
 ///////////   BorgGrahamWithNEURON   ///////////////////////
 ///////////////////////////////////////////////////////////
-//#ifdef MPMNEURON
+#ifdef MPMNEURON
 
 template<typename TDomain>
 VDCC_BG_VM2UG_NEURON<TDomain>::VDCC_BG_VM2UG_NEURON
@@ -610,8 +610,7 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::update_potential(side_t* elem)
 	this->m_aaVm[elem] = 0.001 * vm;
 }
 
-
-//#endif
+#endif
 
 
 

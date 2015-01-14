@@ -287,7 +287,7 @@ class VDCC_BG_VM2UG : public VDCC_BG<TDomain>
 		std::string m_timeAsString;
 };
 
-//#ifdef MPMNEURON
+#ifdef MPMNEURON
 /// Borg Graham type VGCCs with Vm2uG membrane potential supply by NEURON.
 /** This class is a specialization of the Borg-Graham interface.
  *	It supplies the channel with the necessary membrane potential values by a Vm2uG object,
@@ -356,7 +356,7 @@ private:
 		std::string m_tFmt;				//!< time format for the membrane potential files
 		number m_vmTime;
 };
-//#endif
+#endif
 
 
 
