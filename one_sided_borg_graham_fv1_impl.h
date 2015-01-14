@@ -500,7 +500,7 @@ void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::update_potential(side_t* ele
 	}
 	UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
 
-	// set membrane potential value
+	// set membrane potential value (convert from mV to V)
 	this->m_aaVm[elem] = 0.001 * vm; // todo: next step by dt * vm not by 0.001?
 									// -> no, this is not the step size, but correction
 									// for units being [V] in the attachments, but [mV] in Vm2uG.
