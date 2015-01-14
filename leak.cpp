@@ -22,7 +22,7 @@ Leak::~Leak()
 	// nothing to do
 }
 
-void Leak::calc_flux(const std::vector<number>& u, std::vector<number>& flux) const
+void Leak::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
 {
 	number source_conc = u[_S_];	// source concentration
 	number target_conc = u[_T_];	// target concentration
@@ -38,7 +38,7 @@ void Leak::calc_flux(const std::vector<number>& u, std::vector<number>& flux) co
 }
 
 
-void Leak::calc_flux_deriv(const std::vector<number>& u, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
+void Leak::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
 	size_t i = 0;
 	if (!has_constant_value(_S_))
@@ -89,17 +89,15 @@ const std::string Leak::name() const
 	return std::string("Leak");
 }
 
-void Leak::check_constant_allowed(const size_t i, const number val) const
+void Leak::check_supplied_functions() const
 {
-	// Check that not both, inner and outer calcium concentrations are set constant;
+	// Check that not both, inner and outer calcium concentrations are not supplied;
 	// in that case, calculation of a flux would be of no consequence.
-	if ((has_constant_value(_S_) && i == _T_)
-		|| (has_constant_value(_T_) && i == _S_))
+	if (!allows_flux(_S_) && !allows_flux(_T_))
 	{
-		UG_THROW("It is not allowed to set both, the source and the\n"
-				"target concentrations to a constant value.\n"
-				"This would mean that the flux calculation would be of\n"
-				"no consequence and this leak would not do anything.");
+		UG_THROW("Supplying neither source nor target concentrations is not allowed.\n"
+				"This would mean that the flux calculation would be of no consequence\n"
+				"and this leak would not do anything.");
 	}
 }
 

@@ -36,7 +36,7 @@ namespace neuro_collection{
 class NCX : public IMembraneTransporter
 {
 	public:
-        enum{_CCYT_=0, _COUT_};
+        enum{_CCYT_=0, _CEXT_};
 
 
     protected:
@@ -51,10 +51,10 @@ class NCX : public IMembraneTransporter
 		virtual ~NCX();
 
 		/// @copydoc IMembraneTransporter::calc_flux()
-		virtual void calc_flux(const std::vector<number>& u, std::vector<number>& flux) const;
+		virtual void calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const;
 
 		/// @copydoc IMembraneTransporter::calc_flux_deriv()
-		virtual void calc_flux_deriv(const std::vector<number>& u, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
+		virtual void calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
 
 		/// @copydoc IMembraneTransporter::n_dependencies()
 		virtual const size_t n_dependencies() const;
@@ -68,8 +68,8 @@ class NCX : public IMembraneTransporter
 		/// @copydoc IMembraneTransporter::name()
 		virtual const std::string name() const;
 
-		/// @copydoc IMembraneTransporter::check_constant_allowed()
-		virtual void check_constant_allowed(const size_t i, const number val) const;
+		/// @copydoc IMembraneTransporter::check_supplied_functions()
+		virtual void check_supplied_functions() const;
 
 		/// @copydoc IMembraneTransporter::print_units()
 		virtual void print_units() const;

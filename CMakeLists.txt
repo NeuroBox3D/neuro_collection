@@ -20,6 +20,7 @@ set(SOURCES    neuro_collection_plugin.cpp
 			   leak.cpp
 			   pmca.cpp
 			   ncx.cpp
+			   vdcc_bg.cpp
                dependent_neumann_boundary_fv1.cpp
    )
 

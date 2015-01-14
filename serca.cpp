@@ -24,7 +24,7 @@ SERCA::~SERCA()
 }
 
 
-void SERCA::calc_flux(const std::vector<number>& u, std::vector<number>& flux) const
+void SERCA::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
 {
 	// get values of the unknowns in associated node
 	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
@@ -34,7 +34,7 @@ void SERCA::calc_flux(const std::vector<number>& u, std::vector<number>& flux) c
 }
 
 
-void SERCA::calc_flux_deriv(const std::vector<number>& u, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
+void SERCA::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
 	// get values of the unknowns in associated node
 	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
@@ -90,17 +90,15 @@ const std::string SERCA::name() const
 }
 
 
-void SERCA::check_constant_allowed(const size_t i, const number val) const
+void SERCA::check_supplied_functions() const
 {
-	// Check that not both, inner and outer calcium concentrations are set constant;
+	// Check that not both, inner and outer calcium concentrations are not supplied;
 	// in that case, calculation of a flux would be of no consequence.
-	if ((has_constant_value(_CCYT_) && i == _CER_)
-		|| (has_constant_value(_CER_) && i == _CCYT_))
+	if (!allows_flux(_CCYT_) && !allows_flux(_CER_))
 	{
-		UG_THROW("It is not allowed to set both, the cytosolic and the\n"
-				 "endoplasmic calcium concentrations to a constant value.\n"
-				 "This would mean that the flux calculation would be of\n"
-				 "no consequence and this pump would not do anything.");
+		UG_THROW("Supplying neither cytosolic nor endoplasmic calcium concentrations is not allowed.\n"
+				"This would mean that the flux calculation would be of no consequence\n"
+				"and this pump would not do anything.");
 	}
 }
 

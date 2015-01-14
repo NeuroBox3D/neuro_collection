@@ -28,6 +28,7 @@
 #include "leak.h"
 #include "pmca.h"
 #include "ncx.h"
+#include "vdcc_bg.h"
 
 
 using namespace std;
@@ -195,7 +196,7 @@ static void Domain(Registry& reg, string grp)
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "OneSidedBorgGrahamFV1WithVM2UG", tag);
 
-		/// register OneSidedBorgGrahamFV1WithVM2UGNEURON in case we have a NEURON interpreter available
+		// register OneSidedBorgGrahamFV1WithVM2UGNEURON in case we have a NEURON interpreter available
 		#ifdef MPMNEURON
 		typedef OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain> TBG2;
 		name = string("OneSidedBorgGrahamFV1WithVM2UGNEURON").append(suffix);
@@ -281,6 +282,64 @@ static void Domain(Registry& reg, string grp)
 			.template add_constructor<void (*)(const char*, const char*)>("Function(s)#Subset(s)")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "TwoSidedERCalciumLeakFV1", tag);
+	}
+
+	{
+		typedef VDCC_BG<TDomain> T;
+		typedef IMembraneTransporter TBase;
+		std::string name = std::string("VDCC_BG").append(suffix);
+		reg.add_class_<T, TBase>(name, grp)
+			.add_method("set_channel_type_N", &T::template set_channel_type<T::BG_Ntype>,
+						"", "", "set the channel type to N")
+			.add_method("set_channel_type_L", &T::template set_channel_type<T::BG_Ltype>,
+						"", "", "set the channel type to L")
+			.add_method("set_channel_type_T", &T::template set_channel_type<T::BG_Ttype>,
+						"", "", "set the channel type to T")
+			.add_method("init", &T::init, "", "time", "initialize the Borg-Graham object");
+		reg.add_class_to_group(name, "VDCC_BG", tag);
+	}
+	{
+		typedef VDCC_BG_VM2UG<TDomain> T;
+		typedef VDCC_BG<TDomain> TBase;
+		std::string name = std::string("VDCC_BG_VM2UG").append(suffix);
+		reg.add_class_<T, TBase>(name, grp)
+			.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&,
+				SmartPtr<ApproximationSpace<TDomain> >, const std::string, const char*, const std::string, const bool)>
+				("function(s)#subset(s)#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#fileInterval#fileOffset#vertexOrderOrPositionCanChange")
+			.add_method("set_file_times", &T::set_file_times, "", "file interval#file offset (first file)", "set times for which files with potential values are available")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "VDCC_BG_VM2UG", tag);
+	}
+	#ifdef MPMNEURON
+	{
+		typedef VDCC_BG_VM2UG_NEURON<TDomain> T;
+		typedef VDCC_BG<TDomain> TBase;
+		std::string name = std::string("VDCC_BG_VM2UG_NEURON").append(suffix);
+		reg.add_class_<T, TBase>(name, grp)
+			.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&,
+				SmartPtr<ApproximationSpace<TDomain> >, SmartPtr<Transformator>, const std::string, const char*, const std::string, const bool)>
+				("function(s)#subset(s)#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#vertexOrderOrPositionCanChange")
+			.add_method("set_transformator", static_cast<void (T::*) (SmartPtr<Transformator>)> (&T::set_transformator), "", "", "")
+			.add_method("set_mapper", static_cast<void (T::*) (SmartPtr<Vm2uG<std::string> >)> (&T::set_mapper), "", "", "")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "VDCC_BG_VM2UG_NEURON", tag);
+	}
+	#endif
+	{
+		typedef VDCC_BG_UserData<TDomain> T;
+		typedef VDCC_BG<TDomain> TBase;
+		std::string name = std::string("VDCC_BG_UserData").append(suffix);
+		reg.add_class_<T, TBase>(name, grp)
+			.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&, SmartPtr<ApproximationSpace<TDomain> >)>
+				("function(s)#subset(s)#approxSpace")
+			.add_method("set_potential_function", static_cast<void (T::*) (const number)> (&T::set_potential_function),
+						"", "", "add a potential function")
+			.add_method("set_potential_function", static_cast<void (T::*) (const char*)> (&T::set_potential_function),
+						"", "", "add a potential function")
+			.add_method("set_potential_function", static_cast<void (T::*) (SmartPtr<CplUserData<number, dim> >)> (&T::set_potential_function),
+						"", "", "add a potential function")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "VDCC_BG_UserData", tag);
 	}
 }
 

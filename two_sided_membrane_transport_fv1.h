@@ -42,12 +42,13 @@ class TwoSidedMembraneTransportFV1
 		const number T;			// temperature
 		const number F;			// Faraday constant
 
+		typedef TwoSidedMembraneTransportFV1<TDomain> this_type;
 		typedef typename FV1InnerBoundaryElemDisc<TDomain>::FluxCond FluxCond;
 		typedef typename FV1InnerBoundaryElemDisc<TDomain>::FluxDerivCond FluxDerivCond;
 
 	public:
 	///	world dimension
-		static const int dim = FV1InnerBoundaryElemDisc<TDomain>::dim;
+		static const int dim = TDomain::dim;
 
 	public:
 	/// constructor (can be deleted after successful implementation of unified membrane transport) TODO
@@ -108,7 +109,7 @@ class TwoSidedMembraneTransportFV1
 		}
 
 	/// flux assembling routines inherited from FV1InnerBoundaryElemDisc
-		virtual bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, FluxCond& fc)
+		virtual bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, FluxCond& fc)
 		{
 			size_t n_flux = m_spMembraneTransporter->n_fluxes();
 
@@ -117,7 +118,7 @@ class TwoSidedMembraneTransportFV1
 			fc.from.resize(n_flux);
 			fc.to.resize(n_flux);
 
-			m_spMembraneTransporter->flux(u, fc.flux);
+			m_spMembraneTransporter->flux(u, e, fc.flux);
 
 			// get density in membrane
 			if (!this->m_spDensityFct.valid())
@@ -138,7 +139,7 @@ class TwoSidedMembraneTransportFV1
 			return true;
 		}
 
-		bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, FluxDerivCond& fdc)
+		bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, FluxDerivCond& fdc)
 		{
 			size_t n_dep = m_spMembraneTransporter->n_dependencies();
 			size_t n_flux = m_spMembraneTransporter->n_fluxes();
@@ -150,7 +151,7 @@ class TwoSidedMembraneTransportFV1
 			for (size_t i = 0; i < n_flux; i++)
 				fdc.fluxDeriv[i].resize(n_dep);
 
-			m_spMembraneTransporter->flux_deriv(u, fdc.fluxDeriv);
+			m_spMembraneTransporter->flux_deriv(u, e, fdc.fluxDeriv);
 
 			number density;
 			if (this->m_spDensityFct.valid())
@@ -172,9 +173,67 @@ class TwoSidedMembraneTransportFV1
 			return true;
 		}
 
+		virtual void prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid)
+		{
+			// remember
+			m_bNonRegularGrid = bNonRegularGrid;
+
+			// set assembling functions from base class first
+			this->FV1InnerBoundaryElemDisc<TDomain>::prepare_setting(vLfeID, bNonRegularGrid);
+
+			// update assemble functions
+			register_all_fv1_funcs();
+		}
+
+		void prep_timestep_elem
+		(
+			const number time,
+			const LocalVector& u,
+			GridObject* elem,
+			const MathVector<dim> vCornerCoords[]
+		)
+		{
+			m_spMembraneTransporter->prep_timestep_elem(time, u, elem);
+		}
+
 	protected:
 		SmartPtr<CplUserData<number,dim> > m_spDensityFct;
 		SmartPtr<IMembraneTransporter> m_spMembraneTransporter;
+
+	private:
+		struct RegisterFV1
+		{
+				RegisterFV1(this_type* pThis) : m_pThis(pThis){}
+				this_type* m_pThis;
+				template< typename TElem > void operator()(TElem&)
+				{
+					if (m_pThis->m_bNonRegularGrid)
+						m_pThis->register_fv1_func<TElem, HFV1ManifoldGeometry<TElem, dim> >();
+					else
+						m_pThis->register_fv1_func<TElem, FV1ManifoldGeometry<TElem, dim> >();
+				}
+		};
+
+		void register_all_fv1_funcs()
+		{
+			//	get all grid element types in this dimension and below
+			typedef typename domain_traits<dim>::ManifoldElemList ElemList;
+
+			//	switch assemble functions
+			boost::mpl::for_each<ElemList>(RegisterFV1(this));
+		}
+
+		template <typename TElem, typename TFVGeom>
+		void register_fv1_func()
+		{
+			ReferenceObjectID id = geometry_traits<TElem>::REFERENCE_OBJECT_ID;
+			typedef this_type T;
+
+			this->set_prep_timestep_elem_fct(id, &T::prep_timestep_elem);
+		}
+
+	private:
+		bool m_bNonRegularGrid;
 };
 
 
@@ -255,7 +314,7 @@ class TwoSidedIP3RFV1
 
 	private:
 		// virtual functions inherited from FV1InnerBoundaryElemDisc
-		bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, FluxCond& fc)
+		bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, FluxCond& fc)
 		{
 			if (u.size() < 3)
 			{
@@ -293,7 +352,7 @@ class TwoSidedIP3RFV1
 			return true;
 		}
 
-		bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, FluxDerivCond& fdc)
+		bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, FluxDerivCond& fdc)
 		{
 			// get values of the unknowns in associated node
 			number caCyt = u[0];
@@ -388,7 +447,7 @@ class TwoSidedRyRFV1
 
 	private:
 		// virtual functions inherited from FV1InnerBoundaryElemDisc
-		bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, FluxCond& fc)
+		bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, FluxCond& fc)
 		{
 			if (u.size() < 2)
 			{
@@ -423,7 +482,7 @@ class TwoSidedRyRFV1
 			return true;
 		}
 
-		bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, FluxDerivCond& fdc)
+		bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, FluxDerivCond& fdc)
 		{
 			// get values of the unknowns in associated node
 			number caCyt = u[0];
@@ -506,7 +565,7 @@ class TwoSidedSERCAFV1
 
 	private:
 		// virtual functions inherited from FV1InnerBoundaryElemDisc
-		bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, FluxCond& fc)
+		bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, FluxCond& fc)
 		{
 			if (u.size() < 2)
 			{
@@ -537,7 +596,7 @@ class TwoSidedSERCAFV1
 			return true;
 		}
 
-		bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, FluxDerivCond& fdc)
+		bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, FluxDerivCond& fdc)
 		{
 			// get values of the unknowns in associated node
 			number caCyt = u[0];
@@ -606,7 +665,7 @@ class TwoSidedERCalciumLeakFV1
 
 	private:
 		// virtual functions inherited from FV1InnerBoundaryElemDisc
-		bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, FluxCond& fc)
+		bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, FluxCond& fc)
 		{
 			if (u.size() < 2)
 			{
@@ -641,7 +700,7 @@ class TwoSidedERCalciumLeakFV1
 			return true;
 		}
 
-		bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, const MathVector<dim>& coords, int si, FluxDerivCond& fdc)
+		bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, FluxDerivCond& fdc)
 		{
 			number density;
 			if (this->m_spDensityFct.valid())
@@ -679,4 +738,4 @@ class TwoSidedERCalciumLeakFV1
 } // end namespace ug
 
 
-#endif /*__H__UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__TWO_SIDED_MEMBRANE_TRANSPORT_FV1__*/
+#endif //__H__UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__TWO_SIDED_MEMBRANE_TRANSPORT_FV1__

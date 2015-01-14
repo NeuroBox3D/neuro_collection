@@ -1,23 +1,22 @@
 /*
- * one_sided_borg_graham_fv1.h
+ * vdcc_bg.h
  *
  *  Created on: 05.02.2013
  *      Author: mbreit
  */
 
-#ifndef __H__UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__ONE_SIDED_BORG_GRAHAM_FV1__
-#define __H__UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__ONE_SIDED_BORG_GRAHAM_FV1__
+#ifndef __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__VDCC_BG_H__
+#define __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__VDCC_BG_H__
 
-
+#include "common/common.h"
+#include "membrane_transporter_interface.h"
+#include "lib_disc/domain.h"
 #include "lib_grid/lg_base.h"
-#include <vector>
-#include <stdio.h>
+#include "lib_disc/spatial_disc/elem_disc/inner_boundary/inner_boundary.h"
 #include "../plugins/experimental/membrane_potential_mapping/vm2ug.h"
-#include "one_sided_membrane_transport_fv1.h"
+
 #include <locale>	// for control over the decimal separator (point instead of comma, please!)
-#include "lib_disc/spatial_disc/disc_util/fv1_geom.h"
-#include "lib_disc/spatial_disc/disc_util/hfv1_geom.h"
-#include "lib_disc/spatial_disc/disc_util/geom_provider.h"
+
 
 namespace ug{
 namespace neuro_collection{
@@ -47,7 +46,7 @@ namespace neuro_collection{
  *
  *	Any class specializing this interface _must_ implement the virtual method:
  *	- void update_potential(number newTime);
- *	they _can_ reimplement the virtual method
+ *	they _can_ re-implement the virtual method
  *	- void init(number time).
  *
  *
@@ -57,30 +56,27 @@ namespace neuro_collection{
  *  	f	: mol*s^-1	ionic flux
  *
 **/
+
 template<typename TDomain>
-class OneSidedBorgGrahamFV1 : public OneSidedMembraneTransportFV1<TDomain>
+class VDCC_BG : public IMembraneTransporter
 {
 	public:
 		/// channel types N, L and T
 		enum {BG_Ntype, BG_Ltype, BG_Ttype};
+		enum{_CCYT_=0, _CEXT_};
 
-		static const int dim = OneSidedMembraneTransportFV1<TDomain>::dim;	//!< world dimension
+		static const int dim =TDomain::dim;	//!< world dimension
 
-	protected:
-		using OneSidedMembraneTransportFV1<TDomain>::R;		//!< universal gas constant
-		using OneSidedMembraneTransportFV1<TDomain>::T;		//!< temperature (310K)
-		using OneSidedMembraneTransportFV1<TDomain>::F;		//!< Faraday constant
-
-		const number RHO_BG;			//!< default channel density in the membrane
-
-	private:
-		typedef OneSidedBorgGrahamFV1<TDomain> this_type;
-		typedef typename DependentNeumannBoundaryFV1<TDomain>::NFluxCond NFluxCond;
-		typedef typename DependentNeumannBoundaryFV1<TDomain>::NFluxDerivCond NFluxDerivCond;
+		// some type definitions
+		typedef VDCC_BG<TDomain> this_type;
 		typedef typename GeomObjBaseTypeByDim<dim>::base_obj_type elem_t;
 		typedef typename elem_t::side side_t;
 
-	private:
+	protected:
+		const number R;			///< universal gas constant
+		const number T;			///< temperature
+		const number F;			///< Faraday constant
+
 		/// holds the parameters of a channel type
 		struct GatingParams
 		{
@@ -91,12 +87,61 @@ class OneSidedBorgGrahamFV1 : public OneSidedMembraneTransportFV1<TDomain>
 		};
 
 	public:
-		/// constructor
-		OneSidedBorgGrahamFV1(const char* functions, const char* subsets, ApproximationSpace<TDomain>& approx);
+	// inherited from IMembraneTransport
+		/**
+		 * @brief Constructor for the Borg-Graham type channel interface
+		 *
+		 * This constructor not only needs information on the functions involved, but also on the subsets
+		 * and the approximation space, as it needs to create side attachments for each of the sides in
+		 * the subsets involved.
+		 *
+		 * @param fcts		functions involved
+		 * @param subsets	subsets involved
+		 * @param approx	underlying approximation space
+		 */
+		VDCC_BG
+		(
+			const std::vector<std::string>& fcts,
+			const std::vector<std::string>& subsets,
+			SmartPtr<ApproximationSpace<TDomain> > approx
+		);
 
-		/// destructor
-		virtual	~OneSidedBorgGrahamFV1() {};
+		/// @copydoc IMembraneTransporter::IMembraneTransporter()
+		virtual ~VDCC_BG();
 
+		/// @copydoc IMembraneTransporter::prep_timestep_elem()
+		virtual void prep_timestep_elem
+		(
+			const number time,
+			const LocalVector& u,
+			GridObject* elem
+		);
+
+		/// @copydoc IMembraneTransporter::calc_flux()
+		virtual void calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const;
+
+		/// @copydoc IMembraneTransporter::calc_flux_deriv()
+		virtual void calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
+
+		/// @copydoc IMembraneTransporter::n_dependencies()
+		virtual const size_t n_dependencies() const;
+
+		/// @copydoc IMembraneTransporter::n_fluxes()
+		virtual size_t n_fluxes() const;
+
+		/// @copydoc IMembraneTransporter::flux_from_to()
+		virtual const std::pair<size_t,size_t> flux_from_to(size_t flux_i) const;
+
+		/// @copydoc IMembraneTransporter::name()
+		virtual const std::string name() const;
+
+		/// @copydoc IMembraneTransporter::check_supplied_functions()
+		virtual void check_supplied_functions() const;
+
+		/// @copydoc IMembraneTransporter::print_units()
+		virtual void print_units() const;
+
+	// own methods
 		/// sets the channel type
 		template<int TType> void set_channel_type();
 
@@ -104,6 +149,13 @@ class OneSidedBorgGrahamFV1 : public OneSidedMembraneTransportFV1<TDomain>
 		/** During the initialization, the necessary attachments are attached to the vertices
 		 *	and their values calculated by the equilibrium state for the start membrane potential.
 		**/
+
+		/**
+		 * @brief Sets the permeability of this channel
+		 * @param perm    permeability values
+		 */
+		void set_permeability(const number perm);
+
 		virtual void init(number time);
 
 		/// updates the potential values in the corresponding attachments to new time.
@@ -120,31 +172,18 @@ class OneSidedBorgGrahamFV1 : public OneSidedMembraneTransportFV1<TDomain>
 		 */
 		void update_gating(side_t* elem);
 
-		/// provides the ionic current (mol*s^-1) at a given vertex
-		number ionic_current(side_t* e);
-
 		/// updates internal time if necessary
 		virtual void update_time(number newTime) {m_oldTime = m_time; m_time = newTime;};
 
-		// inherited from IElemDisc
-		virtual void prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid);
-
-		template<typename TElem>
-		void prep_timestep_elem(const number time, const LocalVector& u, GridObject* elem, const MathVector<dim> vCornerCoords[]);
-
-		// inherited from OneSidedMembraneTransportFV1
-		virtual bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, NFluxCond& fc);
-		virtual bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, NFluxDerivCond& fdc);
-
 	protected:
 		/// calculates the equilibrium state of a gating "particle"
-		/** The calculation is done with respect to the given gating paramters set (which represents
+		/** The calculation is done with respect to the given gating parameters set (which represents
 		 *	one gating "particle") and the given membrane potential.
 		**/
 		number calc_gating_start(GatingParams& gp, number Vm);
 
 		/// calculates the next state of a gating "particle"
-		/** The calculation is done with respect to the given gating paramters set (which represents
+		/** The calculation is done with respect to the given gating parameters set (which represents
 		 *	one gating "particle"), the current value of this gating particle as well as the given membrane
 		 *	potential. The new value represents the "particle" state at current time + dt.
 		**/
@@ -153,15 +192,16 @@ class OneSidedBorgGrahamFV1 : public OneSidedMembraneTransportFV1<TDomain>
 
 	protected:
 		/// whether this channel disposes of an inactivating gate
-		bool has_hGate() {return this->m_channelType == OneSidedBorgGrahamFV1<TDomain>::BG_Ntype
-								|| this->m_channelType == OneSidedBorgGrahamFV1<TDomain>::BG_Ttype;}
+		bool has_hGate() const {return this->m_channelType == BG_Ntype || this->m_channelType == BG_Ttype;}
 
 	protected:
-		SmartPtr<TDomain> m_dom;					//!< underlying domain
-		SmartPtr<Grid> m_mg;						//!< underlying multigrid
-		SmartPtr<DoFDistribution> m_dd;				//!< underlying surface dof distribution
-		ConstSmartPtr<MGSubsetHandler> m_sh;		//!< underlying subset handler
+		SmartPtr<TDomain> m_dom;							//!< underlying domain
+		SmartPtr<Grid> m_mg;								//!< underlying multigrid
+		SmartPtr<DoFDistribution> m_dd;						//!< underlying surface dof distribution
+		ConstSmartPtr<MGSubsetHandler> m_sh;				//!< underlying subset handler
 		typename TDomain::position_accessor_type& m_aaPos;	//!< underlying position accessor
+
+		std::vector<std::string> m_vSubset;					//!< subsets this channel exists on
 
 		ADouble m_MGate;							//!< activating gating "particle"
 		ADouble m_HGate;							//!< inactivating gating "particle"
@@ -177,37 +217,13 @@ class OneSidedBorgGrahamFV1 : public OneSidedMembraneTransportFV1<TDomain>
 		number m_time;								//!< current time
 		number m_oldTime;							//!< time step before current time
 
-		number m_lambda;							//!< channel conductivity (C/(V*s))
+		number m_perm;								//!< channel permeability [m^3/s] (= diff coeff * cross section / membrane thickness)
 		int m_mp, m_hp;								//!< powers for gating parameters
 
 		int m_channelType;							//!< channel type
 
 		bool m_initiated;							//!< indicates whether channel has been initialized by init()
-
-	private:
-		struct RegisterFV1
-		{
-				RegisterFV1(this_type* pThis) : m_pThis(pThis){}
-				this_type* m_pThis;
-				template< typename TElem > void operator()(TElem&)
-				{
-					if (m_pThis->m_bNonRegularGrid)
-						m_pThis->register_fv1_func<TElem, HFV1ManifoldGeometry<TElem, dim> >();
-					else
-						m_pThis->register_fv1_func<TElem, FV1ManifoldGeometry<TElem, dim> >();
-
-				}
-		};
-
-		void register_all_fv1_funcs();
-
-		template <typename TElem, typename TFVGeom>
-		void register_fv1_func();
-
-	private:
-		bool m_bNonRegularGrid;
 };
-
 
 
 /// Borg Graham type VGCCs with Vm2uG membrane potential supply.
@@ -215,14 +231,15 @@ class OneSidedBorgGrahamFV1 : public OneSidedMembraneTransportFV1<TDomain>
  *	It supplies the channel with the necessary membrane potential values by a Vm2uG object,
  *	that has to be fed file names for the files containing the V_m values produced by Neuron.
 **/
+
 template<typename TDomain>
-class OneSidedBorgGrahamFV1WithVM2UG : public OneSidedBorgGrahamFV1<TDomain>
+class VDCC_BG_VM2UG : public VDCC_BG<TDomain>
 {
 	protected:
-		using OneSidedBorgGrahamFV1<TDomain>::R;		//!< universal gas constant
-		using OneSidedBorgGrahamFV1<TDomain>::T;		//!< temperature (310K)
-		using OneSidedBorgGrahamFV1<TDomain>::F;		//!< Faraday constant
-		using OneSidedBorgGrahamFV1<TDomain>::has_hGate;//!< Faraday constant
+		using VDCC_BG<TDomain>::R;			//!< universal gas constant
+		using VDCC_BG<TDomain>::T;			//!< temperature (310K)
+		using VDCC_BG<TDomain>::F;			//!< Faraday constant
+		using VDCC_BG<TDomain>::has_hGate;
 		typedef typename GeomObjBaseTypeByDim<TDomain::dim>::base_obj_type elem_t;
 		typedef typename elem_t::side side_t;
 
@@ -231,19 +248,19 @@ class OneSidedBorgGrahamFV1WithVM2UG : public OneSidedBorgGrahamFV1<TDomain>
 
 	public:
 		/// constructor
-		OneSidedBorgGrahamFV1WithVM2UG(const char* functions,
-							const char* subsets,
-							ApproximationSpace<TDomain>& approx,
-							const std::string baseName = "timesteps/timestep_",
-							const char* timeFmt = "%.4f",
-							const std::string ext = ".dat",
-							const bool posCanChange = false)
-			: OneSidedBorgGrahamFV1<TDomain>(functions, subsets, approx),
-			  m_vmProvider(baseName, ext, !posCanChange), m_tFmt(timeFmt),
-			  m_fileInterval(0.0), m_fileOffset(0.0) {};
+		VDCC_BG_VM2UG
+		(
+			const std::vector<std::string>& fcts,
+			const std::vector<std::string>& subsets,
+			SmartPtr<ApproximationSpace<TDomain> > approx,
+			const std::string baseName = "timesteps/timestep_",
+			const char* timeFmt = "%.4f",
+			const std::string ext = ".dat",
+			const bool posCanChange = false
+		);
 
 		/// destructor
-		virtual ~OneSidedBorgGrahamFV1WithVM2UG() {};
+		virtual ~VDCC_BG_VM2UG();
 
 		// inherited from BorgGraham
 		virtual void init(number time);
@@ -265,28 +282,28 @@ class OneSidedBorgGrahamFV1WithVM2UG : public OneSidedBorgGrahamFV1<TDomain>
 		vmProvType m_vmProvider;		//!< the Vm2uG object
 		std::string m_tFmt;				//!< time format for the membrane potential files
 		number m_fileInterval;			//!< intervals in which voltage files are available
-		number m_fileOffset;				//!< offset of time intervals for which voltage files are available
+		number m_fileOffset;			//!< offset of time intervals for which voltage files are available
 
 		std::string m_timeAsString;
 };
 
-#ifdef MPMNEURON
+//#ifdef MPMNEURON
 /// Borg Graham type VGCCs with Vm2uG membrane potential supply by NEURON.
 /** This class is a specialization of the Borg-Graham interface.
  *	It supplies the channel with the necessary membrane potential values by a Vm2uG object,
  *	that has to be fed file names for the files containing the V_m values produced by Neuron.
 **/
 template<typename TDomain>
-class OneSidedBorgGrahamFV1WithVM2UGNEURON : public OneSidedBorgGrahamFV1<TDomain>
+class VDCC_BG_VM2UG_NEURON : public VDCC_BG<TDomain>
 {
 private:
 	SmartPtr<Transformator> m_NrnInterpreter;
 	SmartPtr<Vm2uG<std::string> > m_vmProvider;
 
 	protected:
-		using OneSidedBorgGrahamFV1<TDomain>::R;		//!< universal gas constant
-		using OneSidedBorgGrahamFV1<TDomain>::T;		//!< temperature (310K)
-		using OneSidedBorgGrahamFV1<TDomain>::F;		//!< Faraday constant
+		using VDCC_BG<TDomain>::R;		//!< universal gas constant
+		using VDCC_BG<TDomain>::T;		//!< temperature (310K)
+		using VDCC_BG<TDomain>::F;		//!< Faraday constant
 
 		typedef typename GeomObjBaseTypeByDim<TDomain::dim>::base_obj_type elem_t;
 		typedef typename elem_t::side side_t;
@@ -296,20 +313,20 @@ private:
 
 	public:
 		/// constructor
-		OneSidedBorgGrahamFV1WithVM2UGNEURON(const char* functions,
-							const char* subsets,
-							ApproximationSpace<TDomain>& approx,
-							SmartPtr<Transformator> transformator = Transformator(),
-							const std::string baseName = "timesteps/timestep_",
-							const char* timeFmt = "%.4f",
-							const std::string ext = ".dat",
-							const bool posCanChange = false)
-			: OneSidedBorgGrahamFV1<TDomain>(functions, subsets, approx),
-			  m_NrnInterpreter(transformator), m_tFmt(timeFmt), m_vmTime(0.0) {
-		};
+		VDCC_BG_VM2UG_NEURON
+		(
+			const std::vector<std::string>& fcts,
+			const std::vector<std::string>& subsets,
+			SmartPtr<ApproximationSpace<TDomain> > approx,
+			SmartPtr<Transformator> transformator = make_sp(new Transformator),
+			const std::string baseName = "timesteps/timestep_",
+			const char* timeFmt = "%.4f",
+			const std::string ext = ".dat",
+			const bool posCanChange = false
+		);
 
 		/// destructor
-		virtual ~OneSidedBorgGrahamFV1WithVM2UGNEURON() {};
+		virtual ~VDCC_BG_VM2UG_NEURON();
 
 		// inherited from BorgGraham
 		virtual void init(number time);
@@ -332,14 +349,14 @@ private:
 
 	private:
 		/// whether this channel disposes of an inactivating gate
-		bool has_hGate() {return this->m_channelType == OneSidedBorgGrahamFV1<TDomain>::BG_Ntype
-								|| this->m_channelType == OneSidedBorgGrahamFV1<TDomain>::BG_Ttype;}
+		bool has_hGate() {return this->m_channelType == VDCC_BG<TDomain>::BG_Ntype
+								|| this->m_channelType == VDCC_BG<TDomain>::BG_Ttype;}
 
 	private:
 		std::string m_tFmt;				//!< time format for the membrane potential files
 		number m_vmTime;
 };
-#endif
+//#endif
 
 
 
@@ -349,29 +366,32 @@ private:
  *	i.e. constant UserData or UserData provided by a lua function.
 **/
 template<typename TDomain>
-class OneSidedBorgGrahamFV1WithUserData : public OneSidedBorgGrahamFV1<TDomain>
+class VDCC_BG_UserData : public VDCC_BG<TDomain>
 {
 	public:
-		static const int dim = OneSidedBorgGrahamFV1<TDomain>::dim;	//!< world dimension
+		static const int dim = TDomain::dim;	//!< world dimension
 
 	protected:
-		using OneSidedBorgGrahamFV1<TDomain>::R;		//!< universal gas constant
-		using OneSidedBorgGrahamFV1<TDomain>::T;		//!< temperature (310K)
-		using OneSidedBorgGrahamFV1<TDomain>::F;		//!< Faraday constant
-		using OneSidedBorgGrahamFV1<TDomain>::has_hGate;//!< Faraday constant
 		typedef typename GeomObjBaseTypeByDim<TDomain::dim>::base_obj_type elem_t;
 		typedef typename elem_t::side side_t;
+
+		using VDCC_BG<TDomain>::R;			//!< universal gas constant
+		using VDCC_BG<TDomain>::T;			//!< temperature (310K)
+		using VDCC_BG<TDomain>::F;			//!< Faraday constant
+		using VDCC_BG<TDomain>::has_hGate;	//!< Faraday constant
 
 
 	public:
 		/// constructor
-		OneSidedBorgGrahamFV1WithUserData(const char* functions,
-							const char* subsets,
-							ApproximationSpace<TDomain>& approx)
-			: OneSidedBorgGrahamFV1<TDomain>(functions, subsets, approx), m_bIsConstData(false) {};
+		VDCC_BG_UserData
+		(
+			const std::vector<std::string>& fcts,
+			const std::vector<std::string>& subsets,
+			SmartPtr<ApproximationSpace<TDomain> > approx
+		);
 
 		/// destructor
-		virtual ~OneSidedBorgGrahamFV1WithUserData() {};
+		virtual ~VDCC_BG_UserData();
 
 		/// adding potential information for pumps/channels in membrane
 		void set_potential_function(const char* name);
@@ -388,11 +408,10 @@ class OneSidedBorgGrahamFV1WithUserData : public OneSidedBorgGrahamFV1<TDomain>
 
 ///@}
 
+
 } // namespace neuro_collection
 } // namespace ug
 
+#include "vdcc_bg_impl.h"
 
-
-#include "one_sided_borg_graham_fv1_impl.h"
-
-#endif /* __H__UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__ONE_SIDED_BORG_GRAHAM_FV1__ */
+#endif // __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__VDCC_BG_H__

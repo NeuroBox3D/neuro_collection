@@ -1,33 +1,54 @@
 /*
- * BorgGraham_impl.h
+ * vdcc_bg.cpp
  *
  *  Created on: 05.02.2013
  *      Author: mbreit
  */
 
-#include "one_sided_borg_graham_fv1.h"
+#include "vdcc_bg.h"
 
-namespace ug
-{
-namespace neuro_collection
-{
+namespace ug{
+namespace neuro_collection{
+
 
 ///////////////////////////////////////////////////////////
 ///////////   BorgGraham   ////////////////////////////////
 ///////////////////////////////////////////////////////////
 template<typename TDomain>
-OneSidedBorgGrahamFV1<TDomain>::OneSidedBorgGrahamFV1
+VDCC_BG<TDomain>::VDCC_BG
 (
-	const char* functions,
-	const char* subsets,
-	ApproximationSpace<TDomain>& approx
+	const std::vector<std::string>& fcts,
+	const std::vector<std::string>& subsets,
+	SmartPtr<ApproximationSpace<TDomain> > approx
 )
-	: OneSidedMembraneTransportFV1<TDomain>(functions, subsets), RHO_BG(5.0),
-	  m_dom(approx.domain()), m_mg(approx.domain()->grid()), m_dd(approx.dof_distribution(GridLevel::TOP)),
-	  m_sh(m_dom->subset_handler()), m_aaPos(m_dom->position_accessor()),
-	  m_gpMGate(3.4, -21.0, 1.5), m_gpHGate(-2.0, -40.0, 75.0), m_time(0.0), m_oldTime(0.0),
-	  m_lambda(2.0e-11), m_mp(2), m_hp(1), m_channelType(BG_Ntype), m_initiated(false)
+: IMembraneTransporter(fcts),
+  R(8.314), T(310.0), F(96485.0),
+  m_dom(approx->domain()), m_mg(m_dom->grid()), m_dd(approx->dof_distribution(GridLevel::TOP)),
+  m_sh(m_dom->subset_handler()), m_aaPos(m_dom->position_accessor()), m_vSubset(subsets),
+  m_gpMGate(3.4, -21.0, 1.5), m_gpHGate(-2.0, -40.0, 75.0), m_time(0.0), m_oldTime(0.0),
+  m_perm(2.4e-19), m_mp(2), m_hp(1), m_channelType(BG_Ntype), m_initiated(false)
 {
+	// process subsets
+
+	//	remove white space
+	for(size_t i = 0; i < m_vSubset.size(); ++i)
+		RemoveWhitespaceFromString(m_vSubset[i]);
+
+	//	if no subset passed, clear subsets
+	if (m_vSubset.size() == 1 && m_vSubset[0].empty())
+		m_vSubset.clear();
+
+	//	if subsets passed with separator, but not all tokens filled, throw error
+	for(size_t i = 0; i < m_vSubset.size(); ++i)
+	{
+		if (m_vSubset.empty())
+		{
+			UG_THROW("Error while setting subsets in an ElemDisc: passed "
+			 		 "subset string lacks a subset specification at position "
+					 << i << "(of " << m_vSubset.size()-1 << ")");
+		}
+	}
+
 	// attach attachments
 	if (m_mg->template has_attachment<side_t>(this->m_MGate))
 		UG_THROW("Attachment necessary for Borg-Graham channel dynamics "
@@ -56,72 +77,23 @@ OneSidedBorgGrahamFV1<TDomain>::OneSidedBorgGrahamFV1
 
 
 template<typename TDomain>
-void OneSidedBorgGrahamFV1<TDomain>::prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid)
+VDCC_BG<TDomain>::~VDCC_BG()
 {
-	// remember
-	m_bNonRegularGrid = bNonRegularGrid;
-
-	// set assembling functions from base class first
-	this->DependentNeumannBoundaryFV1<TDomain>::prepare_setting(vLfeID, bNonRegularGrid);
-
-	// update assemble functions
-	register_all_fv1_funcs();
+	m_mg->template detach_from<side_t>(this->m_MGate);
+	m_mg->template detach_from<side_t>(this->m_HGate);
+	m_mg->template detach_from<side_t>(this->m_Vm);
 }
 
 
 template<typename TDomain>
-template<int TType>
-void OneSidedBorgGrahamFV1<TDomain>::set_channel_type()
-{
-	if (m_initiated)
-	{
-		UG_THROW("Borg-Graham channel type can not be changed after initialization.\n"
-				 "Call set_channel_type() BEFORE init().");
-	}
-
-	switch (TType)
-	{
-		// - all gating params according to table 5, page 98 of the Borg-Graham article
-		//   "Interpretations of data and mechanisms for hippocampal pyramidal cell models"
-		// - conductance values from Fisher et al. - "Properties and distribution of single
-		//   voltage-gated calcium channels in adult hippocampal neurons"
-		case BG_Ntype:
-			m_gpMGate = GatingParams(3.4, -21.0, 1.5);
-			m_gpHGate = GatingParams(-2.0, -40.0, 75.0);
-			m_lambda = 0.2e-12;	// reference concentration: 1mM
-			m_mp = 2;
-			m_hp = 1;
-			break;
-		case BG_Ltype:
-			m_gpMGate = GatingParams(4.6, -1.0, 1.5);
-			m_gpHGate = GatingParams(0.0, 0.0, 0.0);
-			m_lambda = 0.3e-12;	// reference concentration: 1mM
-			m_mp = 2;
-			m_hp = 0;
-			break;
-		case BG_Ttype:
-			m_gpMGate = GatingParams(3.0, -36.0, 1.5);
-			m_gpHGate = GatingParams(-5.2, -68.0, 10.0);
-			m_lambda = 0.1e-12;	// reference concentration: 1mM
-			m_mp = 2;
-			m_hp = 1;
-			break;
-		default:
-			UG_THROW("Type of Borg-Graham channel does not match any of the pre-implemented.");
-			break;
-	}
-}
-
-
-template<typename TDomain>
-number OneSidedBorgGrahamFV1<TDomain>::calc_gating_start(GatingParams& gp, number Vm)
+number VDCC_BG<TDomain>::calc_gating_start(GatingParams& gp, number Vm)
 {
 	return 1.0 / (1.0 + exp(-gp.z * (Vm - gp.V_12)/1000.0 * F/(R*T)));
 }
 
 
 template<typename TDomain>
-void OneSidedBorgGrahamFV1<TDomain>::calc_gating_step(GatingParams& gp, number Vm, number dt, number& currVal)
+void VDCC_BG<TDomain>::calc_gating_step(GatingParams& gp, number Vm, number dt, number& currVal)
 {
 	// forward step: implicit
 	if (dt>=0) currVal = (currVal + dt/gp.tau_0 * calc_gating_start(gp,Vm)) / (1.0 + dt/gp.tau_0);
@@ -131,70 +103,147 @@ void OneSidedBorgGrahamFV1<TDomain>::calc_gating_step(GatingParams& gp, number V
 
 
 template<typename TDomain>
-template<typename TElem>
-void OneSidedBorgGrahamFV1<TDomain>::prep_timestep_elem
-(
-	const number time,
-	const LocalVector& u,
-	GridObject* elem,
-	const MathVector<dim> vCornerCoords[]
-)
-{
-	update_time(time);
-
-	side_t* side = dynamic_cast<side_t*>(elem);
-	if (!side) UG_THROW("OneSidedBorgGrahamFV1::prep_timestep_elem() called with improper element type.");
-
-	update_potential(side);
-	update_gating(side);
-}
-
-
-template<typename TDomain>
-bool OneSidedBorgGrahamFV1<TDomain>::fluxDensityFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, NFluxCond& fc)
+void VDCC_BG<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
 {
 	side_t* elem = dynamic_cast<side_t*>(e);
 	if (!elem) UG_THROW("OneSidedBorgGrahamFV1 fluxDensityFunction called with the wrong type of element.");
 
-	number current = ionic_current(elem);
+	number gating = pow(m_aaMGate[elem], m_mp);
+	if (has_hGate()) gating *= pow(m_aaHGate[elem], m_hp);
 
-	number density;
-	if (this->m_spDensityFct.valid())
-		(*this->m_spDensityFct)(density, coords, this->time(), si);
-	else
-		density = RHO_BG;
+	// flux derived from Goldman-Hodgkin-Katz equation,
+	number maxFlux;
+	number vm = m_aaVm[elem];
+	number caCyt = u[_CCYT_];		// cytosolic Ca2+ concentration
+	number caExt = u[_CEXT_];		// extracellular Ca2+ concentration
 
-	number flux = density * current;
+	// near V_m == 0: approximate by first order Taylor to avoid relative errors and div-by-0
+	if (fabs(vm) < 1e-8) maxFlux = m_perm * ((caExt - caCyt) - F/(R*T) * (caExt + caCyt)*vm);
+	else maxFlux = -m_perm * 2*F/(R*T) * vm * (caExt - caCyt*exp(2*F/(R*T)*vm)) / (1.0 - exp(2*F/(R*T)*vm));
 
-	// dimensional correction: concentrations are mol/dm^3, but length unit is um
-	flux *= 1e15;
-
-	fc.flux.resize(1, 0.0);	fc.flux[0] = flux;
-	fc.to.resize(1);	fc.to[0] = 0;
-
-	return true;
+	flux[0] = gating * maxFlux;
 }
 
 
 template<typename TDomain>
-bool OneSidedBorgGrahamFV1<TDomain>::fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, NFluxDerivCond& fdc)
+void VDCC_BG<TDomain>::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
-	// nothing, since not dependent on any unknowns in the current implementation
+	side_t* elem = dynamic_cast<side_t*>(e);
+	if (!elem) UG_THROW("OneSidedBorgGrahamFV1 fluxDensityFunction called with the wrong type of element.");
 
-	// add to Jacobian
-	fdc.fluxDeriv.resize(1);
-	fdc.fluxDeriv[0].resize(1);
+	number gating = pow(m_aaMGate[elem], m_mp);
+	if (has_hGate()) gating *= pow(m_aaHGate[elem], m_hp);
 
-	fdc.fluxDeriv[0][0] = 0.0;
+	number dMaxFlux_dCyt, dMaxFlux_dExt;
+	number vm = m_aaVm[elem];
 
-	fdc.to.resize(1);	fdc.to[0] = 0;
+	// near V_m == 0: approximate by first order Taylor to avoid relative errors and div-by-0
+	if (fabs(vm) < 1e-8)
+	{
+		dMaxFlux_dCyt =  m_perm * (-1.0 - F/(R*T) * vm);
+		dMaxFlux_dExt =  m_perm * (1.0 - F/(R*T) * vm);
+	}
+	else
+	{
+		dMaxFlux_dCyt = m_perm * 2*F/(R*T) * vm / (exp(-2*F/(R*T)*vm) - 1.0);
+		dMaxFlux_dExt = m_perm * 2*F/(R*T) * vm / (exp(2*F/(R*T)*vm) - 1.0);
+	}
 
-	return true;
+	size_t i = 0;
+	if (!has_constant_value(_CCYT_))
+	{
+		flux_derivs[0][i].first = local_fct_index(_CCYT_);
+		flux_derivs[0][i].second = gating * dMaxFlux_dCyt;
+		i++;
+	}
+	if (!has_constant_value(_CEXT_))
+	{
+		flux_derivs[0][i].first = local_fct_index(_CEXT_);
+		flux_derivs[0][i].second = gating * dMaxFlux_dExt;
+	}
 }
 
 
 template<typename TDomain>
-void OneSidedBorgGrahamFV1<TDomain>::init(number time)
+const size_t VDCC_BG<TDomain>::n_dependencies() const
+{
+	size_t n = 2;
+	if (has_constant_value(_CCYT_)) n--;
+	if (has_constant_value(_CEXT_)) n--;
+
+	return n;
+}
+
+
+template<typename TDomain>
+size_t VDCC_BG<TDomain>::n_fluxes() const
+{
+	return 1;
+}
+
+
+template<typename TDomain>
+const std::pair<size_t,size_t> VDCC_BG<TDomain>::flux_from_to(size_t flux_i) const
+{
+	size_t from, to;
+	if (allows_flux(_CCYT_)) to = local_fct_index(_CCYT_); else to = InnerBoundaryConstants::_IGNORE_;
+	if (allows_flux(_CEXT_)) from = local_fct_index(_CEXT_); else from = InnerBoundaryConstants::_IGNORE_;
+
+	return std::pair<size_t, size_t>(from, to);
+}
+
+
+template<typename TDomain>
+const std::string VDCC_BG<TDomain>::name() const
+{
+	return std::string("VDCC_BG");
+}
+
+
+template<typename TDomain>
+void VDCC_BG<TDomain>::check_supplied_functions() const
+{
+	// Check that not both, inner and outer calcium concentrations are not supplied;
+	// in that case, calculation of a flux would be of no consequence.
+	if (!allows_flux(_CCYT_) && !allows_flux(_CEXT_))
+	{
+		UG_THROW("Supplying neither cytosolic nor extracellular calcium concentrations is not allowed.\n"
+				"This would mean that the flux calculation would be of no consequence\n"
+				"and this channel would not do anything.");
+	}
+}
+
+
+template<typename TDomain>
+void VDCC_BG<TDomain>::print_units() const
+{
+	std::string nm = name();
+	size_t n = nm.size();
+	UG_LOG(std::endl);
+	UG_LOG("+------------------------------------------------------------------------------+"<< std::endl);
+	UG_LOG("|  Units used in the implementation of " << nm << std::string(n>=40?0:40-n, ' ') << "|" << std::endl);
+	UG_LOG("|------------------------------------------------------------------------------|"<< std::endl);
+	UG_LOG("|    Input                                                                     |"<< std::endl);
+	UG_LOG("|      [Ca_cyt]  mM (= mol/m^3)                                                |"<< std::endl);
+	UG_LOG("|      [Ca_ext]  mM (= mol/m^3)                                                |"<< std::endl);
+	UG_LOG("|      V_m       V                                                             |"<< std::endl);
+	UG_LOG("|                                                                              |"<< std::endl);
+	UG_LOG("|    Output                                                                    |"<< std::endl);
+	UG_LOG("|      Ca flux   mol/s                                                         |"<< std::endl);
+	UG_LOG("+------------------------------------------------------------------------------+"<< std::endl);
+	UG_LOG(std::endl);
+}
+
+
+template<typename TDomain>
+void VDCC_BG<TDomain>::set_permeability(const number perm)
+{
+	m_perm = perm;
+}
+
+
+template<typename TDomain>
+void VDCC_BG<TDomain>::init(number time)
 {
 	this->m_time = time;
 
@@ -212,7 +261,7 @@ void OneSidedBorgGrahamFV1<TDomain>::init(number time)
 		{
 			// get potential data
 			update_potential(*iter);
-			number vm = 1000.0*m_aaVm[*iter];
+			number vm = m_aaVm[*iter];
 
 			// calculate corresponding start condition for gates
 			m_aaMGate[*iter] = calc_gating_start(m_gpMGate, vm);
@@ -225,7 +274,7 @@ void OneSidedBorgGrahamFV1<TDomain>::init(number time)
 
 
 template<typename TDomain>
-void OneSidedBorgGrahamFV1<TDomain>::update_gating(side_t* elem)
+void VDCC_BG<TDomain>::update_gating(side_t* elem)
 {
 	if (!this->m_initiated)
 		UG_THROW("Borg-Graham not initialized.\n"
@@ -237,31 +286,56 @@ void OneSidedBorgGrahamFV1<TDomain>::update_gating(side_t* elem)
 	if (has_hGate()) calc_gating_step(m_gpHGate, 1000.0*m_aaVm[elem], dt, m_aaHGate[elem]);
 }
 
-
 template<typename TDomain>
-number OneSidedBorgGrahamFV1<TDomain>::ionic_current(side_t* e)
+void VDCC_BG<TDomain>::prep_timestep_elem
+(
+	const number time,
+	const LocalVector& u,
+	GridObject* elem
+)
 {
-	number gating = pow(m_aaMGate[e], m_mp);
-	if (has_hGate()) gating *= pow(m_aaHGate[e], m_hp);
+	update_time(time);
 
-	// simplified form of the correct flux derived from Goldman-Hodgkin-Katz equation,
-	// very accurate for Vm < 0mV and still reasonably accurate for Vm < 50mV
-	number maxFlux;
-	// just to be on the safe side near V_m == 0:
-	if (fabs(m_aaVm[e]) < 1e-8) maxFlux = m_lambda * R*T/(2*F);
-	else maxFlux = - m_lambda * m_aaVm[e] / (1.0 - exp(2*F/(R*T) * m_aaVm[e]));
+	side_t* side = dynamic_cast<side_t*>(elem);
+	if (!side) UG_THROW("OneSidedBorgGrahamFV1::prep_timestep_elem() called with improper element type.");
 
-	return gating * maxFlux / (2*F);
+	update_potential(side);
+	update_gating(side);
 }
-
 
 
 ///////////////////////////////////////////////////////////
 ///////////   BorgGrahamWithVM2UG   ///////////////////////
 ///////////////////////////////////////////////////////////
 
+template <typename TDomain>
+VDCC_BG_VM2UG<TDomain>::VDCC_BG_VM2UG
+(
+	const std::vector<std::string>& fcts,
+	const std::vector<std::string>& subsets,
+	SmartPtr<ApproximationSpace<TDomain> > approx,
+	const std::string baseName,
+	const char* timeFmt,
+	const std::string ext,
+	const bool posCanChange
+)
+: VDCC_BG<TDomain>(fcts, subsets, approx),
+  m_vmProvider(baseName, ext, !posCanChange), m_tFmt(timeFmt),
+  m_fileInterval(0.0), m_fileOffset(0.0)
+{
+	// nothing further to do
+}
+
+
+template <typename TDomain>
+VDCC_BG_VM2UG<TDomain>::~VDCC_BG_VM2UG()
+{
+	// nothing to do
+}
+
+
 template<typename TDomain>
-void OneSidedBorgGrahamFV1WithVM2UG<TDomain>::init(number time)
+void VDCC_BG_VM2UG<TDomain>::init(number time)
 {
 	// fill attachments with initial values
 
@@ -332,7 +406,7 @@ void OneSidedBorgGrahamFV1WithVM2UG<TDomain>::init(number time)
 
 
 template<typename TDomain>
-void OneSidedBorgGrahamFV1WithVM2UG<TDomain>::update_time(number newTime)
+void VDCC_BG_VM2UG<TDomain>::update_time(number newTime)
 {
 	// only work if really necessary
 	if (newTime == this->m_time)
@@ -372,7 +446,7 @@ void OneSidedBorgGrahamFV1WithVM2UG<TDomain>::update_time(number newTime)
 
 
 template<typename TDomain>
-void OneSidedBorgGrahamFV1WithVM2UG<TDomain>::update_potential(side_t* elem)
+void VDCC_BG_VM2UG<TDomain>::update_potential(side_t* elem)
 {
 	if (!m_vmProvider.treeBuild())
 		UG_THROW("Underlying Vm2uG object's tree is not yet built.\n"
@@ -402,22 +476,52 @@ void OneSidedBorgGrahamFV1WithVM2UG<TDomain>::update_potential(side_t* elem)
 ///////////////////////////////////////////////////////////
 ///////////   BorgGrahamWithNEURON   ///////////////////////
 ///////////////////////////////////////////////////////////
-#ifdef MPMNEURON
+//#ifdef MPMNEURON
+
 template<typename TDomain>
-void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::init(number time) {
-	try {
-		/// make zero steps (e. g. init) and extract the membrane potentials
+VDCC_BG_VM2UG_NEURON<TDomain>::VDCC_BG_VM2UG_NEURON
+(
+	const std::vector<std::string>& fcts,
+	const std::vector<std::string>& subsets,
+	SmartPtr<ApproximationSpace<TDomain> > approx,
+	SmartPtr<Transformator> transformator,
+	const std::string baseName,
+	const char* timeFmt,
+	const std::string ext,
+	const bool posCanChange
+)
+: VDCC_BG<TDomain>(fcts, subsets, approx),
+  m_NrnInterpreter(transformator), m_tFmt(timeFmt), m_vmTime(0.0)
+{
+	// nothing more to do
+};
+
+
+template <typename TDomain>
+VDCC_BG_VM2UG_NEURON<TDomain>::~VDCC_BG_VM2UG_NEURON()
+{
+	// nothing to do
+}
+
+
+template<typename TDomain>
+void VDCC_BG_VM2UG_NEURON<TDomain>::init(number time)
+{
+	try
+	{
+		// make zero steps (e. g. init) and extract the membrane potentials
 		this->m_NrnInterpreter.get()->extract_vms(1, 3);
-		/// with the extracted vms we build the tree then
+		// with the extracted vms we build the tree then
 		std::cout << "vms could be extracted" << std::endl;
 		std::cout << "Our NEURON setup: " << std::endl;
 		this->m_NrnInterpreter.get()->print_setup(true);
 		std::cout << "Our potential: " << this->m_vmProvider.get()->get_potential(0, 0, 0);
-	} UG_CATCH_THROW("NEURON interpreter could not advance, vmProvider could not be created.");
+	}
+	UG_CATCH_THROW("NEURON interpreter could not advance, vmProvider could not be created.");
 
 	typedef typename DoFDistribution::traits<side_t>::const_iterator itType;
 	SubsetGroup ssGrp;
-	try { ssGrp = SubsetGroup(this->m_dom->subset_handler(), this->m_vSubset);}
+	try {ssGrp = SubsetGroup(this->m_dom->subset_handler(), this->m_vSubset);}
 	UG_CATCH_THROW("Subset group creation failed.");
 
 	const typename TDomain::position_accessor_type& aaPos = this->m_dom->position_accessor();
@@ -455,7 +559,7 @@ void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::init(number time) {
 
 
 template<typename TDomain>
-void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::update_time(number newTime)
+void VDCC_BG_VM2UG_NEURON<TDomain>::update_time(number newTime)
 {
 	/// set dt for neuron interpreter
 	number dt = this->m_time - this->m_oldTime;
@@ -479,7 +583,7 @@ void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::update_time(number newTime)
 
 
 template<typename TDomain>
-void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::update_potential(side_t* elem)
+void VDCC_BG_VM2UG_NEURON<TDomain>::update_potential(side_t* elem)
 {
 	if (!this->m_vmProvider.get()->treeBuild())
 	UG_THROW("Underlying Vm2uG object's tree is not yet built.\n"
@@ -495,19 +599,19 @@ void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::update_potential(side_t* ele
 		else if (coords.size() == 3)
 			vm = this->m_vmProvider.get()->get_potential(coords[0], coords[1], coords[2]);
 		else
+		{
 			UG_THROW("Coordinates of vertex are not 2d or 3d"
 				  << "(which are the only valid dimensionalities for this discretization).");
+		}
 	}
 	UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
 
-	// set membrane potential value (convert from mV to V)
-	this->m_aaVm[elem] = 0.001 * vm; // todo: next step by dt * vm not by 0.001?
-									// -> no, this is not the step size, but correction
-									// for units being [V] in the attachments, but [mV] in Vm2uG.
+	// set membrane potential value
+	this->m_aaVm[elem] = 0.001 * vm;
 }
 
 
-#endif
+//#endif
 
 
 
@@ -515,9 +619,26 @@ void OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain>::update_potential(side_t* ele
 ///////////////////////////////////////////////////////////
 ///////////   BorgGrahamWithUserData   ////////////////////
 ///////////////////////////////////////////////////////////
+template <typename TDomain>
+VDCC_BG_UserData<TDomain>::VDCC_BG_UserData
+(
+	const std::vector<std::string>& fcts,
+	const std::vector<std::string>& subsets,
+	SmartPtr<ApproximationSpace<TDomain> > approx
+)
+: VDCC_BG<TDomain>(fcts, subsets, approx), m_bIsConstData(false)
+{
+	// nothing to do
+}
+
+template <typename TDomain>
+VDCC_BG_UserData<TDomain>::~VDCC_BG_UserData()
+{
+	// nothing to do
+}
 
 template<typename TDomain>
-void OneSidedBorgGrahamFV1WithUserData<TDomain>::set_potential_function(const char* name)
+void VDCC_BG_UserData<TDomain>::set_potential_function(const char* name)
 {
 	// name must be a valid lua function name conforming to LuaUserNumber specs
 	if (LuaUserData<number, dim>::check_callback_returns(name))
@@ -536,7 +657,7 @@ void OneSidedBorgGrahamFV1WithUserData<TDomain>::set_potential_function(const ch
 }
 
 template<typename TDomain>
-void OneSidedBorgGrahamFV1WithUserData<TDomain>::set_potential_function(const number value)
+void VDCC_BG_UserData<TDomain>::set_potential_function(const number value)
 {
 	// if value is null, smart pointer will point to null
 	if (value == 0.0) set_potential_function(SmartPtr<CplUserData<number, dim> >());
@@ -546,7 +667,7 @@ void OneSidedBorgGrahamFV1WithUserData<TDomain>::set_potential_function(const nu
 }
 
 template<typename TDomain>
-void OneSidedBorgGrahamFV1WithUserData<TDomain>::set_potential_function(SmartPtr<CplUserData<number, dim> > spPotFct)
+void VDCC_BG_UserData<TDomain>::set_potential_function(SmartPtr<CplUserData<number, dim> > spPotFct)
 {
 	m_spPotential = spPotFct;
 	m_bIsConstData = false;
@@ -554,7 +675,7 @@ void OneSidedBorgGrahamFV1WithUserData<TDomain>::set_potential_function(SmartPtr
 
 
 template<typename TDomain>
-void OneSidedBorgGrahamFV1WithUserData<TDomain>::update_potential(side_t* elem)
+void VDCC_BG_UserData<TDomain>::update_potential(side_t* elem)
 {
 	// only work if really necessary
 	if (m_bIsConstData) return;
@@ -570,25 +691,31 @@ void OneSidedBorgGrahamFV1WithUserData<TDomain>::update_potential(side_t* elem)
 }
 
 
-// register for 1D
-template<typename TDomain>
-void OneSidedBorgGrahamFV1<TDomain>::register_all_fv1_funcs()
-{
-//	get all grid element types in this dimension and below
-	typedef typename domain_traits<dim>::ManifoldElemList ElemList;
+// explicit template specializations
+#ifdef UG_DIM_1
+	template class VDCC_BG<Domain1d>;
+	template class VDCC_BG_VM2UG<Domain1d>;
+	#ifdef MPMNEURON
+		template class VDCC_BG_VM2UG_NEURON<Domain1d>;
+	#endif
+	template class VDCC_BG_UserData<Domain1d>;
+#endif
+#ifdef UG_DIM_2
+	template class VDCC_BG<Domain2d>;
+	template class VDCC_BG_VM2UG<Domain2d>;
+	#ifdef MPMNEURON
+		template class VDCC_BG_VM2UG_NEURON<Domain2d>;
+	#endif
+	template class VDCC_BG_UserData<Domain2d>;
+#endif
+#ifdef UG_DIM_3
+	template class VDCC_BG<Domain3d>;
+	template class VDCC_BG_VM2UG<Domain3d>;
+	#ifdef MPMNEURON
+		template class VDCC_BG_VM2UG_NEURON<Domain1d>;
+	#endif
+	template class VDCC_BG_UserData<Domain3d>;
+#endif
 
-//	switch assemble functions
-	boost::mpl::for_each<ElemList>(RegisterFV1(this));
-}
-
-template<typename TDomain>
-template<typename TElem, typename TFVGeom>
-void OneSidedBorgGrahamFV1<TDomain>::register_fv1_func()
-{
-	ReferenceObjectID id = geometry_traits<TElem>::REFERENCE_OBJECT_ID;
-	typedef this_type T;
-
-	this->set_prep_timestep_elem_fct(id, &T::template prep_timestep_elem<TElem>);
-}
 } // neuro_collection
 } // namespace ug

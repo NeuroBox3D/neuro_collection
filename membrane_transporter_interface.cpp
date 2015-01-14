@@ -24,8 +24,10 @@ IMembraneTransporter::IMembraneTransporter(std::vector<std::string> vFct)
 			m_mfInd[i] = m_vFct.size();
 			m_vFct.push_back(vFct[i]);
 		}
-		// else: ignore here
+		// else: nothing
 	}
+	// now check if the combination of these supplied functions is allowed
+	check_supplied_functions();
 
 	// resize input scaling vector
 	// (fluxes scaling vector cannot be resized at this point, since n_fluxes() is not yet available)
@@ -37,7 +39,17 @@ IMembraneTransporter::~IMembraneTransporter()
 	// do nothing
 }
 
-void IMembraneTransporter::flux(const std::vector<number>& u, std::vector<number>& flux) const
+void IMembraneTransporter::prep_timestep_elem
+(
+	const number time,
+	const LocalVector& u,
+	GridObject* elem
+)
+{
+	// do nothing here, only in derived classes and only if necessary
+}
+
+void IMembraneTransporter::flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
 {
 	// construct input vector for flux calculation with constant values
 	std::vector<number> u_with_consts(n_fct);
@@ -48,7 +60,7 @@ void IMembraneTransporter::flux(const std::vector<number>& u, std::vector<number
 		u_with_consts[i] *= m_vScaleInputs[i];
 
 	// calculate fluxes
-	calc_flux(u_with_consts, flux);
+	calc_flux(u_with_consts, e, flux);
 
 	// scale each flux
 	for (size_t i = 0; i < flux.size(); i++)
@@ -56,7 +68,7 @@ void IMembraneTransporter::flux(const std::vector<number>& u, std::vector<number
 }
 
 
-void IMembraneTransporter::flux_deriv(const std::vector<number>& u, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
+void IMembraneTransporter::flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
 	// construct input vector for flux derivative calculation with constant values
 	std::vector<number> u_with_consts(n_fct);
@@ -67,7 +79,7 @@ void IMembraneTransporter::flux_deriv(const std::vector<number>& u, std::vector<
 		u_with_consts[i] *= m_vScaleInputs[i];
 
 	// calculate flux derivatives
-	calc_flux_deriv(u_with_consts, flux_derivs);
+	calc_flux_deriv(u_with_consts, e, flux_derivs);
 
 	// scale each flux deriv
 	for (size_t i = 0; i < flux_derivs.size(); i++)
@@ -108,7 +120,7 @@ const size_t IMembraneTransporter::local_fct_index(const size_t i) const
 }
 
 
-void IMembraneTransporter::check_constant_allowed(const size_t i, const number val) const
+void IMembraneTransporter::check_supplied_functions() const
 {
 	// standard implementation will not do anything
 }
@@ -124,15 +136,6 @@ void IMembraneTransporter::set_constant(const size_t i, const number val)
 				 "Please set any constants before passing to "
 				 "an instance of TwoSidedMembraneTransport.");
 	}
-
-	// check that this unknown is allowed to be set constant (mechanism specific)
-	try
-	{
-		check_constant_allowed(i,val);
-	}
-	UG_CATCH_THROW("Setting the unknown with index " << i << " to a constant value\n"
-				   "is not allowed by an instance of the membrane transport mechanism "
-				   "of type \"" << name() << "\".");
 
 	m_mConstVal[i] = val;
 }

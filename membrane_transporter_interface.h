@@ -9,7 +9,9 @@
 #define __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__MEMBRANE_TRANSPORTER_INTERFACE_H__
 
 
-#include <common/common.h>	// for UG_LOG, UG_THROW and others
+#include "common/common.h"	// for UG_LOG, UG_THROW and others
+#include "lib_grid/grid/grid_base_objects.h"
+#include "lib_disc/common/local_algebra.h"
 #include <utility>      	// for std::pair
 #include <string>
 #include <vector>
@@ -72,6 +74,27 @@ class IMembraneTransporter
 		virtual ~IMembraneTransporter();
 
 		/**
+		 * @brief Prepares a transport mechanism for timestep assemblings
+		 *
+		 * This method will be called by the TwoSidedMembraneTransport method of the same name.
+		 * It can be used if any time-dependent modifications have to be made to an element
+		 * before the fluxes for a specific time step can be calculated.
+		 * This is especially useful for the implementation of the Borg-Graham type VDCCs using
+		 * grid attachments.
+		 *
+		 * @param time            new point in time
+		 * @param u               local vector of unknowns
+		 * @param elem            the element modifications can be made for
+		 * @param vCornerCoords   the element's corner coordinates
+		 */
+		virtual void prep_timestep_elem
+		(
+			const number time,
+			const LocalVector& u,
+			GridObject* elem
+		);
+
+		/**
 		 * @brief Calculates the fluxes through this mechanism (same for all mechanisms)
 		 *
 		 * This method is called by TwoSidedMembraneTransportFV1::fluxDensityFct() and will
@@ -88,9 +111,10 @@ class IMembraneTransporter
 		 *
 		 * @param u      vector containing values from known grid functions (at a specific
 		 * 				 location)
+		 * @param e      element this flux is assembled on
 		 * @param flux   output vector containing the calculated fluxes
 		 */
-		void flux(const std::vector<number>& u, std::vector<number>& flux) const;
+		void flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const;
 
 		/**
 		 * @brief Calculates the derivatives of the fluxes through this mechanism (same for all mechanisms)
@@ -109,31 +133,34 @@ class IMembraneTransporter
 		 *
 		 * @param u             vector containing values from known grid functions (at a
 		 *                      specific location)
+		 * @param e             element these flux derivatives are assembled on
 		 * @param flux_derivs   output matrix containing the calculated flux derivatives as
 		 *                      pairs of (index, value), where index specifies with regard
 		 *                      to which unknown the derivative is taken and value is the
 		 *                      derivative
 		 */
-		void flux_deriv(const std::vector<number>& u, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
+		void flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
 
 		/**
 		 * @brief Calculates the flux through a membrane transport system (system-specific)
 		 *
 		 * @param u      vector with values for all involved unknowns (created by flux())
+		 * @param e      element this flux is assembled on
 		 * @param flux   output vector containing the calculated fluxes (not yet scaled)
 		 */
-		virtual void calc_flux(const std::vector<number>& u, std::vector<number>& flux) const = 0;
+		virtual void calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const = 0;
 
 		/**
 		 * @brief Calculates the flux derivatives through a membrane transport system (system-specific)
 		 *
 		 * @param u             vector with values for all involved unknowns (created by flux_deriv())
+		 * @param e             element these flux derivatives are assembled on
 		 * @param flux_derivs   output matrix containing the calculated flux derivatives as
 		 *                      pairs of (index, value), where index specifies with regard
 		 *                      to which unknown the derivative is taken and value is the
 		 *                      derivative (not yet scaled)
 		 */
-		virtual void calc_flux_deriv(const std::vector<number>& u, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const = 0;
+		virtual void calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const = 0;
 
 		/**
 		 * @brief Gives information about how many variables the flux depends on
@@ -211,15 +238,12 @@ class IMembraneTransporter
 		const size_t local_fct_index(const size_t i) const;
 
 		/**
-		 * @brief Check whether setting the i-th unknown to a constant value of val is allowed
+		 * @brief Check whether the combination of supplied functions is allowed
 		 *
 		 * UG_THROWs, if not allowed (for example when both the inner and outer concentration of the
-		 * transported species are set constant - which would make no sense).
-		 *
-		 * @param i		index of the unknown
-		 * @param val	constant value to be set
+		 * transported species are not supplied - which would make no sense).
 		 */
-		virtual void check_constant_allowed(const size_t i, const number val) const;
+		virtual void check_supplied_functions() const;
 
 		/**
 		 * @brief Set a constant value for one of the unknowns

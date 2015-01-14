@@ -24,7 +24,7 @@ NCX::~NCX()
 }
 
 
-void NCX::calc_flux(const std::vector<number>& u, std::vector<number>& flux) const
+void NCX::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
 {
 	// get values of the unknowns in associated node
 	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
@@ -35,7 +35,7 @@ void NCX::calc_flux(const std::vector<number>& u, std::vector<number>& flux) con
 }
 
 
-void NCX::calc_flux_deriv(const std::vector<number>& u, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
+void NCX::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
 	// get values of the unknowns in associated node
 	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
@@ -66,7 +66,7 @@ const std::pair<size_t,size_t> NCX::flux_from_to(size_t flux_i) const
 {
 	size_t from, to;
 	if (allows_flux(_CCYT_)) from = local_fct_index(_CCYT_); else from = InnerBoundaryConstants::_IGNORE_;
-	if (allows_flux(_COUT_)) to = local_fct_index(_COUT_); else to = InnerBoundaryConstants::_IGNORE_;
+	if (allows_flux(_CEXT_)) to = local_fct_index(_CEXT_); else to = InnerBoundaryConstants::_IGNORE_;
 
 	return std::pair<size_t, size_t>(from, to);
 }
@@ -78,17 +78,15 @@ const std::string NCX::name() const
 };
 
 
-void NCX::check_constant_allowed(const size_t i, const number val) const
+void NCX::check_supplied_functions() const
 {
-	// Check that not both, inner and outer calcium concentrations are set constant;
+	// Check that not both, inner and outer calcium concentrations are not supplied;
 	// in that case, calculation of a flux would be of no consequence.
-	if ((has_constant_value(_CCYT_) && i == _COUT_)
-		|| (has_constant_value(_COUT_) && i == _CCYT_))
+	if (!allows_flux(_CCYT_) && !allows_flux(_CEXT_))
 	{
-		UG_THROW("It is not allowed to set both, the cytosolic and the\n"
-				 "outer calcium concentrations to a constant value.\n"
-				 "This would mean that the flux calculation would be of\n"
-				 "no consequence and this pump would not do anything.");
+		UG_THROW("Supplying neither cytosolic nor extracellular calcium concentrations is not allowed.\n"
+				"This would mean that the flux calculation would be of no consequence\n"
+				"and this pump mechanism would not do anything.");
 	}
 }
 
