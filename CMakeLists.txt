@@ -13,15 +13,14 @@
 set(pluginName	neuro_collection)
 set(pluginPath	plugins/experimental/neuro_collection)
 set(SOURCES    neuro_collection_plugin.cpp
-			   membrane_transporter_interface.cpp
-			   ip3r.cpp
-			   ryr.cpp
-			   serca.cpp
-			   leak.cpp
-			   pmca.cpp
-			   ncx.cpp
-			   vdcc_bg.cpp
-               dependent_neumann_boundary_fv1.cpp
+			   membrane_transporters/membrane_transporter_interface.cpp
+			   membrane_transporters/ip3r.cpp
+			   membrane_transporters/ryr.cpp
+			   membrane_transporters/serca.cpp
+			   membrane_transporters/leak.cpp
+			   membrane_transporters/pmca.cpp
+			   membrane_transporters/ncx.cpp
+			   membrane_transporters/vdcc_bg.cpp
    )
 
 

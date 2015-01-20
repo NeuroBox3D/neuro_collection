@@ -257,4 +257,4 @@ class BufferFV1
 
 #include "buffer_fv1_impl.h"
 
-#endif /* __H__UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__BUFFER_FV1__ */
+#endif // __H__UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__BUFFER_FV1__

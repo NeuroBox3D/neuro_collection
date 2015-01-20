@@ -17,18 +17,19 @@
 #include "bridge/util_domain_dependent.h"
 
 #include "buffer_fv1.h"
-#include "one_sided_borg_graham_fv1.h"
-#include "dependent_neumann_boundary_fv1.h"
-#include "one_sided_membrane_transport_fv1.h"
+//#include "one_sided_borg_graham_fv1.h"
+//#include "dependent_neumann_boundary_fv1.h"
+//#include "one_sided_membrane_transport_fv1.h"
 #include "two_sided_membrane_transport_fv1.h"
-#include "membrane_transporter_interface.h"
-#include "ip3r.h"
-#include "ryr.h"
-#include "serca.h"
-#include "leak.h"
-#include "pmca.h"
-#include "ncx.h"
-#include "vdcc_bg.h"
+#include "user_flux_bnd_fv1.h"
+#include "membrane_transporters/membrane_transporter_interface.h"
+#include "membrane_transporters/ip3r.h"
+#include "membrane_transporters/ryr.h"
+#include "membrane_transporters/serca.h"
+#include "membrane_transporters/leak.h"
+#include "membrane_transporters/pmca.h"
+#include "membrane_transporters/ncx.h"
+#include "membrane_transporters/vdcc_bg.h"
 
 
 using namespace std;
@@ -114,6 +115,7 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "BufferFV1", tag);
 	}
 
+#if 0
 	// implementation of a Neumann boundary depending on the unknowns
 	{
 		typedef DependentNeumannBoundaryFV1<TDomain> T;
@@ -122,7 +124,6 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_<T, TBase >(name, grp);
 		reg.add_class_to_group(name, "DependentNeumannBoundaryFV1", tag);
 	}
-
 
 	// one-sided membrane transport systems
 	{
@@ -224,7 +225,7 @@ static void Domain(Registry& reg, string grp)
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "OneSidedBorgGrahamFV1WithUserData", tag);
 	}
-
+#endif
 
 	// implementation of two-sided membrane transport systems
 	{
@@ -233,7 +234,7 @@ static void Domain(Registry& reg, string grp)
 		string name = string("TwoSidedMembraneTransportFV1").append(suffix);
 		reg.add_class_<T, TBase >(name, grp)
 			.template add_constructor<void (*)(const char*, SmartPtr<IMembraneTransporter>)>("Function(s)#MembraneTransporter")
-			.template add_constructor<void (*)(const char*, const char*)>("Function(s)#MSubset(s)")	//TODO: delete
+			//.template add_constructor<void (*)(const char*, const char*)>("Function(s)#MSubset(s)")	//TODO: delete
 			.add_method("set_density_function", static_cast<void (T::*) (const number)> (&T::set_density_function),
 						"", "", "add a constant density")
 #ifdef UG_FOR_LUA
@@ -247,6 +248,24 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "TwoSidedMembraneTransportFV1", tag);
 	}
 
+	// user flux boundary
+	{
+		typedef UserFluxBoundaryFV1<TDomain> T;
+		typedef FV1InnerBoundaryElemDisc<TDomain> TBase;
+		string name = string("UserFluxBoundaryFV1").append(suffix);
+		reg.add_class_<T, TBase>(name, grp)
+			.template add_constructor<void (*)(const char*, const char*)>("Function(s)#Subset(s)")
+			.add_method("set_flux_function", static_cast<void (T::*) (SmartPtr<CplUserData<number, dim> >)> (&T::set_flux_function),
+					"", "", "add a flux density function")
+			.add_method("set_flux_function", static_cast<void (T::*) (number)> (&T::set_flux_function),
+					"", "", "add a flux density function")
+			.add_method("set_flux_function", static_cast<void (T::*) (const char*)> (&T::set_flux_function),
+					"", "", "add a flux density function")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "UserFluxBoundaryFV1", tag);
+	}
+
+#if 0
 	// implementation of two-sided ER membrane calcium transport systems
 	{
 		typedef TwoSidedERCalciumTransportFV1<TDomain> TE0;
@@ -283,7 +302,7 @@ static void Domain(Registry& reg, string grp)
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "TwoSidedERCalciumLeakFV1", tag);
 	}
-
+#endif
 	{
 		typedef VDCC_BG<TDomain> T;
 		typedef IMembraneTransporter TBase;

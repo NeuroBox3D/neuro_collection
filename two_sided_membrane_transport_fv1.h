@@ -12,7 +12,7 @@
 #include "lib_disc/spatial_disc/elem_disc/inner_boundary/inner_boundary.h"
 #include "bindings/lua/lua_user_data.h"
 #include "common/util/smart_pointer.h"
-#include "membrane_transporter_interface.h"
+#include "membrane_transporters/membrane_transporter_interface.h"
 
 
 namespace ug
@@ -54,12 +54,13 @@ class TwoSidedMembraneTransportFV1
 	/// constructor (can be deleted after successful implementation of unified membrane transport) TODO
 		TwoSidedMembraneTransportFV1(const char* functions, const char* subsets)
 					: FV1InnerBoundaryElemDisc<TDomain>(functions, subsets),
-					  R(8.314), T(310.0), F(96485.0){};
+					  R(8.314), T(310.0), F(96485.0), m_bNonRegularGrid(false) {};
 
 	/// constructor
 		TwoSidedMembraneTransportFV1(const char* subsets, SmartPtr<IMembraneTransporter> mt)
 					: FV1InnerBoundaryElemDisc<TDomain>(),
-					  R(8.314), T(310.0), F(96485.0), m_spMembraneTransporter(mt)
+					  R(8.314), T(310.0), F(96485.0), m_spMembraneTransporter(mt),
+					  m_bNonRegularGrid(false)
 		{
 			// check validity of transporter setup and then lock
 			mt->check_and_lock();
@@ -237,7 +238,7 @@ class TwoSidedMembraneTransportFV1
 };
 
 
-
+#if 0
 /// Finite Volume Element Discretization for the inner BndCond on an ER membrane
 /**
  * This class implements the InnerBoundary interface to provide element local
@@ -731,6 +732,8 @@ class TwoSidedERCalciumLeakFV1
 			return true;
 		}
 };
+
+#endif
 
 ///@}
 
