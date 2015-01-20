@@ -118,18 +118,19 @@ class BufferFV1
 	public:
 
 		/// constructor
-        BufferFV1(const char* subsets)
-        	: IElemDisc<TDomain>(NULL, subsets), m_bNonRegularGrid(false)
-        {
-        	register_all_fv1_funcs();
-        	m_reactions.clear();
-        }
+        BufferFV1(const char* subsets);
+
+		/// destructor
+        virtual ~BufferFV1();
 
         /// add a reaction (with DataImports)
-        void add_reaction(const char* fct1, const char* fct2,
-        			 SmartPtr<CplUserData<number, dim> > tbc,
-        			 SmartPtr<CplUserData<number, dim> > k1,
-        			 SmartPtr<CplUserData<number, dim> > k2);
+        void add_reaction
+		(
+			const char* fct1, const char* fct2,
+        	SmartPtr<CplUserData<number, dim> > tbc,
+        	SmartPtr<CplUserData<number, dim> > k1,
+        	SmartPtr<CplUserData<number, dim> > k2
+		);
 
         /// add a reaction (with constants)
         void add_reaction(const char* fct1, const char* fct2, number tbc, number k1, number k2);
@@ -226,7 +227,26 @@ class BufferFV1
 			}
 		};
 
-		template <typename TElem, typename TFVGeom> void register_fv1_func();
+		template <typename TElem, typename TFVGeom> void register_fv1_func()
+		{
+			ReferenceObjectID id = geometry_traits<TElem>::REFERENCE_OBJECT_ID;
+
+			this->clear_add_fct(id);
+			this->set_prep_elem_loop_fct(	id, &this_type::template prep_elem_loop<TElem, TFVGeom>);
+			this->set_prep_elem_fct(	 	id, &this_type::template prep_elem<TElem, TFVGeom>);
+			this->set_fsh_elem_loop_fct( 	id, &this_type::template fsh_elem_loop<TElem, TFVGeom>);
+			this->set_add_jac_A_elem_fct(	id, &this_type::template add_jac_A_elem<TElem, TFVGeom>);
+			this->set_add_jac_M_elem_fct(	id, &this_type::template add_jac_M_elem<TElem, TFVGeom>);
+			this->set_add_def_A_elem_fct(	id, &this_type::template add_def_A_elem<TElem, TFVGeom>);
+			this->set_add_def_M_elem_fct(	id, &this_type::template add_def_M_elem<TElem, TFVGeom>);
+			this->set_add_rhs_elem_fct(	 	id, &this_type::template add_rhs_elem<TElem, TFVGeom>);
+
+			// error estimator parts
+			this->set_prep_err_est_elem_loop(	id, &this_type::template prep_err_est_elem_loop<TElem, TFVGeom>);
+			this->set_prep_err_est_elem(		id, &this_type::template prep_err_est_elem<TElem, TFVGeom>);
+			this->set_compute_err_est_A_elem(	id, &this_type::template compute_err_est_A_elem<TElem, TFVGeom>);
+			this->set_fsh_err_est_elem_loop(	id, &this_type::template fsh_err_est_elem_loop<TElem, TFVGeom>);
+		}
 
 		/// struct holding values of shape functions in IPs
 		struct ShapeValues
@@ -254,7 +274,5 @@ class BufferFV1
 
 } // namespace neuro_collection
 } // namespace ug
-
-#include "buffer_fv1_impl.h"
 
 #endif // __H__UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__BUFFER_FV1__

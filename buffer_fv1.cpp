@@ -1,5 +1,5 @@
 /*
- * buffer_impl.h
+ * buffer_fv1.cpp
  *
  *  Created on: 07.11.2012
  *      Author: mbreit
@@ -7,10 +7,24 @@
 
 #include "buffer_fv1.h"
 
-namespace ug
+namespace ug {
+namespace neuro_collection {
+
+
+template<typename TDomain>
+BufferFV1<TDomain>::BufferFV1(const char* subsets)
+: IElemDisc<TDomain>(NULL, subsets), m_bNonRegularGrid(false)
 {
-namespace neuro_collection
+	register_all_fv1_funcs();
+	m_reactions.clear();
+}
+
+template<typename TDomain>
+BufferFV1<TDomain>::~BufferFV1()
 {
+	// nothing to do
+}
+
 
 template<typename TDomain>
 void BufferFV1<TDomain>::prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid)
@@ -507,29 +521,18 @@ register_all_fv1_funcs()
 	boost::mpl::for_each<ElemList>(RegisterFV1(this));
 }
 
-template<typename TDomain>
-template<typename TElem, typename TFVGeom>
-void BufferFV1<TDomain>::
-register_fv1_func()
-{
-	ReferenceObjectID id = geometry_traits<TElem>::REFERENCE_OBJECT_ID;
 
-	this->clear_add_fct(id);
-	this->set_prep_elem_loop_fct(	id, &this_type::template prep_elem_loop<TElem, TFVGeom>);
-	this->set_prep_elem_fct(	 	id, &this_type::template prep_elem<TElem, TFVGeom>);
-	this->set_fsh_elem_loop_fct( 	id, &this_type::template fsh_elem_loop<TElem, TFVGeom>);
-	this->set_add_jac_A_elem_fct(	id, &this_type::template add_jac_A_elem<TElem, TFVGeom>);
-	this->set_add_jac_M_elem_fct(	id, &this_type::template add_jac_M_elem<TElem, TFVGeom>);
-	this->set_add_def_A_elem_fct(	id, &this_type::template add_def_A_elem<TElem, TFVGeom>);
-	this->set_add_def_M_elem_fct(	id, &this_type::template add_def_M_elem<TElem, TFVGeom>);
-	this->set_add_rhs_elem_fct(	 	id, &this_type::template add_rhs_elem<TElem, TFVGeom>);
 
-	// error estimator parts
-	this->set_prep_err_est_elem_loop(	id, &this_type::template prep_err_est_elem_loop<TElem, TFVGeom>);
-	this->set_prep_err_est_elem(		id, &this_type::template prep_err_est_elem<TElem, TFVGeom>);
-	this->set_compute_err_est_A_elem(	id, &this_type::template compute_err_est_A_elem<TElem, TFVGeom>);
-	this->set_fsh_err_est_elem_loop(	id, &this_type::template fsh_err_est_elem_loop<TElem, TFVGeom>);
-}
+// explicit template specializations
+#ifdef UG_DIM_1
+	template class BufferFV1<Domain1d>;
+#endif
+#ifdef UG_DIM_2
+	template class BufferFV1<Domain2d>;
+#endif
+#ifdef UG_DIM_3
+	template class BufferFV1<Domain3d>;
+#endif
 
 
 } // namespace neuro_collection

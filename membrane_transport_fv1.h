@@ -1,8 +1,8 @@
 /*
- *  FV1CalciumERElemDisc.h
+ *  membrane_transport_fv1.h
  *
  *  Created on: 20.12.2011
- *      Author: markusbreit
+ *      Author: mbreit
  */
 
 #ifndef __H__UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__TWO_SIDED_MEMBRANE_TRANSPORT_FV1__
@@ -15,10 +15,8 @@
 #include "membrane_transporters/membrane_transporter_interface.h"
 
 
-namespace ug
-{
-namespace neuro_collection
-{
+namespace ug {
+namespace neuro_collection {
 
 // forward declaration of IMembraneTransporter
 class IMembraneTransporter;
@@ -34,7 +32,7 @@ class IMembraneTransporter;
  */
 
 template<typename TDomain>
-class TwoSidedMembraneTransportFV1
+class MembraneTransportFV1
 : public FV1InnerBoundaryElemDisc<TDomain>
 {
 	protected:
@@ -42,7 +40,7 @@ class TwoSidedMembraneTransportFV1
 		const number T;			// temperature
 		const number F;			// Faraday constant
 
-		typedef TwoSidedMembraneTransportFV1<TDomain> this_type;
+		typedef MembraneTransportFV1<TDomain> this_type;
 		typedef typename FV1InnerBoundaryElemDisc<TDomain>::FluxCond FluxCond;
 		typedef typename FV1InnerBoundaryElemDisc<TDomain>::FluxDerivCond FluxDerivCond;
 
@@ -52,150 +50,58 @@ class TwoSidedMembraneTransportFV1
 
 	public:
 	/// constructor (can be deleted after successful implementation of unified membrane transport) TODO
-		TwoSidedMembraneTransportFV1(const char* functions, const char* subsets)
-					: FV1InnerBoundaryElemDisc<TDomain>(functions, subsets),
-					  R(8.314), T(310.0), F(96485.0), m_bNonRegularGrid(false) {};
+		MembraneTransportFV1(const char* functions, const char* subsets);
 
 	/// constructor
-		TwoSidedMembraneTransportFV1(const char* subsets, SmartPtr<IMembraneTransporter> mt)
-					: FV1InnerBoundaryElemDisc<TDomain>(),
-					  R(8.314), T(310.0), F(96485.0), m_spMembraneTransporter(mt),
-					  m_bNonRegularGrid(false)
-		{
-			// check validity of transporter setup and then lock
-			mt->check_and_lock();
-
-			static_cast<IElemDisc<TDomain>*>(this)->set_subsets(subsets);
-			static_cast<IElemDisc<TDomain>*>(this)->set_functions(mt->symb_fcts());
-		};
+		MembraneTransportFV1(const char* subsets, SmartPtr<IMembraneTransporter> mt);
 
 	/// destructor
-		virtual ~TwoSidedMembraneTransportFV1() {};
+		virtual ~MembraneTransportFV1();
 
 	public:
 	/// adding density information for pumps/channels in membrane
-		void set_density_function(SmartPtr<CplUserData<number,dim> > densityFct)
-		{
-			this->m_spDensityFct = densityFct;
-		}
+		void set_density_function(SmartPtr<CplUserData<number,dim> > densityFct);
 
 	/// adding density information for pumps/channels in membrane
-		void set_density_function(const char* name)
-		{
-			// name must be a valid lua function name conforming to LuaUserNumber specs
-			if (LuaUserData<number, dim>::check_callback_returns(name))
-			{
-				set_density_function(LuaUserDataFactory<number, dim>::create(name));
-				return;
-			}
+		void set_density_function(const number dens);
 
-			// no match found
-			if (!CheckLuaCallbackName(name))
-				UG_THROW("Lua-Callback with name '" << name << "' does not exist.");
-
-			// name exists, but wrong signature
-			UG_THROW("Cannot find matching callback signature. Use:\n"
-					"Number - Callback\n" << (LuaUserData<number, dim>::signature()) << "\n");
-		}
-
-		void set_density_function(const number dens)
-		{
-			set_density_function(make_sp(new ConstUserNumber<dim>(dens)));
-		}
+	/// adding density information for pumps/channels in membrane
+		void set_density_function(const char* name);
 
 	/// set transport mechanism
-		void set_membrane_transporter(SmartPtr<IMembraneTransporter> mt)
-		{
-			m_spMembraneTransporter = mt;
-		}
+		void set_membrane_transporter(SmartPtr<IMembraneTransporter> mt);
 
-	/// flux assembling routines inherited from FV1InnerBoundaryElemDisc
-		virtual bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, FluxCond& fc)
-		{
-			size_t n_flux = m_spMembraneTransporter->n_fluxes();
+	/// @copydoc FV1InnerBoundary<TDomain>::fluxDensityFct()
+		virtual bool fluxDensityFct
+		(
+			const std::vector<LocalVector::value_type>& u,
+			GridObject* e,
+			const MathVector<dim>& coords,
+			int si,
+			FluxCond& fc
+		);
 
-			// calculate single-channel flux
-			fc.flux.resize(n_flux);
-			fc.from.resize(n_flux);
-			fc.to.resize(n_flux);
+	/// @copydoc FV1InnerBoundary<TDomain>::fluxDensityDerivFct()
+		bool fluxDensityDerivFct
+		(
+			const std::vector<LocalVector::value_type>& u,
+			GridObject* e,
+			const MathVector<dim>& coords,
+			int si,
+			FluxDerivCond& fdc
+		);
 
-			m_spMembraneTransporter->flux(u, e, fc.flux);
+	/// @copydoc IElemDisc<TDomain>::prepare_setting()
+		virtual void prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid);
 
-			// get density in membrane
-			if (!this->m_spDensityFct.valid())
-			{
-				UG_THROW("No density information available for " << m_spMembraneTransporter->name()
-						 << " membrane transport mechanism. Please set using set_density_function().");
-			}
-			number density;
-			(*this->m_spDensityFct)(density, coords, this->time(), si);
-
-			for (size_t i = 0; i < n_flux; i++)
-			{
-				fc.flux[i] *= density;
-				fc.from[i] = m_spMembraneTransporter->flux_from_to(i).first;
-				fc.to[i] = m_spMembraneTransporter->flux_from_to(i).second;
-			}
-
-			return true;
-		}
-
-		bool fluxDensityDerivFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, FluxDerivCond& fdc)
-		{
-			size_t n_dep = m_spMembraneTransporter->n_dependencies();
-			size_t n_flux = m_spMembraneTransporter->n_fluxes();
-
-			// calculate single-channel flux
-			fdc.fluxDeriv.resize(n_flux);
-			fdc.from.resize(n_flux);
-			fdc.to.resize(n_flux);
-			for (size_t i = 0; i < n_flux; i++)
-				fdc.fluxDeriv[i].resize(n_dep);
-
-			m_spMembraneTransporter->flux_deriv(u, e, fdc.fluxDeriv);
-
-			number density;
-			if (this->m_spDensityFct.valid())
-				(*this->m_spDensityFct)(density, coords, this->time(), si);
-			else
-			{
-				UG_THROW("No density information available for " << m_spMembraneTransporter->name()
-						<< " membrane transport mechanism. Please set using set_density_function().");
-			}
-
-			for (size_t i = 0; i < n_flux; i++)
-			{
-				for (size_t j = 0; j < n_dep; j++)
-					fdc.fluxDeriv[i][j].second *= density;
-				fdc.from[i] = m_spMembraneTransporter->flux_from_to(i).first;
-				fdc.to[i] = m_spMembraneTransporter->flux_from_to(i).second;
-			}
-
-			return true;
-		}
-
-		virtual void prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid)
-		{
-			// remember
-			m_bNonRegularGrid = bNonRegularGrid;
-
-			// set assembling functions from base class first
-			this->FV1InnerBoundaryElemDisc<TDomain>::prepare_setting(vLfeID, bNonRegularGrid);
-
-			// update assemble functions
-			register_all_fv1_funcs();
-		}
-
+	/// @copydoc IElemDisc<TDomain>::prepare_timestep_elem()
 		void prep_timestep_elem
 		(
 			const number time,
 			const LocalVector& u,
 			GridObject* elem,
 			const MathVector<dim> vCornerCoords[]
-		)
-		{
-			m_spMembraneTransporter->prep_timestep_elem(time, u, elem);
-		}
+		);
 
 	protected:
 		SmartPtr<CplUserData<number,dim> > m_spDensityFct;
@@ -215,14 +121,7 @@ class TwoSidedMembraneTransportFV1
 				}
 		};
 
-		void register_all_fv1_funcs()
-		{
-			//	get all grid element types in this dimension and below
-			typedef typename domain_traits<dim>::ManifoldElemList ElemList;
-
-			//	switch assemble functions
-			boost::mpl::for_each<ElemList>(RegisterFV1(this));
-		}
+		void register_all_fv1_funcs();
 
 		template <typename TElem, typename TFVGeom>
 		void register_fv1_func()
@@ -247,12 +146,12 @@ class TwoSidedMembraneTransportFV1
 
 template<typename TDomain>
 class TwoSidedERCalciumTransportFV1
-: public TwoSidedMembraneTransportFV1<TDomain>
+: public MembraneTransportFV1<TDomain>
 {
 	protected:
-		using TwoSidedMembraneTransportFV1<TDomain>::R;
-		using TwoSidedMembraneTransportFV1<TDomain>::T;
-		using TwoSidedMembraneTransportFV1<TDomain>::F;
+		using MembraneTransportFV1<TDomain>::R;
+		using MembraneTransportFV1<TDomain>::T;
+		using MembraneTransportFV1<TDomain>::F;
 
 		const number REF_CA_ER;	// reference endoplasmatic Ca2+ concentration (for conductances)
 		const number CF;		// correction factor: the ER being more or less a smooth cable
@@ -262,12 +161,12 @@ class TwoSidedERCalciumTransportFV1
 
 	public:
 	///	world dimension
-		static const int dim = TwoSidedMembraneTransportFV1<TDomain>::dim;
+		static const int dim = MembraneTransportFV1<TDomain>::dim;
 
 	public:
 	/// constructor
 		TwoSidedERCalciumTransportFV1(const char* functions, const char* subsets)
-					: TwoSidedMembraneTransportFV1<TDomain>(functions, subsets),
+					: MembraneTransportFV1<TDomain>(functions, subsets),
 					  REF_CA_ER(2.5e-4), CF(1.0) {};
 };
 

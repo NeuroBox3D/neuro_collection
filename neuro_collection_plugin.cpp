@@ -17,10 +17,10 @@
 #include "bridge/util_domain_dependent.h"
 
 #include "buffer_fv1.h"
+#include "membrane_transport_fv1.h"
 //#include "one_sided_borg_graham_fv1.h"
 //#include "dependent_neumann_boundary_fv1.h"
 //#include "one_sided_membrane_transport_fv1.h"
-#include "two_sided_membrane_transport_fv1.h"
 #include "user_flux_bnd_fv1.h"
 #include "membrane_transporters/membrane_transporter_interface.h"
 #include "membrane_transporters/ip3r.h"
@@ -229,7 +229,7 @@ static void Domain(Registry& reg, string grp)
 
 	// implementation of two-sided membrane transport systems
 	{
-		typedef TwoSidedMembraneTransportFV1<TDomain> T;
+		typedef MembraneTransportFV1<TDomain> T;
 		typedef FV1InnerBoundaryElemDisc<TDomain> TBase;
 		string name = string("TwoSidedMembraneTransportFV1").append(suffix);
 		reg.add_class_<T, TBase >(name, grp)
@@ -269,7 +269,7 @@ static void Domain(Registry& reg, string grp)
 	// implementation of two-sided ER membrane calcium transport systems
 	{
 		typedef TwoSidedERCalciumTransportFV1<TDomain> TE0;
-		typedef TwoSidedMembraneTransportFV1<TDomain> TEBase;
+		typedef MembraneTransportFV1<TDomain> TEBase;
 		string name = string("TwoSidedERCalciumTransportFV1").append(suffix);
 		reg.add_class_<TE0, TEBase >(name, grp);
 		reg.add_class_to_group(name, "TwoSidedERCalciumTransportFV1", tag);
