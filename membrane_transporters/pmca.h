@@ -44,8 +44,11 @@ class PMCA : public IMembraneTransporter
 		const number IMAX_P;				// mol*s^-1
 
     public:
+		/// @copydoc IMembraneTransporter::IMembraneTransporter(const std::vector<std::string)
+		PMCA(const std::vector<std::string>& fcts);
+
 		/// @copydoc IMembraneTransporter::IMembraneTransporter()
-		PMCA(std::vector<std::string> fcts);
+		PMCA(const char* fcts);
 
 		/// @copydoc IMembraneTransporter::IMembraneTransporter()
 		virtual ~PMCA();

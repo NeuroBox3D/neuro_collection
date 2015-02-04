@@ -28,6 +28,29 @@ VDCC_BG<TDomain>::VDCC_BG
   m_gpMGate(3.4, -21.0, 1.5), m_gpHGate(-2.0, -40.0, 75.0), m_time(0.0), m_oldTime(0.0),
   m_perm(2.4e-19), m_mp(2), m_hp(1), m_channelType(BG_Ntype), m_initiated(false)
 {
+	after_construction();
+}
+
+template<typename TDomain>
+VDCC_BG<TDomain>::VDCC_BG
+(
+	const char* fcts,
+	const char* subsets,
+	SmartPtr<ApproximationSpace<TDomain> > approx
+)
+: IMembraneTransporter(fcts),
+  R(8.314), T(310.0), F(96485.0),
+  m_dom(approx->domain()), m_mg(m_dom->grid()), m_dd(approx->dof_distribution(GridLevel::TOP)),
+  m_sh(m_dom->subset_handler()), m_aaPos(m_dom->position_accessor()), m_vSubset(TokenizeString(subsets)),
+  m_gpMGate(3.4, -21.0, 1.5), m_gpHGate(-2.0, -40.0, 75.0), m_time(0.0), m_oldTime(0.0),
+  m_perm(2.4e-19), m_mp(2), m_hp(1), m_channelType(BG_Ntype), m_initiated(false)
+{
+	after_construction();
+}
+
+template<typename TDomain>
+void VDCC_BG<TDomain>::after_construction()
+{
 	// process subsets
 
 	//	remove white space
@@ -44,7 +67,7 @@ VDCC_BG<TDomain>::VDCC_BG
 		if (m_vSubset.empty())
 		{
 			UG_THROW("Error while setting subsets in an ElemDisc: passed "
-			 		 "subset string lacks a subset specification at position "
+					 "subset string lacks a subset specification at position "
 					 << i << "(of " << m_vSubset.size()-1 << ")");
 		}
 	}
@@ -326,6 +349,24 @@ VDCC_BG_VM2UG<TDomain>::VDCC_BG_VM2UG
 	// nothing further to do
 }
 
+template <typename TDomain>
+VDCC_BG_VM2UG<TDomain>::VDCC_BG_VM2UG
+(
+	const char* fcts,
+	const char* subsets,
+	SmartPtr<ApproximationSpace<TDomain> > approx,
+	const std::string baseName,
+	const char* timeFmt,
+	const std::string ext,
+	const bool posCanChange
+)
+: VDCC_BG<TDomain>(fcts, subsets, approx),
+  m_vmProvider(baseName, ext, !posCanChange), m_tFmt(timeFmt),
+  m_fileInterval(0.0), m_fileOffset(0.0)
+{
+	// nothing further to do
+}
+
 
 template <typename TDomain>
 VDCC_BG_VM2UG<TDomain>::~VDCC_BG_VM2UG()
@@ -496,6 +537,25 @@ VDCC_BG_VM2UG_NEURON<TDomain>::VDCC_BG_VM2UG_NEURON
 	// nothing more to do
 };
 
+template<typename TDomain>
+VDCC_BG_VM2UG_NEURON<TDomain>::VDCC_BG_VM2UG_NEURON
+(
+	const char* fcts,
+	const char* subsets,
+	SmartPtr<ApproximationSpace<TDomain> > approx,
+	SmartPtr<Transformator> transformator,
+	const std::string baseName,
+	const char* timeFmt,
+	const std::string ext,
+	const bool posCanChange
+)
+: VDCC_BG<TDomain>(fcts, subsets, approx),
+  m_NrnInterpreter(transformator), m_tFmt(timeFmt), m_vmTime(0.0)
+{
+	// nothing more to do
+};
+
+
 
 template <typename TDomain>
 VDCC_BG_VM2UG_NEURON<TDomain>::~VDCC_BG_VM2UG_NEURON()
@@ -623,6 +683,18 @@ VDCC_BG_UserData<TDomain>::VDCC_BG_UserData
 (
 	const std::vector<std::string>& fcts,
 	const std::vector<std::string>& subsets,
+	SmartPtr<ApproximationSpace<TDomain> > approx
+)
+: VDCC_BG<TDomain>(fcts, subsets, approx), m_bIsConstData(false)
+{
+	// nothing to do
+}
+
+template <typename TDomain>
+VDCC_BG_UserData<TDomain>::VDCC_BG_UserData
+(
+	const char* fcts,
+	const char* subsets,
 	SmartPtr<ApproximationSpace<TDomain> > approx
 )
 : VDCC_BG<TDomain>(fcts, subsets, approx), m_bIsConstData(false)

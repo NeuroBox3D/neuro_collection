@@ -52,8 +52,11 @@ class MembraneTransportFV1
 	/// constructor (can be deleted after successful implementation of unified membrane transport) TODO
 		MembraneTransportFV1(const char* functions, const char* subsets);
 
-	/// constructor
+	/// constructor with c-string
 		MembraneTransportFV1(const char* subsets, SmartPtr<IMembraneTransporter> mt);
+
+	/// constructor with vector
+		MembraneTransportFV1(const std::vector<std::string>& subsets, SmartPtr<IMembraneTransporter> mt);
 
 	/// destructor
 		virtual ~MembraneTransportFV1();

@@ -41,8 +41,12 @@ class UserFluxBoundaryFV1
 		static const int dim = TDomain::dim;
 
 	public:
-		/// constructor
+		/// constructor with c-strings
 		UserFluxBoundaryFV1(const char* functions, const char* subsets)
+			: FV1InnerBoundaryElemDisc<TDomain>(functions, subsets) {};
+
+		/// constructor with vectors
+		UserFluxBoundaryFV1(const std::vector<std::string>& functions, const std::vector<std::string>& subsets)
 			: FV1InnerBoundaryElemDisc<TDomain>(functions, subsets) {};
 
 	public:

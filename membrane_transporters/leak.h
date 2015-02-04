@@ -42,8 +42,11 @@ class Leak : public IMembraneTransporter
 		enum{_S_=0, _T_};
 
 	public:
+	/// @copydoc IMembraneTransporter::IMembraneTransporter(const std::vector<std::string)
+	Leak(const std::vector<std::string>& fcts);
+
 	/// @copydoc IMembraneTransporter::IMembraneTransporter()
-	Leak(std::vector<std::string> fcts);
+	Leak(const char* fcts);
 
 	/// @copydoc IMembraneTransporter::IMembraneTransporter()
 	virtual ~Leak();

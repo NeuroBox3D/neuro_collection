@@ -44,8 +44,11 @@ class NCX : public IMembraneTransporter
 		const number IMAX_N;		// mol*s^-1
 
 	public:
+		/// @copydoc IMembraneTransporter::IMembraneTransporter(const std::vector<std::string)
+		NCX(const std::vector<std::string>& fcts);
+
 		/// @copydoc IMembraneTransporter::IMembraneTransporter()
-		NCX(std::vector<std::string> fcts);
+		NCX(const char* fcts);
 
 		/// @copydoc IMembraneTransporter::IMembraneTransporter()
 		virtual ~NCX();

@@ -51,8 +51,11 @@ class RyR : public IMembraneTransporter
 		const number REF_CA_ER;	// reference endoplasmatic Ca2+ concentration (for conductances)
 
 	public:
+		/// @copydoc IMembraneTransporter::IMembraneTransporter(const std::vector<std::string)
+		RyR(const std::vector<std::string>& fcts);
+
 		/// @copydoc IMembraneTransporter::IMembraneTransporter()
-		RyR(std::vector<std::string> fcts);
+		RyR(const char* fcts);
 
 		/// @copydoc IMembraneTransporter::IMembraneTransporter()
 		virtual ~RyR();

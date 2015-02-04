@@ -12,7 +12,15 @@ namespace ug{
 namespace neuro_collection{
 
 
-RyR::RyR(std::vector<std::string> fcts) : IMembraneTransporter(fcts),
+RyR::RyR(const std::vector<std::string>& fcts) : IMembraneTransporter(fcts),
+R(8.314), T(310.0), F(96485.0),
+KA(5.21e13), KB(3.89e9), KC(17.5), MU_RYR(5.0e-11),
+REF_CA_ER(2.5e-1)
+{
+	// nothing to do
+};
+
+RyR::RyR(const char* fcts) : IMembraneTransporter(fcts),
 R(8.314), T(310.0), F(96485.0),
 KA(5.21e13), KB(3.89e9), KC(17.5), MU_RYR(5.0e-11),
 REF_CA_ER(2.5e-1)

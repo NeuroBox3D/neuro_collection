@@ -95,14 +95,32 @@ class VDCC_BG : public IMembraneTransporter
 		 * and the approximation space, as it needs to create side attachments for each of the sides in
 		 * the subsets involved.
 		 *
-		 * @param fcts		functions involved
-		 * @param subsets	subsets involved
+		 * @param fcts		functions vector
+		 * @param subsets	subsets vector
 		 * @param approx	underlying approximation space
 		 */
 		VDCC_BG
 		(
 			const std::vector<std::string>& fcts,
 			const std::vector<std::string>& subsets,
+			SmartPtr<ApproximationSpace<TDomain> > approx
+		);
+
+		/**
+		 * @brief Constructor for the Borg-Graham type channel interface
+		 *
+		 * This constructor not only needs information on the functions involved, but also on the subsets
+		 * and the approximation space, as it needs to create side attachments for each of the sides in
+		 * the subsets involved.
+		 *
+		 * @param fcts		functions as comma-separated c-string
+		 * @param subsets	subsets as comma-separated c-string
+		 * @param approx	underlying approximation space
+		 */
+		VDCC_BG
+		(
+			const char* fcts,
+			const char* subsets,
 			SmartPtr<ApproximationSpace<TDomain> > approx
 		);
 
@@ -189,6 +207,8 @@ class VDCC_BG : public IMembraneTransporter
 		**/
 		void calc_gating_step(GatingParams& gp, number Vm, number dt, number& currVal);
 
+	private:
+		void after_construction();
 
 	protected:
 		/// whether this channel disposes of an inactivating gate
@@ -247,7 +267,17 @@ class VDCC_BG_VM2UG : public VDCC_BG<TDomain>
 		typedef Vm2uG<std::string> vmProvType;
 
 	public:
-		/// constructor
+		/**
+		 * @brief constructor with vectors
+		 *
+		 * @param fcts			functions as vector of string
+		 * @param subsets		subsets as vector of string
+		 * @param approx		approximation space
+		 * @param baseName		base file name for V_m file input (default: "timesteps/timestep_")
+		 * @param timeFmt		format of time in file names (default: "%.4f")
+		 * @param ext			file extension of input files (default: ".dat")
+		 * @param posCanChange	whether coordinates in input files can change (default: false)
+		 */
 		VDCC_BG_VM2UG
 		(
 			const std::vector<std::string>& fcts,
@@ -259,19 +289,50 @@ class VDCC_BG_VM2UG : public VDCC_BG<TDomain>
 			const bool posCanChange = false
 		);
 
+		/**
+		 * @brief constructor with c-strings
+		 *
+		 * @param fcts			functions as comma-separated c-string
+		 * @param subsets		subsets as comma-separated c-string
+		 * @param approx		approximation space
+		 * @param baseName		base file name for V_m file input (default: "timesteps/timestep_")
+		 * @param timeFmt		format of time in file names (default: "%.4f")
+		 * @param ext			file extension of input files (default: ".dat")
+		 * @param posCanChange	whether coordinates in input files can change (default: false)
+		 */
+		VDCC_BG_VM2UG
+		(
+			const char* fcts,
+			const char* subsets,
+			SmartPtr<ApproximationSpace<TDomain> > approx,
+			const std::string baseName = "timesteps/timestep_",
+			const char* timeFmt = "%.4f",
+			const std::string ext = ".dat",
+			const bool posCanChange = false
+		);
+
 		/// destructor
 		virtual ~VDCC_BG_VM2UG();
 
-		// inherited from BorgGraham
+		/// @copydoc VDCC_BG<TDomain>::init()
 		virtual void init(number time);
 
-		// update membrane potential
+		/// @copydoc VDCC_BG<TDomain>::update_potential()
 		virtual void update_potential(side_t* elem);
 
-		// update internal time if necessary
+		/// @copydoc VDCC_BG<TDomain>::update_time()
 		virtual void update_time(number newTime);
 
-		// set times for which files with potential values are available
+		/**
+		 * @brief setting the times for which files are present
+		 * Using this method, it is possible to tell the VDCC implementation at which
+		 * points in time there exists a file with the corresponding membrane potential
+		 * values. Points in time must be separated by a constant interval and may be
+		 * shifted by an offset.
+		 *
+		 * @param fileInterval	constant interval separating two points in time
+		 * @param fileOffset	offset (the first point in time, default: 0.0)
+		 */
 		void set_file_times(const number fileInterval, const number fileOffset = 0.0)
 		{
 			m_fileInterval = fileInterval;
@@ -312,11 +373,46 @@ private:
 		typedef Vm2uG<std::string> vmProvType;
 
 	public:
-		/// constructor
+		/**
+		 * @brief constructor with vectors
+		 *
+		 * @param fcts			functions as vector of string
+		 * @param subsets		subsets as vector of string
+		 * @param approx		approximation space
+		 * @param transformator	transformator object (default: Transformator)
+		 * @param baseName		base file name for V_m file input (default: "timesteps/timestep_")
+		 * @param timeFmt		format of time in file names (default: "%.4f")
+		 * @param ext			file extension of input files (default: ".dat")
+		 * @param posCanChange	whether coordinates in input files can change (default: false)
+		 */
 		VDCC_BG_VM2UG_NEURON
 		(
 			const std::vector<std::string>& fcts,
 			const std::vector<std::string>& subsets,
+			SmartPtr<ApproximationSpace<TDomain> > approx,
+			SmartPtr<Transformator> transformator = make_sp(new Transformator),
+			const std::string baseName = "timesteps/timestep_",
+			const char* timeFmt = "%.4f",
+			const std::string ext = ".dat",
+			const bool posCanChange = false
+		);
+
+		/**
+		 * @brief constructor with c-strings
+		 *
+		 * @param fcts			functions as comma-separated c-string
+		 * @param subsets		subsets as comma-separated c-string
+		 * @param approx		approximation space
+		 * @param transformator	transformator object (default: Transformator)
+		 * @param baseName		base file name for V_m file input (default: "timesteps/timestep_")
+		 * @param timeFmt		format of time in file names (default: "%.4f")
+		 * @param ext			file extension of input files (default: ".dat")
+		 * @param posCanChange	whether coordinates in input files can change (default: false)
+		 */
+		VDCC_BG_VM2UG_NEURON
+		(
+			const char* fcts,
+			const char* subsets,
 			SmartPtr<ApproximationSpace<TDomain> > approx,
 			SmartPtr<Transformator> transformator = make_sp(new Transformator),
 			const std::string baseName = "timesteps/timestep_",
@@ -382,11 +478,31 @@ class VDCC_BG_UserData : public VDCC_BG<TDomain>
 
 
 	public:
-		/// constructor
+		/**
+		 * @brief constructor with vectors
+		 *
+		 * @param fcts		functions as vector of string
+		 * @param subsets	subsets as vector of string
+		 * @param approx	approximation space
+		 */
 		VDCC_BG_UserData
 		(
 			const std::vector<std::string>& fcts,
 			const std::vector<std::string>& subsets,
+			SmartPtr<ApproximationSpace<TDomain> > approx
+		);
+
+		/**
+		 * @brief constructor with c-strings
+		 *
+		 * @param fcts		functions as comma-separated c-string
+		 * @param subsets	subsets as comma-separated c-string
+		 * @param approx	approximation space
+		 */
+		VDCC_BG_UserData
+		(
+			const char* fcts,
+			const char* subsets,
 			SmartPtr<ApproximationSpace<TDomain> > approx
 		);
 
@@ -398,7 +514,7 @@ class VDCC_BG_UserData : public VDCC_BG<TDomain>
 		void set_potential_function(const number value);
 		void set_potential_function(SmartPtr<CplUserData<number, dim> > spPotFct);
 
-		// update membrane potential
+		/// @copydoc VDCC_BG<TDomain>::update_potential()
 		virtual void update_potential(side_t* elem);
 
 	private:

@@ -11,7 +11,14 @@ namespace ug{
 namespace neuro_collection{
     
     
-SERCA::SERCA(std::vector<std::string> fcts) : IMembraneTransporter(fcts),
+SERCA::SERCA(const std::vector<std::string>& fcts) : IMembraneTransporter(fcts),
+VS(6.5e-24), KS(1.8e-4)
+{
+	// nothing to do
+}
+
+
+SERCA::SERCA(const char* fcts) : IMembraneTransporter(fcts),
 VS(6.5e-24), KS(1.8e-4)
 {
 	// nothing to do

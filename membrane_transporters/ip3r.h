@@ -53,8 +53,11 @@ class IP3R : public IMembraneTransporter
 		const number REF_CA_ER;	///< reference endoplasmic Ca2+ concentration (for conductances)
 
 	public:
+		/// @copydoc IMembraneTransporter::IMembraneTransporter(const std::vector<std::string)
+		IP3R(const std::vector<std::string>& fcts);
+
 		/// @copydoc IMembraneTransporter::IMembraneTransporter()
-		IP3R(std::vector<std::string> fcts);
+		IP3R(const char* fcts);
 
 		/// @copydoc IMembraneTransporter::IMembraneTransporter()
 		virtual ~IP3R();

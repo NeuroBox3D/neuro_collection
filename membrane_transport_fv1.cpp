@@ -29,7 +29,19 @@ MembraneTransportFV1<TDomain>::MembraneTransportFV1(const char* subsets, SmartPt
 
 	static_cast<IElemDisc<TDomain>*>(this)->set_subsets(subsets);
 	static_cast<IElemDisc<TDomain>*>(this)->set_functions(mt->symb_fcts());
-};
+}
+
+template<typename TDomain>
+MembraneTransportFV1<TDomain>::MembraneTransportFV1(const std::vector<std::string>& subsets, SmartPtr<IMembraneTransporter> mt)
+: FV1InnerBoundaryElemDisc<TDomain>(),
+  R(8.314), T(310.0), F(96485.0), m_spMembraneTransporter(mt), m_bNonRegularGrid(false)
+{
+	// check validity of transporter setup and then lock
+	mt->check_and_lock();
+
+	static_cast<IElemDisc<TDomain>*>(this)->set_subsets(subsets);
+	static_cast<IElemDisc<TDomain>*>(this)->set_functions(mt->symb_fcts());
+}
 
 template<typename TDomain>
 MembraneTransportFV1<TDomain>::~MembraneTransportFV1()

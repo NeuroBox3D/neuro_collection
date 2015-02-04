@@ -44,10 +44,13 @@ class SERCA : public IMembraneTransporter
 		const number KS;			// concentration at which halfmaximal pumping occurs
 
 	public:
-        /// @copydoc IMembraneTransporter::IMembraneTransporter()
-        SERCA(std::vector<std::string> fcts);
-        
-        /// @copydoc IMembraneTransporter::IMembraneTransporter()
+		/// @copydoc IMembraneTransporter::IMembraneTransporter(const std::vector<std::string)
+		SERCA(const std::vector<std::string>& fcts);
+
+		/// @copydoc IMembraneTransporter::IMembraneTransporter()
+		SERCA(const char* fcts);
+
+		/// @copydoc IMembraneTransporter::IMembraneTransporter()
         virtual ~SERCA();
         
         /// @copydoc IMembraneTransporter::calc_flux()

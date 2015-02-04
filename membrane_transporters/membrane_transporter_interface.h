@@ -14,6 +14,7 @@
 #include "lib_disc/common/local_algebra.h"
 #include <utility>      	// for std::pair
 #include <string>
+#include <sstream>
 #include <vector>
 #include <map>
 
@@ -68,7 +69,23 @@ class IMembraneTransporter
 		 *
 		 * @param vFct   vector of function names
 		 */
-		IMembraneTransporter(std::vector<std::string> vFct);
+		IMembraneTransporter(const std::vector<std::string>& vFct);
+
+		/**
+		 * @brief Constructor
+		 *
+		 * Constructs a membrane transporter object that depends or has an effect on each
+		 * of the functions given in vFct.
+		 * The exact order of the functions is determined by the actual transporter class
+		 * that derives from this interface.
+		 * If a function the membrane transporter mechanism depends on is not available as
+		 * grid function it can be omitted by passing "" (the empty string) as argument in
+		 * its place. Note, however, that such missing functions need to be replaced by
+		 * constant values via the set_constant() method.
+		 *
+		 * @param fct   function names as string, separated by ','
+		 */
+		IMembraneTransporter(const char* vFct);
 
 		/// Destructor
 		virtual ~IMembraneTransporter();
@@ -322,6 +339,19 @@ class IMembraneTransporter
 		void set_scale_inputs(const std::vector<number>& scale);
 
 		/**
+		 * @brief Scaling of a single input
+		 *
+		 * This method can be used to specify a scaling factor for the unit adaptation of a specific
+		 * involved function (which may differ from the unit required in the implementation).
+		 *
+		 * The ordering of indices corresponds to that of the constructor.
+		 *
+		 * @param i		  index of the input to be scaled
+		 * @param scale   scaling factor
+		 */
+		void set_scale_input(const size_t i, const number scale);
+
+		/**
 		 * @brief Scaling of the outputs
 		 *
 		 * This method can be used to specify scaling factors that are used to adapt the units
@@ -334,6 +364,20 @@ class IMembraneTransporter
 		 * @param scale   vector of scaling factors
 		 */
 		void set_scale_fluxes(const std::vector<number>& scale);
+
+		/**
+		 * @brief Scaling of the outputs
+		 *
+		 * This method can be used to specify a scaling factor for the unit adaptation of a specific
+		 * flux calculated by this mechanism (which may differ from the units required in the rest
+		 * of a user's discretization).
+		 *
+		 * The ordering of indices corresponds to that of the constructor.
+		 *
+		 * @param i		 index of the flux to be scaled
+		 * @param scale  scaling factor
+		 */
+		void set_scale_flux(const size_t i, const number scale);
 
 		/**
 		 * @brief Check that all values are either given as unknowns or constants

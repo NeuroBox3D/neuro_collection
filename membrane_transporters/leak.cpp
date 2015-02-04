@@ -12,7 +12,12 @@ namespace ug{
 namespace neuro_collection{
 
 
-Leak::Leak(std::vector<std::string> fcts) : IMembraneTransporter(fcts)
+Leak::Leak(const std::vector<std::string>& fcts) : IMembraneTransporter(fcts)
+{
+	// nothing to do
+}
+
+Leak::Leak(const char* fcts) : IMembraneTransporter(fcts)
 {
 	// nothing to do
 }

@@ -231,9 +231,10 @@ static void Domain(Registry& reg, string grp)
 	{
 		typedef MembraneTransportFV1<TDomain> T;
 		typedef FV1InnerBoundaryElemDisc<TDomain> TBase;
-		string name = string("TwoSidedMembraneTransportFV1").append(suffix);
+		string name = string("MembraneTransportFV1").append(suffix);
 		reg.add_class_<T, TBase >(name, grp)
-			.template add_constructor<void (*)(const char*, SmartPtr<IMembraneTransporter>)>("Function(s)#MembraneTransporter")
+			.template add_constructor<void (*)(const char*, SmartPtr<IMembraneTransporter>)>("Subset(s) as comma-separated c-string#MembraneTransporter")
+			.template add_constructor<void (*)(const std::vector<std::string>&, SmartPtr<IMembraneTransporter>)>("Subset(s) as vector#MembraneTransporter")
 			//.template add_constructor<void (*)(const char*, const char*)>("Function(s)#MSubset(s)")	//TODO: delete
 			.add_method("set_density_function", static_cast<void (T::*) (const number)> (&T::set_density_function),
 						"", "", "add a constant density")
@@ -245,7 +246,7 @@ static void Domain(Registry& reg, string grp)
 					(&T::set_density_function), "", "", "add a density function")
 			.add_method("set_membrane_transporter", &T::set_membrane_transporter, "", "", "sets the membrane transport mechanism")
 			.set_construct_as_smart_pointer(true);
-		reg.add_class_to_group(name, "TwoSidedMembraneTransportFV1", tag);
+		reg.add_class_to_group(name, "MembraneTransportFV1", tag);
 	}
 
 	// user flux boundary
@@ -254,7 +255,8 @@ static void Domain(Registry& reg, string grp)
 		typedef FV1InnerBoundaryElemDisc<TDomain> TBase;
 		string name = string("UserFluxBoundaryFV1").append(suffix);
 		reg.add_class_<T, TBase>(name, grp)
-			.template add_constructor<void (*)(const char*, const char*)>("Function(s)#Subset(s)")
+			.template add_constructor<void (*)(const char*, const char*)>("Function(s) as comma-separated c-string#Subset(s) as comma-separated c-string")
+			.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&)>("Function(s) as vector#Subset(s) as vector")
 			.add_method("set_flux_function", static_cast<void (T::*) (SmartPtr<CplUserData<number, dim> >)> (&T::set_flux_function),
 					"", "", "add a flux density function")
 			.add_method("set_flux_function", static_cast<void (T::*) (number)> (&T::set_flux_function),
@@ -324,7 +326,10 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_<T, TBase>(name, grp)
 			.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&,
 				SmartPtr<ApproximationSpace<TDomain> >, const std::string, const char*, const std::string, const bool)>
-				("function(s)#subset(s)#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#fileInterval#fileOffset#vertexOrderOrPositionCanChange")
+				("function(s) as vector#subset(s) as vector#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#fileInterval#fileOffset#vertexOrderOrPositionCanChange")
+			.template add_constructor<void (*)(const char*, const char*,
+				SmartPtr<ApproximationSpace<TDomain> >, const std::string, const char*, const std::string, const bool)>
+				("function(s) as comma-separated c-string#subset(s) as comma-separated c-string#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#fileInterval#fileOffset#vertexOrderOrPositionCanChange")
 			.add_method("set_file_times", &T::set_file_times, "", "file interval#file offset (first file)", "set times for which files with potential values are available")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "VDCC_BG_VM2UG", tag);
@@ -337,7 +342,10 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_<T, TBase>(name, grp)
 			.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&,
 				SmartPtr<ApproximationSpace<TDomain> >, SmartPtr<Transformator>, const std::string, const char*, const std::string, const bool)>
-				("function(s)#subset(s)#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#vertexOrderOrPositionCanChange")
+				("function(s) as vector#subset(s) as vector#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#vertexOrderOrPositionCanChange")
+			.template add_constructor<void (*)(const char*, const char*,
+				SmartPtr<ApproximationSpace<TDomain> >, SmartPtr<Transformator>, const std::string, const char*, const std::string, const bool)>
+				("function(s) as comma-separated c-string#subset(s) as comma-separated c-string#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#vertexOrderOrPositionCanChange")
 			.add_method("set_transformator", static_cast<void (T::*) (SmartPtr<Transformator>)> (&T::set_transformator), "", "", "")
 			.add_method("set_mapper", static_cast<void (T::*) (SmartPtr<Vm2uG<std::string> >)> (&T::set_mapper), "", "", "")
 			.set_construct_as_smart_pointer(true);
@@ -350,7 +358,9 @@ static void Domain(Registry& reg, string grp)
 		std::string name = std::string("VDCC_BG_UserData").append(suffix);
 		reg.add_class_<T, TBase>(name, grp)
 			.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&, SmartPtr<ApproximationSpace<TDomain> >)>
-				("function(s)#subset(s)#approxSpace")
+				("function(s) as vector#subset(s) as vector#approxSpace")
+			.template add_constructor<void (*)(const char*, const char*, SmartPtr<ApproximationSpace<TDomain> >)>
+				("function(s) as comma-separated c-string#subset(s) as comma-separated c-string#approxSpace")
 			.add_method("set_potential_function", static_cast<void (T::*) (const number)> (&T::set_potential_function),
 						"", "", "add a potential function")
 			.add_method("set_potential_function", static_cast<void (T::*) (const char*)> (&T::set_potential_function),
@@ -405,7 +415,8 @@ static void Algebra(Registry& reg, string grp)
  * @param grp		group for sorting of functionality
  */
 static void Common(Registry& reg, string grp)
-{	{
+{
+	{
 		typedef IMembraneTransporter T;
 		std::string name = std::string("MembraneTransporter");
 		reg.add_class_<T>(name, grp)
@@ -417,9 +428,15 @@ static void Common(Registry& reg, string grp)
 			.add_method("set_scale_inputs", &T::set_scale_inputs, "", "scaling factors (same number and order as for the constructor)",
 						"Sets scaling factors for conversion of user's input variable units to the units of the implementation of "
 						"this membrane transport mechanism.", "Default values: 1.0 (no scaling).")
+			.add_method("set_scale_input", &T::set_scale_input, "", "index#scaling factor",
+						"Sets a scaling factor for conversion of the user's input variable (specified by first parameter) units to the "
+						"units of the implementation of this membrane transport mechanism.", "")
 			.add_method("set_scale_fluxes", &T::set_scale_fluxes, "", "scaling factors",
 						"Sets scaling factors for conversion of calculated fluxes to the units employed by the user.",
-						"Default values: 1.0 (no scaling).");
+						"Default values: 1.0 (no scaling).")
+			.add_method("set_scale_flux", &T::set_scale_flux, "", "index#scaling factor",
+						"Sets a scaling factor for conversion of the calculated flux (specified by first parameter) to the unit employed "
+						"by the user.", "");
 			/* does not work, since vectors have to be const for exchange with lua
 			.add_method("calc_flux", &T::calc_flux, "", "input values#output flux(es)",
 						"calculates the flux(es) through this mechanism", "")
@@ -432,18 +449,23 @@ static void Common(Registry& reg, string grp)
 		typedef IMembraneTransporter TBase;
 		std::string name = std::string("IP3R");
 		reg.add_class_<T, TBase>(name, grp)
-			.add_constructor<void (*)(std::vector<std::string>)>
+			.add_constructor<void (*)(const char*)>
+				("Functions as comma-separated string with the following order: "
+				 "\"cytosolic calcium, endoplasmic calcium, ip3\"")
+			.add_constructor<void (*)(const std::vector<std::string>&)>
 				("Function vector with the following order: "
 				 "{\"cytosolic calcium\", \"endoplasmic calcium\", \"ip3\"}")
 			.set_construct_as_smart_pointer(true);
 	}
-
 	{
 		typedef RyR T;
 		typedef IMembraneTransporter TBase;
 		std::string name = std::string("RyR");
 		reg.add_class_<T, TBase>(name, grp)
-			.add_constructor<void (*)(std::vector<std::string>)>
+			.add_constructor<void (*)(const char* )>
+				("Functions as comma-separated string with the following order: "
+				 "{\"cytosolic calcium\", \"endoplasmic calcium\"}")
+			.add_constructor<void (*)(const std::vector<std::string>&)>
 				("Function vector with the following order: "
 				 "{\"cytosolic calcium\", \"endoplasmic calcium\"}")
 			.set_construct_as_smart_pointer(true);
@@ -453,7 +475,10 @@ static void Common(Registry& reg, string grp)
 		typedef IMembraneTransporter TBase;
 		std::string name = std::string("SERCA");
 		reg.add_class_<T, TBase>(name, grp)
-			.add_constructor<void (*)(std::vector<std::string>)>
+			.add_constructor<void (*)(const char*)>
+				("Functions as comma-separated string with the following order: "
+				 "{\"cytosolic calcium\", \"endoplasmic calcium\"}")
+			.add_constructor<void (*)(const std::vector<std::string>&)>
 				("Function vector with the following order: "
 				 "{\"cytosolic calcium\", \"endoplasmic calcium\"}")
 			.set_construct_as_smart_pointer(true);
@@ -463,19 +488,23 @@ static void Common(Registry& reg, string grp)
 		typedef IMembraneTransporter TBase;
 		std::string name = std::string("Leak");
 		reg.add_class_<T, TBase>(name, grp)
-			.add_constructor<void (*)(std::vector<std::string>)>
+			.add_constructor<void (*)(const char*)>
+				("Functions as comma-separated string with the following order: "
+				 "{\"source\", \"target\"}")
+			.add_constructor<void (*)(const std::vector<std::string>&)>
 				("Function vector with the following order: "
 				 "{\"source\", \"target\"}")
 			.set_construct_as_smart_pointer(true);
 	}
-
-
 	{
 		typedef PMCA T;
 		typedef IMembraneTransporter TBase;
 		std::string name = std::string("PMCA");
 		reg.add_class_<T, TBase>(name, grp)
-			.add_constructor<void (*)(std::vector<std::string>)>
+			.add_constructor<void (*)(const char*)>
+				("Functions as comma-separated string with the following order: "
+				 "{\"cytosolic calcium\", \"extracellular calcium\"}")
+			.add_constructor<void (*)(const std::vector<std::string>&)>
 				("Function vector with the following order: "
 				 "{\"cytosolic calcium\", \"extracellular calcium\"}")
 			.set_construct_as_smart_pointer(true);
@@ -485,7 +514,10 @@ static void Common(Registry& reg, string grp)
 		typedef IMembraneTransporter TBase;
 		std::string name = std::string("NCX");
 		reg.add_class_<T, TBase>(name, grp)
-			.add_constructor<void (*)(std::vector<std::string>)>
+			.add_constructor<void (*)(const char*)>
+				("Functions as comma-separated string with the following order: "
+				 "{\"cytosolic calcium\", \"extracellular calcium\"}")
+			.add_constructor<void (*)(const std::vector<std::string>&)>
 				("Function vector with the following order: "
 				 "{\"cytosolic calcium\", \"extracellular calcium\"}")
 			.set_construct_as_smart_pointer(true);

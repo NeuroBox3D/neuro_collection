@@ -11,7 +11,13 @@ namespace ug{
 namespace neuro_collection{
 
 
-PMCA::PMCA(std::vector<std::string> fcts) : IMembraneTransporter(fcts),
+PMCA::PMCA(const std::vector<std::string>& fcts) : IMembraneTransporter(fcts),
+KD_P(6.0e-5), IMAX_P(1.7e-23)
+{
+	// nothing to do
+}
+
+PMCA::PMCA(const char* fcts) : IMembraneTransporter(fcts),
 KD_P(6.0e-5), IMAX_P(1.7e-23)
 {
 	// nothing to do
