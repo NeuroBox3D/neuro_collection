@@ -167,6 +167,17 @@ class IMembraneTransporter
 		 */
 		virtual void calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const = 0;
 
+#if 0
+		/**
+		 * @brief Calculates a specific flux through a membrane transport system
+		 *
+		 * @param u      vector with values for all involved unknowns (created by flux())
+		 * @param index  index of the flux to be calculated
+		 * @param flux   output vector containing the calculated fluxes (not yet scaled)
+		 */
+		virtual number calc_flux(const std::vector<number>& u, size_t index) const {return 0.0;};
+#endif
+
 		/**
 		 * @brief Calculates the flux derivatives through a membrane transport system (system-specific)
 		 *

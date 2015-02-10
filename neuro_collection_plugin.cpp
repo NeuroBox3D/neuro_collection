@@ -437,6 +437,8 @@ static void Common(Registry& reg, string grp)
 			.add_method("set_scale_flux", &T::set_scale_flux, "", "index#scaling factor",
 						"Sets a scaling factor for conversion of the calculated flux (specified by first parameter) to the unit employed "
 						"by the user.", "");
+			//.add_method("calc_flux", static_cast<number (T::*) (const std::vector<number>&, size_t) const>(&T::calc_flux), "", "input values#flux index#output flux",
+			//		"calculates the specified flux through this mechanism", "");
 			/* does not work, since vectors have to be const for exchange with lua
 			.add_method("calc_flux", &T::calc_flux, "", "input values#output flux(es)",
 						"calculates the flux(es) through this mechanism", "")

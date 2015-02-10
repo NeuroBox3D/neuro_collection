@@ -287,8 +287,8 @@ void VDCC_BG<TDomain>::init(number time)
 			number vm = m_aaVm[*iter];
 
 			// calculate corresponding start condition for gates
-			m_aaMGate[*iter] = calc_gating_start(m_gpMGate, vm);
-			if (has_hGate()) m_aaHGate[*iter] = calc_gating_start(m_gpHGate, vm);
+			m_aaMGate[*iter] = calc_gating_start(m_gpMGate, 1e3*vm);
+			if (has_hGate()) m_aaHGate[*iter] = calc_gating_start(m_gpHGate, 1e3*vm);
 		}
 	}
 
@@ -304,9 +304,9 @@ void VDCC_BG<TDomain>::update_gating(side_t* elem)
 				  << "Do not forget to do so before any updates by calling init(initTime).");
 
 	// set new gating particle values
-	number dt = 1000.0*(m_time - m_oldTime);	// calculating in ms
-	calc_gating_step(m_gpMGate, 1000.0*m_aaVm[elem], dt, m_aaMGate[elem]);
-	if (has_hGate()) calc_gating_step(m_gpHGate, 1000.0*m_aaVm[elem], dt, m_aaHGate[elem]);
+	number dt = 1e3*(m_time - m_oldTime);	// calculating in ms
+	calc_gating_step(m_gpMGate, 1e3*m_aaVm[elem], dt, m_aaMGate[elem]);
+	if (has_hGate()) calc_gating_step(m_gpHGate, 1e3*m_aaVm[elem], dt, m_aaHGate[elem]);
 }
 
 template<typename TDomain>
@@ -749,16 +749,16 @@ template<typename TDomain>
 void VDCC_BG_UserData<TDomain>::update_potential(side_t* elem)
 {
 	// only work if really necessary
-	if (m_bIsConstData) return;
+	if (m_bIsConstData && this->m_initiated) return;
 
 	// fill attachments with renewed values
 	const typename TDomain::position_type& coords = CalculateCenter(elem, this->m_aaPos);
-	number vm = -65.0;
+	number vm = -0.065;
 	if (this->m_spPotential.valid())
 		(*this->m_spPotential)(vm, coords, this->m_time, this->m_sh->get_subset_index(elem));
 
 	// set membrane potential value
-	this->m_aaVm[elem] = 0.001 * vm;
+	this->m_aaVm[elem] = vm;
 }
 
 

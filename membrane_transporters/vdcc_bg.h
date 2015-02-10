@@ -135,9 +135,13 @@ class VDCC_BG : public IMembraneTransporter
 			GridObject* elem
 		);
 
-		/// @copydoc IMembraneTransporter::calc_flux()
+		/// @copydoc IMembraneTransporter::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
 		virtual void calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const;
 
+/*
+		/// @copydoc IMembraneTransporter::calc_flux(const std::vector<number>&, number&,  flux) const
+		virtual number calc_flux(const std::vector<number>& u, size_t index);
+*/
 		/// @copydoc IMembraneTransporter::calc_flux_deriv()
 		virtual void calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
 
