@@ -93,7 +93,7 @@ class IMembraneTransporter
 		/**
 		 * @brief Prepares a transport mechanism for timestep assemblings
 		 *
-		 * This method will be called by the TwoSidedMembraneTransport method of the same name.
+		 * This method will be called by the MembraneTransportFV1 method of the same name.
 		 * It can be used if any time-dependent modifications have to be made to an element
 		 * before the fluxes for a specific time step can be calculated.
 		 * This is especially useful for the implementation of the Borg-Graham type VDCCs using
@@ -114,9 +114,9 @@ class IMembraneTransporter
 		/**
 		 * @brief Calculates the fluxes through this mechanism (same for all mechanisms)
 		 *
-		 * This method is called by TwoSidedMembraneTransportFV1::fluxDensityFct() and will
+		 * This method is called by MembraneTransportFV1::fluxDensityFct() and will
 		 * receive all of the values this element discretization knows (which are exactly
-		 * the given functions from the constructor, as TwoSidedMembraneTransportFV1 is
+		 * the given functions from the constructor, as MembraneTransportFV1 is
 		 * constructed requiring an object of IMembraneTransporter and gets its functions
 		 * from it).
 		 * They will be complemented by constant values supplied by the user in such a way
@@ -136,9 +136,9 @@ class IMembraneTransporter
 		/**
 		 * @brief Calculates the derivatives of the fluxes through this mechanism (same for all mechanisms)
 		 *
-		 * This method is called by TwoSidedMembraneTransportFV1::fluxDensityDerivFct() and
+		 * This method is called by MembraneTransportFV1::fluxDensityDerivFct() and
 		 * will receive all of the values this element discretization knows (which are exactly
-		 * the given functions from the constructor, as TwoSidedMembraneTransportFV1 is
+		 * the given functions from the constructor, as MembraneTransportFV1 is
 		 * constructed requiring an object of IMembraneTransporter and gets its functions
 		 * from it).
 		 * They will be complemented by constant values supplied by the user in such a way
@@ -235,7 +235,7 @@ class IMembraneTransporter
 		 * @brief Return supplied function names
 		 *
 		 * Supplied functions are those which are not passed to the constructor as "".
-		 * This method is called by the constructor TwoSidedMembraneTransportFV1::TwoSidedMembraneTransportFV1().
+		 * This method is called by the constructor MembraneTransportFV1::MembraneTransportFV1().
 		 * @return supplied function names
 		 */
 		const std::vector<std::string>& symb_fcts() const;

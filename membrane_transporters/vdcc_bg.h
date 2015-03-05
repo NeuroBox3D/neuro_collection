@@ -195,7 +195,7 @@ class VDCC_BG : public IMembraneTransporter
 		void update_gating(side_t* elem);
 
 		/// updates internal time if necessary
-		virtual void update_time(number newTime) {m_oldTime = m_time; m_time = newTime;};
+		virtual void update_time(number newTime);
 
 	protected:
 		/// calculates the equilibrium state of a gating "particle"

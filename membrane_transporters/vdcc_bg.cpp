@@ -310,6 +310,16 @@ void VDCC_BG<TDomain>::update_gating(side_t* elem)
 }
 
 template<typename TDomain>
+void VDCC_BG<TDomain>::update_time(const number newTime)
+{
+	if (newTime != m_time)
+	{
+		m_oldTime = m_time;
+		m_time = newTime;
+	}
+};
+
+template<typename TDomain>
 void VDCC_BG<TDomain>::prep_timestep_elem
 (
 	const number time,
