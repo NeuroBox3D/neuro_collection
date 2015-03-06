@@ -397,7 +397,6 @@ void VDCC_BG_VM2UG<TDomain>::init(number time)
 	else
 		vm_time = time;
 
-	std::string timeAsString;
 	try
 	{
 		char buffer[100];
@@ -405,13 +404,13 @@ void VDCC_BG_VM2UG<TDomain>::init(number time)
 		setlocale(LC_NUMERIC, "C");		// ensure decimal point is a . (not a ,)
 		sprintf(buffer, m_tFmt.c_str(), vm_time);
 		setlocale(LC_NUMERIC, oldLocale);
-		timeAsString = buffer;
+		m_timeAsString = buffer;
 	}
 	UG_CATCH_THROW("Time format string provided does not meet requirements.\n"
 				<< "It must contain exactly one placeholder (which has to convert a floating point number)"
 				<< "and must not produce an output string longer than 100 chars.");
 
-	try {m_vmProvider.buildTree(timeAsString);}
+	try {m_vmProvider.buildTree(m_timeAsString);}
 	UG_CATCH_THROW("Underlying Vm2uG object could not build its tree on given file.\n"
 		<< "If this is due to an inappropriate point in time, you might consider\n"
 		"using set_file_times(fileInterval, fileOffset).");
@@ -434,13 +433,7 @@ void VDCC_BG_VM2UG<TDomain>::init(number time)
 			try
 			{
 				const typename TDomain::position_type& coords = CalculateCenter(*iter, aaPos);
-				if (coords.size() == 2)
-					vm = m_vmProvider.get_potential(coords[0], coords[1], 0.0, timeAsString);
-				else if (coords.size() == 3)
-					vm = m_vmProvider.get_potential(coords[0], coords[1], coords[2], timeAsString);
-				else
-					UG_THROW("Coordinates of vertex are not 2d or 3d"
-						  << "(which are the only valid dimensionalities for this discretization).");
+				vm = m_vmProvider.get_potential(coords, m_timeAsString);
 			}
 			UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
 
@@ -483,7 +476,7 @@ void VDCC_BG_VM2UG<TDomain>::update_time(number newTime)
 				<< "It must contain exactly one placeholder (which has to convert a floating point number)"
 				<< "and must not produce an output string longer than 100 chars.");
 
-	if (!m_vmProvider.treeBuild())
+	if (!m_vmProvider.treeBuilt())
 	UG_THROW("Underlying Vm2uG object's tree is not yet built.\n"
 		  << "Do not forget to initialize the Borg-Graham object first by calling init(initTime).");
 
@@ -499,7 +492,7 @@ void VDCC_BG_VM2UG<TDomain>::update_time(number newTime)
 template<typename TDomain>
 void VDCC_BG_VM2UG<TDomain>::update_potential(side_t* elem)
 {
-	if (!m_vmProvider.treeBuild())
+	if (!m_vmProvider.treeBuilt())
 		UG_THROW("Underlying Vm2uG object's tree is not yet built.\n"
 			  << "Do not forget to initialize the Borg-Graham object first by calling init(initTime).");
 
@@ -508,13 +501,7 @@ void VDCC_BG_VM2UG<TDomain>::update_potential(side_t* elem)
 	try
 	{
 		const typename TDomain::position_type& coords = CalculateCenter(elem, this->m_aaPos);
-		if (coords.size() == 2)
-			vm = m_vmProvider.get_potential(coords[0], coords[1], 0.0, m_timeAsString);
-		else if (coords.size() == 3)
-			vm = m_vmProvider.get_potential(coords[0], coords[1], coords[2], m_timeAsString);
-		else
-			UG_THROW("Coordinates of vertex are not 2d or 3d"
-				  << "(which are the only valid dimensionalities for this discretization).");
+		vm = m_vmProvider.get_potential(coords, m_timeAsString);
 	}
 	UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
 
@@ -585,7 +572,7 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::init(number time)
 		std::cout << "vms could be extracted" << std::endl;
 		std::cout << "Our NEURON setup: " << std::endl;
 		this->m_NrnInterpreter.get()->print_setup(true);
-		std::cout << "Our potential: " << this->m_vmProvider.get()->get_potential(0, 0, 0);
+		//std::cout << "Our potential: " << this->m_vmProvider.get()->get_potential(0, 0, 0);
 	}
 	UG_CATCH_THROW("NEURON interpreter could not advance, vmProvider could not be created.");
 
@@ -607,13 +594,7 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::init(number time)
 			try
 			{
 				const typename TDomain::position_type& coords = CalculateCenter(*iter, aaPos);
-				if (coords.size() == 2)
-					vm = this->m_vmProvider.get()->get_potential(coords[0], coords[1], 0.0);
-				else if (coords.size() == 3)
-					vm = this->m_vmProvider.get()->get_potential(coords[0], coords[1], coords[2]);
-				else
-					UG_THROW("Coordinates of vertex are not 2d or 3d"
-						  << "(which are the only valid dimensionalities for this discretization).");
+				vm = this->m_vmProvider.get()->get_potential(coords);
 			}
 			UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
 
@@ -664,15 +645,7 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::update_potential(side_t* elem)
 	try
 	{
 		const typename TDomain::position_type& coords = CalculateCenter(elem, this->m_aaPos);
-		if (coords.size() == 2)
-			vm = this->m_vmProvider.get()->get_potential(coords[0], coords[1], 0.0);
-		else if (coords.size() == 3)
-			vm = this->m_vmProvider.get()->get_potential(coords[0], coords[1], coords[2]);
-		else
-		{
-			UG_THROW("Coordinates of vertex are not 2d or 3d"
-				  << "(which are the only valid dimensionalities for this discretization).");
-		}
+		vm = this->m_vmProvider.get()->get_potential(coords);
 	}
 	UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
 
