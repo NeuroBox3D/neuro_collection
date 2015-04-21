@@ -28,6 +28,11 @@ set(SOURCES    neuro_collection_plugin.cpp
 
 message(STATUS "")
 message(STATUS "Info: Additional options for the neuro_collection (-DNC for setting options) plugin:")
+
+if (NOT MembranePotentialMapping)
+    message(FATAL_ERROR "ERROR: neuro_collection needs MembranePotentialMapping plugin. Please activate by setting -DMembranePotentialMapping=ON.")
+endif (NOT MembranePotentialMapping)	
+
 ## ANN (requirement for vm2ug) #################################################
 
 # get the path to annlib and set annlib include path and linker options
@@ -105,6 +110,6 @@ if(buildEmbeddedPlugins)
 else(buildEmbeddedPlugins)
 	# create a shared library from the sources and link it against ug4.
 	add_library(${pluginName} SHARED ${SOURCES})
-	target_link_libraries (${pluginName} ug4 ${linkLibraries})
+	target_link_libraries (${pluginName} MembranePotentialMapping ug4 ${linkLibraries})
 endif(buildEmbeddedPlugins)
 
