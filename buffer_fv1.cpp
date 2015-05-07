@@ -482,8 +482,8 @@ compute_err_est_A_elem(const LocalVector& u, GridObject* elem, const MathVector<
 				number val = r.k_bind[ip]*val_b*val_c - r.k_unbind[ip]*(r.tot_buffer[ip] - val_b);
 
 				// add to correct error values
-				(*err_est_data->get(r.buffer)) (elem_list[0],ip) += scale * val;
-				(*err_est_data->get(r.buffered)) (elem_list[0],ip) += scale * val;
+				(*err_est_data->get(this->m_fctGrp[r.buffer])) (elem_list[0],ip) += scale * val;
+				(*err_est_data->get(this->m_fctGrp[r.buffered])) (elem_list[0],ip) += scale * val;
 			}
 		}
 	}
