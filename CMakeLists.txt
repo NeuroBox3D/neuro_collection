@@ -23,6 +23,7 @@ set(SOURCES    neuro_collection_plugin.cpp
 			   membrane_transporters/pmca.cpp
 			   membrane_transporters/ncx.cpp
 			   membrane_transporters/vdcc_bg.cpp
+			   stimulation/action_potential_train.cpp
    )
 
 

@@ -30,6 +30,7 @@
 #include "membrane_transporters/pmca.h"
 #include "membrane_transporters/ncx.h"
 #include "membrane_transporters/vdcc_bg.h"
+#include "stimulation/action_potential_train.h"
 
 
 using namespace std;
@@ -522,6 +523,17 @@ static void Common(Registry& reg, string grp)
 			.add_constructor<void (*)(const std::vector<std::string>&)>
 				("Function vector with the following order: "
 				 "{\"cytosolic calcium\", \"extracellular calcium\"}")
+			.set_construct_as_smart_pointer(true);
+	}
+	{
+		typedef ActionPotentialTrain T;
+		std::string name = std::string("ActionPotentialTrain");
+		reg.add_class_<T>(name, grp)
+			.add_constructor()
+			.add_constructor<void (*)(number, number, number, number)>
+				("stimBegin#stimEnd#stimFreq#basicVoltage")
+			.add_method("membrane_potential", &T::membrane_potential,
+						"Returns membrane potential to given frequency stimulation interval.")
 			.set_construct_as_smart_pointer(true);
 	}
 }
