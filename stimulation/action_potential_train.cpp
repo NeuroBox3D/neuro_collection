@@ -71,7 +71,7 @@ ActionPotentialTrain::ActionPotentialTrain()
 	m_stimBegin = 0.0;
 	m_stimEnd = 0.0;
 	m_AP_duration = 0.01;
-	m_basicVoltage = -0.065;
+	m_basicVoltage = -65.0;
 }
 
 
@@ -151,13 +151,13 @@ number ActionPotentialTrain::AP_voltage_trace(number time)
 		return m_basicVoltage + 8 * ( t - 0.001 );
 	
     if( t < 0.003 )
-        return - 0.053 + 160 * ( t - 0.0025 );
+        return -53.0 + 160 * ( t - 0.0025 );
 	
     if( t < 0.0045 )
-        return 0.027 - 62 * ( t - 0.003 );
+        return 27.0 - 62 * ( t - 0.003 );
 	
     if( t < 0.007 )
-        return -0.066 + 0.4 * ( t - 0.0045 );
+        return -66.0 + 0.4 * ( t - 0.0045 );
 
     /*
      * Alternative AP trace
@@ -169,16 +169,16 @@ number ActionPotentialTrain::AP_voltage_trace(number time)
 		return m_basicVoltage + 30 * ( t - 0.001 );
 
 	if( t < 0.002 )
-		return -0.055 + 190 * ( t - 0.0015 );
+		return -55.0 + 190 * ( t - 0.0015 );
 
 	if( t < 0.003 )
-		return 0.04 - 120 * ( t - 0.002 );
+		return 40.0 - 120 * ( t - 0.002 );
 
 	if( t < 0.0035 )
-		return -0.08 - 20 * ( t - 0.003 );
+		return -80.0 - 20 * ( t - 0.003 );
 
 	if( t < 0.005 )
-		return -0.09 + 40./3 * ( t - 0.0035 );
+		return -90.0 + 40./3 * ( t - 0.0035 );
 	*/
 
     return m_basicVoltage;

@@ -90,7 +90,7 @@ class ActionPotentialTrain
 		 * @param stimBegin		stimulation begin time in s
 		 * @param stimEnd		stimulation end time in s
 		 * @param AP_duration	action potential duration in s
-		 * @param basicVoltage	resting potential in V
+		 * @param basicVoltage	resting potential in mV
 		 */
 		ActionPotentialTrain(	number stimBegin, number stimEnd,
 								number stimFreq, number basicVoltage);
