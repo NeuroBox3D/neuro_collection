@@ -327,6 +327,9 @@ class VDCC_BG_VM2UG : public VDCC_BG<TDomain>
 		/// @copydoc VDCC_BG<TDomain>::update_time()
 		virtual void update_time(number newTime);
 
+		/// @copydoc IMembraneTransporter::print_units()
+		virtual void print_units() const;
+
 		/**
 		 * @brief setting the times for which files are present
 		 * Using this method, it is possible to tell the VDCC implementation at which
@@ -436,6 +439,9 @@ private:
 
 		// update membrane potential
 		virtual void update_potential(side_t* elem);
+
+		/// @copydoc IMembraneTransporter::print_units()
+		virtual void print_units() const;
 
 		// set the transformator
 		inline void set_transformator(SmartPtr<Transformator> transformator) {

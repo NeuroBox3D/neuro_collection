@@ -111,7 +111,7 @@ VDCC_BG<TDomain>::~VDCC_BG()
 template<typename TDomain>
 number VDCC_BG<TDomain>::calc_gating_start(GatingParams& gp, number Vm)
 {
-	return 1.0 / (1.0 + exp(-gp.z * (Vm - gp.V_12)/1000.0 * F/(R*T)));
+	return 1.0 / (1.0 + exp(-gp.z * (Vm - gp.V_12) * 1e-3*F/(R*T)));
 }
 
 
@@ -543,6 +543,26 @@ void VDCC_BG_VM2UG<TDomain>::update_potential(side_t* elem)
 	this->m_aaVm[elem] = 0.001 * vm;
 }
 
+template<typename TDomain>
+void VDCC_BG_VM2UG<TDomain>::print_units() const
+{
+	std::string nm = this->name();
+	size_t n = nm.size();
+	UG_LOG(std::endl);
+	UG_LOG("+------------------------------------------------------------------------------+"<< std::endl);
+	UG_LOG("|  Units used in the implementation of " << nm << std::string(n>=40?0:40-n, ' ') << "|" << std::endl);
+	UG_LOG("|------------------------------------------------------------------------------|"<< std::endl);
+	UG_LOG("|    Input                                                                     |"<< std::endl);
+	UG_LOG("|      [Ca_cyt]  mM (= mol/m^3)                                                |"<< std::endl);
+	UG_LOG("|      [Ca_ext]  mM (= mol/m^3)                                                |"<< std::endl);
+	UG_LOG("|      V_m       mV                                                            |"<< std::endl);
+	UG_LOG("|                                                                              |"<< std::endl);
+	UG_LOG("|    Output                                                                    |"<< std::endl);
+	UG_LOG("|      Ca flux   mol/s                                                         |"<< std::endl);
+	UG_LOG("+------------------------------------------------------------------------------+"<< std::endl);
+	UG_LOG(std::endl);
+}
+
 
 
 ///////////////////////////////////////////////////////////
@@ -685,6 +705,28 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::update_potential(side_t* elem)
 
 	// set membrane potential value
 	this->m_aaVm[elem] = 0.001 * vm;
+}
+
+
+
+template<typename TDomain>
+void VDCC_BG_VM2UG_NEURON<TDomain>::print_units() const
+{
+	std::string nm = this->name();
+	size_t n = nm.size();
+	UG_LOG(std::endl);
+	UG_LOG("+------------------------------------------------------------------------------+"<< std::endl);
+	UG_LOG("|  Units used in the implementation of " << nm << std::string(n>=40?0:40-n, ' ') << "|" << std::endl);
+	UG_LOG("|------------------------------------------------------------------------------|"<< std::endl);
+	UG_LOG("|    Input                                                                     |"<< std::endl);
+	UG_LOG("|      [Ca_cyt]  mM (= mol/m^3)                                                |"<< std::endl);
+	UG_LOG("|      [Ca_ext]  mM (= mol/m^3)                                                |"<< std::endl);
+	UG_LOG("|      V_m       mV                                                            |"<< std::endl);
+	UG_LOG("|                                                                              |"<< std::endl);
+	UG_LOG("|    Output                                                                    |"<< std::endl);
+	UG_LOG("|      Ca flux   mol/s                                                         |"<< std::endl);
+	UG_LOG("+------------------------------------------------------------------------------+"<< std::endl);
+	UG_LOG(std::endl);
 }
 
 #endif
