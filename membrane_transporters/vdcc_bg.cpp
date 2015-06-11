@@ -118,8 +118,42 @@ number VDCC_BG<TDomain>::calc_gating_start(GatingParams& gp, number Vm)
 template<typename TDomain>
 void VDCC_BG<TDomain>::calc_gating_step(GatingParams& gp, number Vm, number dt, number& currVal)
 {
-	// forward step: implicit
-	if (dt>=0) currVal = (currVal + dt/gp.tau_0 * calc_gating_start(gp,Vm)) / (1.0 + dt/gp.tau_0);
+// 	forward step: implicit
+	if (dt>=0)
+	{
+	//	For calculating the next gating step it is recommended to use a time step
+	//	size no larger than 1e-5s in order to meet a sufficient accuracy
+		if(dt > 1e-5)
+		{
+			number vdcc_dt = 1e-5;
+			number t0 = 0.0;
+
+		// 	loop intermediate time steps until the current intermediate time point is the final time point dt
+			while(t0 < dt)
+			{
+			// 	compute next time point
+				number t = t0 + vdcc_dt;
+
+		   // 	check if out of bounds, if yes:
+		   // 	set to final time point and adjust step size accordingly
+				if(t > dt)
+				{
+					t = dt;
+					vdcc_dt = dt - t0;
+				}
+
+			// 	compute next gating value
+				currVal = (currVal + vdcc_dt/gp.tau_0 * calc_gating_start(gp,Vm)) / (1.0 + vdcc_dt/gp.tau_0);
+
+			// 	save new time as current time
+				t0 = t;
+			}
+		}
+	//	sufficiently small time step size already specified
+		else
+			currVal = (currVal + dt/gp.tau_0 * calc_gating_start(gp,Vm)) / (1.0 + dt/gp.tau_0);
+	}
+
 	// backward step: explicit
 	else currVal += dt/gp.tau_0 * (calc_gating_start(gp,Vm) - currVal);
 }
