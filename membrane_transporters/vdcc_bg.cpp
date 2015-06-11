@@ -155,7 +155,7 @@ void VDCC_BG<TDomain>::calc_gating_step(GatingParams& gp, number Vm, number dt, 
 			currVal = (currVal + dt/gp.tau_0 * calc_gating_start(gp,Vm)) / (1.0 + dt/gp.tau_0);
 	}
 
-	// backward step: explicit // TODO: to the above backwards!
+	// backward step: explicit // TODO: do the above backwards!
 	else currVal += dt/gp.tau_0 * (calc_gating_start(gp,Vm) - currVal);
 }
 
