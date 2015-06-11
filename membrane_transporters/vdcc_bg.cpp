@@ -122,10 +122,10 @@ void VDCC_BG<TDomain>::calc_gating_step(GatingParams& gp, number Vm, number dt, 
 	if (dt>=0)
 	{
 	//	For calculating the next gating step it is recommended to use a time step
-	//	size no larger than 1e-5s in order to meet a sufficient accuracy
-		if(dt > 1e-5)
+	//	size no larger than 1e-5s = 1e-2ms in order to meet a sufficient accuracy
+		if(dt > 1e-2)
 		{
-			number vdcc_dt = 1e-5;
+			number vdcc_dt = 1e-2;
 			number t0 = 0.0;
 
 		// 	loop intermediate time steps until the current intermediate time point is the final time point dt

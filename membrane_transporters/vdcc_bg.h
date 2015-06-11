@@ -51,9 +51,20 @@ namespace neuro_collection{
  *
  *
  *	The units required for this discretization are:
- * 		V_m	: mV		membrane voltage
+ * 		V_m	: mV		membrane voltage (VDCC_BG_VM2UG & VDCC_BG_VM2UG_NEURON)
+ * 		V_m	: V			membrane voltage (VDCC_BG & VDCC_BG_UserData)
  * 		t	: s			time
  *  	f	: mol*s^-1	ionic flux
+ *
+ *  Remarks:
+ *  	- Internally all membrane potentials are attached to elements in [V] for
+ *  	  the element discretization!
+ *
+ *  	- VDCC_BG & VDCC_BG_UserData use [ms] and [mV] in gating and flux calculations!
+ *  	  This is due to the use of the original gating parameter sets by Borg-Graham
+ *  	  with tau_0 in [ms] and V_12 in [mV].
+ *  	  Note, that the update potential method already takes care of this, when calling
+ *  	  the corresponding gating & flux calculation methods.
  *
 **/
 
@@ -200,14 +211,15 @@ class VDCC_BG : public IMembraneTransporter
 	protected:
 		/// calculates the equilibrium state of a gating "particle"
 		/** The calculation is done with respect to the given gating parameters set (which represents
-		 *	one gating "particle") and the given membrane potential.
+		 *	one gating "particle") and the given membrane potential (to be specified in [mV]!).
 		**/
 		number calc_gating_start(GatingParams& gp, number Vm);
 
 		/// calculates the next state of a gating "particle"
 		/** The calculation is done with respect to the given gating parameters set (which represents
 		 *	one gating "particle"), the current value of this gating particle as well as the given membrane
-		 *	potential. The new value represents the "particle" state at current time + dt.
+		 *	potential (to be specified in [mV]!). The new value represents the "particle" state
+		 *	at current time + dt (to be specified in [ms]!).
 		**/
 		void calc_gating_step(GatingParams& gp, number Vm, number dt, number& currVal);
 
