@@ -649,7 +649,7 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::init(number time)
 			try
 			{
 				const typename TDomain::position_type& coords = CalculateCenter(*iter, aaPos);
-				vm = this->m_vmProvider.get()->get_potential(coords);
+				vm = this->m_vmProvider.get()->get_potential(coords[0], coords[1], coords[2]);
 			}
 			UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
 
@@ -691,7 +691,7 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::update_time(number newTime)
 template<typename TDomain>
 void VDCC_BG_VM2UG_NEURON<TDomain>::update_potential(side_t* elem)
 {
-	if (!this->m_vmProvider.get()->treeBuild())
+	if (!this->m_vmProvider.get()->treeBuilt())
 	UG_THROW("Underlying Vm2uG object's tree is not yet built.\n"
 		  << "Do not forget to initialize the Borg-Graham object first by calling init(initTime).");
 
@@ -700,7 +700,7 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::update_potential(side_t* elem)
 	try
 	{
 		const typename TDomain::position_type& coords = CalculateCenter(elem, this->m_aaPos);
-		vm = this->m_vmProvider.get()->get_potential(coords);
+		vm = this->m_vmProvider.get()->get_potential(coords[0], coords[1], coords[2]);
 	}
 	UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
 
@@ -843,7 +843,7 @@ void VDCC_BG_UserData<TDomain>::update_potential(side_t* elem)
 	template class VDCC_BG<Domain3d>;
 	template class VDCC_BG_VM2UG<Domain3d>;
 	#ifdef MPMNEURON
-		template class VDCC_BG_VM2UG_NEURON<Domain1d>;
+		template class VDCC_BG_VM2UG_NEURON<Domain3d>;
 	#endif
 	template class VDCC_BG_UserData<Domain3d>;
 #endif
