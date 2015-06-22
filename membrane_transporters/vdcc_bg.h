@@ -13,7 +13,7 @@
 #include "lib_disc/domain.h"
 #include "lib_grid/lg_base.h"
 #include "lib_disc/spatial_disc/elem_disc/inner_boundary/inner_boundary.h"
-#include "../plugins/experimental/membrane_potential_mapping/vm2ug.h"
+#include "../plugins/experimental/membrane_potential_mapping/vm2ug_rework.h"
 
 #include <locale>	// for control over the decimal separator (point instead of comma, please!)
 
@@ -82,6 +82,7 @@ class VDCC_BG : public IMembraneTransporter
 		typedef VDCC_BG<TDomain> this_type;
 		typedef typename GeomObjBaseTypeByDim<dim>::base_obj_type elem_t;
 		typedef typename elem_t::side side_t;
+
 
 	protected:
 		const number R;			///< universal gas constant
@@ -271,6 +272,7 @@ class VDCC_BG : public IMembraneTransporter
 template<typename TDomain>
 class VDCC_BG_VM2UG : public VDCC_BG<TDomain>
 {
+
 	protected:
 		using VDCC_BG<TDomain>::R;			//!< universal gas constant
 		using VDCC_BG<TDomain>::T;			//!< temperature (310K)
@@ -280,7 +282,8 @@ class VDCC_BG_VM2UG : public VDCC_BG<TDomain>
 		typedef typename elem_t::side side_t;
 
 	public:
-		typedef Vm2uG<std::string> vmProvType;
+		///typedef Vm2uG<std::string> vmProvType;
+		typedef Mapper<TDomain::dim, number> vmProvType;
 
 	public:
 		/**
@@ -365,6 +368,8 @@ class VDCC_BG_VM2UG : public VDCC_BG<TDomain>
 		number m_fileOffset;			//!< offset of time intervals for which voltage files are available
 
 		std::string m_timeAsString;
+		std::string m_baseName;
+		std::string m_ext;
 };
 
 #ifdef MPMNEURON

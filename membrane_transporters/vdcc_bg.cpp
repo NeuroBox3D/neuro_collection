@@ -388,8 +388,9 @@ VDCC_BG_VM2UG<TDomain>::VDCC_BG_VM2UG
 	const bool posCanChange
 )
 : VDCC_BG<TDomain>(fcts, subsets, approx),
-  m_vmProvider(baseName, ext, !posCanChange), m_tFmt(timeFmt),
-  m_fileInterval(0.0), m_fileOffset(0.0)
+ /// m_vmProvider(baseName, ext, !posCanChange), m_tFmt(timeFmt),
+  m_vmProvider(), m_tFmt(timeFmt),
+  m_fileInterval(0.0), m_fileOffset(0.0), m_baseName(baseName), m_ext(ext)
 {
 	// nothing further to do
 }
@@ -406,8 +407,9 @@ VDCC_BG_VM2UG<TDomain>::VDCC_BG_VM2UG
 	const bool posCanChange
 )
 : VDCC_BG<TDomain>(fcts, subsets, approx),
-  m_vmProvider(baseName, ext, !posCanChange), m_tFmt(timeFmt),
-  m_fileInterval(0.0), m_fileOffset(0.0)
+ /// m_vmProvider(baseName, ext, !posCanChange), m_tFmt(timeFmt),
+  m_vmProvider(), m_tFmt(timeFmt),
+  m_fileInterval(0.0), m_fileOffset(0.0), m_baseName(baseName), m_ext(ext)
 {
 	// nothing further to do
 }
@@ -445,7 +447,7 @@ void VDCC_BG_VM2UG<TDomain>::init(number time)
 				<< "It must contain exactly one placeholder (which has to convert a floating point number)"
 				<< "and must not produce an output string longer than 100 chars.");
 
-	try {m_vmProvider.buildTree(m_timeAsString);}
+	try {m_vmProvider.build_tree(m_baseName + m_timeAsString + m_ext, " ");}
 	UG_CATCH_THROW("Underlying Vm2uG object could not build its tree on given file.\n"
 		<< "If this is due to an inappropriate point in time, you might consider\n"
 		"using set_file_times(fileInterval, fileOffset).");
@@ -468,7 +470,7 @@ void VDCC_BG_VM2UG<TDomain>::init(number time)
 			try
 			{
 				const typename TDomain::position_type& coords = CalculateCenter(*iter, aaPos);
-				vm = m_vmProvider.get_potential(coords, m_timeAsString);
+				vm = m_vmProvider.get_data_from_nearest_neighbor(coords);
 			}
 			UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
 
@@ -511,13 +513,13 @@ void VDCC_BG_VM2UG<TDomain>::update_time(number newTime)
 				<< "It must contain exactly one placeholder (which has to convert a floating point number)"
 				<< "and must not produce an output string longer than 100 chars.");
 
-	if (!m_vmProvider.treeBuilt())
+	/*if (!m_vmProvider.treeBuilt())
 	UG_THROW("Underlying Vm2uG object's tree is not yet built.\n"
 		  << "Do not forget to initialize the Borg-Graham object first by calling init(initTime).");
 
 	// set new timestep file in vm2ug object (not strictly necessary)
 	const std::string ts = m_timeAsString;
-	m_vmProvider.setTimestep(ts);
+	m_vmProvider.setTimestep(ts);*/
 
 	this->m_oldTime = this->m_time;
 	this->m_time = newTime;
@@ -527,16 +529,18 @@ void VDCC_BG_VM2UG<TDomain>::update_time(number newTime)
 template<typename TDomain>
 void VDCC_BG_VM2UG<TDomain>::update_potential(side_t* elem)
 {
+	/*
 	if (!m_vmProvider.treeBuilt())
 		UG_THROW("Underlying Vm2uG object's tree is not yet built.\n"
 			  << "Do not forget to initialize the Borg-Graham object first by calling init(initTime).");
+			  */
 
 	// retrieve membrane potential via vm2ug
 	number vm;
 	try
 	{
 		const typename TDomain::position_type& coords = CalculateCenter(elem, this->m_aaPos);
-		vm = m_vmProvider.get_potential(coords, m_timeAsString);
+		vm = m_vmProvider.get_data_from_nearest_neighbor(coords);
 	}
 	UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
 
@@ -649,7 +653,7 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::init(number time)
 			try
 			{
 				const typename TDomain::position_type& coords = CalculateCenter(*iter, aaPos);
-				vm = this->m_vmProvider.get()->get_potential(coords[0], coords[1], coords[2]);
+				vm = this->m_vmProvider.get()->get_data_from_nearest_neighbor(coords);
 			}
 			UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
 
@@ -691,16 +695,18 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::update_time(number newTime)
 template<typename TDomain>
 void VDCC_BG_VM2UG_NEURON<TDomain>::update_potential(side_t* elem)
 {
+	/*
 	if (!this->m_vmProvider.get()->treeBuilt())
 	UG_THROW("Underlying Vm2uG object's tree is not yet built.\n"
 		  << "Do not forget to initialize the Borg-Graham object first by calling init(initTime).");
+		  */
 
 	// retrieve membrane potential via vm2ug
 	number vm;
 	try
 	{
 		const typename TDomain::position_type& coords = CalculateCenter(elem, this->m_aaPos);
-		vm = this->m_vmProvider.get()->get_potential(coords[0], coords[1], coords[2]);
+		vm = this->m_vmProvider.get()->get_data_from_nearest_neighbor(coords);
 	}
 	UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
 
