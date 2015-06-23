@@ -14,6 +14,7 @@
 #include "lib_grid/lg_base.h"
 #include "lib_disc/spatial_disc/elem_disc/inner_boundary/inner_boundary.h"
 #include "../plugins/experimental/membrane_potential_mapping/vm2ug_rework.h"
+#include "../plugins/experimental/membrane_potential_mapping/transformator.h"
 
 #include <locale>	// for control over the decimal separator (point instead of comma, please!)
 
@@ -383,7 +384,8 @@ class VDCC_BG_VM2UG_NEURON : public VDCC_BG<TDomain>
 {
 private:
 	SmartPtr<Transformator> m_NrnInterpreter;
-	SmartPtr<Vm2uG<std::string> > m_vmProvider;
+	SmartPtr<Mapper<TDomain::dim, number> > m_vmProvider;
+	//SmartPtr<Vm2uG<std::string> > m_vmProvider;
 
 	protected:
 		using VDCC_BG<TDomain>::R;		//!< universal gas constant
@@ -394,7 +396,8 @@ private:
 		typedef typename elem_t::side side_t;
 
 	public:
-		typedef Vm2uG<std::string> vmProvType;
+		//typedef Vm2uG<std::string> vmProvType;
+		typedef Mapper<TDomain::dim, number> vmProvType;
 
 	public:
 		/**
@@ -466,7 +469,7 @@ private:
 		}
 
 		// set the mapper
-		inline void set_mapper(SmartPtr<Vm2uG<std::string> > mapper) {
+		inline void set_mapper(SmartPtr<Mapper<TDomain::dim, number> > mapper) {
 			this->m_vmProvider = mapper;
 		}
 
