@@ -97,43 +97,45 @@ class MembraneTransportFV1
 	/// @copydoc IElemDisc<TDomain>::prepare_setting()
 		virtual void prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid);
 
-	/// @copydoc IElemDisc<TDomain>::prepare_timestep_elem()
-		void prep_timestep_elem
-		(
-			const number time,
-			const LocalVector& u,
-			GridObject* elem,
-			const MathVector<dim> vCornerCoords[]
-		);
+	/// @copydoc IElemDisc<TDomain>::prepare_timestep()
+		void prep_timestep(number time, VectorProxyBase* upb);
 
 	protected:
 		SmartPtr<CplUserData<number,dim> > m_spDensityFct;
 		SmartPtr<IMembraneTransporter> m_spMembraneTransporter;
 
 	private:
-		struct RegisterFV1
+		template <typename List>
+		struct Register
 		{
-				RegisterFV1(this_type* pThis) : m_pThis(pThis){}
-				this_type* m_pThis;
-				template< typename TElem > void operator()(TElem&)
+			Register(this_type* p)
+			{
+				static const bool isEmpty = boost::mpl::empty<List>::value;
+				(typename boost::mpl::if_c<isEmpty, RegEnd, RegNext>::type (p));
+			}
+
+			struct RegEnd
+			{
+				RegEnd(this_type*) {}
+			};
+
+			struct RegNext
+			{
+				RegNext(this_type* p)
 				{
-					if (m_pThis->m_bNonRegularGrid)
-						m_pThis->register_fv1_func<TElem, HFV1ManifoldGeometry<TElem, dim> >();
-					else
-						m_pThis->register_fv1_func<TElem, FV1ManifoldGeometry<TElem, dim> >();
+					typedef typename boost::mpl::front<List>::type AlgebraType;
+					typedef typename boost::mpl::pop_front<List>::type NextList;
+
+					size_t aid = bridge::AlgebraTypeIDProvider::instance().id<AlgebraType>();
+					p->set_prep_timestep_fct(aid, &this_type::prep_timestep);
+
+					(Register<NextList> (p));
 				}
+			};
 		};
 
+
 		void register_all_fv1_funcs();
-
-		template <typename TElem, typename TFVGeom>
-		void register_fv1_func()
-		{
-			ReferenceObjectID id = geometry_traits<TElem>::REFERENCE_OBJECT_ID;
-			typedef this_type T;
-
-			this->set_prep_timestep_elem_fct(id, &T::prep_timestep_elem);
-		}
 
 	private:
 		bool m_bNonRegularGrid;

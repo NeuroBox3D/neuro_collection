@@ -140,12 +140,10 @@ class VDCC_BG : public IMembraneTransporter
 		/// @copydoc IMembraneTransporter::IMembraneTransporter()
 		virtual ~VDCC_BG();
 
-		/// @copydoc IMembraneTransporter::prep_timestep_elem()
-		virtual void prep_timestep_elem
+		/// @copydoc IMembraneTransporter::prep_timestep()
+		virtual void prep_timestep
 		(
-			const number time,
-			const LocalVector& u,
-			GridObject* elem
+			const number time//, const CPUAlgebra::vector_type u
 		);
 
 		/// @copydoc IMembraneTransporter::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const

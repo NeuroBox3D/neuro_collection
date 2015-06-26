@@ -91,11 +91,11 @@ class IMembraneTransporter
 		virtual ~IMembraneTransporter();
 
 		/**
-		 * @brief Prepares a transport mechanism for timestep assemblings
+		 * @brief Prepares a transport mechanism for time step assemblings
 		 *
 		 * This method will be called by the MembraneTransportFV1 method of the same name.
-		 * It can be used if any time-dependent modifications have to be made to an element
-		 * before the fluxes for a specific time step can be calculated.
+		 * It can be used if any modifications have to be made before any time step
+		 * before the fluxes for this time step can be calculated.
 		 * This is especially useful for the implementation of the Borg-Graham type VDCCs using
 		 * grid attachments.
 		 *
@@ -104,11 +104,9 @@ class IMembraneTransporter
 		 * @param elem            the element modifications can be made for
 		 * @param vCornerCoords   the element's corner coordinates
 		 */
-		virtual void prep_timestep_elem
+		virtual void prep_timestep
 		(
-			const number time,
-			const LocalVector& u,
-			GridObject* elem
+			const number time//,const CPUAlgebra::vector_type u
 		);
 
 		/**

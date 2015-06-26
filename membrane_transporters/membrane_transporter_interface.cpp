@@ -64,15 +64,15 @@ IMembraneTransporter::~IMembraneTransporter()
 	// do nothing
 }
 
-void IMembraneTransporter::prep_timestep_elem
+
+void IMembraneTransporter::prep_timestep
 (
-	const number time,
-	const LocalVector& u,
-	GridObject* elem
+	const number time//, const CPUAlgebra::vector_type u
 )
 {
-	// do nothing here, only in derived classes and only if necessary
+	// so nothing here; only in derived classes if need be
 }
+
 
 void IMembraneTransporter::flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
 {

@@ -156,7 +156,11 @@ void VDCC_BG<TDomain>::calc_gating_step(GatingParams& gp, number Vm, number dt, 
 	}
 
 	// backward step: explicit // TODO: do the above backwards!
-	else currVal += dt/gp.tau_0 * (calc_gating_start(gp,Vm) - currVal);
+	else
+	{
+		if (dt<-1e-2) UG_THROW("timestep too large; not implemented yet!");
+		currVal += dt/gp.tau_0 * (calc_gating_start(gp,Vm) - currVal);
+	}
 }
 
 
@@ -355,20 +359,23 @@ void VDCC_BG<TDomain>::update_time(const number newTime)
 };
 
 template<typename TDomain>
-void VDCC_BG<TDomain>::prep_timestep_elem
+void VDCC_BG<TDomain>::prep_timestep
 (
-	const number time,
-	const LocalVector& u,
-	GridObject* elem
+	const number time//, const CPUAlgebra::vector_type u
 )
 {
 	update_time(time);
 
-	side_t* side = dynamic_cast<side_t*>(elem);
-	if (!side) UG_THROW("OneSidedBorgGrahamFV1::prep_timestep_elem() called with improper element type.");
+	// loop sides and update potential and then gatings
+	typedef typename DoFDistribution::traits<side_t>::const_iterator it_type;
+	it_type it = m_dd->begin<side_t>();
+	it_type it_end = m_dd->end<side_t>();
 
-	update_potential(side);
-	update_gating(side);
+	for (; it != it_end; ++it)
+	{
+		update_potential(*it);
+		update_gating(*it);
+	}
 }
 
 
@@ -529,12 +536,6 @@ void VDCC_BG_VM2UG<TDomain>::update_time(number newTime)
 template<typename TDomain>
 void VDCC_BG_VM2UG<TDomain>::update_potential(side_t* elem)
 {
-	/*
-	if (!m_vmProvider.treeBuilt())
-		UG_THROW("Underlying Vm2uG object's tree is not yet built.\n"
-			  << "Do not forget to initialize the Borg-Graham object first by calling init(initTime).");
-			  */
-
 	// retrieve membrane potential via vm2ug
 	number vm;
 	try
@@ -695,12 +696,6 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::update_time(number newTime)
 template<typename TDomain>
 void VDCC_BG_VM2UG_NEURON<TDomain>::update_potential(side_t* elem)
 {
-	/*
-	if (!this->m_vmProvider.get()->treeBuilt())
-	UG_THROW("Underlying Vm2uG object's tree is not yet built.\n"
-		  << "Do not forget to initialize the Borg-Graham object first by calling init(initTime).");
-		  */
-
 	// retrieve membrane potential via vm2ug
 	number vm;
 	try

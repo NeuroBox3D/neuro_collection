@@ -184,26 +184,28 @@ void MembraneTransportFV1<TDomain>::prepare_setting(const std::vector<LFEID>& vL
 
 
 template<typename TDomain>
-void MembraneTransportFV1<TDomain>::prep_timestep_elem
+void MembraneTransportFV1<TDomain>::prep_timestep
 (
-	const number time,
-	const LocalVector& u,
-	GridObject* elem,
-	const MathVector<dim> vCornerCoords[]
+	number time,
+	VectorProxyBase* upb
 )
 {
-	m_spMembraneTransporter->prep_timestep_elem(time, u, elem);
+	/*
+	typedef CPUAlgebra::vector_type v_type;
+	typedef VectorProxy<v_type> vp_type;
+	vp_type* up = dynamic_cast<vp_type*>(upb);
+	UG_COND_THROW(!up, "Wrong algebra type!");
+	const v_type& u = up->m_v;
+	*/
+	m_spMembraneTransporter->prep_timestep(time);
 }
 
 
 template<typename TDomain>
 void MembraneTransportFV1<TDomain>::register_all_fv1_funcs()
 {
-	//	get all grid element types in this dimension and below
-	typedef typename domain_traits<dim>::ManifoldElemList ElemList;
-
-	//	switch assemble functions
-	boost::mpl::for_each<ElemList>(RegisterFV1(this));
+	// register prep_timestep function for all known algebra types
+	Register<bridge::CompileAlgebraList>(this);
 }
 
 
