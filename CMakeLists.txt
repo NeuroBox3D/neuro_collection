@@ -24,6 +24,7 @@ set(SOURCES    neuro_collection_plugin.cpp
 			   membrane_transporters/ncx.cpp
 			   membrane_transporters/vdcc_bg.cpp
 			   stimulation/action_potential_train.cpp
+			   grid_generation/bouton_generator/bouton_generator.cpp
    )
 
 

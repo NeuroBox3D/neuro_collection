@@ -31,6 +31,7 @@
 #include "membrane_transporters/ncx.h"
 #include "membrane_transporters/vdcc_bg.h"
 #include "stimulation/action_potential_train.h"
+#include "grid_generation/bouton_generator/bouton_generator.h"
 
 
 using namespace std;
@@ -536,6 +537,12 @@ static void Common(Registry& reg, string grp)
 			.add_method("membrane_potential", &T::membrane_potential,
 						"Returns membrane potential to given frequency stimulation interval.")
 			.set_construct_as_smart_pointer(true);
+	}
+	{
+		//	Build Bouton
+			reg.add_function(	"BuildBouton", &BuildBouton, grp,
+								"", "bExtSpace#radius#numRefinements#numReleaseSites#TbarHeight#TbarLegRadius#TbarTopRadius#TbarTopHeight#fileName",
+								"Generates a drosophila NMJ bouton volume grid.");
 	}
 }
 
