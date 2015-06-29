@@ -348,7 +348,8 @@ static void Domain(Registry& reg, string grp)
 				SmartPtr<ApproximationSpace<TDomain> >, SmartPtr<Transformator>, const std::string, const char*, const std::string, const bool)>
 				("function(s) as comma-separated c-string#subset(s) as comma-separated c-string#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#vertexOrderOrPositionCanChange")
 			.add_method("set_transformator", static_cast<void (T::*) (SmartPtr<Transformator>)> (&T::set_transformator), "", "", "")
-			.add_method("set_mapper", static_cast<void (T::*) (SmartPtr<Mapper<TDomain::dim, number> >)> (&T::set_mapper), "", "", "")
+			.add_method("set_provider", static_cast<void (T::*) (SmartPtr<Mapper<TDomain::dim, number> >)> (&T::set_provider), "", "", "")
+			.add_method("set_mapper", static_cast<void (T::*) (SmartPtr<NeuronMPM>)> (&T::set_mapper), "", "", "")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "VDCC_BG_VM2UG_NEURON", tag);
 	}

@@ -16,6 +16,10 @@
 #include "../plugins/experimental/membrane_potential_mapping/vm2ug_rework.h"
 #include "../plugins/experimental/membrane_potential_mapping/transformator.h"
 
+#ifdef MPMNEURON
+#include "../plugins/experimental/membrane_potential_mapping/neuron_mpm.h"
+#endif
+
 #include <locale>	// for control over the decimal separator (point instead of comma, please!)
 
 
@@ -383,6 +387,7 @@ class VDCC_BG_VM2UG_NEURON : public VDCC_BG<TDomain>
 private:
 	SmartPtr<Transformator> m_NrnInterpreter;
 	SmartPtr<Mapper<TDomain::dim, number> > m_vmProvider;
+	SmartPtr<NeuronMPM> m_mapper;
 	//SmartPtr<Vm2uG<std::string> > m_vmProvider;
 
 	protected:
@@ -461,14 +466,21 @@ private:
 		/// @copydoc IMembraneTransporter::print_units()
 		virtual void print_units() const;
 
+		/// transformator and mapper soon obsolete!
+
 		// set the transformator
 		inline void set_transformator(SmartPtr<Transformator> transformator) {
 			this->m_NrnInterpreter = transformator;
 		}
 
+		// set the provider
+		inline void set_provider(SmartPtr<Mapper<TDomain::dim, number> > provider) {
+			this->m_vmProvider = provider;
+		}
+
 		// set the mapper
-		inline void set_mapper(SmartPtr<Mapper<TDomain::dim, number> > mapper) {
-			this->m_vmProvider = mapper;
+		inline void set_mapper(SmartPtr<NeuronMPM> mapper) {
+			this->m_mapper = mapper;
 		}
 
 	private:

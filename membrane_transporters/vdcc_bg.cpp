@@ -627,12 +627,15 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::init(number time)
 	try
 	{
 		// make zero steps (e. g. init) and extract the membrane potentials
-		this->m_NrnInterpreter.get()->extract_vms(1, 3);
+		//this->m_NrnInterpreter.get()->extract_vms(1, 3);
+		this->m_mapper.get()->get_transformator()->extract_vms(1, 3);
 		// with the extracted vms we build the tree then
 		std::cout << "vms could be extracted" << std::endl;
 		std::cout << "Our NEURON setup: " << std::endl;
-		this->m_NrnInterpreter.get()->print_setup(true);
+		//this->m_NrnInterpreter.get()->print_setup(true);
+		this->m_mapper.get()->get_transformator()->print_setup(true);
 		//std::cout << "Our potential: " << this->m_vmProvider.get()->get_potential(0, 0, 0);
+		this->m_mapper.get()->build_tree();
 	}
 	UG_CATCH_THROW("NEURON interpreter could not advance, vmProvider could not be created.");
 
@@ -654,7 +657,9 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::init(number time)
 			try
 			{
 				const typename TDomain::position_type& coords = CalculateCenter(*iter, aaPos);
-				vm = this->m_vmProvider.get()->get_data_from_nearest_neighbor(coords);
+				vm = this->m_mapper.get()->get_vm(coords[0], coords[1], coords[2]);
+				std::cout << "VM: " << vm << std::endl;
+				//vm = this->m_vmProvider.get()->get_data_from_nearest_neighbor(coords);
 			}
 			UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
 
@@ -701,7 +706,8 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::update_potential(side_t* elem)
 	try
 	{
 		const typename TDomain::position_type& coords = CalculateCenter(elem, this->m_aaPos);
-		vm = this->m_vmProvider.get()->get_data_from_nearest_neighbor(coords);
+		vm = this->m_mapper.get()->get_vm(coords[0], coords[1], coords[2]);
+		//vm = this->m_vmProvider.get()->get_data_from_nearest_neighbor(coords);
 	}
 	UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
 
