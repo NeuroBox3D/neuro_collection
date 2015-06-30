@@ -30,6 +30,7 @@
 #include "membrane_transporters/pmca.h"
 #include "membrane_transporters/ncx.h"
 #include "membrane_transporters/vdcc_bg.h"
+#include "membrane_transporters/mcu.h"
 #include "stimulation/action_potential_train.h"
 #include "grid_generation/bouton_generator/bouton_generator.h"
 
@@ -518,6 +519,19 @@ static void Common(Registry& reg, string grp)
 		typedef NCX T;
 		typedef IMembraneTransporter TBase;
 		std::string name = std::string("NCX");
+		reg.add_class_<T, TBase>(name, grp)
+			.add_constructor<void (*)(const char*)>
+				("Functions as comma-separated string with the following order: "
+				 "{\"cytosolic calcium\", \"extracellular calcium\"}")
+			.add_constructor<void (*)(const std::vector<std::string>&)>
+				("Function vector with the following order: "
+				 "{\"cytosolic calcium\", \"extracellular calcium\"}")
+			.set_construct_as_smart_pointer(true);
+	}
+	{
+		typedef MCU T;
+		typedef IMembraneTransporter TBase;
+		std::string name = std::string("MCU");
 		reg.add_class_<T, TBase>(name, grp)
 			.add_constructor<void (*)(const char*)>
 				("Functions as comma-separated string with the following order: "
