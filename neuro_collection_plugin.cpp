@@ -542,6 +542,19 @@ static void Common(Registry& reg, string grp)
 			.set_construct_as_smart_pointer(true);
 	}
 	{
+		typedef MNCX T;
+		typedef IMembraneTransporter TBase;
+		std::string name = std::string("MNCX");
+		reg.add_class_<T, TBase>(name, grp)
+			.add_constructor<void (*)(const char*)>
+				("Functions as comma-separated string with the following order: "
+				 "{\"cytosolic calcium\", \"extracellular calcium\"}")
+			.add_constructor<void (*)(const std::vector<std::string>&)>
+				("Function vector with the following order: "
+				 "{\"cytosolic calcium\", \"extracellular calcium\"}")
+			.set_construct_as_smart_pointer(true);
+	}
+	{
 		typedef ActionPotentialTrain T;
 		std::string name = std::string("ActionPotentialTrain");
 		reg.add_class_<T>(name, grp)
