@@ -31,6 +31,7 @@
 #include "membrane_transporters/ncx.h"
 #include "membrane_transporters/vdcc_bg.h"
 #include "membrane_transporters/mcu.h"
+#include "membrane_transporters/mncx.h"
 #include "stimulation/action_potential_train.h"
 #include "grid_generation/bouton_generator/bouton_generator.h"
 
