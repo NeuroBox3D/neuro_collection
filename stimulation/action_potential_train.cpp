@@ -148,16 +148,16 @@ number ActionPotentialTrain::AP_voltage_trace(number time)
         return m_basicVoltage;
 		
     if( t < 0.0025 ) 
-		return m_basicVoltage + 8 * ( t - 0.001 );
+		return m_basicVoltage + 8e3 * ( t - 0.001 );
 	
     if( t < 0.003 )
-        return -53.0 + 160 * ( t - 0.0025 );
+        return -53.0 + 160e3 * ( t - 0.0025 );
 	
     if( t < 0.0045 )
-        return 27.0 - 62 * ( t - 0.003 );
+        return 27.0 - 62e3 * ( t - 0.003 );
 	
     if( t < 0.007 )
-        return -66.0 + 0.4 * ( t - 0.0045 );
+        return -66.0 + 0.4e3 * ( t - 0.0045 );
 
     /*
      * Alternative AP trace
