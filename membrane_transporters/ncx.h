@@ -31,6 +31,8 @@ namespace neuro_collection{
  * [Ca_out]  mM (= mol/m^3)
  *
  * Ca flux   mol/s
+ *
+ * INFO: 	IMAX_N = I_x / z / F with I_x = 4.8e-19 C/ms
  */
 
 class NCX : public IMembraneTransporter

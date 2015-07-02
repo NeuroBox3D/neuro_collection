@@ -30,6 +30,8 @@ namespace neuro_collection{
  * [Ca_out]  mM (= mol/m^3)
  *
  * Ca flux   mol/s
+ *
+ * INFO: 	IMAX_P = I_p_star / z / F with I_p_star = 1.57e-21 C/ms
  */
 
 class PMCA : public IMembraneTransporter
