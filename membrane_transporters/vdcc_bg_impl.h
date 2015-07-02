@@ -25,8 +25,16 @@ void VDCC_BG<TDomain>::set_channel_type()
 	{
 		// - all gating params according to table 5, page 98 of the Borg-Graham article
 		//   "Interpretations of data and mechanisms for hippocampal pyramidal cell models"
-		// - conductance values from Fisher et al. - "Properties and distribution of single
-		//   voltage-gated calcium channels in adult hippocampal neurons"
+		// - conductance value lambda of 5.5 pS from Gollasch et al. - "Single calcium
+		//   channel currents of arterial smooth muscle at physiological calcium concentrations"
+		//	 and used to derive permeability values p_T, p_N and p_L inspired by
+		//   Fisher et al. - "Properties and distribution of single
+		//   voltage-gated calcium channels in adult hippocampal neurons" in an offset way:
+		//
+		//	 p_T = 1.9e-19 m^3/s; p_N = 2*p_T; p_L = 3*p_T
+		//
+		//	 where p = lambda * R * T / (valence^2 * F^2 * Ca_o)
+		//
 		case BG_Ntype:
 			m_gpMGate = GatingParams(3.4, -21.0, 1.5);
 			m_gpHGate = GatingParams(-2.0, -40.0, 75.0);

@@ -26,7 +26,7 @@ VDCC_BG<TDomain>::VDCC_BG
   m_dom(approx->domain()), m_mg(m_dom->grid()), m_dd(approx->dof_distribution(GridLevel::TOP)),
   m_sh(m_dom->subset_handler()), m_aaPos(m_dom->position_accessor()), m_vSubset(subsets),
   m_gpMGate(3.4, -21.0, 1.5), m_gpHGate(-2.0, -40.0, 75.0), m_time(0.0), m_oldTime(0.0),
-  m_perm(2.4e-19), m_mp(2), m_hp(1), m_channelType(BG_Ntype), m_initiated(false)
+  m_perm(3.8e-19), m_mp(2), m_hp(1), m_channelType(BG_Ntype), m_initiated(false)
 {
 	after_construction();
 }
@@ -43,7 +43,7 @@ VDCC_BG<TDomain>::VDCC_BG
   m_dom(approx->domain()), m_mg(m_dom->grid()), m_dd(approx->dof_distribution(GridLevel::TOP)),
   m_sh(m_dom->subset_handler()), m_aaPos(m_dom->position_accessor()), m_vSubset(TokenizeString(subsets)),
   m_gpMGate(3.4, -21.0, 1.5), m_gpHGate(-2.0, -40.0, 75.0), m_time(0.0), m_oldTime(0.0),
-  m_perm(2.4e-19), m_mp(2), m_hp(1), m_channelType(BG_Ntype), m_initiated(false)
+  m_perm(3.8e-19), m_mp(2), m_hp(1), m_channelType(BG_Ntype), m_initiated(false)
 {
 	after_construction();
 }
