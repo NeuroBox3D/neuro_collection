@@ -620,7 +620,6 @@ VDCC_BG_VM2UG_NEURON<TDomain>::~VDCC_BG_VM2UG_NEURON()
 	// nothing to do
 }
 
-
 template<typename TDomain>
 void VDCC_BG_VM2UG_NEURON<TDomain>::init(number time)
 {
@@ -628,7 +627,7 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::init(number time)
 	{
 		// make zero steps (e. g. init) and extract the membrane potentials
 		//this->m_NrnInterpreter.get()->extract_vms(1, 3);
-		this->m_mapper.get()->get_transformator()->extract_vms(1, 3);
+		this->m_mapper.get()->get_transformator()->extract_vms(1, 3);  /// should be really 1,1 indeed not 1,3
 		// with the extracted vms we build the tree then
 		std::cout << "vms could be extracted" << std::endl;
 		std::cout << "Our NEURON setup: " << std::endl;
@@ -678,7 +677,8 @@ template<typename TDomain>
 void VDCC_BG_VM2UG_NEURON<TDomain>::update_time(number newTime)
 {
 	/// set dt for neuron interpreter
-	number dt = this->m_time - this->m_oldTime;
+	///number dt = this->m_time - this->m_oldTime;
+	number dt = m_NrnInterpreter.get()->get_dt();
 	this->m_oldTime = this->m_time;
 	this->m_time = newTime;
 	std::stringstream ss;
