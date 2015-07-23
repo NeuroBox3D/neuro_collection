@@ -12,43 +12,35 @@ namespace neuro_collection{
 
 
 MCU::MCU(const std::vector<std::string>& fcts) : IMembraneTransporter(fcts),
-F(0.096484), RT(2.5775), ca_valence(2.0)
+F(0.096484), RT(2.5775),
+K_C(3.965e-6), K_M(0.655e-3), gamma(3.9), k(1.27e-3), nH(2.65), K_Pi(0.2e-3)
 {
-//	IMPLEMENT INITIALIZATION
+	m_pi_cyt  = 1.0;
+    m_mg_cyt  = 0.0;
+    m_mg_mit  = 0.0;
+	m_psi 	  = 0.0;
 
-	K_C 	= 3.965e-6 * 1e3;     // in mMol
-	K_M 	= 0.655e-3 * 1e3; 	  // in mMol
-	gamma 	= 3.9;
-	//k = 16.51e-3 * 1e-6;		  // Reference (14) Vinogadrov and Scarpa in mmol/mg/s
-	k 		= 1.27e-3 * 1e-6;	  // Reference  (9) Crompton et al. in mmol/mg/s
-	nH 		= 2.65;
-	K_Pi 	= 0.2e-3 * 1e3;       // in mMol
-	K_CC 	= K_C; // * (1 + pi_cyt/(K_Pi+pi_cyt));
-	K_MM 	= K_M; // / (1 + pi_cyt/(K_Pi+pi_cyt));
-	m_psi 	= 0.0; //psi;
+	K_CC 	= K_C * (1 + m_pi_cyt/(K_Pi+m_pi_cyt));
+	K_MM 	= K_M / (1 + m_pi_cyt/(K_Pi+m_pi_cyt));
 
-	mg_int = 0.0;
-	mg_ext = 0.0;
+	m_mit_volume  = 0.0;
+	m_mit_surface = 0.0;
 }
 
 MCU::MCU(const char* fcts) : IMembraneTransporter(fcts),
-F(0.096484), RT(2.5775), ca_valence(2.0)
+F(0.096484), RT(2.5775),
+K_C(3.965e-6), K_M(0.655e-3), gamma(3.9), k(1.27e-3), nH(2.65), K_Pi(0.2e-3)
 {
-//	IMPLEMENT INITIALIZATION
+	m_pi_cyt  = 1.0;
+    m_mg_cyt  = 0.0;
+    m_mg_mit  = 0.0;
+	m_psi 	  = 0.0;
 
-	K_C 	= 3.965e-6 * 1e3;     // in mMol
-	K_M 	= 0.655e-3 * 1e3; 	  // in mMol
-	gamma 	= 3.9;
-	//k = 16.51e-3 * 1e-6;		  // Reference (14) Vinogadrov and Scarpa in mmol/mg/s
-	k 		= 1.27e-3 * 1e-6;	  // Reference  (9) Crompton et al. in mmol/mg/s
-	nH 		= 2.65;
-	K_Pi 	= 0.2e-3 * 1e3;       // in mMol
-	K_CC 	= K_C; // * (1 + pi_cyt/(K_Pi+pi_cyt));
-	K_MM 	= K_M; // / (1 + pi_cyt/(K_Pi+pi_cyt));
-	m_psi 	= 0.0; //psi;
+	K_CC 	= K_C * (1 + m_pi_cyt/(K_Pi+m_pi_cyt));
+	K_MM 	= K_M / (1 + m_pi_cyt/(K_Pi+m_pi_cyt));
 
-	mg_int = 0.0;
-	mg_ext = 0.0;
+	m_mit_volume  = 0.0;
+	m_mit_surface = 0.0;
 }
 
 
@@ -57,15 +49,20 @@ MCU::~MCU()
 	// nothing to do
 }
 
-// TODO right unit of flux
+
 void MCU::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
 {
-	// 	get values of the unknowns in associated node
-	number caInt = u[_CCYT_];	// cytosolic Ca2+ concentration
-	number caExt = u[_CEXT_];	// extracellular Ca2+ concentration
+	if(m_mit_volume == 0.0 || m_mit_surface == 0.0)
+		UG_THROW("ERROR in MCU membrane transport: mitochondrial volume or surface not specified.");
 
-	// flux needs to be in M/s
-	double phi = ca_valence * F * m_psi / RT;
+// 	get values of the unknowns in associated node
+	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
+	number caMit = u[_CMIT_];	// mitochondrial Ca2+ concentration
+
+	number mgCyt = m_mg_cyt;
+	number mgMit = m_mg_mit;
+
+	double phi = 2.0 * F * m_psi / RT;
 
 	double beta_e = 0.5 * (1 + nH/phi * log((phi/nH) / (sinh(phi/nH))));
 	double beta_x = 0.5 * (1 - nH/phi * log((phi/nH) / (sinh(phi/nH))));
@@ -73,27 +70,38 @@ void MCU::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<num
 	double k_o = k * exp(-2*beta_x*phi);
 	double k_i = k * exp(2*beta_e*phi);
 
-	double D = 	1 + ((caExt*caExt)/(K_CC*K_CC)) + ((caInt*caInt)/(K_CC*K_CC)) +
-					((mg_ext*mg_ext)/(K_MM*K_MM)) + ((mg_int*mg_int)/(K_MM*K_MM)) +
-					((caExt*caExt*mg_ext*mg_ext)/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM)) +
-					((caInt*caInt*mg_int*mg_int)/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM));
+	double D = 	1 + ((caCyt*caCyt)/(K_CC*K_CC)) + ((caMit*caMit)/(K_CC*K_CC)) +
+					((mgCyt*mgCyt)/(K_MM*K_MM)) + ((mgMit*mgMit)/(K_MM*K_MM)) +
+					((caCyt*caCyt*mgCyt*mgCyt)/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM)) +
+					((caMit*caMit*mgMit*mgMit)/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM));
 
+	flux[0] = 1/D * (k_i*((caCyt*caCyt)/(K_CC*K_CC)) - k_o*((caMit*caMit)/(K_CC*K_CC)));	// in nmol/mg/s
 
-	// flux in
-	double fluxes = 1/D * (k_i*((caExt*caExt)/(K_CC*K_CC)) - k_o*((caInt*caInt)/(K_CC*K_CC)));
+//	Transform original flux nmol/mg/s to mitochondrial flux nmol/s
+//	1um^3 mitochondrial volume = 1e-9mg mitochondrial protein
+	flux[0] *= 1e-9 * m_mit_volume;
 
-	flux[0]=(fluxes);
+//  Transform mitochondrial flux nmol/s to flux nmol/um^2/s
+	flux[0] *= 1 / m_mit_surface;
+
+//  Transform mitochondrial flux nmol/um^2/s to mol/um^2/s
+	flux[0] *= 1e-9;
 }
 
 
 void MCU::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
-// 	get values of the unknowns in associated node
-	number caInt = u[_CCYT_];	// cytosolic Ca2+ concentration
-	number caExt = u[_CEXT_];	// extracellular Ca2+ concentration
+	if(m_mit_volume == 0.0 || m_mit_surface == 0.0)
+		UG_THROW("ERROR in MCU membrane transport: mitochondrial volume or surface not specified.");
 
-	//values neede for both derivations
-	double phi = ca_valence * F * m_psi / RT;
+// 	get values of the unknowns in associated node
+	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
+	number caMit = u[_CMIT_];	// mitochondrial Ca2+ concentration
+
+	number mgCyt = m_mg_cyt;
+	number mgMit = m_mg_mit;
+
+	double phi = 2.0 * F * m_psi / RT;
 
 	double beta_e = 0.5 * (1 + nH/phi * log((phi/nH) / (sinh(phi/nH))));
 	double beta_x = 0.5 * (1 - nH/phi * log((phi/nH) / (sinh(phi/nH))));
@@ -101,41 +109,43 @@ void MCU::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vect
 	double k_o = k * exp(-2*beta_x*phi);
 	double k_i = k * exp(2*beta_e*phi);
 
-	double D = 	1 + ((caExt*caExt)/(K_CC*K_CC)) + ((caInt*caInt)/(K_CC*K_CC)) +
-					((mg_ext*mg_ext)/(K_MM*K_MM)) + ((mg_int*mg_int)/(K_MM*K_MM)) +
-					((caExt*caExt*mg_ext*mg_ext)/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM)) +
-					((caInt*caInt*mg_int*mg_int)/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM));
+	double D = 	1 + ((caCyt*caCyt)/(K_CC*K_CC)) + ((caMit*caMit)/(K_CC*K_CC)) +
+					((mgCyt*mgCyt)/(K_MM*K_MM)) + ((mgMit*mgMit)/(K_MM*K_MM)) +
+					((caCyt*caCyt*mgCyt*mgCyt)/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM)) +
+					((caMit*caMit*mgMit*mgMit)/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM));
 
-	//deriv of caInt
-	double dD_caInt = 2*caInt/(K_C*K_C) + 2*caInt*mg_int*mg_int/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM);
+	double dD_caCyt = 2*caCyt/(K_C*K_C) + 2*caCyt*mgCyt*mgCyt/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM);
+	double dFlux_caCyt = 2*k_i*caCyt/(K_CC*K_CC)/D - dD_caCyt*(k_i*caCyt*caCyt/(K_CC*K_CC) - k_o*caMit*caMit/(K_CC*K_CC))/(D*D);
+	dFlux_caCyt *= 1e-9 * m_mit_volume / m_mit_surface * 1e-9;
 
-	double dFlux_caInt = -2*k_o*caInt/(K_CC*K_CC)/D - dD_caInt*(k_i*caExt*caExt/(K_CC*K_CC) - k_o*caInt*caInt/(K_CC*K_CC))/(D*D);
+	double dD_caMit = 2*caMit/(K_C*K_C) + 2*caMit*mgMit*mgMit/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM);
+	double dFlux_caMit = -2*k_o*caMit/(K_CC*K_CC)/D - dD_caMit*(k_i*caCyt*caCyt/(K_CC*K_CC) - k_o*caMit*caMit/(K_CC*K_CC))/(D*D);
+	dFlux_caMit *= 1e-9 * m_mit_volume / m_mit_surface * 1e-9;
 
-	flux_derivs[0][0].first = local_fct_index(_CCYT_);
-	flux_derivs[0][0].second = dFlux_caInt; //needs right flux values
-
-
-	//deriv of caExt
-	double dD_caExt = 2*caExt/(K_C*K_C) + 2*caExt*mg_ext*mg_ext/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM);
-
-	double dFlux_caExt = 2*k_i*caExt/(K_CC*K_CC)/D - dD_caExt*(k_i*caExt*caExt/(K_CC*K_CC) - k_o*caInt*caInt/(K_CC*K_CC))/(D*D);
-
-	flux_derivs[0][1].first = local_fct_index(_CEXT_);
-	flux_derivs[0][1].second = dFlux_caExt; //needs right flux values
-
+	size_t i = 0;
+	if (!has_constant_value(_CCYT_))
+	{
+		flux_derivs[0][i].first = local_fct_index(_CCYT_);
+		flux_derivs[0][i].second = dFlux_caCyt;
+		i++;
+	}
+	if (!has_constant_value(_CMIT_))
+	{
+		flux_derivs[0][i].first = local_fct_index(_CMIT_);
+		flux_derivs[0][i].second = dFlux_caMit;
+		i++;
+	}
 }
 
 
 const size_t MCU::n_dependencies() const
 {
-//	Todo
 	return 2;
 }
 
 
 size_t MCU::n_fluxes() const
 {
-//	Todo
 	return 1;
 };
 
@@ -144,7 +154,7 @@ const std::pair<size_t,size_t> MCU::flux_from_to(size_t flux_i) const
 {
 	size_t from, to;
 	if (allows_flux(_CCYT_)) from = local_fct_index(_CCYT_); else from = InnerBoundaryConstants::_IGNORE_;
-	if (allows_flux(_CEXT_)) to = local_fct_index(_CEXT_); else to = InnerBoundaryConstants::_IGNORE_;
+	if (allows_flux(_CMIT_)) to = local_fct_index(_CMIT_); else to = InnerBoundaryConstants::_IGNORE_;
 
 	return std::pair<size_t, size_t>(from, to);
 }
@@ -160,9 +170,9 @@ void MCU::check_supplied_functions() const
 {
 	// Check that not both, inner and outer calcium concentrations are not supplied;
 	// in that case, calculation of a flux would be of no consequence.
-	if (!allows_flux(_CCYT_) && !allows_flux(_CEXT_))
+	if (!allows_flux(_CCYT_) && !allows_flux(_CMIT_))
 	{
-		UG_THROW("Supplying neither cytosolic nor extracellular calcium concentrations is not allowed.\n"
+		UG_THROW("Supplying neither cytosolic nor mitochondrial calcium concentrations is not allowed.\n"
 			 	 "This would mean that the flux calculation would be of no consequence\n"
 				 "and this pump mechanism would not do anything.");
 	}
@@ -179,12 +189,48 @@ void MCU::print_units() const
 	UG_LOG("|------------------------------------------------------------------------------|"<< std::endl);
 	UG_LOG("|    Input                                                                     |"<< std::endl);
 	UG_LOG("|      [Ca_cyt]  mM (= mol/m^3)                                                |"<< std::endl);
-	UG_LOG("|      [Ca_out]  mM (= mol/m^3)                                                |"<< std::endl);
+	UG_LOG("|      [Ca_mit]  mM (= mol/m^3)                                                |"<< std::endl);
 	UG_LOG("|                                                                              |"<< std::endl);
 	UG_LOG("|    Output                                                                    |"<< std::endl);
 	UG_LOG("|      Ca flux   mol/s                                                         |"<< std::endl);
 	UG_LOG("+------------------------------------------------------------------------------+"<< std::endl);
 	UG_LOG(std::endl);
+}
+
+
+void MCU::set_mit_volume(number mit_volume)
+{
+	m_mit_volume  = mit_volume;
+}
+
+
+void MCU::set_mit_surface(number mit_surface)
+{
+	m_mit_surface = mit_surface;
+}
+
+
+void MCU::set_pi_cyt(number pi_cyt)
+{
+	m_pi_cyt = pi_cyt;
+}
+
+
+void MCU::set_psi(number psi)
+{
+	m_psi = psi;
+}
+
+
+void MCU::set_mg_cyt(number mg_cyt)
+{
+	m_mg_cyt = mg_cyt;
+}
+
+
+void MCU::set_mg_mit(number mg_mit)
+{
+	m_mg_mit = mg_mit;
 }
 
 
