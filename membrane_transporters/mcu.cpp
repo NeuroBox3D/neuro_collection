@@ -11,7 +11,8 @@ namespace ug{
 namespace neuro_collection{
 
 
-MCU::MCU(const std::vector<std::string>& fcts) : IMembraneTransporter(fcts)
+MCU::MCU(const std::vector<std::string>& fcts) : IMembraneTransporter(fcts),
+F(0.096484), RT(2.5775), ca_valence(2.0)
 {
 //	IMPLEMENT INITIALIZATION
 
@@ -25,9 +26,13 @@ MCU::MCU(const std::vector<std::string>& fcts) : IMembraneTransporter(fcts)
 	K_CC 	= K_C; // * (1 + pi_cyt/(K_Pi+pi_cyt));
 	K_MM 	= K_M; // / (1 + pi_cyt/(K_Pi+pi_cyt));
 	m_psi 	= 0.0; //psi;
+
+	mg_int = 0.0;
+	mg_ext = 0.0;
 }
 
-MCU::MCU(const char* fcts) : IMembraneTransporter(fcts)
+MCU::MCU(const char* fcts) : IMembraneTransporter(fcts),
+F(0.096484), RT(2.5775), ca_valence(2.0)
 {
 //	IMPLEMENT INITIALIZATION
 
@@ -41,6 +46,9 @@ MCU::MCU(const char* fcts) : IMembraneTransporter(fcts)
 	K_CC 	= K_C; // * (1 + pi_cyt/(K_Pi+pi_cyt));
 	K_MM 	= K_M; // / (1 + pi_cyt/(K_Pi+pi_cyt));
 	m_psi 	= 0.0; //psi;
+
+	mg_int = 0.0;
+	mg_ext = 0.0;
 }
 
 
@@ -49,31 +57,79 @@ MCU::~MCU()
 	// nothing to do
 }
 
-
+// TODO right unit of flux
 void MCU::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
 {
-// 	get values of the unknowns in associated node
-//	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
-//	number caExt = u[_CEXT_];	// extracellular Ca2+ concentration
+	// 	get values of the unknowns in associated node
+	number caInt = u[_CCYT_];	// cytosolic Ca2+ concentration
+	number caExt = u[_CEXT_];	// extracellular Ca2+ concentration
 
-//	IMPLEMENT ME
+	// flux needs to be in M/s
+	double phi = ca_valence * F * m_psi / RT;
+
+	double beta_e = 0.5 * (1 + nH/phi * log((phi/nH) / (sinh(phi/nH))));
+	double beta_x = 0.5 * (1 - nH/phi * log((phi/nH) / (sinh(phi/nH))));
+
+	double k_o = k * exp(-2*beta_x*phi);
+	double k_i = k * exp(2*beta_e*phi);
+
+	double D = 	1 + ((caExt*caExt)/(K_CC*K_CC)) + ((caInt*caInt)/(K_CC*K_CC)) +
+					((mg_ext*mg_ext)/(K_MM*K_MM)) + ((mg_int*mg_int)/(K_MM*K_MM)) +
+					((caExt*caExt*mg_ext*mg_ext)/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM)) +
+					((caInt*caInt*mg_int*mg_int)/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM));
+
+
+	// flux in
+	double fluxes = 1/D * (k_i*((caExt*caExt)/(K_CC*K_CC)) - k_o*((caInt*caInt)/(K_CC*K_CC)));
+
+	flux[0]=(fluxes);
 }
 
 
 void MCU::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
 // 	get values of the unknowns in associated node
-//	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
-//	number caExt = u[_CEXT_];	// extracellular Ca2+ concentration
+	number caInt = u[_CCYT_];	// cytosolic Ca2+ concentration
+	number caExt = u[_CEXT_];	// extracellular Ca2+ concentration
 
-//	IMPLEMENT ME
+	//values neede for both derivations
+	double phi = ca_valence * F * m_psi / RT;
+
+	double beta_e = 0.5 * (1 + nH/phi * log((phi/nH) / (sinh(phi/nH))));
+	double beta_x = 0.5 * (1 - nH/phi * log((phi/nH) / (sinh(phi/nH))));
+
+	double k_o = k * exp(-2*beta_x*phi);
+	double k_i = k * exp(2*beta_e*phi);
+
+	double D = 	1 + ((caExt*caExt)/(K_CC*K_CC)) + ((caInt*caInt)/(K_CC*K_CC)) +
+					((mg_ext*mg_ext)/(K_MM*K_MM)) + ((mg_int*mg_int)/(K_MM*K_MM)) +
+					((caExt*caExt*mg_ext*mg_ext)/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM)) +
+					((caInt*caInt*mg_int*mg_int)/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM));
+
+	//deriv of caInt
+	double dD_caInt = 2*caInt/(K_C*K_C) + 2*caInt*mg_int*mg_int/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM);
+
+	double dFlux_caInt = -2*k_o*caInt/(K_CC*K_CC)/D - dD_caInt*(k_i*caExt*caExt/(K_CC*K_CC) - k_o*caInt*caInt/(K_CC*K_CC))/(D*D);
+
+	flux_derivs[0][0].first = local_fct_index(_CCYT_);
+	flux_derivs[0][0].second = dFlux_caInt; //needs right flux values
+
+
+	//deriv of caExt
+	double dD_caExt = 2*caExt/(K_C*K_C) + 2*caExt*mg_ext*mg_ext/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM);
+
+	double dFlux_caExt = 2*k_i*caExt/(K_CC*K_CC)/D - dD_caExt*(k_i*caExt*caExt/(K_CC*K_CC) - k_o*caInt*caInt/(K_CC*K_CC))/(D*D);
+
+	flux_derivs[0][1].first = local_fct_index(_CEXT_);
+	flux_derivs[0][1].second = dFlux_caExt; //needs right flux values
+
 }
 
 
 const size_t MCU::n_dependencies() const
 {
 //	Todo
-	return 1;
+	return 2;
 }
 
 

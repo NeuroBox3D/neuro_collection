@@ -42,16 +42,7 @@ class MCU : public IMembraneTransporter
 
 // 	Todo: 	initialize const variables in constructor explicitly!
 
-//        const number K_C;     // in mMol
-//        const number K_M; 	  // in mMol
-//        const number gamma;
-//        const number k ;	  // Reference  (9) Crompton et al. in mmol/mg/s
-//        					  // Reference (14) Vinogadrov and Scarpa in mmol/mg/s
-//        const number nH;
-//        const number K_Pi;    // in mMol
-//        const number K_CC;
-//        const number K_MM;
-//        const number m_psi;
+        const number F, RT, ca_valence;
 
         number K_C;     // in mMol
         number K_M; 	  // in mMol
@@ -63,6 +54,8 @@ class MCU : public IMembraneTransporter
         number K_CC;
         number K_MM;
         number m_psi;
+
+        number mg_int, mg_ext;
 
     public:
 		/// @copydoc IMembraneTransporter::IMembraneTransporter(const std::vector<std::string)

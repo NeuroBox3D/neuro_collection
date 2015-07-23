@@ -41,12 +41,14 @@ namespace neuro_collection{
 class MNCX : public IMembraneTransporter
 {
 	public:
-        enum{_CCYT_=0, _CEXT_};
+        enum{_CCYT_=0, _CEXT_, _NCYT_, _NEXT_};
 
 
     protected:
 
-// 	Todo: 	initialize const variables in constructor explicitly!
+
+        const number F, RT, ca_valence, na_valence;
+
 		double m_psi;
 		double alpha;
 		double beta;
