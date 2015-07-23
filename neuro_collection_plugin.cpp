@@ -540,6 +540,18 @@ static void Common(Registry& reg, string grp)
 			.add_constructor<void (*)(const std::vector<std::string>&)>
 				("Function vector with the following order: "
 				 "{\"cytosolic calcium\", \"extracellular calcium\"}")
+			.add_method("set_mit_volume", &T::set_mit_volume,
+						"Sets mitochondrial volume.")
+			.add_method("set_mit_surface", &T::set_mit_surface,
+						"Sets mitochondrial surface.")
+			.add_method("set_pi_cyt", &T::set_pi_cyt,
+						"Sets cytosolic phosphate concentration.")
+			.add_method("set_psi", &T::set_psi,
+						"Sets mitochondrial membrane potential.")
+			.add_method("set_mg_cyt", &T::set_mg_cyt,
+						"Sets cytosolic Mg2+ concentration.")
+			.add_method("set_mg_mit", &T::set_mg_mit,
+						"Sets mitochondrial Mg2+ concentration.")
 			.set_construct_as_smart_pointer(true);
 	}
 	{
