@@ -140,7 +140,11 @@ void MCU::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vect
 
 const size_t MCU::n_dependencies() const
 {
-	return 2;
+	size_t n = 2;
+	if (has_constant_value(_CCYT_)) n--;
+	if (has_constant_value(_CMIT_)) n--;
+
+	return n;
 }
 
 
