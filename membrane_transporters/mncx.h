@@ -7,7 +7,7 @@
 
 /*
  * Complex NCX model from Paper: "A Biophysically Based Mathematical Model for the Kinetics of Mitochondrial
- * Na-Ca Antiporter" (using Model 1 and kinectic values of reference 3)
+ * Na-Ca Antiporter" (using Model 1 and kinectic values of reference 1), Pradhan et al. 2010
  *
  */
 
@@ -32,41 +32,59 @@ namespace neuro_collection{
  * and their derivatives for the MNCX
  *
  * Units used in the implementation of this channel:
- * [Ca_cyt]  mM (= mol/m^3)
- * [Ca_out]  mM (= mol/m^3)
+ * [Ca_cyt]  M (= mol/m^3)
+ * [Ca_mit]  M (= mol/m^3)
+ * [Na_cyt]  M (= mol/m^3)
+ * [Na_mit]  M (= mol/m^3)
  *
  * Ca flux   mol/s
+ */
+
+/**
+ * 	PARAMETER INFOS (s. "A Biophysically Based Mathematical Model for the Kinetics of Mitochondrial
+ * 						 Na-Ca Antiporter" (using Model 1 and kinectic values of reference 3), Pradhan et al. 2010)
+ *
+ *	Dissociation constants for Ca2+, Mg2+ and phosphate binding to the uniporter
+ *		K_C 	= 2.28e-3	     	// in Mol
+ *		K_N 	= 9.14e-3; 			// in Mol
+ *
+ *	Ratio of potential difference
+ *	between Na2+ or Ca2+ bound to the site of antiporter
+ *	facing the external (internal) side of the IMM and Na2+ or
+ *	Ca2+ in the bulk phase to the total membrane potential
+ *		alpha 	= 0.0;				// unitless
+ *
+ *	Displacement of external (internal)
+ *	Na2+ or Ca2+ from the coordinate of maximum potential barrier
+ *		beta 	= 0.5				// unitless
+ *
+ *	Rate constant for limiting translocation of Ca2+ across the mitochondiral membrane
+ *		k 		= 4.9;			 	// Reference Paucek & Jaburek in umol/mg/min
+ *
+ *	Mitochondrial membrane potential
+ *		m_psi 	 					// in mV;
  */
 
 class MNCX : public IMembraneTransporter
 {
 	public:
-        enum{_CCYT_=0, _CEXT_, _NCYT_, _NEXT_};
+        enum{_CCYT_=0, _CMIT_, _NCYT_, _NMIT_};
 
 
     protected:
 
+		const number F;		  	// Faraday's constant in kJ/mol/mV
+		const number RT;	  	// universal gas constant times temperature (310K) in kJ/mol
 
-        const number F, RT, ca_valence, na_valence;
+		const number K_C;		// in Mol
+		const number K_N;		// in Mol
 
-		double m_psi;
-		double alpha;
-		double beta;
+		const number k;			// Reference Paucek & Jaburek in umol/mg/min
 
-		double k_a;
-		double K_N_0;
-		double K_C_0;
-		double K_C_int;
-		double K_C_ext;
-		double K_N_int;
-		double K_N_ext;
-		double K_H1;
-		double K_H2;
-		double H_int;
-		double H_ext;
+		number m_psi;			// in mV
 
-		double D_H_ext;
-		double D_H_int;
+        number m_mit_volume;  	// in um^3
+		number m_mit_surface; 	// in um^2
 
     public:
 		/// @copydoc IMembraneTransporter::IMembraneTransporter(const std::vector<std::string)
@@ -101,6 +119,18 @@ class MNCX : public IMembraneTransporter
 
 		/// @copydoc IMembraneTransporter::print_units()
 		virtual void print_units() const;
+
+
+		// helper methods
+
+		///	Sets mitochondrial volume
+		void set_mit_volume(number mit_volume);
+
+		/// Sets mitochondrial surface
+		void set_mit_surface(number mit_surface);
+
+		/// Sets mitochondrial membrane potential
+		void set_psi(number psi);
 };
 
 ///@}
