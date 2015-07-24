@@ -135,12 +135,25 @@ class MCU : public IMembraneTransporter
 		/// @copydoc IMembraneTransporter::print_units()
 		virtual void print_units() const;
 
+
 		// helper methods
+
+		///	Sets mitochondrial volume
 		void set_mit_volume(number mit_volume);
+
+		/// Sets mitochondrial surface
 		void set_mit_surface(number mit_surface);
+
+		/// Sets cytosolic phosphate concentration
 		void set_pi_cyt(number pi_cyt);
+
+		/// Sets mitochondrial membrane potential
 		void set_psi(number psi);
+
+		/// Sets cytosolic Mg2+ concentration
 		void set_mg_cyt(number mg_cyt);
+
+		/// Sets mitochondrial Mg2+ concentration
 		void set_mg_mit(number mg_mit);
 };
 
