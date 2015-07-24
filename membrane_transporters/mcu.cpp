@@ -81,8 +81,6 @@ void MCU::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<num
 
 	flux[0] = 1/D * (k_i*((caCyt*caCyt)/(K_CC*K_CC)) - k_o*((caMit*caMit)/(K_CC*K_CC)));	// in nmol/mg/s
 
-	UG_LOG("MCU::calc_flux: " << flux[0] << std::endl);
-
 //	Transform original flux nmol/mg/s to mitochondrial flux nmol/s
 //	1um^3 mitochondrial volume = 1e-9mg mitochondrial protein
 	flux[0] *= 1e-9 * m_mit_volume;
