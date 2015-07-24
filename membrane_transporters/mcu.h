@@ -1,6 +1,6 @@
 /*
  *	 Discretization for the mitochondrial uniporter MCU in the mitochondrial membrane
- *	 (s. Characterization of Mg2+ inhibition of MCU, Pradhan et al. 2011)
+ *	 (s. "Characterization of Mg2+ inhibition of MCU", Pradhan et al. 2011)
  *
  *  Created on: 30.06.2015
  *      Author: mstepnie
@@ -27,21 +27,21 @@ namespace neuro_collection{
  * and their derivatives for the MCU
  *
  * Units used in the implementation of this channel:
- * [Ca_cyt]  mM (= mol/m^3)
- * [Ca_mit]  mM (= mol/m^3)
+ * [Ca_cyt]  M (= mol/m^3)
+ * [Ca_mit]  M (= mol/m^3)
  *
  * Ca flux   mol/s
  */
 
 /**
- * 	PARAMETER INFOS (s. Characterization of Mg2+ inhibition of MCU, Pradhan et al. 2011)
+ * 	PARAMETER INFOS (s. "Characterization of Mg2+ inhibition of MCU", Pradhan et al. 2011)
  *
  *	Dissociation constants for Ca2+, Mg2+ and phosphate binding to the uniporter
  *		K_C 	= 3.965e-6;     	// in Mol
  *		K_M 	= 0.655e-3; 		// in Mol
  *		K_Pi 	= 0.2e-3 * 1e3;     // in Mol
  *
- *	Phophate effect on the uniporter function
+ *	Phophate effect on the uniporter function @ dissociation constants
  * 		K_CC 	= K_C * (1 + pi_cyt/(K_Pi+pi_cyt));
  *		K_MM 	= K_M / (1 + pi_cyt/(K_Pi+pi_cyt));
  *
@@ -92,9 +92,9 @@ class MCU : public IMembraneTransporter
         number m_mg_cyt;	  // Mg2+ concentration in Mol
         number m_mg_mit;	  // Mg2+ concentration in Mol
 
-        number K_CC;
-        number K_MM;
-        number m_psi;
+        number K_CC;		  // in Mol
+        number K_MM;          // in Mol
+        number m_psi;	      // in mV
 
         number m_mit_volume;  // in um^3
 		number m_mit_surface; // in um^2

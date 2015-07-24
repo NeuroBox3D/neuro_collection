@@ -13,7 +13,7 @@ namespace neuro_collection{
 
 MCU::MCU(const std::vector<std::string>& fcts) : IMembraneTransporter(fcts),
 F(0.096484), RT(2.5775),
-K_C(3.965e-6), K_M(0.655e-3), gamma(3.9), k(1.27e-3), nH(2.65), K_Pi(0.2e-3)
+K_C(3.965e-6), K_M(0.655e-3), K_Pi(0.2e-3), gamma(3.9), k(1.27e-3), nH(2.65)
 {
 	m_pi_cyt  = 1.0;
     m_mg_cyt  = 0.0;
@@ -29,7 +29,7 @@ K_C(3.965e-6), K_M(0.655e-3), gamma(3.9), k(1.27e-3), nH(2.65), K_Pi(0.2e-3)
 
 MCU::MCU(const char* fcts) : IMembraneTransporter(fcts),
 F(0.096484), RT(2.5775),
-K_C(3.965e-6), K_M(0.655e-3), gamma(3.9), k(1.27e-3), nH(2.65), K_Pi(0.2e-3)
+K_C(3.965e-6), K_M(0.655e-3), K_Pi(0.2e-3), gamma(3.9), k(1.27e-3), nH(2.65)
 {
 	m_pi_cyt  = 1.0;
     m_mg_cyt  = 0.0;
@@ -67,8 +67,8 @@ void MCU::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<num
 	double beta_e = 0.5 * (1 + nH/phi * log((phi/nH) / (sinh(phi/nH))));
 	double beta_x = 0.5 * (1 - nH/phi * log((phi/nH) / (sinh(phi/nH))));
 
-	double k_o = k * exp(-2*beta_x*phi);
 	double k_i = k * exp(2*beta_e*phi);
+	double k_o = k * exp(-2*beta_x*phi);
 
 	double D = 	1 + ((caCyt*caCyt)/(K_CC*K_CC)) + ((caMit*caMit)/(K_CC*K_CC)) +
 					((mgCyt*mgCyt)/(K_MM*K_MM)) + ((mgMit*mgMit)/(K_MM*K_MM)) +
@@ -82,7 +82,7 @@ void MCU::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<num
 	flux[0] *= 1e-9 * m_mit_volume;
 
 //  Transform mitochondrial flux nmol/s to flux nmol/um^2/s
-	flux[0] *= 1 / m_mit_surface;
+	flux[0] *= 1.0 / m_mit_surface;
 
 //  Transform mitochondrial flux nmol/um^2/s to mol/um^2/s
 	flux[0] *= 1e-9;
@@ -192,8 +192,8 @@ void MCU::print_units() const
 	UG_LOG("|  Units used in the implementation of " << nm << std::string(n>=40?0:40-n, ' ') << "|" << std::endl);
 	UG_LOG("|------------------------------------------------------------------------------|"<< std::endl);
 	UG_LOG("|    Input                                                                     |"<< std::endl);
-	UG_LOG("|      [Ca_cyt]  mM (= mol/m^3)                                                |"<< std::endl);
-	UG_LOG("|      [Ca_mit]  mM (= mol/m^3)                                                |"<< std::endl);
+	UG_LOG("|      [Ca_cyt]  M (= mol/dm^3)                                                |"<< std::endl);
+	UG_LOG("|      [Ca_mit]  M (= mol/dm^3)                                                |"<< std::endl);
 	UG_LOG("|                                                                              |"<< std::endl);
 	UG_LOG("|    Output                                                                    |"<< std::endl);
 	UG_LOG("|      Ca flux   mol/s                                                         |"<< std::endl);
