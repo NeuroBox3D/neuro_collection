@@ -536,10 +536,10 @@ static void Common(Registry& reg, string grp)
 		reg.add_class_<T, TBase>(name, grp)
 			.add_constructor<void (*)(const char*)>
 				("Functions as comma-separated string with the following order: "
-				 "{\"cytosolic calcium\", \"extracellular calcium\"}")
+				 "{\"cytosolic calcium\", \"mitochondrial calcium\"}")
 			.add_constructor<void (*)(const std::vector<std::string>&)>
 				("Function vector with the following order: "
-				 "{\"cytosolic calcium\", \"extracellular calcium\"}")
+				 "{\"cytosolic calcium\", \"mitochondrial calcium\"}")
 			.add_method("set_mit_volume", &T::set_mit_volume,
 						"Sets mitochondrial volume.")
 			.add_method("set_mit_surface", &T::set_mit_surface,
@@ -552,6 +552,8 @@ static void Common(Registry& reg, string grp)
 						"Sets cytosolic Mg2+ concentration.")
 			.add_method("set_mg_mit", &T::set_mg_mit,
 						"Sets mitochondrial Mg2+ concentration.")
+			.add_method("set_rate_constant", &T::set_rate_constant,
+						"Sets rate constant k.")
 			.set_construct_as_smart_pointer(true);
 	}
 	{
@@ -561,10 +563,16 @@ static void Common(Registry& reg, string grp)
 		reg.add_class_<T, TBase>(name, grp)
 			.add_constructor<void (*)(const char*)>
 				("Functions as comma-separated string with the following order: "
-				 "{\"cytosolic calcium\", \"extracellular calcium\"}")
+				 "{\"cytosolic calcium\", \"mitochondrial calcium\", \"cytosolic sodium\", \"mitochondrial sodium\"}")
 			.add_constructor<void (*)(const std::vector<std::string>&)>
 				("Function vector with the following order: "
-				 "{\"cytosolic calcium\", \"extracellular calcium\"}")
+				 "{\"cytosolic calcium\", \"mitochondrial calcium\", \"cytosolic sodium\", \"mitochondrial sodium\"}")
+			.add_method("set_mit_volume", &T::set_mit_volume,
+						"Sets mitochondrial volume.")
+			.add_method("set_mit_surface", &T::set_mit_surface,
+						"Sets mitochondrial surface.")
+			.add_method("set_psi", &T::set_psi,
+						"Sets mitochondrial membrane potential.")
 			.set_construct_as_smart_pointer(true);
 	}
 	{

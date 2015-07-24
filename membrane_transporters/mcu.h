@@ -46,9 +46,10 @@ namespace neuro_collection{
  *		K_MM 	= K_M / (1 + pi_cyt/(K_Pi+pi_cyt));
  *
  *	Binding affinity for Ca2+ and Mg2+ binding to the uniporter
- *		gamma 	= 3.9;				// unitless
+ *		g(amma) = 3.9;				// unitless
  *
  *	Rate constant for limiting translocation of Ca2+ across the mitochondiral membrane
+ *	    k 		= 27.94e-3;			// Reference (15) Scarpa and Graziotti in nmol/mg/s
  *		k 		= 16.51e-3;			// Reference (14) Vinogadrov and Scarpa in nmol/mg/s
  *		k 		= 1.27e-3;			// Reference  (9) Crompton et al. in nmol/mg/s
  *
@@ -83,10 +84,12 @@ class MCU : public IMembraneTransporter
         const number K_M; 	  // in Mol
         const number K_Pi;    // in Mol
 
-        const number gamma;	  // unitless
-        const number k ;	  // Reference  (9) Crompton et al. in nmol/mg/s
-        					  // Reference (14) Vinogadrov and Scarpa in nmol/mg/s
+        const number g;	  	  // unitless
         const number nH;	  // unitless
+
+        number m_k ;  		  // Reference  (9) Crompton et al. in nmol/mg/s
+        					  // Reference (14) Vinogadrov and Scarpa in nmol/mg/s
+        					  // Reference (15) Scarpa and Graziotti in nmol/mg/s
 
         number m_pi_cyt;	  // Phosphate concentration in Mol
         number m_mg_cyt;	  // Mg2+ concentration in Mol
@@ -155,6 +158,9 @@ class MCU : public IMembraneTransporter
 
 		/// Sets mitochondrial Mg2+ concentration
 		void set_mg_mit(number mg_mit);
+
+		/// Sets rate constant k
+		void set_rate_constant(number k);
 };
 
 ///@}

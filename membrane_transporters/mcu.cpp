@@ -13,9 +13,11 @@ namespace neuro_collection{
 
 MCU::MCU(const std::vector<std::string>& fcts) : IMembraneTransporter(fcts),
 F(0.096484), RT(2.5775),
-K_C(3.965e-6), K_M(0.655e-3), K_Pi(0.2e-3), gamma(3.9), k(1.27e-3), nH(2.65)
+K_C(3.965e-6), K_M(0.655e-3), K_Pi(0.2e-3), g(3.9), nH(2.65)
 {
-	m_pi_cyt  = 1.0;
+	m_k = 1.27e-3;
+
+	m_pi_cyt  = 0.0;
     m_mg_cyt  = 0.0;
     m_mg_mit  = 0.0;
 	m_psi 	  = 0.0;
@@ -29,9 +31,11 @@ K_C(3.965e-6), K_M(0.655e-3), K_Pi(0.2e-3), gamma(3.9), k(1.27e-3), nH(2.65)
 
 MCU::MCU(const char* fcts) : IMembraneTransporter(fcts),
 F(0.096484), RT(2.5775),
-K_C(3.965e-6), K_M(0.655e-3), K_Pi(0.2e-3), gamma(3.9), k(1.27e-3), nH(2.65)
+K_C(3.965e-6), K_M(0.655e-3), K_Pi(0.2e-3), g(3.9), nH(2.65)
 {
-	m_pi_cyt  = 1.0;
+	m_k = 1.27e-3;
+
+	m_pi_cyt  = 0.0;
     m_mg_cyt  = 0.0;
     m_mg_mit  = 0.0;
 	m_psi 	  = 0.0;
@@ -67,15 +71,17 @@ void MCU::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<num
 	double beta_e = 0.5 * (1 + nH/phi * log((phi/nH) / (sinh(phi/nH))));
 	double beta_x = 0.5 * (1 - nH/phi * log((phi/nH) / (sinh(phi/nH))));
 
-	double k_i = k * exp(2*beta_e*phi);
-	double k_o = k * exp(-2*beta_x*phi);
+	double k_i = m_k * exp(2*beta_e*phi);
+	double k_o = m_k * exp(-2*beta_x*phi);
 
 	double D = 	1 + ((caCyt*caCyt)/(K_CC*K_CC)) + ((caMit*caMit)/(K_CC*K_CC)) +
 					((mgCyt*mgCyt)/(K_MM*K_MM)) + ((mgMit*mgMit)/(K_MM*K_MM)) +
-					((caCyt*caCyt*mgCyt*mgCyt)/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM)) +
-					((caMit*caMit*mgMit*mgMit)/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM));
+					((caCyt*caCyt*mgCyt*mgCyt)/(pow(g, 4)*K_CC*K_CC*K_MM*K_MM)) +
+					((caMit*caMit*mgMit*mgMit)/(pow(g, 4)*K_CC*K_CC*K_MM*K_MM));
 
 	flux[0] = 1/D * (k_i*((caCyt*caCyt)/(K_CC*K_CC)) - k_o*((caMit*caMit)/(K_CC*K_CC)));	// in nmol/mg/s
+
+	UG_LOG("MCU::calc_flux: " << flux[0] << std::endl);
 
 //	Transform original flux nmol/mg/s to mitochondrial flux nmol/s
 //	1um^3 mitochondrial volume = 1e-9mg mitochondrial protein
@@ -106,19 +112,19 @@ void MCU::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vect
 	double beta_e = 0.5 * (1 + nH/phi * log((phi/nH) / (sinh(phi/nH))));
 	double beta_x = 0.5 * (1 - nH/phi * log((phi/nH) / (sinh(phi/nH))));
 
-	double k_o = k * exp(-2*beta_x*phi);
-	double k_i = k * exp(2*beta_e*phi);
+	double k_o = m_k * exp(-2*beta_x*phi);
+	double k_i = m_k * exp(2*beta_e*phi);
 
 	double D = 	1 + ((caCyt*caCyt)/(K_CC*K_CC)) + ((caMit*caMit)/(K_CC*K_CC)) +
 					((mgCyt*mgCyt)/(K_MM*K_MM)) + ((mgMit*mgMit)/(K_MM*K_MM)) +
-					((caCyt*caCyt*mgCyt*mgCyt)/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM)) +
-					((caMit*caMit*mgMit*mgMit)/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM));
+					((caCyt*caCyt*mgCyt*mgCyt)/(pow(g, 4)*K_CC*K_CC*K_MM*K_MM)) +
+					((caMit*caMit*mgMit*mgMit)/(pow(g, 4)*K_CC*K_CC*K_MM*K_MM));
 
-	double dD_caCyt = 2*caCyt/(K_C*K_C) + 2*caCyt*mgCyt*mgCyt/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM);
+	double dD_caCyt = 2*caCyt/(K_C*K_C) + 2*caCyt*mgCyt*mgCyt/(pow(g, 4)*K_CC*K_CC*K_MM*K_MM);
 	double dFlux_caCyt = 2*k_i*caCyt/(K_CC*K_CC)/D - dD_caCyt*(k_i*caCyt*caCyt/(K_CC*K_CC) - k_o*caMit*caMit/(K_CC*K_CC))/(D*D);
 	dFlux_caCyt *= 1e-9 * m_mit_volume / m_mit_surface * 1e-9;
 
-	double dD_caMit = 2*caMit/(K_C*K_C) + 2*caMit*mgMit*mgMit/(pow(gamma, 4)*K_CC*K_CC*K_MM*K_MM);
+	double dD_caMit = 2*caMit/(K_C*K_C) + 2*caMit*mgMit*mgMit/(pow(g, 4)*K_CC*K_CC*K_MM*K_MM);
 	double dFlux_caMit = -2*k_o*caMit/(K_CC*K_CC)/D - dD_caMit*(k_i*caCyt*caCyt/(K_CC*K_CC) - k_o*caMit*caMit/(K_CC*K_CC))/(D*D);
 	dFlux_caMit *= 1e-9 * m_mit_volume / m_mit_surface * 1e-9;
 
@@ -217,6 +223,9 @@ void MCU::set_mit_surface(number mit_surface)
 void MCU::set_pi_cyt(number pi_cyt)
 {
 	m_pi_cyt = pi_cyt;
+
+	K_CC 	= K_C * (1 + m_pi_cyt/(K_Pi+m_pi_cyt));
+	K_MM 	= K_M / (1 + m_pi_cyt/(K_Pi+m_pi_cyt));
 }
 
 
@@ -235,6 +244,11 @@ void MCU::set_mg_cyt(number mg_cyt)
 void MCU::set_mg_mit(number mg_mit)
 {
 	m_mg_mit = mg_mit;
+}
+
+void MCU::set_rate_constant(number k)
+{
+	m_k = k;
 }
 
 
