@@ -439,6 +439,10 @@ void BuildBouton(	bool bExtSpace, number radius, int numRefinements, int numRele
 				}
 			}
 
+			// throw if !gotOne? -- otherwise the following instructions could be
+			// executed with tmpVrt uninit'ed or with a value from the previous iteration!
+			//if (!gotOne) UG_THROW("No vertex found.");
+
 			sel.deselect(tmpVrt);
 
 		//	spiral distribution of mature and immature release sites
@@ -549,9 +553,9 @@ void BuildBouton(	bool bExtSpace, number radius, int numRefinements, int numRele
 
 	//	Triangulate top of probe subset
 		tmpSel.clear();
-		for(size_t i = 0; i < vExtrusionEdges.size(); ++i)
+		for(size_t j = 0; j < vExtrusionEdges.size(); ++j)
 		{
-			Edge* e = vExtrusionEdges[i];
+			Edge* e = vExtrusionEdges[j];
 			tmpSel.select(e);
 		}
 		sh.set_default_subset_index(si_probe[i]);
