@@ -741,9 +741,9 @@ void BuildBouton(	bool bExtSpace, number radius, int numRefinements, int numRele
 
 	//	Triangulate top of probe subset
 		tmpSel.clear();
-		for(size_t i = 0; i < vExtrusionEdges.size(); ++i)
+		for(size_t j = 0; j < vExtrusionEdges.size(); ++j)
 		{
-			Edge* e = vExtrusionEdges[i];
+			Edge* e = vExtrusionEdges[j];
 			tmpSel.select(e);
 		}
 		sh.set_default_subset_index(si_recycling[i]);
