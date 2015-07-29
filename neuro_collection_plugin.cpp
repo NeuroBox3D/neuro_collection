@@ -573,6 +573,7 @@ static void Common(Registry& reg, string grp)
 						"Sets mitochondrial surface.")
 			.add_method("set_psi", &T::set_psi,
 						"Sets mitochondrial membrane potential.")
+						.add_method("get_flux", &T::get_flux, "Debug method.")
 			.set_construct_as_smart_pointer(true);
 	}
 	{

@@ -19,7 +19,8 @@ namespace neuro_collection{
 
 MNCX::MNCX(const std::vector<std::string>& fcts) : IMembraneTransporter(fcts),
 F(0.096484), RT(2.5775),
-K_C(2.28e-3), K_N(9.14e-3), k(4.9)
+K_C(2.28e-9), K_N(9.14e-3), k(4.9)
+//K_C(2.1e-6), K_N(8.2e-3), k(0.0846) // Pradhan 2008
 {
 	m_psi 	= 0.0;
 
@@ -29,7 +30,8 @@ K_C(2.28e-3), K_N(9.14e-3), k(4.9)
 
 MNCX::MNCX(const char* fcts) : IMembraneTransporter(fcts),
 F(0.096484), RT(2.5775),
-K_C(2.28e-3), K_N(9.14e-3), k(4.9)
+K_C(2.28e-9), K_N(9.14e-3), k(4.9)
+//K_C(2.1e-6), K_N(8.2e-3), k(0.0846) // // Pradhan 2008
 {
 	m_psi 	= 0.0;
 
@@ -61,10 +63,10 @@ void MNCX::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<nu
 	double k_i  = k * exp(0.5*phi);
 	double k_o  = k * exp(-0.5*phi);
 
-	double in_term  = 1 + pow(naCyt, 3)/pow(K_N, 3) + caMit/K_C + caMit*pow(naCyt, 3)/(K_C*(pow(K_N, 3)));
-	double out_term = 1 + pow(naMit, 3)/pow(K_N, 3) + caCyt/K_C + caCyt*pow(naMit, 3)/(K_C*(pow(K_N, 3)));
+	double in_term  = pow(naCyt, 3)/pow(K_N, 3) + caMit/K_C + caMit*pow(naCyt, 3)/(K_C*(pow(K_N, 3)));
+	double out_term = pow(naMit, 3)/pow(K_N, 3) + caCyt/K_C + caCyt*pow(naMit, 3)/(K_C*(pow(K_N, 3)));
 
-	double D = in_term + out_term - 1;
+	double D = 1 + in_term + out_term;
 
 	double flux_in =  caMit*pow(naCyt, 3)/(K_C*pow(K_N, 3)) * k_i;
 	double flux_out = caCyt*pow(naMit, 3)/(K_C*pow(K_N, 3)) * k_o;
@@ -108,10 +110,10 @@ void MNCX::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vec
 	double k_i  = k * exp(0.5*phi);
 	double k_o  = k * exp(-0.5*phi);
 
-	double in_term  = 1 + pow(naCyt, 3)/pow(K_N, 3) + caMit/K_C + caMit*pow(naCyt, 3)/(K_C*(pow(K_N, 3)));
-	double out_term = 1 + pow(naMit, 3)/pow(K_N, 3) + caCyt/K_C + caCyt*pow(naMit, 3)/(K_C*(pow(K_N, 3)));
+	double in_term  = pow(naCyt, 3)/pow(K_N, 3) + caMit/K_C + caMit*pow(naCyt, 3)/(K_C*(pow(K_N, 3)));
+	double out_term = pow(naMit, 3)/pow(K_N, 3) + caCyt/K_C + caCyt*pow(naMit, 3)/(K_C*(pow(K_N, 3)));
 
-	double D = in_term + out_term - 1;
+	double D = 1 + in_term + out_term;
 
 	double flux_in =  caMit*pow(naCyt, 3)/(K_C*pow(K_N, 3)) * k_i;
 	double flux_out = caCyt*pow(naMit, 3)/(K_C*pow(K_N, 3)) * k_o;
@@ -258,6 +260,33 @@ void MNCX::set_mit_surface(number mit_surface)
 void MNCX::set_psi(number psi)
 {
 	m_psi = psi;
+}
+
+number MNCX::get_flux(number ca_cyt, number ca_mit, number na_cyt, number na_mit, number psi)
+{
+// 	get values of the unknowns in associated node
+	number caCyt = ca_cyt;	// cytosolic Ca2+ concentration
+	number caMit = ca_mit;	// mitochondrial Ca2+ concentration
+
+	number naCyt = na_cyt;	// cytosolic Na+ concentration
+	number naMit = na_mit;	// mitochondrial Na2+ concentration
+
+	double phi = F * psi / RT;
+
+	double k_i  = k * exp(0.5*phi);
+	double k_o  = k * exp(-0.5*phi);
+
+	double in_term  = pow(naCyt, 3)/pow(K_N, 3) + caMit/K_C + caMit*pow(naCyt, 3)/(K_C*(pow(K_N, 3)));
+	double out_term = pow(naMit, 3)/pow(K_N, 3) + caCyt/K_C + caCyt*pow(naMit, 3)/(K_C*(pow(K_N, 3)));
+
+	double D = 1 + in_term + out_term;
+
+	double flux_in =  caMit*pow(naCyt, 3)/(K_C*pow(K_N, 3)) * k_i;
+	double flux_out = caCyt*pow(naMit, 3)/(K_C*pow(K_N, 3)) * k_o;
+
+	double fluxes = 1/D*(flux_in - flux_out);
+
+	return fluxes;
 }
 
 

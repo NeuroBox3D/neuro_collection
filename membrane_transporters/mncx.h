@@ -131,6 +131,9 @@ class MNCX : public IMembraneTransporter
 
 		/// Sets mitochondrial membrane potential
 		void set_psi(number psi);
+
+		/// Debug method
+		number get_flux(number ca_cyt, number ca_mit, number na_cyt, number na_mit, number psi);
 };
 
 ///@}
