@@ -411,7 +411,8 @@ void BuildBouton(	bool bExtSpace, number radius, int numRefinements, int numRele
 
 
 //	Find corresponding vertices on the icosphere and assign evenly distributed vertices for release sites
-	number minDist, tmpMinDist;
+	number minDist = std::numeric_limits<number>::max();
+	number tmpMinDist;
 
 	for(VertexIterator vIter = grid.vertices_begin(); vIter != grid.vertices_end(); ++vIter)
 	{
@@ -441,7 +442,8 @@ void BuildBouton(	bool bExtSpace, number radius, int numRefinements, int numRele
 
 			// throw if !gotOne? -- otherwise the following instructions could be
 			// executed with tmpVrt uninit'ed or with a value from the previous iteration!
-			//if (!gotOne) UG_THROW("No vertex found.");
+			if (!gotOne)
+				UG_THROW("No vertex found.");
 
 			sel.deselect(tmpVrt);
 
