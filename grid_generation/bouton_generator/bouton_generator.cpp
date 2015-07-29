@@ -542,9 +542,9 @@ void BuildBouton(	bool bExtSpace, number radius, int numRefinements, int numRele
 		Extrude(grid, NULL, &vExtrusionEdges, NULL, vExtrDir, EO_CREATE_FACES);
 
 	//	Reassign root extrusion edges to mature_AZ subset
-		for(size_t i = 0; i < vTmpExtrusionEdges.size(); ++i)
+		for(size_t j = 0; j < vTmpExtrusionEdges.size(); ++j)
 		{
-			Edge* e = vTmpExtrusionEdges[i];
+			Edge* e = vTmpExtrusionEdges[j];
 
 			sh.assign_subset(e, si_mature_AZ);
 			sh.assign_subset(e->vertex(0), si_mature_AZ);
@@ -730,9 +730,9 @@ void BuildBouton(	bool bExtSpace, number radius, int numRefinements, int numRele
 		Extrude(grid, NULL, &vExtrusionEdges, NULL, vExtrDir, EO_CREATE_FACES);
 
 	//	Reassign root extrusion edges to mature_AZ subset
-		for(size_t i = 0; i < vTmpExtrusionEdges.size(); ++i)
+		for(size_t j = 0; j < vTmpExtrusionEdges.size(); ++j)
 		{
-			Edge* e = vTmpExtrusionEdges[i];
+			Edge* e = vTmpExtrusionEdges[j];
 
 			sh.assign_subset(e, si_immature_AZ);
 			sh.assign_subset(e->vertex(0), si_immature_AZ);
