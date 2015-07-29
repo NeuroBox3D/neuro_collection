@@ -71,6 +71,8 @@ void MNCX::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<nu
 
 	double fluxes = 1/D*(flux_in - flux_out);
 
+	UG_LOG("fluxes: " << fluxes << std::endl);
+
 //	Transform original flux umol/mg/min to mitochondrial flux umol/s
 //	1um^3 mitochondrial volume = 1e-9mg mitochondrial protein
 	fluxes *= 1e-9 * m_mit_volume;
@@ -125,13 +127,13 @@ void MNCX::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vec
 	dFlux_caMit *= 1e-9 * m_mit_volume / m_mit_surface * 1e-6 / 60.0;
 
 //  derivatives of naCyt
-	double dD_naCyt = 1.0/pow(K_N, 3) + 3*pow(naMit, 2)*caCyt/(K_C*pow(K_N, 3));
-	double dFlux_naCyt = -k_o*caCyt*3*pow(naMit, 2)/(K_C*pow(K_N, 3))/D - ((flux_in-flux_out)*dD_naCyt)/(D*D);
+	double dD_naCyt = 1.0/pow(K_N, 3) + 3*pow(naCyt, 2)*caMit/(K_C*pow(K_N, 3));
+	double dFlux_naCyt = k_i*caMit*3*pow(naCyt, 2)/(K_C*pow(K_N, 3))/D - ((flux_in-flux_out)*dD_naCyt)/(D*D);
 	dFlux_naCyt *= 3 * 1e-9 * m_mit_volume / m_mit_surface * 1e-6 / 60.0;
 
 //  derivatives of naMit
-	double dD_naMit = 1.0/pow(K_N, 3) + 3*pow(naCyt, 2)*caCyt/(K_C*pow(K_N, 3));
-	double dFlux_naMit = k_i*caMit*3*pow(naCyt, 2)/(K_C*pow(K_N, 3))/D - ((flux_in-flux_out)*dD_naMit)/(D*D);
+	double dD_naMit = 1.0/pow(K_N, 3) + 3*pow(naMit, 2)*caCyt/(K_C*pow(K_N, 3));
+	double dFlux_naMit = -k_o*caCyt*3*pow(naMit, 2)/(K_C*pow(K_N, 3))/D - ((flux_in-flux_out)*dD_naMit)/(D*D);
 	dFlux_naMit *= 3 * 1e-9 * m_mit_volume / m_mit_surface * 1e-6 / 60.0;
 
 	size_t i = 0;
@@ -183,8 +185,8 @@ size_t MNCX::n_fluxes() const
 const std::pair<size_t,size_t> MNCX::flux_from_to(size_t flux_i) const
 {
 	size_t from, to;
-	if (allows_flux(_CCYT_)) from = local_fct_index(_CCYT_); else from = InnerBoundaryConstants::_IGNORE_;
-	if (allows_flux(_CMIT_)) to = local_fct_index(_CMIT_); else to = InnerBoundaryConstants::_IGNORE_;
+	if (allows_flux(_CMIT_)) from = local_fct_index(_CMIT_); else from = InnerBoundaryConstants::_IGNORE_;
+	if (allows_flux(_CCYT_)) to = local_fct_index(_CCYT_); else to = InnerBoundaryConstants::_IGNORE_;
 
 	if (allows_flux(_NCYT_)) from = local_fct_index(_NCYT_); else from = InnerBoundaryConstants::_IGNORE_;
 	if (allows_flux(_NMIT_)) to = local_fct_index(_NMIT_); else to = InnerBoundaryConstants::_IGNORE_;
