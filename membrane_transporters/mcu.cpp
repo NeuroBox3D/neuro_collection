@@ -249,6 +249,35 @@ void MCU::set_rate_constant(number k)
 	m_k = k;
 }
 
+number MCU::get_flux(number ca_cyt, number ca_mit, number pi, number mg_cyt, number mg_mit, number psi)
+{
+// 	get values of the unknowns in associated node
+	number caCyt = ca_cyt;	// cytosolic Ca2+ concentration
+	number caMit = ca_mit;	// mitochondrial Ca2+ concentration
+
+	number mgCyt = mg_cyt;
+	number mgMit = mg_mit;
+
+	double KC 	= K_C * (1 + pi/(K_Pi+pi));
+	double KM 	= K_M / (1 + pi/(K_Pi+pi));
+
+	double phi = 2.0 * F * psi / RT;
+
+	double beta_e = 0.5 * (1 + nH/phi * log((phi/nH) / (sinh(phi/nH))));
+	double beta_x = 0.5 * (1 - nH/phi * log((phi/nH) / (sinh(phi/nH))));
+
+	double k_i = m_k * exp(2*beta_e*phi);
+	double k_o = m_k * exp(-2*beta_x*phi);
+
+	double D = 	1 + ((caCyt*caCyt)/(KC*KC)) + ((caMit*caMit)/(KC*KC)) +
+					((mgCyt*mgCyt)/(KM*KM)) + ((mgMit*mgMit)/(KM*KM)) +
+					((caCyt*caCyt*mgCyt*mgCyt)/(pow(g, 4)*KC*KC*KM*KM)) +
+					((caMit*caMit*mgMit*mgMit)/(pow(g, 4)*KC*KC*KM*KM));
+
+	double flux = 1/D * (k_i*((caCyt*caCyt)/(KC*KC)) - k_o*((caMit*caMit)/(KC*KC)));	// in nmol/mg/s
+	return flux;
+}
+
 
 } // namespace neuro_collection
 } // namespace ug

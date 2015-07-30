@@ -161,6 +161,9 @@ class MCU : public IMembraneTransporter
 
 		/// Sets rate constant k
 		void set_rate_constant(number k);
+
+		/// Debug method
+		number get_flux(number ca_cyt, number ca_mit, number pi, number mg_cyt, number mg_mit, number psi);
 };
 
 ///@}
