@@ -6,8 +6,15 @@
  */
 
 /*
- * Complex NCX model from Paper: "A Biophysically Based Mathematical Model for the Kinetics of Mitochondrial
+ * Complex NCX model from Papers:
+ *
+ * "A Biophysically Based Mathematical Model for the Kinetics of Mitochondrial
  * Na-Ca Antiporter" (using Model 1 and kinectic values of reference 1), Pradhan et al. 2010
+ *
+ * and
+ *
+ * "Analysis of cardiac mitochondrial Na Ca exchanger kinetics with a biophysical model of mitochondrial Ca handling
+ * suggests a 3-1 stoichiometry", Pradhan et al. 2008
  *
  */
 
@@ -42,11 +49,20 @@ namespace neuro_collection{
 
 /**
  * 	PARAMETER INFOS (s. "A Biophysically Based Mathematical Model for the Kinetics of Mitochondrial
- * 						 Na-Ca Antiporter" (using Model 1 and kinectic values of reference 3), Pradhan et al. 2010)
+ * 						 Na-Ca Antiporter" (using Model 1 and kinectic values of reference 3), Pradhan et al. 2010
  *
- *	Dissociation constants for Ca2+, Mg2+ and phosphate binding to the uniporter
- *		K_C 	= 2.28e-3	     	// in Mol
+ * 						 and
+ *
+ *				   		 "Analysis of cardiac mitochondrial Na Ca exchanger kinetics with a biophysical model of mitochondrial Ca handling
+ * 						 suggests a 3-1 stoichiometry", Pradhan et al. 2008)
+ *
+ *	Dissociation constants for Ca2+ and Mg2+ binding to the antiporter
+ *	Pradhan 2010:
+ *		K_C 	= 2.28e-9	     	// in Mol
  *		K_N 	= 9.14e-3; 			// in Mol
+ *	Pradhan 2008
+ *		K_C 	= 2.1e-6	     	// in Mol
+ *		K_N 	= 8.2e-3; 			// in Mol
  *
  *	Ratio of potential difference
  *	between Na2+ or Ca2+ bound to the site of antiporter
@@ -59,7 +75,10 @@ namespace neuro_collection{
  *		beta 	= 0.5				// unitless
  *
  *	Rate constant for limiting translocation of Ca2+ across the mitochondiral membrane
- *		k 		= 4.9;			 	// Reference Paucek & Jaburek in umol/mg/min
+ *		k 		= 4.9;			 	// Reference Paucek & Jaburek in umol/mg/min, Model 1 Pradhan 2010
+ *				= 0.081666			// Reference Paucek & Jaburek in umol/mg/s,   Model 1 Pradhan 2010
+ *		k 		= 1.41e-3;		 	// Reference Paucek & Jaburek in umol/mg/s,   Model   Pradhan 2008
+ *              = 0.0846 			// Reference Paucek & Jaburek in umol/mg/min  Model   Pradhan 2008
  *
  *	Mitochondrial membrane potential
  *		m_psi 	 					// in mV;

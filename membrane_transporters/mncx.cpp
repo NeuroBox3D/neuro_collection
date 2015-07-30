@@ -6,8 +6,15 @@
  */
 
 /*
- * Complex NCX model from Paper: "A Biophysically Based Mathematical Model for the Kinetics of Mitochondrial
+ * Complex NCX model from Papers:
+ *
+ * "A Biophysically Based Mathematical Model for the Kinetics of Mitochondrial
  * Na-Ca Antiporter" (using Model 1 and kinectic values of reference 1), Pradhan et al. 2010
+ *
+ * and
+ *
+ * "Analysis of cardiac mitochondrial Na Ca exchanger kinetics with a biophysical model of mitochondrial Ca handling
+ * suggests a 3-1 stoichiometry", Pradhan et al. 2008
  *
  */
 
@@ -19,8 +26,8 @@ namespace neuro_collection{
 
 MNCX::MNCX(const std::vector<std::string>& fcts) : IMembraneTransporter(fcts),
 F(0.096484), RT(2.5775),
-K_C(2.28e-9), K_N(9.14e-3), k(4.9)
-//K_C(2.1e-6), K_N(8.2e-3), k(0.0846) // Pradhan 2008
+//K_C(2.28e-9), K_N(9.14e-3), k(0.081666) // Pradhan 2010
+K_C(2.1e-6), K_N(8.2e-3), k(1.41e-3)  // Pradhan 2008 <- reproduces data correctly
 {
 	m_psi 	= 0.0;
 
@@ -30,8 +37,8 @@ K_C(2.28e-9), K_N(9.14e-3), k(4.9)
 
 MNCX::MNCX(const char* fcts) : IMembraneTransporter(fcts),
 F(0.096484), RT(2.5775),
-K_C(2.28e-9), K_N(9.14e-3), k(4.9)
-//K_C(2.1e-6), K_N(8.2e-3), k(0.0846) // // Pradhan 2008
+//K_C(2.28e-9), K_N(9.14e-3), k(0.081666) // Pradhan 2010
+K_C(2.1e-6), K_N(8.2e-3), k(1.41e-3)  // Pradhan 2008 <- reproduces data correctly
 {
 	m_psi 	= 0.0;
 
@@ -73,22 +80,20 @@ void MNCX::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<nu
 
 	double fluxes = 1/D*(flux_in - flux_out);
 
-	UG_LOG("fluxes: " << fluxes << std::endl);
-
-//	Transform original flux umol/mg/min to mitochondrial flux umol/s
+//	Transform original flux umol/mg/s to mitochondrial flux umol/s
 //	1um^3 mitochondrial volume = 1e-9mg mitochondrial protein
 	fluxes *= 1e-9 * m_mit_volume;
 
-//  Transform mitochondrial flux umol/min to flux umol/um^2/s
+//  Transform mitochondrial flux umol/s to flux umol/um^2/s
 	fluxes *= 1.0 / m_mit_surface;
 
-//  Transform mitochondrial flux umol/um^2/min to mol/um^2/min
+//  Transform mitochondrial flux umol/um^2/s to mol/um^2/s
 	fluxes *= 1e-6;
 
-//  Transform mitochondrial flux mol/um^2/min to mol/um^2/s
-	fluxes *= (1.0/60.0);
-
+//	Ca2+ flux
 	flux[0] = fluxes;
+
+//	Na2+ flux
 	flux[1] = fluxes*3;
 }
 
@@ -118,49 +123,71 @@ void MNCX::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vec
 	double flux_in =  caMit*pow(naCyt, 3)/(K_C*pow(K_N, 3)) * k_i;
 	double flux_out = caCyt*pow(naMit, 3)/(K_C*pow(K_N, 3)) * k_o;
 
-//  derivatives of caCyt
+
+//  flux[0] (Ca2+ flux) derivative w.r.t caCyt
 	double dD_caCyt = 1.0/K_C + pow(naMit, 3)/(K_C*pow(K_N, 3));
-	double dFlux_caCyt = -k_o*pow(naMit, 3)/(K_C*pow(K_N, 3))/D - ((flux_in-flux_out)*dD_caCyt)/(D*D);
-	dFlux_caCyt *= 1e-9 * m_mit_volume / m_mit_surface * 1e-6 / 60.0;
+	double dFlux0_caCyt = -k_o*pow(naMit, 3)/(K_C*pow(K_N, 3))/D - ((flux_in-flux_out)*dD_caCyt)/(D*D);
+	dFlux0_caCyt *= 1e-9 * m_mit_volume / m_mit_surface * 1e-6;
 
-//  derivatives of caMit
+//  flux[0] (Ca2+ flux) derivative w.r.t caMit
 	double dD_caMit = 1.0/K_C + pow(naCyt, 3)/(K_C*pow(K_N, 3));
-	double dFlux_caMit = k_i*pow(naCyt, 3)/(K_C*pow(K_N, 3))/D - ((flux_in-flux_out)*dD_caMit)/(D*D);
-	dFlux_caMit *= 1e-9 * m_mit_volume / m_mit_surface * 1e-6 / 60.0;
+	double dFlux0_caMit = k_i*pow(naCyt, 3)/(K_C*pow(K_N, 3))/D - ((flux_in-flux_out)*dD_caMit)/(D*D);
+	dFlux0_caMit *= 1e-9 * m_mit_volume / m_mit_surface * 1e-6;
 
-//  derivatives of naCyt
+//  flux[0] (Ca2+ flux) derivative w.r.t naCyt
 	double dD_naCyt = 1.0/pow(K_N, 3) + 3*pow(naCyt, 2)*caMit/(K_C*pow(K_N, 3));
-	double dFlux_naCyt = k_i*caMit*3*pow(naCyt, 2)/(K_C*pow(K_N, 3))/D - ((flux_in-flux_out)*dD_naCyt)/(D*D);
-	dFlux_naCyt *= 3 * 1e-9 * m_mit_volume / m_mit_surface * 1e-6 / 60.0;
+	double dFlux0_naCyt = k_i*caMit*3*pow(naCyt, 2)/(K_C*pow(K_N, 3))/D - ((flux_in-flux_out)*dD_naCyt)/(D*D);
+	dFlux0_naCyt *= 1e-9 * m_mit_volume / m_mit_surface * 1e-6;
 
-//  derivatives of naMit
+//  flux[0] (Ca2+ flux) derivative w.r.t naMit
 	double dD_naMit = 1.0/pow(K_N, 3) + 3*pow(naMit, 2)*caCyt/(K_C*pow(K_N, 3));
-	double dFlux_naMit = -k_o*caCyt*3*pow(naMit, 2)/(K_C*pow(K_N, 3))/D - ((flux_in-flux_out)*dD_naMit)/(D*D);
-	dFlux_naMit *= 3 * 1e-9 * m_mit_volume / m_mit_surface * 1e-6 / 60.0;
+	double dFlux0_naMit = -k_o*caCyt*3*pow(naMit, 2)/(K_C*pow(K_N, 3))/D - ((flux_in-flux_out)*dD_naMit)/(D*D);
+	dFlux0_naMit *= 1e-9 * m_mit_volume / m_mit_surface * 1e-6;
+
+//  flux[1] (Na2+ flux) derivative w.r.t caCyt
+	double dFlux1_caCyt = dFlux0_caCyt*3;
+
+//  flux[1] (Na2+ flux) derivative w.r.t caMit
+	double dFlux1_caMit = dFlux0_caMit*3;
+
+//  flux[1] (Na2+ flux) derivative w.r.t naCyt
+	double dFlux1_naCyt = dFlux0_naCyt*3;
+
+//  flux[1] (Na2+ flux) derivative w.r.t naMit
+	double dFlux1_naMit = dFlux0_naMit*3;
+
 
 	size_t i = 0;
 	if (!has_constant_value(_CCYT_))
 	{
 		flux_derivs[0][i].first = local_fct_index(_CCYT_);
-		flux_derivs[0][i].second = dFlux_caCyt;
+		flux_derivs[0][i].second = dFlux0_caCyt;
+		flux_derivs[1][i].first = local_fct_index(_CCYT_);
+		flux_derivs[1][i].second = dFlux1_caCyt;
 		i++;
 	}
 	if (!has_constant_value(_CMIT_))
 	{
 		flux_derivs[0][i].first = local_fct_index(_CMIT_);
-		flux_derivs[0][i].second = dFlux_caMit;
+		flux_derivs[0][i].second = dFlux0_caMit;
+		flux_derivs[1][i].first = local_fct_index(_CMIT_);
+		flux_derivs[1][i].second = dFlux1_caMit;
 		i++;
 	}
 	if (!has_constant_value(_NCYT_))
 	{
 		flux_derivs[0][i].first = local_fct_index(_NCYT_);
-		flux_derivs[0][i].second = dFlux_naCyt;
+		flux_derivs[0][i].second = dFlux0_naCyt;
+		flux_derivs[1][i].first = local_fct_index(_NCYT_);
+		flux_derivs[1][i].second = dFlux1_naCyt;
 		i++;
 	}
 	if (!has_constant_value(_NMIT_))
 	{
 		flux_derivs[0][i].first = local_fct_index(_NMIT_);
-		flux_derivs[0][i].second = dFlux_naMit;
+		flux_derivs[0][i].second = dFlux0_naMit;
+		flux_derivs[1][i].first = local_fct_index(_NMIT_);
+		flux_derivs[1][i].second = dFlux1_naMit;
 		i++;
 	}
 }
@@ -187,11 +214,19 @@ size_t MNCX::n_fluxes() const
 const std::pair<size_t,size_t> MNCX::flux_from_to(size_t flux_i) const
 {
 	size_t from, to;
-	if (allows_flux(_CMIT_)) from = local_fct_index(_CMIT_); else from = InnerBoundaryConstants::_IGNORE_;
-	if (allows_flux(_CCYT_)) to = local_fct_index(_CCYT_); else to = InnerBoundaryConstants::_IGNORE_;
 
-	if (allows_flux(_NCYT_)) from = local_fct_index(_NCYT_); else from = InnerBoundaryConstants::_IGNORE_;
-	if (allows_flux(_NMIT_)) to = local_fct_index(_NMIT_); else to = InnerBoundaryConstants::_IGNORE_;
+//	Configuration for Ca2+ flux function flux[0]
+	if(flux_i == 0)
+	{
+		if (allows_flux(_CMIT_)) from = local_fct_index(_CMIT_); else from = InnerBoundaryConstants::_IGNORE_;
+		if (allows_flux(_CCYT_)) to = local_fct_index(_CCYT_); else to = InnerBoundaryConstants::_IGNORE_;
+	}
+//	Configuration for Na2+ flux function flux[1]
+	else
+	{
+		if (allows_flux(_NCYT_)) from = local_fct_index(_NCYT_); else from = InnerBoundaryConstants::_IGNORE_;
+		if (allows_flux(_NMIT_)) to = local_fct_index(_NMIT_); else to = InnerBoundaryConstants::_IGNORE_;
+	}
 
 	return std::pair<size_t, size_t>(from, to);
 }
