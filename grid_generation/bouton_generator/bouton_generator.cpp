@@ -425,7 +425,7 @@ void BuildBouton(	bool bExtSpace, number radius, int numRefinements, int numRele
 		for(size_t i = 0; i < coords.size(); ++i)
 		{
 			bool gotOne = false;
-			Vertex* tmpVrt;
+			Vertex* tmpVrt = NULL;
 
 			for(VertexIterator vIter = grid.vertices_begin(); vIter != grid.vertices_end(); ++vIter)
 			{
@@ -442,7 +442,7 @@ void BuildBouton(	bool bExtSpace, number radius, int numRefinements, int numRele
 
 			// throw if !gotOne? -- otherwise the following instructions could be
 			// executed with tmpVrt uninit'ed or with a value from the previous iteration!
-			if (!gotOne)
+			if (!tmpVrt)
 				UG_THROW("No vertex found.");
 
 			sel.deselect(tmpVrt);
