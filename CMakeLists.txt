@@ -11,7 +11,6 @@
 
 # name of plugin, path to plugin (relative to ug's root path) and sources
 set(pluginName	neuro_collection)
-set(pluginPath	plugins/experimental/neuro_collection)
 set(SOURCES    neuro_collection_plugin.cpp
 			   buffer_fv1.cpp
 			   membrane_transport_fv1.cpp
@@ -105,11 +104,11 @@ cmake_minimum_required(VERSION 2.6)
 project(UG_PLUGIN_${pluginName})
 
 # include the definitions and dependencies for ug-plugins.
-include("../../../cmake/ug_plugin_includes.cmake")
+include(${UG_ROOT_CMAKE_PATH}/ug_plugin_includes.cmake)
 
 if(buildEmbeddedPlugins)
 	# add the sources to ug4's sources
-	EXPORTSOURCES(${pluginPath} ${SOURCES})
+	EXPORTSOURCES(${CMAKE_CURRENT_SOURCE_DIR} ${SOURCES})
 	#exportDependencies(${ANN_LIBRARY})
 	#exportIncludes(${ANN_INCLUDE_DIR})
 else(buildEmbeddedPlugins)
