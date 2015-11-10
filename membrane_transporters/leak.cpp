@@ -62,7 +62,7 @@ void Leak::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vec
 
 
 // return number of unknowns this transport mechanism depends on
-const size_t Leak::n_dependencies() const
+size_t Leak::n_dependencies() const
 {
 	size_t n = 2;
 	if (has_constant_value(_S_))

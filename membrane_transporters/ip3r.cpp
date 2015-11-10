@@ -94,7 +94,7 @@ void IP3R::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vec
 }
 
 
-const size_t IP3R::n_dependencies() const
+size_t IP3R::n_dependencies() const
 {
 	size_t n = 3;
 	for (size_t i = 0; i < 3; i++)

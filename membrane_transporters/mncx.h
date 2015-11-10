@@ -122,7 +122,7 @@ class MNCX : public IMembraneTransporter
 		virtual void calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
 
 		/// @copydoc IMembraneTransporter::n_dependencies()
-		virtual const size_t n_dependencies() const;
+		virtual size_t n_dependencies() const;
 
 		/// @copydoc IMembraneTransporter::n_fluxes()
 		virtual size_t n_fluxes() const;

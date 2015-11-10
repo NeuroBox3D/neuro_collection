@@ -133,7 +133,7 @@ const std::vector<std::string>& IMembraneTransporter::symb_fcts() const
 	return m_vFct;
 }
 
-const size_t IMembraneTransporter::local_fct_index(const size_t i) const
+size_t IMembraneTransporter::local_fct_index(const size_t i) const
 {
 	std::map<size_t,size_t>::const_iterator it = m_mfInd.find(i);
 	if (it == m_mfInd.end())
@@ -165,7 +165,7 @@ void IMembraneTransporter::set_constant(const size_t i, const number val)
 	m_mConstVal[i] = val;
 }
 
-const bool IMembraneTransporter::has_constant_value(const size_t i, number& val) const
+bool IMembraneTransporter::has_constant_value(const size_t i, number& val) const
 {
 	std::map<size_t, number>::const_iterator mit = m_mConstVal.find(i);
 	if (mit == m_mConstVal.end())
@@ -176,7 +176,7 @@ const bool IMembraneTransporter::has_constant_value(const size_t i, number& val)
 	return true;
 }
 
-const bool IMembraneTransporter::has_constant_value(const size_t i) const
+bool IMembraneTransporter::has_constant_value(const size_t i) const
 {
 	if (m_mConstVal.find(i) == m_mConstVal.end())
 		return false;
@@ -184,7 +184,7 @@ const bool IMembraneTransporter::has_constant_value(const size_t i) const
 	return true;
 }
 
-const bool IMembraneTransporter::allows_flux(const size_t i) const
+bool IMembraneTransporter::allows_flux(const size_t i) const
 {
 	if (m_mfInd.find(i) == m_mfInd.end())
 		return false;
@@ -289,7 +289,7 @@ void IMembraneTransporter::check_and_lock()
 	m_bLocked = true;
 }
 
-const bool IMembraneTransporter::is_locked() const
+bool IMembraneTransporter::is_locked() const
 {
 	return m_bLocked;
 }

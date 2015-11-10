@@ -197,7 +197,7 @@ class IMembraneTransporter
 		 *
 		 * @return   number of unknowns this transport mechanism depends on
 		 */
-		virtual const size_t n_dependencies() const = 0;
+		virtual size_t n_dependencies() const = 0;
 
 		/**
 		 * @brief Number of fluxes realized by this mechanism
@@ -261,7 +261,7 @@ class IMembraneTransporter
 		 * @param i   index (from constructor) which a supplied function index is requested for
 		 * @return    local function index for the requested unknown index
 		 */
-		const size_t local_fct_index(const size_t i) const;
+		size_t local_fct_index(const size_t i) const;
 
 		/**
 		 * @brief Check whether the combination of supplied functions is allowed
@@ -299,7 +299,7 @@ class IMembraneTransporter
 		 * @param val   constant value (if set)
 		 * @return      true iff function of desired index is set constant
 		 */
-		const bool has_constant_value(const size_t i, number& val) const;
+		bool has_constant_value(const size_t i, number& val) const;
 
 		/**
 		 * @brief Check whether the unknown of an index is set constant
@@ -309,7 +309,7 @@ class IMembraneTransporter
 		 * @param i     index to be checked
 		 * @return      true iff function of specified index is set constant
 		 */
-		const bool has_constant_value(const size_t i) const;
+		bool has_constant_value(const size_t i) const;
 
 		/**
 		 * @brief Check whether the unknown of an index is a supplied function
@@ -325,7 +325,7 @@ class IMembraneTransporter
 		 * @param i   index to be checked
 		 * @return    true iff the specified index belongs to a supplied function
 		 */
-		const bool allows_flux(const size_t i) const;
+		bool allows_flux(const size_t i) const;
 
 		/**
 		 * @brief Prints the units this implementation uses for inputs and flux outputs
@@ -403,7 +403,7 @@ class IMembraneTransporter
 		 *
 		 * @return true iff lock has been set
 		 */
-		const bool is_locked() const;
+		bool is_locked() const;
 
 	private:
 		/**

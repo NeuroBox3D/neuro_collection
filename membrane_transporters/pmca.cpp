@@ -56,7 +56,7 @@ void PMCA::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vec
 }
 
 
-const size_t PMCA::n_dependencies() const
+size_t PMCA::n_dependencies() const
 {
 	return 1;
 }

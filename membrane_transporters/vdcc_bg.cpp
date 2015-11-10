@@ -227,7 +227,7 @@ void VDCC_BG<TDomain>::calc_flux_deriv(const std::vector<number>& u, GridObject*
 
 
 template<typename TDomain>
-const size_t VDCC_BG<TDomain>::n_dependencies() const
+size_t VDCC_BG<TDomain>::n_dependencies() const
 {
 	size_t n = 2;
 	if (has_constant_value(_CCYT_)) n--;

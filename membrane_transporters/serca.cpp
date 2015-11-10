@@ -63,7 +63,7 @@ void SERCA::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::ve
 }
 
 
-const size_t SERCA::n_dependencies() const
+size_t SERCA::n_dependencies() const
 {
 	size_t n = 2;
 	if (has_constant_value(_CCYT_))

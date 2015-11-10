@@ -56,7 +56,7 @@ void NCX::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vect
 }
 
 
-const size_t NCX::n_dependencies() const
+size_t NCX::n_dependencies() const
 {
 	return 1;
 }

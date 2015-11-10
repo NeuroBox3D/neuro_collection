@@ -193,7 +193,7 @@ void MNCX::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vec
 }
 
 
-const size_t MNCX::n_dependencies() const
+size_t MNCX::n_dependencies() const
 {
 	size_t n = 4;
 	if (has_constant_value(_CCYT_)) n--;
