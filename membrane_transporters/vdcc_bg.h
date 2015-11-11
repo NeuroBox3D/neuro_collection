@@ -13,11 +13,11 @@
 #include "lib_disc/domain.h"
 #include "lib_grid/lg_base.h"
 #include "lib_disc/spatial_disc/elem_disc/inner_boundary/inner_boundary.h"
-#include "../plugins/experimental/membrane_potential_mapping/vm2ug_rework.h"
-#include "../plugins/experimental/membrane_potential_mapping/transformator.h"
+#include "../plugins/MembranePotentialMapping/vm2ug_rework.h"
+#include "../plugins/MembranePotentialMapping/transformator.h"
 
 #ifdef MPMNEURON
-#include "../plugins/experimental/membrane_potential_mapping/neuron_mpm.h"
+#include "../plugins/MembranePotentialMapping/neuron_mpm.h"
 #endif
 
 #include <locale>	// for control over the decimal separator (point instead of comma, please!)
