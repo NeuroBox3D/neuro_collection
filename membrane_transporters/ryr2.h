@@ -32,11 +32,16 @@ namespace neuro_collection{
  * Ca flux   mol/s
  */
 
+template<typename TDomain>
 class RyR2 : public IMembraneTransporter
 {
 	public:
 		enum{_CCYT_=0, _CER_};
 
+		static const int dim = TDomain::dim;	//!< world dimension
+
+		typedef typename GeomObjBaseTypeByDim<dim>::base_obj_type elem_t;
+		typedef typename elem_t::side side_t;
 
 	protected:
 		const number R;			// universal gas constant
@@ -55,13 +60,16 @@ class RyR2 : public IMembraneTransporter
 
 	public:
 		/// @copydoc IMembraneTransporter::IMembraneTransporter(const std::vector<std::string)
-		RyR(const std::vector<std::string>& fcts);
+		RyR2(const std::vector<std::string>& fcts, SmartPtr<ApproximationSpace<TDomain> > approx);
 
 		/// @copydoc IMembraneTransporter::IMembraneTransporter()
-		RyR(const char* fcts);
+		RyR2(const char* fcts, SmartPtr<ApproximationSpace<TDomain> > approx);
 
 		/// @copydoc IMembraneTransporter::IMembraneTransporter()
-		virtual ~RyR();
+		virtual ~RyR2();
+
+		/// @copydoc IMembraneTransporter::prep_timestep()
+		virtual void prep_timestep (const number time);
 
 		/// @copydoc IMembraneTransporter::calc_flux()
 		virtual void calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const;
@@ -88,15 +96,25 @@ class RyR2 : public IMembraneTransporter
 		virtual void print_units() const;
 
 	protected:
+		/*
 		SmartPtr<TDomain> m_dom;							//!< underlying domain
 		SmartPtr<Grid> m_mg;								//!< underlying multigrid
+		SmartPtr<DoFDistribution> m_dd;						//!< underlying surface dof distribution
+		ConstSmartPtr<MGSubsetHandler> m_sh;				//!< underlying subset handler
+		typename TDomain::position_accessor_type& m_aaPos;	//!< underlying position accessor
 
-		ADouble m_O1;								//!< proportion of channels currently in state O1
-		ADouble m_O2;								//!< proportion of channels currently in state O2
-		ADouble m_C1;								//!< proportion of channels currently in state C1
-		ADouble m_C2;								//!< proportion of channels currently in state C2
+		std::vector<std::string> m_vSubset;					//!< subsets this channel exists on
+		 */
+
+		ADouble m_aO1;								//!< proportion of channels currently in state O1
+		ADouble m_aO2;								//!< proportion of channels currently in state O2
+		ADouble m_aC1;								//!< proportion of channels currently in state C1
+		ADouble m_aC2;								//!< proportion of channels currently in state C2
 
 		Grid::AttachmentAccessor<side_t, ADouble> m_aaO1;		//!< accessor for channels
+		Grid::AttachmentAccessor<side_t, ADouble> m_aaO2;		//!< accessor for channels
+		Grid::AttachmentAccessor<side_t, ADouble> m_aaC1;		//!< accessor for channels
+		Grid::AttachmentAccessor<side_t, ADouble> m_aaC2;		//!< accessor for channels
 
 		number m_time;								//!< current time
 		number m_oldTime;							//!< time step before current time

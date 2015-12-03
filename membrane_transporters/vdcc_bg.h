@@ -81,7 +81,7 @@ class VDCC_BG : public IMembraneTransporter
 		enum {BG_Ntype, BG_Ltype, BG_Ttype};
 		enum{_CCYT_=0, _CEXT_};
 
-		static const int dim =TDomain::dim;	//!< world dimension
+		static const int dim = TDomain::dim;	//!< world dimension
 
 		// some type definitions
 		typedef VDCC_BG<TDomain> this_type;

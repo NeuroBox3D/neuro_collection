@@ -11,61 +11,104 @@
 namespace ug{
 namespace neuro_collection{
 
-
-RyR2::RyR2(const std::vector<std::string>& fcts) : IMembraneTransporter(fcts),
+template<typename TDomain>
+RyR2<TDomain>::
+RyR2
+(
+	const std::vector<std::string>& fcts,
+	SmartPtr<ApproximationSpace<TDomain> > approx
+)
+: IMembraneTransporter(fcts),
 R(8.314), T(310.0), F(96485.0),
 KAplus(5.21e13), KBplus(3.89e9), KCplus(17.5), MU_RYR(5.0e-11),
 KAminus(5.21e13), KBminus(3.89e9), KCminus(17.5), REF_CA_ER(2.5e-1),
-m_dom(approx->domain()), m_mg(m_dom->grid()), m_time(0.0), m_oldTime(0.0)
-{
-	if (m_mg->template has_attachment<side_t>(this->m_O1))
-			UG_THROW("Attachment necessary for RyR channel dynamics "
-					 "could not be made, since it already exists.");
-		m_mg->template attach_to<side_t>(this->m_O1);
+m_time(0.0), m_oldTime(0.0)
+{}
 
-	m_aaO1 = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_O1);
-};
-
-RyR2::RyR2(const char* fcts) : IMembraneTransporter(fcts),
+template<typename TDomain>
+RyR2<TDomain>::
+RyR2
+(
+	const char* fcts,
+	SmartPtr<ApproximationSpace<TDomain> > approx
+)
+: IMembraneTransporter(fcts),
 R(8.314), T(310.0), F(96485.0),
 KAplus(5.21e13), KBplus(3.89e9), KCplus(17.5), MU_RYR(5.0e-11),
 KAminus(5.21e13), KBminus(3.89e9), KCminus(17.5), REF_CA_ER(2.5e-1),
-m_dom(approx->domain()), m_time(0.0), m_oldTime(0.0), m_mg(m_dom->grid())
+m_time(0.0), m_oldTime(0.0)
 {
-	if (m_mg->template has_attachment<side_t>(this->m_O1))
-				UG_THROW("Attachment necessary for RyR channel dynamics "
-						 "could not be made, since it already exists.");
-		m_mg->template attach_to<side_t>(this->m_O1);
+	SmartPtr<MultiGrid> mg = approx->domain()->grid();
 
-	if (m_mg->template has_attachment<side_t>(this->m_O2))
-				UG_THROW("Attachment necessary for RyR channel dynamics "
-						 "could not be made, since it already exists.");
-		m_mg->template attach_to<side_t>(this->m_O2);
+	if (mg->template has_attachment<side_t>(this->m_aO1))
+	UG_THROW("Attachment necessary for RyR channel dynamics "
+			 "could not be made, since it already exists.");
+	mg->template attach_to<side_t>(this->m_aO1);
 
-	if (m_mg->template has_attachment<side_t>(this->m_C1))
-				UG_THROW("Attachment necessary for RyR channel dynamics "
-						 "could not be made, since it already exists.");
-		m_mg->template attach_to<side_t>(this->m_C1);
+	if (mg->template has_attachment<side_t>(this->m_aO2))
+		UG_THROW("Attachment necessary for RyR channel dynamics "
+				 "could not be made, since it already exists.");
+	mg->template attach_to<side_t>(this->m_aO2);
 
-	if (m_mg->template has_attachment<side_t>(this->m_C2))
-				UG_THROW("Attachment necessary for RyR channel dynamics "
-						 "could not be made, since it already exists.");
-		m_mg->template attach_to<side_t>(this->m_C2);
+	if (mg->template has_attachment<side_t>(this->m_aC1))
+		UG_THROW("Attachment necessary for RyR channel dynamics "
+				 "could not be made, since it already exists.");
+	mg->template attach_to<side_t>(this->m_aC1);
 
-	m_aaO1 = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_O1);
-	m_aaO2 = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_O2);
-	m_aaC1 = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_C1);
-	m_aaC2 = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_C2);
-};
+	if (mg->template has_attachment<side_t>(this->m_aC2))
+		UG_THROW("Attachment necessary for RyR channel dynamics "
+				 "could not be made, since it already exists.");
+	mg->template attach_to<side_t>(this->m_aC2);
+
+	m_aaO1 = Grid::AttachmentAccessor<side_t, ADouble>(*mg, m_aO1);
+	m_aaO2 = Grid::AttachmentAccessor<side_t, ADouble>(*mg, m_aO2);
+	m_aaC1 = Grid::AttachmentAccessor<side_t, ADouble>(*mg, m_aC1);
+	m_aaC2 = Grid::AttachmentAccessor<side_t, ADouble>(*mg, m_aC2);
+}
 
 
-RyR2::~RyR2()
+template<typename TDomain>
+RyR2<TDomain>::~RyR2()
 {
 	m_mg->template detach_from<side_t>(this->m_Vm);
 };
 
 
-void RyR2::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
+template <typename TDomain>
+void RyR2<TDomain>::prep_timestep(const number time)
+{
+	// loop sides and update potential and then gatings
+	typedef typename DoFDistribution::traits<side_t>::const_iterator it_type;
+	it_type it = m_dd->begin<side_t>();
+	it_type it_end = m_dd->end<side_t>();
+
+	for (; it != it_end; ++it)
+	{
+		number& pO2 = m_aaO2[*it];
+		number& pO1 = m_aaO1[*it];
+		number& pC2 = m_aaC2[*it];
+		number& pC1 = m_aaC1[*it];
+
+		// get Ca_cyt and ca_er from somewhere!?
+
+		// implicit Euler!
+		//pO2 *= 1.0 / (...)
+
+	/*
+	 number pO2 = pO2 + 1/h * dpO2;
+		number pC1 = pC1 + 1/h * dpC1;
+		number pC2 = pC1 + 1/h * dpC1;
+		number pO1 = 1 - pO2 - pC1 - pC2;
+		*/
+	}
+}
+
+
+//TODO:  add init method; init in equilibrium state!
+
+
+template<typename TDomain>
+void RyR2<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
 {
 	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
 	number caER = u[_CER_];		// ER Ca2+ concentration
@@ -75,58 +118,36 @@ void RyR2::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<nu
 	number current = R*T/(4*F*F) * MU_RYR/REF_CA_ER * (caER - caCyt);
 
 	// open probability
-	number pO2 = pO2 + 1/h * dpO2;
-	number pC1 = pC1 + 1/h * dpC1;
-	number pC2 = pC1 + 1/h * dpC1;
-	number pO1 = 1 - pO2 - pC1 - pC2;
-	number pOpen = pO1 + pO2;
+	number pOpen = m_aaO1[e] + m_aaO2[e];
 	//number pOpen =  (1.0 + KB*pow(caCyt,3)) / (1.0 + KC + 1.0/(KA*pow(caCyt,4)) + KB*pow(caCyt,3));
 
 	flux[0] = pOpen * current;
 }
 
 
-void RyR2::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
+template<typename TDomain>
+void RyR2<TDomain>::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
-	// get values of the unknowns in associated node
-	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
-	number caER = u[_CER_];		// ER Ca2+ concentration
-
-	// membrane potential
-	number current = R*T/(4*F*F) * MU_RYR/REF_CA_ER * (caER - caCyt);
-	number dI_dCyt = - R*T/(4*F*F) * MU_RYR/REF_CA_ER;
-	number dI_dER = -dI_dCyt;
-
-	// RyR flux derivs
-	//number schlonz1 = 1.0 + KB*pow(caCyt,3);
-	//number schlonz2 = 1.0 + KC + 1.0/(KA*pow(caCyt,4)) + KB*pow(caCyt,3);
-	//number pOpen = schlonz1 / schlonz2;
-
-	//number dOpen_dCyt = (3.0*KB*caCyt*caCyt + schlonz1/schlonz2*(4.0/(KA*pow(caCyt,5)) - 3.0*KB*caCyt*caCyt)) / schlonz2;
-
-	// RyR2 derivs - change to equations from model0 paper
-	number dpO1 = KAplus * caCyt * pC1 - KAminus * pO1 - KBplus * caCyt * pO1 + KBminus * pO2 - KCplus * pO1 + KCminus * pC2;
-	number dpO2 = KBplus * caCyt * pO1 - KBminus * pO2;
-	number dpC1 = KAminus * pO1 - KAplus * caCyt * pC1;
-	number dpC2 = KCplus * pO1 - KCminus * pC2;
-
+	// we do not need to calculate any derivatives
+	// as the whole channel dynamic is only considered in an explicit fashion
 	size_t i = 0;
 	if (!has_constant_value(_CCYT_))
 	{
 		flux_derivs[0][i].first = local_fct_index(_CCYT_);
-		flux_derivs[0][i].second = (dpO1 + dpO2) * current + (pO1 + pO2) * dI_dCyt;
+		flux_derivs[0][i].second = 0.0;
 		i++;
 	}
 	if (!has_constant_value(_CER_))
 	{
 		flux_derivs[0][i].first = local_fct_index(_CER_);
-		flux_derivs[0][i].second = (pO1 + pO2) * dI_dER;
+		flux_derivs[0][i].second = 0.0;
 		i++;
 	}
 }
 
 
-const size_t RyR2::n_dependencies() const
+template<typename TDomain>
+const size_t RyR2<TDomain>::n_dependencies() const
 {
 	size_t n = 2;
 	if (has_constant_value(_CCYT_))
@@ -138,13 +159,15 @@ const size_t RyR2::n_dependencies() const
 }
 
 
-size_t RyR2::n_fluxes() const
+template<typename TDomain>
+size_t RyR2<TDomain>::n_fluxes() const
 {
 	return 1;
 };
 
 
-const std::pair<size_t,size_t> RyR2::flux_from_to(size_t flux_i) const
+template<typename TDomain>
+const std::pair<size_t,size_t> RyR2<TDomain>::flux_from_to(size_t flux_i) const
 {
     size_t from, to;
     if (allows_flux(_CCYT_)) to = local_fct_index(_CCYT_); else to = InnerBoundaryConstants::_IGNORE_;
@@ -154,13 +177,15 @@ const std::pair<size_t,size_t> RyR2::flux_from_to(size_t flux_i) const
 }
 
 
-const std::string RyR2::name() const
+template<typename TDomain>
+const std::string RyR2<TDomain>::name() const
 {
 	return std::string("RyR2");
 };
 
 
-void RyR2::check_supplied_functions() const
+template<typename TDomain>
+void RyR2<TDomain>::check_supplied_functions() const
 {
 	// Check that not both, inner and outer calcium concentrations are not supplied;
 	// in that case, calculation of a flux would be of no consequence.
@@ -173,7 +198,8 @@ void RyR2::check_supplied_functions() const
 }
 
 
-void RyR2::print_units() const
+template<typename TDomain>
+void RyR2<TDomain>::print_units() const
 {
 	std::string nm = name();
 	size_t n = nm.size();
@@ -191,7 +217,9 @@ void RyR2::print_units() const
 	UG_LOG(std::endl);
 }
 
-void RyR2::update_time(const number newTime)
+
+template<typename TDomain>
+void RyR2<TDomain>::update_time(const number newTime)
 {
 	if (newTime != m_time)
 	{
@@ -199,6 +227,18 @@ void RyR2::update_time(const number newTime)
 		m_time = newTime;
 	}
 }
+
+
+// explicit template specializations
+#ifdef UG_DIM_1
+	template class RyR2<Domain1d>;
+#endif
+#ifdef UG_DIM_2
+	template class RyR2<Domain2d>;
+#endif
+#ifdef UG_DIM_3
+	template class RyR2<Domain3d>;
+#endif
 
 
 } // namespace neuro_collection
