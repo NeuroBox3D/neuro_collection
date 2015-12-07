@@ -67,7 +67,7 @@ IMembraneTransporter::~IMembraneTransporter()
 
 void IMembraneTransporter::prep_timestep
 (
-	const number time//, const CPUAlgebra::vector_type u
+	const number time, VectorProxyBase* upb
 )
 {
 	// so nothing here; only in derived classes if need be

@@ -197,7 +197,7 @@ void MembraneTransportFV1<TDomain>::prep_timestep
 	UG_COND_THROW(!up, "Wrong algebra type!");
 	const v_type& u = up->m_v;
 	*/
-	m_spMembraneTransporter->prep_timestep(time);
+	m_spMembraneTransporter->prep_timestep(time, upb);
 }
 
 

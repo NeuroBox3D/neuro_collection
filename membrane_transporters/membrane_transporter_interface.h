@@ -12,11 +12,14 @@
 #include "common/common.h"	// for UG_LOG, UG_THROW and others
 #include "lib_grid/grid/grid_base_objects.h"
 #include "lib_disc/common/local_algebra.h"
+#include "lib_disc/spatial_disc/elem_disc/elem_disc_interface.h"	// VectorProxyBase
+
 #include <utility>      	// for std::pair
 #include <string>
 #include <sstream>
 #include <vector>
 #include <map>
+
 
 
 namespace ug{
@@ -106,7 +109,7 @@ class IMembraneTransporter
 		 */
 		virtual void prep_timestep
 		(
-			const number time//,const CPUAlgebra::vector_type u
+			const number time, VectorProxyBase* upb
 		);
 
 		/**

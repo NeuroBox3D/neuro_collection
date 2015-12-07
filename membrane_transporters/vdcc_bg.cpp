@@ -361,7 +361,7 @@ void VDCC_BG<TDomain>::update_time(const number newTime)
 template<typename TDomain>
 void VDCC_BG<TDomain>::prep_timestep
 (
-	const number time//, const CPUAlgebra::vector_type u
+	const number time, VectorProxyBase* upb
 )
 {
 	update_time(time);
