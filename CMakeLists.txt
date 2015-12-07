@@ -17,6 +17,7 @@ set(SOURCES    neuro_collection_plugin.cpp
 			   membrane_transporters/membrane_transporter_interface.cpp
 			   membrane_transporters/ip3r.cpp
 			   membrane_transporters/ryr.cpp
+			   membrane_transporters/ryr2.cpp
 			   membrane_transporters/serca.cpp
 			   membrane_transporters/leak.cpp
 			   membrane_transporters/pmca.cpp

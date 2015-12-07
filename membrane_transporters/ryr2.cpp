@@ -38,45 +38,69 @@ KAplus(5.21e13), KBplus(3.89e9), KCplus(17.5), MU_RYR(5.0e-11),
 KAminus(5.21e13), KBminus(3.89e9), KCminus(17.5), REF_CA_ER(2.5e-1),
 m_time(0.0), m_oldTime(0.0)
 {
-	SmartPtr<MultiGrid> mg = approx->domain()->grid();
+	// save underlying multigrid
+	m_mg = approx->domain()->grid();
 
-	if (mg->template has_attachment<side_t>(this->m_aO1))
+	// save underlying surface dof distribution
+	m_dd = approx->dof_distribution(GridLevel(), false);
+
+	if (m_mg->template has_attachment<side_t>(this->m_aO1))
 	UG_THROW("Attachment necessary for RyR channel dynamics "
 			 "could not be made, since it already exists.");
-	mg->template attach_to<side_t>(this->m_aO1);
+	m_mg->template attach_to<side_t>(this->m_aO1);
 
-	if (mg->template has_attachment<side_t>(this->m_aO2))
+	if (m_mg->template has_attachment<side_t>(this->m_aO2))
 		UG_THROW("Attachment necessary for RyR channel dynamics "
 				 "could not be made, since it already exists.");
-	mg->template attach_to<side_t>(this->m_aO2);
+	m_mg->template attach_to<side_t>(this->m_aO2);
 
-	if (mg->template has_attachment<side_t>(this->m_aC1))
+	if (m_mg->template has_attachment<side_t>(this->m_aC1))
 		UG_THROW("Attachment necessary for RyR channel dynamics "
 				 "could not be made, since it already exists.");
-	mg->template attach_to<side_t>(this->m_aC1);
+	m_mg->template attach_to<side_t>(this->m_aC1);
 
-	if (mg->template has_attachment<side_t>(this->m_aC2))
+	if (m_mg->template has_attachment<side_t>(this->m_aC2))
 		UG_THROW("Attachment necessary for RyR channel dynamics "
 				 "could not be made, since it already exists.");
-	mg->template attach_to<side_t>(this->m_aC2);
+	m_mg->template attach_to<side_t>(this->m_aC2);
 
-	m_aaO1 = Grid::AttachmentAccessor<side_t, ADouble>(*mg, m_aO1);
-	m_aaO2 = Grid::AttachmentAccessor<side_t, ADouble>(*mg, m_aO2);
-	m_aaC1 = Grid::AttachmentAccessor<side_t, ADouble>(*mg, m_aC1);
-	m_aaC2 = Grid::AttachmentAccessor<side_t, ADouble>(*mg, m_aC2);
+	m_aaO1 = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_aO1);
+	m_aaO2 = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_aO2);
+	m_aaC1 = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_aC1);
+	m_aaC2 = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_aC2);
 }
 
 
 template<typename TDomain>
 RyR2<TDomain>::~RyR2()
 {
-	m_mg->template detach_from<side_t>(this->m_Vm);
+	m_mg->template detach_from<side_t>(this->m_aO1);
+	m_mg->template detach_from<side_t>(this->m_aO2);
+	m_mg->template detach_from<side_t>(this->m_aC1);
+	m_mg->template detach_from<side_t>(this->m_aC2);
 };
 
 
 template <typename TDomain>
-void RyR2<TDomain>::prep_timestep(const number time)
+void RyR2<TDomain>::prep_timestep(const number time, VectorProxyBase* upb)
 {
+	// get solution u with which to prepare time step (this code only accepts CPUAlgebra type)
+	typedef CPUAlgebra::vector_type v_type;
+	typedef VectorProxy<v_type> vp_type;
+	vp_type* up = dynamic_cast<vp_type*>(upb);
+	UG_COND_THROW(!up, "Wrong algebra type!");
+	const v_type& u = up->m_v;
+
+	// for DoF index storage
+	std::vector<DoFIndex> dofIndex;
+
+	// update time
+	if (time != m_time)
+	{
+		m_oldTime = m_time;
+		m_time = time;
+	}
+
 	// loop sides and update potential and then gatings
 	typedef typename DoFDistribution::traits<side_t>::const_iterator it_type;
 	it_type it = m_dd->begin<side_t>();
@@ -89,13 +113,26 @@ void RyR2<TDomain>::prep_timestep(const number time)
 		number& pC2 = m_aaC2[*it];
 		number& pC1 = m_aaC1[*it];
 
-		// get Ca_cyt and ca_er from somewhere!?
+		// get ca_cyt and ca_er;
+		// we suppose our approx space to be 1st order Lagrange (linear, DoFs in the vertices)
+		// and interpolate value at the center of the element
+		number ca_cyt = 0.0;
+		m_dd->dof_indices(*it, _CCYT_, dofIndex, false, true);
+		UG_ASSERT(dofIndex.size() > 0, "No DoF found for function " << _CCYT_ << "on element.");
+		for (size_t i = 0; i < dofIndex.size(); ++i) ca_cyt += DoFRef(u, dofIndex[i]);
+		ca_cyt /= dofIndex.size();
+
+		number ca_er = 0.0;
+		m_dd->dof_indices(*it, _CER_, dofIndex, false, true);
+		UG_ASSERT(dofIndex.size() > 0, "No DoF found for function " << _CER_ << "on element.");
+		for (size_t i = 0; i < dofIndex.size(); ++i) ca_er += DoFRef(u, dofIndex[i]);
+		ca_er /= dofIndex.size();
 
 		// implicit Euler!
 		//pO2 *= 1.0 / (...)
 
-	/*
-	 number pO2 = pO2 + 1/h * dpO2;
+		/*
+	 	number pO2 = pO2 + 1/h * dpO2;
 		number pC1 = pC1 + 1/h * dpC1;
 		number pC2 = pC1 + 1/h * dpC1;
 		number pO1 = 1 - pO2 - pC1 - pC2;
@@ -110,6 +147,10 @@ void RyR2<TDomain>::prep_timestep(const number time)
 template<typename TDomain>
 void RyR2<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
 {
+	// cast to side_type
+	side_t* elem = dynamic_cast<side_t*>(e);
+	if (!elem) UG_THROW("RyR2 fluxDensityFunction called with the wrong type of element.");
+
 	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
 	number caER = u[_CER_];		// ER Ca2+ concentration
 	number h = m_time - m_oldTime;
@@ -118,7 +159,7 @@ void RyR2<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::
 	number current = R*T/(4*F*F) * MU_RYR/REF_CA_ER * (caER - caCyt);
 
 	// open probability
-	number pOpen = m_aaO1[e] + m_aaO2[e];
+	number pOpen = m_aaO1[elem] + m_aaO2[elem];
 	//number pOpen =  (1.0 + KB*pow(caCyt,3)) / (1.0 + KC + 1.0/(KA*pow(caCyt,4)) + KB*pow(caCyt,3));
 
 	flux[0] = pOpen * current;
@@ -147,7 +188,7 @@ void RyR2<TDomain>::calc_flux_deriv(const std::vector<number>& u, GridObject* e,
 
 
 template<typename TDomain>
-const size_t RyR2<TDomain>::n_dependencies() const
+size_t RyR2<TDomain>::n_dependencies() const
 {
 	size_t n = 2;
 	if (has_constant_value(_CCYT_))
@@ -215,17 +256,6 @@ void RyR2<TDomain>::print_units() const
 	UG_LOG("|      Ca flux   mol/s                                                         |"<< std::endl);
 	UG_LOG("+------------------------------------------------------------------------------+"<< std::endl);
 	UG_LOG(std::endl);
-}
-
-
-template<typename TDomain>
-void RyR2<TDomain>::update_time(const number newTime)
-{
-	if (newTime != m_time)
-	{
-		m_oldTime = m_time;
-		m_time = newTime;
-	}
 }
 
 

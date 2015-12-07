@@ -69,7 +69,7 @@ class RyR2 : public IMembraneTransporter
 		virtual ~RyR2();
 
 		/// @copydoc IMembraneTransporter::prep_timestep()
-		virtual void prep_timestep (const number time);
+		virtual void prep_timestep(const number time, VectorProxyBase* upb);
 
 		/// @copydoc IMembraneTransporter::calc_flux()
 		virtual void calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const;
@@ -78,7 +78,7 @@ class RyR2 : public IMembraneTransporter
 		virtual void calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
 
 		/// @copydoc IMembraneTransporter::n_dependencies()
-		virtual const size_t n_dependencies() const;
+		virtual size_t n_dependencies() const;
 
 		/// @copydoc IMembraneTransporter::n_fluxes()
 		virtual size_t n_fluxes() const;
@@ -96,15 +96,8 @@ class RyR2 : public IMembraneTransporter
 		virtual void print_units() const;
 
 	protected:
-		/*
-		SmartPtr<TDomain> m_dom;							//!< underlying domain
-		SmartPtr<Grid> m_mg;								//!< underlying multigrid
+		SmartPtr<MultiGrid> m_mg;								//!< underlying multigrid
 		SmartPtr<DoFDistribution> m_dd;						//!< underlying surface dof distribution
-		ConstSmartPtr<MGSubsetHandler> m_sh;				//!< underlying subset handler
-		typename TDomain::position_accessor_type& m_aaPos;	//!< underlying position accessor
-
-		std::vector<std::string> m_vSubset;					//!< subsets this channel exists on
-		 */
 
 		ADouble m_aO1;								//!< proportion of channels currently in state O1
 		ADouble m_aO2;								//!< proportion of channels currently in state O2

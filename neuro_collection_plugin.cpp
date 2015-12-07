@@ -25,6 +25,7 @@
 #include "membrane_transporters/membrane_transporter_interface.h"
 #include "membrane_transporters/ip3r.h"
 #include "membrane_transporters/ryr.h"
+#include "membrane_transporters/ryr2.h"
 #include "membrane_transporters/serca.h"
 #include "membrane_transporters/leak.h"
 #include "membrane_transporters/pmca.h"
@@ -119,118 +120,6 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "BufferFV1", tag);
 	}
 
-#if 0
-	// implementation of a Neumann boundary depending on the unknowns
-	{
-		typedef DependentNeumannBoundaryFV1<TDomain> T;
-		typedef IElemDisc<TDomain> TBase;
-		string name = string("DependentNeumannBoundaryFV1").append(suffix);
-		reg.add_class_<T, TBase >(name, grp);
-		reg.add_class_to_group(name, "DependentNeumannBoundaryFV1", tag);
-	}
-
-	// one-sided membrane transport systems
-	{
-		typedef OneSidedMembraneTransportFV1<TDomain> T0;
-		typedef DependentNeumannBoundaryFV1<TDomain> TBase;
-		string name = string("OneSidedMembraneTransportFV1").append(suffix);
-		reg.add_class_<T0, TBase >(name, grp)
-			.add_method("set_density_function", static_cast<void (T0::*) (const number)> (&T0::set_density_function),
-						"", "", "add a constant density")
-#ifdef UG_FOR_LUA
-			.add_method("set_density_function", static_cast<void (T0::*) (const char*)> (&T0::set_density_function),
-							"", "", "add a density function")
-#endif
-			.add_method("set_density_function", static_cast<void (T0::*) (SmartPtr<CplUserData<number,dim> >)>
-					    (&T0::set_density_function), "", "", "add a density function");
-		reg.add_class_to_group(name, "OneSidedMembraneTransportFV1", tag);
-	}
-
-	// one-sided plasma membrane transport
-	{
-		typedef OneSidedMembraneTransportFV1<TDomain> T0;
-		typedef OneSidedPMCAFV1<TDomain> T1;
-		string name = string("OneSidedPMCAFV1").append(suffix);
-		reg.add_class_<T1, T0>(name, grp)
-			.template add_constructor<void (*)(const char*, const char*)>("Function(s)#Subset(s)")
-			.set_construct_as_smart_pointer(true);
-		reg.add_class_to_group(name, "OneSidedPMCAFV1", tag);
-
-		typedef OneSidedNCXFV1<TDomain> T2;
-		name = string("OneSidedNCXFV1").append(suffix);
-		reg.add_class_<T2, T0>(name, grp)
-			.template add_constructor<void (*)(const char*, const char*)>("Function(s)#Subset(s)")
-			.set_construct_as_smart_pointer(true);
-		reg.add_class_to_group(name, "OneSidedNCXFV1", tag);
-
-		typedef OneSidedPMCalciumLeakFV1<TDomain> T3;
-		name = string("OneSidedPMCalciumLeakFV1").append(suffix);
-		reg.add_class_<T3, T0>(name, grp)
-			.template add_constructor<void (*)(const char*, const char*)>("Function(s)#Subset(s)")
-			.set_construct_as_smart_pointer(true);
-		reg.add_class_to_group(name, "OneSidedPMCalciumLeakFV1", tag);
-	}
-
-	// one-sided Borg-Graham implementation
-	{
-		typedef OneSidedBorgGrahamFV1<TDomain> TBG0;
-		typedef OneSidedMembraneTransportFV1<TDomain> TBase;
-		string name = string("OneSidedBorgGrahamFV1").append(suffix);
-		reg.add_class_<TBG0, TBase >(name, grp)
-			.add_method("set_channel_type_N", &TBG0::template set_channel_type<TBG0::BG_Ntype>,
-						"", "", "set the channel type to N")
-			.add_method("set_channel_type_L", &TBG0::template set_channel_type<TBG0::BG_Ltype>,
-						"", "", "set the channel type to L")
-			.add_method("set_channel_type_T", &TBG0::template set_channel_type<TBG0::BG_Ttype>,
-						"", "", "set the channel type to T")
-			.add_method("init", &TBG0::init, "", "time", "initialize the Borg-Graham object");
-			//.add_method("update_gating", &TBG0::update_gating, "", "time",
-			//			"update gating \"particles\" to new time")
-			//.add_method("update_potential", &TBG0::update_potential, "", "time",
-			//			"update membrane potential to new time");
-
-		reg.add_class_to_group(name, "OneSidedBorgGrahamFV1", tag);
-
-		typedef OneSidedBorgGrahamFV1WithVM2UG<TDomain> TBG1;
-		name = string("OneSidedBorgGrahamFV1WithVM2UG").append(suffix);
-		reg.add_class_<TBG1, TBG0 >(name, grp)
-			.template add_constructor<void (*)(const char*, const char*, ApproximationSpace<TDomain>&,
-											   const std::string, const char*, const std::string, const bool)>
-				("function(s)#subset(s)#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#fileInterval#fileOffset#vertexOrderOrPositionCanChange")
-			.add_method("set_file_times", &TBG1::set_file_times, "", "file interval#file offset (first file)", "set times for which files with potential values are available")
-			.set_construct_as_smart_pointer(true);
-		reg.add_class_to_group(name, "OneSidedBorgGrahamFV1WithVM2UG", tag);
-
-		// register OneSidedBorgGrahamFV1WithVM2UGNEURON in case we have a NEURON interpreter available
-		#ifdef MPMNEURON
-		typedef OneSidedBorgGrahamFV1WithVM2UGNEURON<TDomain> TBG2;
-		name = string("OneSidedBorgGrahamFV1WithVM2UGNEURON").append(suffix);
-		reg.add_class_<TBG2, TBG0 >(name, grp)
-			.template add_constructor<void (*)(const char*, const char*, ApproximationSpace<TDomain>&, SmartPtr<Transformator>,
-											   const std::string, const char*, const std::string, const bool)>
-				("function(s)#subset(s)#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#vertexOrderOrPositionCanChange")
-				.add_method("set_transformator", static_cast<void (TBG2::*) (SmartPtr<Transformator>)> (&TBG2::set_transformator), "", "", "")
-				.add_method("set_mapper", static_cast<void (TBG2::*) (SmartPtr<Vm2uG<std::string> >)> (&TBG2::set_mapper), "", "", "")
-			.set_construct_as_smart_pointer(true);
-		reg.add_class_to_group(name, "OneSidedBorgGrahamFV1WithVM2UGNEURON", tag);
-		#endif
-
-		typedef OneSidedBorgGrahamFV1WithUserData<TDomain> TBG3;
-		name = string("OneSidedBorgGrahamFV1WithUserData").append(suffix);
-		reg.add_class_<TBG3, TBG0 >(name, grp)
-			.template add_constructor<void (*)(const char*, const char*, ApproximationSpace<TDomain>&)>
-				("function(s)#subset(s)#approxSpace")
-			.add_method("set_potential_function", static_cast<void (TBG3::*) (const number)> (&TBG3::set_potential_function),
-				"", "", "add a potential function")
-			.add_method("set_potential_function", static_cast<void (TBG3::*) (const char*)> (&TBG3::set_potential_function),
-				"", "", "add a potential function")
-			.add_method("set_potential_function", static_cast<void (TBG3::*) (SmartPtr<CplUserData<number, dim> >)> (&TBG3::set_potential_function),
-				"", "", "add a potential function")
-			.set_construct_as_smart_pointer(true);
-		reg.add_class_to_group(name, "OneSidedBorgGrahamFV1WithUserData", tag);
-	}
-#endif
-
 	// implementation of two-sided membrane transport systems
 	{
 		typedef MembraneTransportFV1<TDomain> T;
@@ -271,44 +160,23 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "UserFluxBoundaryFV1", tag);
 	}
 
-#if 0
-	// implementation of two-sided ER membrane calcium transport systems
+	// RyR2 (time-dep. RyR implementation)
 	{
-		typedef TwoSidedERCalciumTransportFV1<TDomain> TE0;
-		typedef MembraneTransportFV1<TDomain> TEBase;
-		string name = string("TwoSidedERCalciumTransportFV1").append(suffix);
-		reg.add_class_<TE0, TEBase >(name, grp);
-		reg.add_class_to_group(name, "TwoSidedERCalciumTransportFV1", tag);
-
-		typedef TwoSidedIP3RFV1<TDomain> TE1;
-		name = string("TwoSidedIP3RFV1").append(suffix);
-		reg.add_class_<TE1, TE0>(name, grp)
-			.template add_constructor<void (*)(const char*, const char*)>("Function(s)#Subset(s)")
+		typedef RyR2<TDomain> T;
+		typedef IMembraneTransporter TBase;
+		std::string name = std::string("RyR2").append(suffix);
+		reg.add_class_<T, TBase>(name, grp)
+			.template add_constructor<void (*)(const char*, SmartPtr<ApproximationSpace<TDomain> >)>
+				("Functions as comma-separated string with the order: "
+				 "{\"cytosolic calcium\", \"endoplasmic calcium\"} # approximation space")
+			.template add_constructor<void (*)(const std::vector<std::string>&, SmartPtr<ApproximationSpace<TDomain> >)>
+				("Function vector with the order: "
+				 "{\"cytosolic calcium\", \"endoplasmic calcium\"} # approximation space")
 			.set_construct_as_smart_pointer(true);
-		reg.add_class_to_group(name, "TwoSidedIP3RFV1", tag);
-
-		typedef TwoSidedRyRFV1<TDomain> TE2;
-		name = string("TwoSidedRyRFV1").append(suffix);
-		reg.add_class_<TE2, TE0>(name, grp)
-			.template add_constructor<void (*)(const char*, const char*)>("Function(s)#Subset(s)")
-			.set_construct_as_smart_pointer(true);
-		reg.add_class_to_group(name, "TwoSidedRyRFV1", tag);
-
-		typedef TwoSidedSERCAFV1<TDomain> TE3;
-		name = string("TwoSidedSERCAFV1").append(suffix);
-		reg.add_class_<TE3, TE0>(name, grp)
-			.template add_constructor<void (*)(const char*, const char*)>("Function(s)#Subset(s)")
-			.set_construct_as_smart_pointer(true);
-		reg.add_class_to_group(name, "TwoSidedSERCAFV1", tag);
-
-		typedef TwoSidedERCalciumLeakFV1<TDomain> TE4;
-		name = string("TwoSidedERCalciumLeakFV1").append(suffix);
-		reg.add_class_<TE4, TE0>(name, grp)
-			.template add_constructor<void (*)(const char*, const char*)>("Function(s)#Subset(s)")
-			.set_construct_as_smart_pointer(true);
-		reg.add_class_to_group(name, "TwoSidedERCalciumLeakFV1", tag);
+		reg.add_class_to_group(name, "RyR2", tag);
 	}
-#endif
+
+	// VDCC base type
 	{
 		typedef VDCC_BG<TDomain> T;
 		typedef IMembraneTransporter TBase;
@@ -323,6 +191,8 @@ static void Domain(Registry& reg, string grp)
 			.add_method("init", &T::init, "", "time", "initialize the Borg-Graham object");
 		reg.add_class_to_group(name, "VDCC_BG", tag);
 	}
+
+	// VDCC with Vm2UG
 	{
 		typedef VDCC_BG_VM2UG<TDomain> T;
 		typedef VDCC_BG<TDomain> TBase;
@@ -338,6 +208,8 @@ static void Domain(Registry& reg, string grp)
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "VDCC_BG_VM2UG", tag);
 	}
+
+	// VDCC with Neuron
 	#ifdef MPMNEURON
 	{
 		typedef VDCC_BG_VM2UG_NEURON<TDomain> T;
@@ -357,6 +229,8 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "VDCC_BG_VM2UG_NEURON", tag);
 	}
 	#endif
+
+	// VDCC with UserData
 	{
 		typedef VDCC_BG_UserData<TDomain> T;
 		typedef VDCC_BG<TDomain> TBase;
