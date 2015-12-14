@@ -20,8 +20,8 @@ RyR2
 )
 : IMembraneTransporter(fcts),
 R(8.314), T(310.0), F(96485.0),
-KAplus(5.21e13), KBplus(3.89e9), KCplus(17.5), MU_RYR(5.0e-11),
-KAminus(5.21e13), KBminus(3.89e9), KCminus(17.5), REF_CA_ER(2.5e-1),
+KAplus(1500.0e12), KBplus(1500.0e12), KCplus(1.75), MU_RYR(5.0e-11),
+KAminus(28.8), KBminus(385.9), KCminus(0.1), REF_CA_ER(2.5e-1),
 m_time(0.0), m_oldTime(0.0)
 {}
 
@@ -34,8 +34,8 @@ RyR2
 )
 : IMembraneTransporter(fcts),
 R(8.314), T(310.0), F(96485.0),
-KAplus(5.21e13), KBplus(3.89e9), KCplus(17.5), MU_RYR(5.0e-11),
-KAminus(5.21e13), KBminus(3.89e9), KCminus(17.5), REF_CA_ER(2.5e-1),
+KAplus(1500.0e12), KBplus(1500.0e12), KCplus(1.75), MU_RYR(5.0e-11),
+KAminus(28.8), KBminus(385.9), KCminus(0.1), REF_CA_ER(2.5e-1),
 m_time(0.0), m_oldTime(0.0)
 {
 	// save underlying multigrid
@@ -99,6 +99,7 @@ void RyR2<TDomain>::prep_timestep(const number time, VectorProxyBase* upb)
 	{
 		m_oldTime = m_time;
 		m_time = time;
+		double dt = m_time - m_oldTime
 	}
 
 	// loop sides and update potential and then gatings
@@ -129,7 +130,13 @@ void RyR2<TDomain>::prep_timestep(const number time, VectorProxyBase* upb)
 		ca_er /= dofIndex.size();
 
 		// implicit Euler!
-		//pO2 *= 1.0 / (...)
+		number pO1num = (1 + dt * KBminus) * ((-pC2 + 1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3)) - pC1 * (1 + dt * KCminus)) - pO2 * (1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3))
+		number pO1den = (1 + dt * KBminus) * ((1 + dt * KCminus) * (dt * KAminus) + (dt * KCplus + 1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3))) + (dt * KBplus * pow(ca_cyt, 4)) * (1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3))
+		pO1 = pO1num / pO1den
+		pO2 = (pO2 + dt * KBplus * pow(ca_cyt, 4) * pO1) / (1 + dt * KBminus)
+		pC1 = (pC1 + dt * KAminus * pO1) / (1 + dt * KAplus * pow(ca_cyt, 3))
+		pC2 = (pC2 + dt * KCplus * pO1) / (1 + dt * KCminus)
+
 
 		/*
 	 	number pO2 = pO2 + 1/h * dpO2;
@@ -142,7 +149,42 @@ void RyR2<TDomain>::prep_timestep(const number time, VectorProxyBase* upb)
 
 
 //TODO:  add init method; init in equilibrium state!
+template<typename TDomain>
+void VDCC_BG<TDomain>::init(number time)
+{
+	this->m_time = time;
 
+	typedef typename DoFDistribution::traits<side_t>::const_iterator itType;
+	SubsetGroup ssGrp;
+	try { ssGrp = SubsetGroup(m_dom->subset_handler(), this->m_vSubset);}
+	UG_CATCH_THROW("Subset group creation failed.");
+
+	for (std::size_t si = 0; si < ssGrp.size(); si++)
+	{
+		itType iterBegin = m_dd->template begin<side_t>(ssGrp[si]);
+		itType iterEnd = m_dd->template end<side_t>(ssGrp[si]);
+
+		for (itType iter = iterBegin; iter != iterEnd; ++iter)
+		{
+			// get potential data
+			update_potential(*iter);
+			number vm = m_aaVm[*iter];
+
+			// calculate corresponding start condition for gates
+			m_aaMGate[*iter] = calc_gating_start(m_gpMGate, 1e3*vm);
+			if (has_hGate()) m_aaHGate[*iter] = calc_gating_start(m_gpHGate, 1e3*vm);
+
+			//calculate equilibrium
+			number pOpen =  (1.0 + KB*pow(caCyt,3)) / (1.0 + KC + 1.0/(KA*pow(caCyt,4)) + KB*pow(caCyt,3));
+			pO1 = (1.0 / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(caCyt,3)) + KBplus/KBminus*pow(caCyt,4)))
+			pO2 = (KBplus/KBminus*pow(caCyt,4) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(caCyt,3)) + KBplus/KBminus*pow(caCyt,4)))
+			pC1 = ((1/KAplus/KAminus*pow(caCyt,3)) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(caCyt,3)) + KBplus/KBminus*pow(caCyt,4)))
+			pC2 = (KCplus/KCminus / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(caCyt,3)) + KBplus/KBminus*pow(caCyt,4)))
+		}
+	}
+
+	this->m_initiated = true;
+}
 
 template<typename TDomain>
 void RyR2<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
