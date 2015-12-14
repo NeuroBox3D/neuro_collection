@@ -130,20 +130,12 @@ void RyR2<TDomain>::prep_timestep(const number time, VectorProxyBase* upb)
 		ca_er /= dofIndex.size();
 
 		// implicit Euler!
-		number pO1num = (1 + dt * KBminus) * ((-pC2 + 1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3)) - pC1 * (1 + dt * KCminus)) - pO2 * (1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3))
-		number pO1den = (1 + dt * KBminus) * ((1 + dt * KCminus) * (dt * KAminus) + (dt * KCplus + 1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3))) + (dt * KBplus * pow(ca_cyt, 4)) * (1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3))
-		pO1 = pO1num / pO1den
-		pO2 = (pO2 + dt * KBplus * pow(ca_cyt, 4) * pO1) / (1 + dt * KBminus)
-		pC1 = (pC1 + dt * KAminus * pO1) / (1 + dt * KAplus * pow(ca_cyt, 3))
-		pC2 = (pC2 + dt * KCplus * pO1) / (1 + dt * KCminus)
-
-
-		/*
-	 	number pO2 = pO2 + 1/h * dpO2;
-		number pC1 = pC1 + 1/h * dpC1;
-		number pC2 = pC1 + 1/h * dpC1;
-		number pO1 = 1 - pO2 - pC1 - pC2;
-		*/
+		number pO1num = (1 + dt * KBminus) * ((-pC2 + 1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3)) - pC1 * (1 + dt * KCminus)) - pO2 * (1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3));
+		number pO1den = (1 + dt * KBminus) * ((1 + dt * KCminus) * (dt * KAminus) + (dt * KCplus + 1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3))) + (dt * KBplus * pow(ca_cyt, 4)) * (1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3));
+		pO1 = pO1num / pO1den;
+		pO2 = (pO2 + dt * KBplus * pow(ca_cyt, 4) * pO1) / (1 + dt * KBminus);
+		pC1 = (pC1 + dt * KAminus * pO1) / (1 + dt * KAplus * pow(ca_cyt, 3));
+		pC2 = (pC2 + dt * KCplus * pO1) / (1 + dt * KCminus);
 	}
 }
 
@@ -155,32 +147,37 @@ void VDCC_BG<TDomain>::init(number time)
 	this->m_time = time;
 
 	typedef typename DoFDistribution::traits<side_t>::const_iterator itType;
-	SubsetGroup ssGrp;
-	try { ssGrp = SubsetGroup(m_dom->subset_handler(), this->m_vSubset);}
-	UG_CATCH_THROW("Subset group creation failed.");
 
-	for (std::size_t si = 0; si < ssGrp.size(); si++)
+	it_type it = m_dd->begin<side_t>();
+	it_type it_end = m_dd->end<side_t>();
+
+	for (; it != it_end; ++it)
 	{
-		itType iterBegin = m_dd->template begin<side_t>(ssGrp[si]);
-		itType iterEnd = m_dd->template end<side_t>(ssGrp[si]);
+		number& pO2 = m_aaO2[*it];
+		number& pO1 = m_aaO1[*it];
+		number& pC2 = m_aaC2[*it];
+		number& pC1 = m_aaC1[*it];
 
-		for (itType iter = iterBegin; iter != iterEnd; ++iter)
-		{
-			// get potential data
-			update_potential(*iter);
-			number vm = m_aaVm[*iter];
+		// get ca_cyt and ca_er;
+		// we suppose our approx space to be 1st order Lagrange (linear, DoFs in the vertices)
+		// and interpolate value at the center of the element
+		number ca_cyt = 0.0;
+		m_dd->dof_indices(*it, _CCYT_, dofIndex, false, true);
+		UG_ASSERT(dofIndex.size() > 0, "No DoF found for function " << _CCYT_ << "on element.");
+		for (size_t i = 0; i < dofIndex.size(); ++i) ca_cyt += DoFRef(u, dofIndex[i]);
+		ca_cyt /= dofIndex.size();
 
-			// calculate corresponding start condition for gates
-			m_aaMGate[*iter] = calc_gating_start(m_gpMGate, 1e3*vm);
-			if (has_hGate()) m_aaHGate[*iter] = calc_gating_start(m_gpHGate, 1e3*vm);
+		number ca_er = 0.0;
+		m_dd->dof_indices(*it, _CER_, dofIndex, false, true);
+		UG_ASSERT(dofIndex.size() > 0, "No DoF found for function " << _CER_ << "on element.");
+		for (size_t i = 0; i < dofIndex.size(); ++i) ca_er += DoFRef(u, dofIndex[i]);
+		ca_er /= dofIndex.size();
 
-			//calculate equilibrium
-			number pOpen =  (1.0 + KB*pow(caCyt,3)) / (1.0 + KC + 1.0/(KA*pow(caCyt,4)) + KB*pow(caCyt,3));
-			pO1 = (1.0 / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(caCyt,3)) + KBplus/KBminus*pow(caCyt,4)))
-			pO2 = (KBplus/KBminus*pow(caCyt,4) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(caCyt,3)) + KBplus/KBminus*pow(caCyt,4)))
-			pC1 = ((1/KAplus/KAminus*pow(caCyt,3)) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(caCyt,3)) + KBplus/KBminus*pow(caCyt,4)))
-			pC2 = (KCplus/KCminus / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(caCyt,3)) + KBplus/KBminus*pow(caCyt,4)))
-		}
+		//calculate equilibrium
+		pO1 = (1.0 / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(caCyt,3)) + KBplus/KBminus*pow(caCyt,4)));
+		pO2 = (KBplus/KBminus*pow(caCyt,4) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(caCyt,3)) + KBplus/KBminus*pow(caCyt,4)));
+		pC1 = ((1/KAplus/KAminus*pow(caCyt,3)) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(caCyt,3)) + KBplus/KBminus*pow(caCyt,4)));
+		pC2 = (KCplus/KCminus / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(caCyt,3)) + KBplus/KBminus*pow(caCyt,4)));
 	}
 
 	this->m_initiated = true;
