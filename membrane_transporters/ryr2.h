@@ -77,6 +77,8 @@ class RyR2 : public IMembraneTransporter
 		/// @copydoc IMembraneTransporter::calc_flux_deriv()
 		virtual void calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
 
+		virtual void init(number time, VectorProxyBase* upb);
+
 		/// @copydoc IMembraneTransporter::n_dependencies()
 		virtual size_t n_dependencies() const;
 
@@ -111,6 +113,7 @@ class RyR2 : public IMembraneTransporter
 
 		number m_time;								//!< current time
 		number m_oldTime;							//!< time step before current time
+		bool m_initiated;							//!< indicates whether channel has been initialized by init()
 };
 
 ///@}

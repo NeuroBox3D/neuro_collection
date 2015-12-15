@@ -22,7 +22,7 @@ RyR2
 R(8.314), T(310.0), F(96485.0),
 KAplus(1500.0e12), KBplus(1500.0e12), KCplus(1.75), MU_RYR(5.0e-11),
 KAminus(28.8), KBminus(385.9), KCminus(0.1), REF_CA_ER(2.5e-1),
-m_time(0.0), m_oldTime(0.0)
+m_time(0.0), m_oldTime(0.0), m_initiated(false)
 {}
 
 template<typename TDomain>
@@ -36,7 +36,7 @@ RyR2
 R(8.314), T(310.0), F(96485.0),
 KAplus(1500.0e12), KBplus(1500.0e12), KCplus(1.75), MU_RYR(5.0e-11),
 KAminus(28.8), KBminus(385.9), KCminus(0.1), REF_CA_ER(2.5e-1),
-m_time(0.0), m_oldTime(0.0)
+m_time(0.0), m_oldTime(0.0), m_initiated(false)
 {
 	// save underlying multigrid
 	m_mg = approx->domain()->grid();
@@ -99,8 +99,8 @@ void RyR2<TDomain>::prep_timestep(const number time, VectorProxyBase* upb)
 	{
 		m_oldTime = m_time;
 		m_time = time;
-		double dt = m_time - m_oldTime
 	}
+	number dt = m_time - m_oldTime;
 
 	// loop sides and update potential and then gatings
 	typedef typename DoFDistribution::traits<side_t>::const_iterator it_type;
@@ -142,11 +142,22 @@ void RyR2<TDomain>::prep_timestep(const number time, VectorProxyBase* upb)
 
 //TODO:  add init method; init in equilibrium state!
 template<typename TDomain>
-void VDCC_BG<TDomain>::init(number time)
+void RyR2<TDomain>::init(number time, VectorProxyBase* upb)
 {
 	this->m_time = time;
 
-	typedef typename DoFDistribution::traits<side_t>::const_iterator itType;
+	int test = 1;
+	// get solution u with which to prepare time step (this code only accepts CPUAlgebra type)
+	typedef CPUAlgebra::vector_type v_type;
+	typedef VectorProxy<v_type> vp_type;
+	vp_type* up = dynamic_cast<vp_type*>(upb);
+	UG_COND_THROW(!up, "Wrong algebra type!");
+	const v_type& u = up->m_v;
+
+	// for DoF index storage
+	std::vector<DoFIndex> dofIndex;
+
+	typedef typename DoFDistribution::traits<side_t>::const_iterator it_type;
 
 	it_type it = m_dd->begin<side_t>();
 	it_type it_end = m_dd->end<side_t>();
@@ -174,10 +185,10 @@ void VDCC_BG<TDomain>::init(number time)
 		ca_er /= dofIndex.size();
 
 		//calculate equilibrium
-		pO1 = (1.0 / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(caCyt,3)) + KBplus/KBminus*pow(caCyt,4)));
-		pO2 = (KBplus/KBminus*pow(caCyt,4) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(caCyt,3)) + KBplus/KBminus*pow(caCyt,4)));
-		pC1 = ((1/KAplus/KAminus*pow(caCyt,3)) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(caCyt,3)) + KBplus/KBminus*pow(caCyt,4)));
-		pC2 = (KCplus/KCminus / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(caCyt,3)) + KBplus/KBminus*pow(caCyt,4)));
+		pO1 = (1.0 / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
+		pO2 = (KBplus/KBminus*pow(ca_cyt,4) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
+		pC1 = ((1/KAplus/KAminus*pow(ca_cyt,3)) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
+		pC2 = (KCplus/KCminus / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
 	}
 
 	this->m_initiated = true;
@@ -192,7 +203,6 @@ void RyR2<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::
 
 	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
 	number caER = u[_CER_];		// ER Ca2+ concentration
-	number h = m_time - m_oldTime;
 
 	// membrane current corresponding to diffusion pressure
 	number current = R*T/(4*F*F) * MU_RYR/REF_CA_ER * (caER - caCyt);
