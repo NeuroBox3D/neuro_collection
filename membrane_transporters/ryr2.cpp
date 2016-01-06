@@ -20,8 +20,9 @@ RyR2
 )
 : IMembraneTransporter(fcts),
 R(8.314), T(310.0), F(96485.0),
-KAplus(1500.0e12), KBplus(1500.0e12), KCplus(1.75), MU_RYR(5.0e-11),
-KAminus(28.8), KBminus(385.9), KCminus(0.1), REF_CA_ER(2.5e-1),
+KAplus(1500.0e12), KBplus(1500.0e12), KCplus(1.75),
+KAminus(28.8), KBminus(385.9), KCminus(0.1),
+MU_RYR(5.0e-11), REF_CA_ER(2.5e-1),
 m_time(0.0), m_oldTime(0.0), m_initiated(false)
 {}
 
@@ -34,8 +35,9 @@ RyR2
 )
 : IMembraneTransporter(fcts),
 R(8.314), T(310.0), F(96485.0),
-KAplus(1500.0e12), KBplus(1500.0e12), KCplus(1.75), MU_RYR(5.0e-11),
-KAminus(28.8), KBminus(385.9), KCminus(0.1), REF_CA_ER(2.5e-1),
+KAplus(1500.0e12), KBplus(1500.0e12), KCplus(1.75),
+KAminus(28.8), KBminus(385.9), KCminus(0.1),
+MU_RYR(5.0e-11), REF_CA_ER(2.5e-1),
 m_time(0.0), m_oldTime(0.0), m_initiated(false)
 {
 	// save underlying multigrid
@@ -146,7 +148,6 @@ void RyR2<TDomain>::init(number time, VectorProxyBase* upb)
 {
 	this->m_time = time;
 
-	int test = 1;
 	// get solution u with which to prepare time step (this code only accepts CPUAlgebra type)
 	typedef CPUAlgebra::vector_type v_type;
 	typedef VectorProxy<v_type> vp_type;
