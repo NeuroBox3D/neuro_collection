@@ -204,7 +204,7 @@ class VDCC_BG : public IMembraneTransporter
 
 		/// updates the gating parameters
 		/**
-		 * This method needs to be called before ionic_current().
+		 * This method needs to be called before calc_flux().
 		 * @param newTime new point in time
 		 */
 		void update_gating(side_t* elem);
