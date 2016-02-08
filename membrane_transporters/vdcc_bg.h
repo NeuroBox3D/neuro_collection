@@ -231,7 +231,7 @@ class VDCC_BG : public IMembraneTransporter
 		void after_construction();
 
 	protected:
-		/// whether this channel disposes of an inactivating gate
+		/// whether this channel has an inactivating gate
 		bool has_hGate() const {return this->m_channelType == BG_Ntype || this->m_channelType == BG_Ttype;}
 
 	protected:
@@ -484,7 +484,7 @@ private:
 		}
 
 	private:
-		/// whether this channel disposes of an inactivating gate
+		/// whether this channel has an inactivating gate
 		bool has_hGate() {return this->m_channelType == VDCC_BG<TDomain>::BG_Ntype
 								|| this->m_channelType == VDCC_BG<TDomain>::BG_Ttype;}
 
