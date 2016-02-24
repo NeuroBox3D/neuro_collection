@@ -125,19 +125,49 @@ void RyR2<TDomain>::prep_timestep(const number time, VectorProxyBase* upb)
 		for (size_t i = 0; i < dofIndex.size(); ++i) ca_cyt += DoFRef(u, dofIndex[i]);
 		ca_cyt /= dofIndex.size();
 
-		number ca_er = 0.0;
-		m_dd->dof_indices(*it, _CER_, dofIndex, false, true);
-		UG_ASSERT(dofIndex.size() > 0, "No DoF found for function " << _CER_ << "on element.");
-		for (size_t i = 0; i < dofIndex.size(); ++i) ca_er += DoFRef(u, dofIndex[i]);
-		ca_er /= dofIndex.size();
+		// I am not sure whether this is correct ...
+		// It is definitly incorrect, e.g.: exponents for ca_cyt mixed up
+		//number pO1num = (1 + dt * KBminus) * ((-pC2 + 1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3)) - pC1 * (1 + dt * KCminus)) - pO2 * (1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3));
+		//number pO1den = (1 + dt * KBminus) * ((1 + dt * KCminus) * (dt * KAminus) + (dt * KCplus + 1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3))) + (dt * KBplus * pow(ca_cyt, 4)) * (1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3));
+		//pO1 = pO1num / pO1den;
+		//pO2 = (pO2 + dt * KBplus * pow(ca_cyt, 4) * pO1) / (1 + dt * KBminus);
+		//pC1 = (pC1 + dt * KAminus * pO1) / (1 + dt * KAplus * pow(ca_cyt, 3));
+		//pC2 = (pC2 + dt * KCplus * pO1) / (1 + dt * KCminus);
 
-		// implicit Euler!
-		number pO1num = (1 + dt * KBminus) * ((-pC2 + 1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3)) - pC1 * (1 + dt * KCminus)) - pO2 * (1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3));
-		number pO1den = (1 + dt * KBminus) * ((1 + dt * KCminus) * (dt * KAminus) + (dt * KCplus + 1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3))) + (dt * KBplus * pow(ca_cyt, 4)) * (1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3));
-		pO1 = pO1num / pO1den;
-		pO2 = (pO2 + dt * KBplus * pow(ca_cyt, 4) * pO1) / (1 + dt * KBminus);
-		pC1 = (pC1 + dt * KAminus * pO1) / (1 + dt * KAplus * pow(ca_cyt, 3));
-		pC2 = (pC2 + dt * KCplus * pO1) / (1 + dt * KCminus);
+
+		// We use backwards Euler here to evolve o1, o2, c1, c2:
+		// the following relation must hold:
+		//
+		//     u_new = u_old + dt * Au
+		//
+		// where u_new, u_old are three-component vectors belonging to o2, c1, c2,
+		// A is a 3x4 matrix defined by the Markov model and u is the vector
+		// (1 o2_new c1_new c2_new)^T.
+		// Additionally, we always need o1+o2+c1+c2 = 1, which becomes the first equation.
+		// This is equivalent to solving the system:
+		//
+		//     (  1    1    1    1   )  (o1_new)   (   1  )
+		//     ( -b1  1+b2  0    0   )  (o2_new)   (o2_old)
+		//     ( -a2   0   1+a1  0   )  (c1_new) = (c1_old)
+		//     ( -c1   0    0   1+c2 )  (c2_new)   (c2_old)
+		//
+		// with coefficients as defined in the code directly below.
+		// We solve this by transformation into a lower-left triangular matrix
+		// (i.e., solving for o1_new) and then inverting the rest iteratively.
+
+		number a1 = dt * KAplus * ca_cyt*ca_cyt*ca_cyt*ca_cyt;
+		number a2 = dt * KAminus;
+		number b1 = dt * KBplus * ca_cyt*ca_cyt*ca_cyt;
+		number b2 = dt * KBminus;
+		number c1 = dt * KCplus;
+		number c2 = dt * KCminus;
+
+		pO1 = (1.0 - pO2/(1.0+b2) - pC1/(1.0+a1) - pC2/(1.0+c2))
+			/ (1.0 + b1/(1.0+b2)  + a2/(1.0/a1)  + c1/(1.0+c2) );
+
+		pO2 = (pO2 + b1*pO1) / (1.0 + b2);
+		pC1 = (pC1 + a2*pO1) / (1.0 + a1);
+		pC2 = (pC2 + c1*pO1) / (1.0 + c2);
 	}
 }
 
@@ -179,17 +209,22 @@ void RyR2<TDomain>::init(number time, VectorProxyBase* upb)
 		for (size_t i = 0; i < dofIndex.size(); ++i) ca_cyt += DoFRef(u, dofIndex[i]);
 		ca_cyt /= dofIndex.size();
 
-		number ca_er = 0.0;
-		m_dd->dof_indices(*it, _CER_, dofIndex, false, true);
-		UG_ASSERT(dofIndex.size() > 0, "No DoF found for function " << _CER_ << "on element.");
-		for (size_t i = 0; i < dofIndex.size(); ++i) ca_er += DoFRef(u, dofIndex[i]);
-		ca_er /= dofIndex.size();
+		// calculate equilibrium
+		//pO1 = (1.0 / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
+		//pO2 = (KBplus/KBminus*pow(ca_cyt,3) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
+		//pC1 = ((1/KAplus/KAminus*pow(ca_cyt,3)) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
+		//pC2 = (KCplus/KCminus / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
 
-		//calculate equilibrium
-		pO1 = (1.0 / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
-		pO2 = (KBplus/KBminus*pow(ca_cyt,4) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
-		pC1 = ((1/KAplus/KAminus*pow(ca_cyt,3)) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
-		pC2 = (KCplus/KCminus / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
+		number KA = KAplus/KAminus * ca_cyt*ca_cyt*ca_cyt*ca_cyt;
+		number KB = KBplus/KBminus * ca_cyt*ca_cyt*ca_cyt;
+		number KC = KCplus/KCminus;
+
+		number denom_inv = 1.0 / (1.0 + KC + 1.0/KA + KB);
+
+		pO1 = denom_inv;
+		pO2 = KB * denom_inv;
+		pC1 = denom_inv / KA;
+		pC2 = KC * denom_inv;
 	}
 
 	this->m_initiated = true;
@@ -219,20 +254,24 @@ void RyR2<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::
 template<typename TDomain>
 void RyR2<TDomain>::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
-	// we do not need to calculate any derivatives
-	// as the whole channel dynamic is only considered in an explicit fashion
+	// cast to side_type
+	side_t* elem = dynamic_cast<side_t*>(e);
+	if (!elem) UG_THROW("RyR2 fluxDensityFunction called with the wrong type of element.");
+
+	number deriv_value = R*T/(4*F*F) * MU_RYR/REF_CA_ER * (m_aaO1[elem] + m_aaO2[elem]);
+
 	size_t i = 0;
 	if (!has_constant_value(_CCYT_))
 	{
 		flux_derivs[0][i].first = local_fct_index(_CCYT_);
-		flux_derivs[0][i].second = 0.0;
-		i++;
+		flux_derivs[0][i].second = -deriv_value;
+		++i;
 	}
 	if (!has_constant_value(_CER_))
 	{
 		flux_derivs[0][i].first = local_fct_index(_CER_);
-		flux_derivs[0][i].second = 0.0;
-		i++;
+		flux_derivs[0][i].second = deriv_value;
+		++i;
 	}
 }
 
