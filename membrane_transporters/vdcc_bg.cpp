@@ -477,7 +477,7 @@ void VDCC_BG_VM2UG<TDomain>::init(number time)
 			try
 			{
 				const typename TDomain::position_type& coords = CalculateCenter(*iter, aaPos);
-				vm = m_vmProvider.get_data_from_nearest_neighbor(coords);
+				vm = m_vmProvider.get_vm(coords);
 			}
 			UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
 
@@ -520,14 +520,7 @@ void VDCC_BG_VM2UG<TDomain>::update_time(number newTime)
 				<< "It must contain exactly one placeholder (which has to convert a floating point number)"
 				<< "and must not produce an output string longer than 100 chars.");
 
-	/*if (!m_vmProvider.treeBuilt())
-	UG_THROW("Underlying Vm2uG object's tree is not yet built.\n"
-		  << "Do not forget to initialize the Borg-Graham object first by calling init(initTime).");
-
-	// set new timestep file in vm2ug object (not strictly necessary)
-	const std::string ts = m_timeAsString;
-	m_vmProvider.setTimestep(ts);*/
-
+	m_vmProvider.build_tree(m_baseName + m_timeAsString + m_ext, " ");
 	this->m_oldTime = this->m_time;
 	this->m_time = newTime;
 }
@@ -541,7 +534,7 @@ void VDCC_BG_VM2UG<TDomain>::update_potential(side_t* elem)
 	try
 	{
 		const typename TDomain::position_type& coords = CalculateCenter(elem, this->m_aaPos);
-		vm = m_vmProvider.get_data_from_nearest_neighbor(coords);
+		vm = m_vmProvider.get_vm(coords);
 	}
 	UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
 
@@ -625,15 +618,15 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::init(number time)
 {
 	try
 	{
-		// make zero steps (e. g. init) and extract the membrane potentials
-		//this->m_NrnInterpreter.get()->extract_vms(1, 3);
-		this->m_mapper.get()->get_transformator()->extract_vms(1, 3);  /// should be really 1,1 indeed not 1,3
-		// with the extracted vms we build the tree then
+		/// init to -65 mV (or to the finalize value supplied to the transformator instance)
+		this->m_time = time;
+		this->m_mapper.get()->get_transformator()->extract_vms(1, 0);
+
+		/// with the extracted vms we build the tree then
 		std::cout << "vms could be extracted" << std::endl;
 		std::cout << "Our NEURON setup: " << std::endl;
-		//this->m_NrnInterpreter.get()->print_setup(true);
 		this->m_mapper.get()->get_transformator()->print_setup(true);
-		//std::cout << "Our potential: " << this->m_vmProvider.get()->get_potential(0, 0, 0);
+		// std::cout << "Our potential: " << this->m_vmProvider.get()->get_potential(0, 0, 0);
 		this->m_mapper.get()->build_tree();
 	}
 	UG_CATCH_THROW("NEURON interpreter could not advance, vmProvider could not be created.");
@@ -651,7 +644,7 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::init(number time)
 
 		for (itType iter = iterBegin; iter != iterEnd; ++iter)
 		{
-			// retrieve membrane potential via vm2ug
+			/// retrieve membrane potential via vm2ug
 			number vm;
 			try
 			{
@@ -664,7 +657,7 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::init(number time)
 
 			this->m_aaMGate[*iter] = this->calc_gating_start(this->m_gpMGate, vm);
 			if (has_hGate()) this->m_aaHGate[*iter] = this->calc_gating_start(this->m_gpHGate, vm);
-			this->m_aaVm[*iter] = 0.001 * vm;
+			this->m_aaVm[*iter] = 0.001 * vm; // mV -> V
 		}
 	}
 
@@ -674,25 +667,25 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::init(number time)
 
 
 template<typename TDomain>
-void VDCC_BG_VM2UG_NEURON<TDomain>::update_time(number newTime)
-{
-	/// set dt for neuron interpreter
-	///number dt = this->m_time - this->m_oldTime;
+void VDCC_BG_VM2UG_NEURON<TDomain>::update_time(number newTime) {
+	/// only work if really necessary
+	if (newTime == this->m_time) return;
+
+	/// get dt from NEURON
 	number dt = m_NrnInterpreter.get()->get_dt();
-	this->m_oldTime = this->m_time;
-	this->m_time = newTime;
+
+	/// set dt for NEURON explicit again
 	std::stringstream ss;
 	ss << "dt = " << dt;
 	m_NrnInterpreter.get()->execute_hoc_stmt(ss.str());
 	ss.str(""); ss.clear();
 
-	// only work if really necessary
-	if (newTime == this->m_time) {
-		return;
-	}
+	/// advance the NEURON simulation by the UG dt, then update mapper
+	/// with new membrane potential values for given time from NEURON
+	size_t num_fadvances = (size_t) floor ((newTime - this->m_time) / dt);
+	this->m_mapper.get()->get_transformator()->extract_vms(1, num_fadvances);
 
-	// advance by dt (set above)
-	m_NrnInterpreter.get()->fadvance();
+	/// update UG time
 	this->m_oldTime = this->m_time;
 	this->m_time = newTime;
 }
@@ -701,18 +694,18 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::update_time(number newTime)
 template<typename TDomain>
 void VDCC_BG_VM2UG_NEURON<TDomain>::update_potential(side_t* elem)
 {
-	// retrieve membrane potential via vm2ug
+	// retrieve membrane potential via NEURON and the VMProvider/Mapper
 	number vm;
 	try
 	{
 		const typename TDomain::position_type& coords = CalculateCenter(elem, this->m_aaPos);
 		vm = this->m_mapper.get()->get_vm(coords[0], coords[1], coords[2]);
-		//vm = this->m_vmProvider.get()->get_data_from_nearest_neighbor(coords);
+		// vm = this->m_vmProvider.get()->get_data_from_nearest_neighbor(coords);
 	}
 	UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
 
 	// set membrane potential value
-	this->m_aaVm[elem] = 0.001 * vm;
+	this->m_aaVm[elem] = 0.001 * vm; /// v -> mV
 }
 
 
@@ -734,6 +727,10 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::print_units() const
 	UG_LOG("|    Output                                                                    |"<< std::endl);
 	UG_LOG("|      Ca flux   mol/s                                                         |"<< std::endl);
 	UG_LOG("+------------------------------------------------------------------------------+"<< std::endl);
+	UG_LOG(std::endl);
+
+	/// print NEURON setup
+	this->m_mapper.get()->get_transformator()->print_setup(true);
 	UG_LOG(std::endl);
 }
 

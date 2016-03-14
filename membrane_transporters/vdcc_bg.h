@@ -17,8 +17,9 @@
 #include "../../plugins/MembranePotentialMapping/transformator.h"
 
 #ifdef MPMNEURON
-#include "../../plugins/MembranePotentialMapping/neuron_mpm.h"
+	#include "../../plugins/MembranePotentialMapping/neuron_mpm.h"
 #endif
+#include "../../plugins/MembranePotentialMapping/vm2ug_mpm.h"
 
 #include <locale>	// for control over the decimal separator (point instead of comma, please!)
 
@@ -286,7 +287,6 @@ class VDCC_BG_VM2UG : public VDCC_BG<TDomain>
 
 	public:
 		///typedef Vm2uG<std::string> vmProvType;
-		typedef Mapper<TDomain::dim, number> vmProvType;
 
 	public:
 		/**
@@ -365,7 +365,7 @@ class VDCC_BG_VM2UG : public VDCC_BG<TDomain>
 		}
 
 	private:
-		vmProvType m_vmProvider;		//!< the Vm2uG object
+		Vm2uGMPM m_vmProvider;		    //!< the Vm2uG object
 		std::string m_tFmt;				//!< time format for the membrane potential files
 		number m_fileInterval;			//!< intervals in which voltage files are available
 		number m_fileOffset;			//!< offset of time intervals for which voltage files are available
