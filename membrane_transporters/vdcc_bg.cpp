@@ -54,7 +54,7 @@ void VDCC_BG<TDomain>::after_construction()
 	// process subsets
 
 	//	remove white space
-	for(size_t i = 0; i < m_vSubset.size(); ++i)
+	for (size_t i = 0; i < m_vSubset.size(); ++i)
 		RemoveWhitespaceFromString(m_vSubset[i]);
 
 	//	if no subset passed, clear subsets
@@ -62,11 +62,11 @@ void VDCC_BG<TDomain>::after_construction()
 		m_vSubset.clear();
 
 	//	if subsets passed with separator, but not all tokens filled, throw error
-	for(size_t i = 0; i < m_vSubset.size(); ++i)
+	for (size_t i = 0; i < m_vSubset.size(); ++i)
 	{
-		if (m_vSubset.empty())
+		if (m_vSubset[i].empty())
 		{
-			UG_THROW("Error while setting subsets in an ElemDisc: passed "
+			UG_THROW("Error while setting subsets in " << name() << ": passed "
 					 "subset string lacks a subset specification at position "
 					 << i << "(of " << m_vSubset.size()-1 << ")");
 		}

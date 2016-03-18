@@ -166,12 +166,14 @@ static void Domain(Registry& reg, string grp)
 		typedef IMembraneTransporter TBase;
 		std::string name = std::string("RyR2").append(suffix);
 		reg.add_class_<T, TBase>(name, grp)
-			.template add_constructor<void (*)(const char*, SmartPtr<ApproximationSpace<TDomain> >)>
+			.template add_constructor<void (*)(const char*, const char*, SmartPtr<ApproximationSpace<TDomain> >)>
 				("Functions as comma-separated string with the order: "
-				 "{\"cytosolic calcium\", \"endoplasmic calcium\"} # approximation space")
-			.template add_constructor<void (*)(const std::vector<std::string>&, SmartPtr<ApproximationSpace<TDomain> >)>
+				 "{\"cytosolic calcium\", \"endoplasmic calcium\"} # "
+				 "subsets as comma-separated string # approximation space")
+			.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&, SmartPtr<ApproximationSpace<TDomain> >)>
 				("Function vector with the order: "
-				 "{\"cytosolic calcium\", \"endoplasmic calcium\"} # approximation space")
+				 "{\"cytosolic calcium\", \"endoplasmic calcium\"} # "
+				 "subsets vector, approximation space")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "RyR2", tag);
 	}
