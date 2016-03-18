@@ -104,8 +104,8 @@ class RyR2 : public IMembraneTransporter
 
 	protected:
 		SmartPtr<TDomain> m_dom;					//!< underlying domain
-		SmartPtr<MultiGrid> m_mg;							//!< underlying multigrid
-		SmartPtr<DoFDistribution> m_dd;						//!< underlying surface dof distribution
+		SmartPtr<MultiGrid> m_mg;					//!< underlying multigrid
+		SmartPtr<DoFDistribution> m_dd;				//!< underlying surface dof distribution
 
 		std::vector<size_t> m_vSubset;				//!< subset indices this mechanism works on
 

@@ -292,10 +292,6 @@ void RyR2<TDomain>::init(number time, VectorProxyBase* upb)
 		}
 	}
 
-	UG_LOGN("");
-	UG_LOGN("Ryr2 init'ed.");
-	UG_LOGN("");
-
 	this->m_initiated = true;
 }
 
