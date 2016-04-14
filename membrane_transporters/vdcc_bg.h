@@ -8,19 +8,17 @@
 #ifndef __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__VDCC_BG_H__
 #define __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__VDCC_BG_H__
 
+#include "../../plugins/MembranePotentialMapping/vm2ug_mpm.h"
+#include "../../plugins/MembranePotentialMapping/neuron_mpm.h"
+
+
 #include "common/common.h"
 #include "membrane_transporter_interface.h"
 #include "lib_disc/domain.h"
 #include "lib_grid/lg_base.h"
 #include "lib_disc/spatial_disc/elem_disc/inner_boundary/inner_boundary.h"
-#include "../../plugins/MembranePotentialMapping/vm2ug_rework.h"
-#include "../../plugins/MembranePotentialMapping/transformator.h"
-
-
-#ifdef MPMNEURON
-	#include "../../plugins/MembranePotentialMapping/neuron_mpm.h"
-#endif
-#include "../../plugins/MembranePotentialMapping/vm2ug_mpm.h"
+//#include "../../plugins/MembranePotentialMapping/vm2ug_rework.h"
+//#include "../../plugins/MembranePotentialMapping/transformator.h"
 
 #include <locale>	// for control over the decimal separator (point instead of comma, please!)
 
@@ -377,6 +375,7 @@ class VDCC_BG_VM2UG : public VDCC_BG<TDomain>
 };
 
 #ifdef MPMNEURON
+#ifdef NCNEURON
 /// Borg Graham type VGCCs with Vm2uG membrane potential supply by NEURON.
 /** This class is a specialization of the Borg-Graham interface.
  *	It supplies the channel with the necessary membrane potential values by a Vm2uG object,
@@ -493,6 +492,7 @@ private:
 		std::string m_tFmt;				//!< time format for the membrane potential files
 		number m_vmTime;
 };
+#endif
 #endif
 
 

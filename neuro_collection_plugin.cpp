@@ -213,6 +213,7 @@ static void Domain(Registry& reg, string grp)
 
 	// VDCC with Neuron
 	#ifdef MPMNEURON
+  #ifdef NCNEURON
 	{
 		typedef VDCC_BG_VM2UG_NEURON<TDomain> T;
 		typedef VDCC_BG<TDomain> TBase;
@@ -230,6 +231,7 @@ static void Domain(Registry& reg, string grp)
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "VDCC_BG_VM2UG_NEURON", tag);
 	}
+  #endif
 	#endif
 
 	// VDCC with UserData

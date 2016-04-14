@@ -568,6 +568,7 @@ void VDCC_BG_VM2UG<TDomain>::print_units() const
 ///////////   BorgGrahamWithNEURON   ///////////////////////
 ///////////////////////////////////////////////////////////
 #ifdef MPMNEURON
+#ifdef NCNEURON
 
 template<typename TDomain>
 VDCC_BG_VM2UG_NEURON<TDomain>::VDCC_BG_VM2UG_NEURON
@@ -735,6 +736,7 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::print_units() const
 }
 
 #endif
+#endif
 
 
 
@@ -847,7 +849,9 @@ void VDCC_BG_UserData<TDomain>::update_potential(side_t* elem)
 	template class VDCC_BG<Domain3d>;
 	template class VDCC_BG_VM2UG<Domain3d>;
 	#ifdef MPMNEURON
+  #ifdef NCNEURON
 		template class VDCC_BG_VM2UG_NEURON<Domain3d>;
+  #endif
 	#endif
 	template class VDCC_BG_UserData<Domain3d>;
 #endif
