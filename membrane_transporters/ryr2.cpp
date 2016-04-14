@@ -16,21 +16,7 @@ RyR2<TDomain>::
 RyR2
 (
 	const std::vector<std::string>& fcts,
-	SmartPtr<ApproximationSpace<TDomain> > approx
-)
-: IMembraneTransporter(fcts),
-R(8.314), T(310.0), F(96485.0),
-KAplus(1500.0e12), KBplus(1500.0e12), KCplus(1.75),
-KAminus(28.8), KBminus(385.9), KCminus(0.1),
-MU_RYR(5.0e-11), REF_CA_ER(2.5e-1),
-m_time(0.0), m_oldTime(0.0), m_initiated(false)
-{}
-
-template<typename TDomain>
-RyR2<TDomain>::
-RyR2
-(
-	const char* fcts,
+	const std::vector<std::string>& subsets,
 	SmartPtr<ApproximationSpace<TDomain> > approx
 )
 : IMembraneTransporter(fcts),
@@ -40,12 +26,76 @@ KAminus(28.8), KBminus(385.9), KCminus(0.1),
 MU_RYR(5.0e-11), REF_CA_ER(2.5e-1),
 m_time(0.0), m_oldTime(0.0), m_initiated(false)
 {
+	construct(subsets, approx);
+}
+
+template<typename TDomain>
+RyR2<TDomain>::
+RyR2
+(
+	const char* fcts,
+	const char* subsets,
+	SmartPtr<ApproximationSpace<TDomain> > approx
+)
+: IMembraneTransporter(fcts),
+R(8.314), T(310.0), F(96485.0),
+KAplus(1500.0e12), KBplus(1500.0e12), KCplus(1.75),
+KAminus(28.8), KBminus(385.9), KCminus(0.1),
+MU_RYR(5.0e-11), REF_CA_ER(2.5e-1),
+m_time(0.0), m_oldTime(0.0), m_initiated(false)
+{
+	construct(TokenizeString(subsets), approx);
+}
+
+
+template<typename TDomain>
+void RyR2<TDomain>::construct
+(
+	const std::vector<std::string>& subsets,
+	SmartPtr<ApproximationSpace<TDomain> > approx
+)
+{
+	// save underlying domain
+	m_dom = approx->domain();
+
 	// save underlying multigrid
-	m_mg = approx->domain()->grid();
+	m_mg = m_dom->grid();
 
 	// save underlying surface dof distribution
-	m_dd = approx->dof_distribution(GridLevel(), false);
+	m_dd = approx->dof_distribution(GridLevel(), true);
 
+
+// process subsets
+	std::vector<std::string> vsSubset(subsets);
+
+	//	remove white space
+	for (size_t i = 0; i < vsSubset.size(); ++i)
+		RemoveWhitespaceFromString(vsSubset[i]);
+
+	//	if no subset passed, clear subsets
+	if (vsSubset.size() == 1 && vsSubset[0].empty())
+		vsSubset.clear();
+
+	//	if subsets passed with separator, but not all tokens filled, throw error
+	for (size_t i = 0; i < vsSubset.size(); ++i)
+	{
+		if (vsSubset[i].empty())
+		{
+			UG_THROW("Error while setting subsets in " << name() << ": passed "
+					 "subset string lacks a subset specification at position "
+					 << i << "(of " << vsSubset.size()-1 << ")");
+		}
+	}
+
+	SubsetGroup ssGrp;
+	try { ssGrp = SubsetGroup(m_dom->subset_handler(), vsSubset);}
+	UG_CATCH_THROW("Subset group creation failed.");
+
+	for (std::size_t si = 0; si < ssGrp.size(); si++)
+		m_vSubset.push_back(ssGrp[si]);
+
+
+// manage attachments
 	if (m_mg->template has_attachment<side_t>(this->m_aO1))
 	UG_THROW("Attachment necessary for RyR channel dynamics "
 			 "could not be made, since it already exists.");
@@ -86,6 +136,13 @@ RyR2<TDomain>::~RyR2()
 template <typename TDomain>
 void RyR2<TDomain>::prep_timestep(const number time, VectorProxyBase* upb)
 {
+	// before the first step: initiate to equilibrium
+	if (!m_initiated)
+	{
+		init(time, upb);
+		return;
+	}
+
 	// get solution u with which to prepare time step (this code only accepts CPUAlgebra type)
 	typedef CPUAlgebra::vector_type v_type;
 	typedef VectorProxy<v_type> vp_type;
@@ -106,43 +163,77 @@ void RyR2<TDomain>::prep_timestep(const number time, VectorProxyBase* upb)
 
 	// loop sides and update potential and then gatings
 	typedef typename DoFDistribution::traits<side_t>::const_iterator it_type;
-	it_type it = m_dd->begin<side_t>();
-	it_type it_end = m_dd->end<side_t>();
 
-	for (; it != it_end; ++it)
+	size_t si_sz = m_vSubset.size();
+	for (size_t si = 0; si < si_sz; ++si)
 	{
-		number& pO2 = m_aaO2[*it];
-		number& pO1 = m_aaO1[*it];
-		number& pC2 = m_aaC2[*it];
-		number& pC1 = m_aaC1[*it];
+		it_type it = m_dd->begin<side_t>(m_vSubset[si]);
+		it_type it_end = m_dd->end<side_t>(m_vSubset[si]);
 
-		// get ca_cyt and ca_er;
-		// we suppose our approx space to be 1st order Lagrange (linear, DoFs in the vertices)
-		// and interpolate value at the center of the element
-		number ca_cyt = 0.0;
-		m_dd->dof_indices(*it, _CCYT_, dofIndex, false, true);
-		UG_ASSERT(dofIndex.size() > 0, "No DoF found for function " << _CCYT_ << "on element.");
-		for (size_t i = 0; i < dofIndex.size(); ++i) ca_cyt += DoFRef(u, dofIndex[i]);
-		ca_cyt /= dofIndex.size();
+		for (; it != it_end; ++it)
+		{
+			number& pO2 = m_aaO2[*it];
+			number& pO1 = m_aaO1[*it];
+			number& pC2 = m_aaC2[*it];
+			number& pC1 = m_aaC1[*it];
 
-		number ca_er = 0.0;
-		m_dd->dof_indices(*it, _CER_, dofIndex, false, true);
-		UG_ASSERT(dofIndex.size() > 0, "No DoF found for function " << _CER_ << "on element.");
-		for (size_t i = 0; i < dofIndex.size(); ++i) ca_er += DoFRef(u, dofIndex[i]);
-		ca_er /= dofIndex.size();
+			// get ca_cyt and ca_er;
+			// we suppose our approx space to be 1st order Lagrange (linear, DoFs in the vertices)
+			// and interpolate value at the center of the element
+			number ca_cyt = 0.0;
+			m_dd->dof_indices(*it, _CCYT_, dofIndex, false, true);
+			UG_ASSERT(dofIndex.size() > 0, "No DoF found for function " << _CCYT_ << "on element.");
+			for (size_t i = 0; i < dofIndex.size(); ++i) ca_cyt += DoFRef(u, dofIndex[i]);
+			ca_cyt /= dofIndex.size();
 
-		// implicit Euler!
-		number pO1num = (1 + dt * KBminus) * ((-pC2 + 1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3)) - pC1 * (1 + dt * KCminus)) - pO2 * (1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3));
-		number pO1den = (1 + dt * KBminus) * ((1 + dt * KCminus) * (dt * KAminus) + (dt * KCplus + 1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3))) + (dt * KBplus * pow(ca_cyt, 4)) * (1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3));
-		pO1 = pO1num / pO1den;
-		pO2 = (pO2 + dt * KBplus * pow(ca_cyt, 4) * pO1) / (1 + dt * KBminus);
-		pC1 = (pC1 + dt * KAminus * pO1) / (1 + dt * KAplus * pow(ca_cyt, 3));
-		pC2 = (pC2 + dt * KCplus * pO1) / (1 + dt * KCminus);
+			// I am not sure whether this is correct ...
+			// It is definitely incorrect, e.g.: exponents for ca_cyt mixed up
+			//number pO1num = (1 + dt * KBminus) * ((-pC2 + 1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3)) - pC1 * (1 + dt * KCminus)) - pO2 * (1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3));
+			//number pO1den = (1 + dt * KBminus) * ((1 + dt * KCminus) * (dt * KAminus) + (dt * KCplus + 1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3))) + (dt * KBplus * pow(ca_cyt, 4)) * (1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3));
+			//pO1 = pO1num / pO1den;
+			//pO2 = (pO2 + dt * KBplus * pow(ca_cyt, 4) * pO1) / (1 + dt * KBminus);
+			//pC1 = (pC1 + dt * KAminus * pO1) / (1 + dt * KAplus * pow(ca_cyt, 3));
+			//pC2 = (pC2 + dt * KCplus * pO1) / (1 + dt * KCminus);
+
+
+			// We use backwards Euler here to evolve o1, o2, c1, c2:
+			// the following relation must hold:
+			//
+			//     u_new = u_old + dt * Au
+			//
+			// where u_new, u_old are three-component vectors belonging to o2, c1, c2,
+			// A is a 3x4 matrix defined by the Markov model and u is the vector
+			// (1 o2_new c1_new c2_new)^T.
+			// Additionally, we always need o1+o2+c1+c2 = 1, which becomes the first equation.
+			// This is equivalent to solving the system:
+			//
+			//     (  1    1    1    1   )  (o1_new)   (   1  )
+			//     ( -b1  1+b2  0    0   )  (o2_new)   (o2_old)
+			//     ( -a2   0   1+a1  0   )  (c1_new) = (c1_old)
+			//     ( -c1   0    0   1+c2 )  (c2_new)   (c2_old)
+			//
+			// with coefficients as defined in the code directly below.
+			// We solve this by transformation into a lower-left triangular matrix
+			// (i.e., solving for o1_new) and then inverting the rest iteratively.
+
+			number a1 = dt * KAplus * ca_cyt*ca_cyt*ca_cyt*ca_cyt;
+			number a2 = dt * KAminus;
+			number b1 = dt * KBplus * ca_cyt*ca_cyt*ca_cyt;
+			number b2 = dt * KBminus;
+			number c1 = dt * KCplus;
+			number c2 = dt * KCminus;
+
+			pO1 = (1.0 - pO2/(1.0+b2) - pC1/(1.0+a1) - pC2/(1.0+c2))
+				/ (1.0 + b1/(1.0+b2)  + a2/(1.0/a1)  + c1/(1.0+c2) );
+
+			pO2 = (pO2 + b1*pO1) / (1.0 + b2);
+			pC1 = (pC1 + a2*pO1) / (1.0 + a1);
+			pC2 = (pC2 + c1*pO1) / (1.0 + c2);
+		}
 	}
 }
 
 
-//TODO:  add init method; init in equilibrium state!
 template<typename TDomain>
 void RyR2<TDomain>::init(number time, VectorProxyBase* upb)
 {
@@ -160,36 +251,45 @@ void RyR2<TDomain>::init(number time, VectorProxyBase* upb)
 
 	typedef typename DoFDistribution::traits<side_t>::const_iterator it_type;
 
-	it_type it = m_dd->begin<side_t>();
-	it_type it_end = m_dd->end<side_t>();
-
-	for (; it != it_end; ++it)
+	size_t si_sz = m_vSubset.size();
+	for (size_t si = 0; si < si_sz; ++si)
 	{
-		number& pO2 = m_aaO2[*it];
-		number& pO1 = m_aaO1[*it];
-		number& pC2 = m_aaC2[*it];
-		number& pC1 = m_aaC1[*it];
+		it_type it = m_dd->begin<side_t>(m_vSubset[si]);
+		it_type it_end = m_dd->end<side_t>(m_vSubset[si]);
 
-		// get ca_cyt and ca_er;
-		// we suppose our approx space to be 1st order Lagrange (linear, DoFs in the vertices)
-		// and interpolate value at the center of the element
-		number ca_cyt = 0.0;
-		m_dd->dof_indices(*it, _CCYT_, dofIndex, false, true);
-		UG_ASSERT(dofIndex.size() > 0, "No DoF found for function " << _CCYT_ << "on element.");
-		for (size_t i = 0; i < dofIndex.size(); ++i) ca_cyt += DoFRef(u, dofIndex[i]);
-		ca_cyt /= dofIndex.size();
+		for (; it != it_end; ++it)
+		{
+			number& pO2 = m_aaO2[*it];
+			number& pO1 = m_aaO1[*it];
+			number& pC2 = m_aaC2[*it];
+			number& pC1 = m_aaC1[*it];
 
-		number ca_er = 0.0;
-		m_dd->dof_indices(*it, _CER_, dofIndex, false, true);
-		UG_ASSERT(dofIndex.size() > 0, "No DoF found for function " << _CER_ << "on element.");
-		for (size_t i = 0; i < dofIndex.size(); ++i) ca_er += DoFRef(u, dofIndex[i]);
-		ca_er /= dofIndex.size();
+			// get ca_cyt and ca_er;
+			// we suppose our approx space to be 1st order Lagrange (linear, DoFs in the vertices)
+			// and interpolate value at the center of the element
+			number ca_cyt = 0.0;
+			m_dd->dof_indices(*it, _CCYT_, dofIndex, false, true);
+			UG_ASSERT(dofIndex.size() > 0, "No DoF found for function " << _CCYT_ << " on element.");
+			for (size_t i = 0; i < dofIndex.size(); ++i) ca_cyt += DoFRef(u, dofIndex[i]);
+			ca_cyt /= dofIndex.size();
 
-		//calculate equilibrium
-		pO1 = (1.0 / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
-		pO2 = (KBplus/KBminus*pow(ca_cyt,4) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
-		pC1 = ((1/KAplus/KAminus*pow(ca_cyt,3)) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
-		pC2 = (KCplus/KCminus / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
+			// calculate equilibrium
+			//pO1 = (1.0 / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
+			//pO2 = (KBplus/KBminus*pow(ca_cyt,3) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
+			//pC1 = ((1/KAplus/KAminus*pow(ca_cyt,3)) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
+			//pC2 = (KCplus/KCminus / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
+
+			number KA = KAplus/KAminus * ca_cyt*ca_cyt*ca_cyt*ca_cyt;
+			number KB = KBplus/KBminus * ca_cyt*ca_cyt*ca_cyt;
+			number KC = KCplus/KCminus;
+
+			number denom_inv = 1.0 / (1.0 + KC + 1.0/KA + KB);
+
+			pO1 = denom_inv;
+			pO2 = KB * denom_inv;
+			pC1 = denom_inv / KA;
+			pC2 = KC * denom_inv;
+		}
 	}
 
 	this->m_initiated = true;
@@ -219,20 +319,24 @@ void RyR2<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::
 template<typename TDomain>
 void RyR2<TDomain>::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
-	// we do not need to calculate any derivatives
-	// as the whole channel dynamic is only considered in an explicit fashion
+	// cast to side_type
+	side_t* elem = dynamic_cast<side_t*>(e);
+	if (!elem) UG_THROW("RyR2 fluxDensityFunction called with the wrong type of element.");
+
+	number deriv_value = R*T/(4*F*F) * MU_RYR/REF_CA_ER * (m_aaO1[elem] + m_aaO2[elem]);
+
 	size_t i = 0;
 	if (!has_constant_value(_CCYT_))
 	{
 		flux_derivs[0][i].first = local_fct_index(_CCYT_);
-		flux_derivs[0][i].second = 0.0;
-		i++;
+		flux_derivs[0][i].second = -deriv_value;
+		++i;
 	}
 	if (!has_constant_value(_CER_))
 	{
 		flux_derivs[0][i].first = local_fct_index(_CER_);
-		flux_derivs[0][i].second = 0.0;
-		i++;
+		flux_derivs[0][i].second = deriv_value;
+		++i;
 	}
 }
 

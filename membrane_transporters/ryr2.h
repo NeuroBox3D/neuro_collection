@@ -60,10 +60,10 @@ class RyR2 : public IMembraneTransporter
 
 	public:
 		/// @copydoc IMembraneTransporter::IMembraneTransporter(const std::vector<std::string)
-		RyR2(const std::vector<std::string>& fcts, SmartPtr<ApproximationSpace<TDomain> > approx);
+		RyR2(const std::vector<std::string>& fcts, const std::vector<std::string>& subsets, SmartPtr<ApproximationSpace<TDomain> > approx);
 
 		/// @copydoc IMembraneTransporter::IMembraneTransporter()
-		RyR2(const char* fcts, SmartPtr<ApproximationSpace<TDomain> > approx);
+		RyR2(const char* fcts, const char* subsets, SmartPtr<ApproximationSpace<TDomain> > approx);
 
 		/// @copydoc IMembraneTransporter::IMembraneTransporter()
 		virtual ~RyR2();
@@ -76,8 +76,6 @@ class RyR2 : public IMembraneTransporter
 
 		/// @copydoc IMembraneTransporter::calc_flux_deriv()
 		virtual void calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
-
-		virtual void init(number time, VectorProxyBase* upb);
 
 		/// @copydoc IMembraneTransporter::n_dependencies()
 		virtual size_t n_dependencies() const;
@@ -98,8 +96,18 @@ class RyR2 : public IMembraneTransporter
 		virtual void print_units() const;
 
 	protected:
-		SmartPtr<MultiGrid> m_mg;								//!< underlying multigrid
-		SmartPtr<DoFDistribution> m_dd;						//!< underlying surface dof distribution
+		// constructing directives to be called from every constructor
+		void construct(const std::vector<std::string>& subsets, SmartPtr<ApproximationSpace<TDomain> > approx);
+
+		// init gating variables to equilibrium
+		void init(number time, VectorProxyBase* upb);
+
+	protected:
+		SmartPtr<TDomain> m_dom;					//!< underlying domain
+		SmartPtr<MultiGrid> m_mg;					//!< underlying multigrid
+		SmartPtr<DoFDistribution> m_dd;				//!< underlying surface dof distribution
+
+		std::vector<size_t> m_vSubset;				//!< subset indices this mechanism works on
 
 		ADouble m_aO1;								//!< proportion of channels currently in state O1
 		ADouble m_aO2;								//!< proportion of channels currently in state O2

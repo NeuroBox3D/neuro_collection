@@ -70,7 +70,7 @@ void IMembraneTransporter::prep_timestep
 	const number time, VectorProxyBase* upb
 )
 {
-	// so nothing here; only in derived classes if need be
+	// do nothing here; only in derived classes if need be
 }
 
 
