@@ -364,7 +364,7 @@ class VDCC_BG_VM2UG : public VDCC_BG<TDomain>
 		}
 
 	private:
-		Vm2uGMPM m_vmProvider;		    //!< the Vm2uG object
+		Vm2uGMPM<TDomain::dim> m_vmProvider;		    //!< the Vm2uG object
 		std::string m_tFmt;				//!< time format for the membrane potential files
 		number m_fileInterval;			//!< intervals in which voltage files are available
 		number m_fileOffset;			//!< offset of time intervals for which voltage files are available
