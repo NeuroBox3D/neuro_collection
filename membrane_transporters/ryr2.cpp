@@ -21,7 +21,7 @@ RyR2
 )
 : IMembraneTransporter(fcts),
 R(8.314), T(310.0), F(96485.0),
-KAplus(1500.0e12), KBplus(1500.0e12), KCplus(1.75),
+KAplus(1500.0e12), KBplus(1500.0e9), KCplus(1.75),
 KAminus(28.8), KBminus(385.9), KCminus(0.1),
 MU_RYR(5.0e-11), REF_CA_ER(2.5e-1),
 m_time(0.0), m_oldTime(0.0), m_initiated(false)
@@ -39,7 +39,7 @@ RyR2
 )
 : IMembraneTransporter(fcts),
 R(8.314), T(310.0), F(96485.0),
-KAplus(1500.0e12), KBplus(1500.0e12), KCplus(1.75),
+KAplus(1500.0e12), KBplus(1500.0e9), KCplus(1.75),
 KAminus(28.8), KBminus(385.9), KCminus(0.1),
 MU_RYR(5.0e-11), REF_CA_ER(2.5e-1),
 m_time(0.0), m_oldTime(0.0), m_initiated(false)
@@ -246,6 +246,11 @@ void RyR2<TDomain>::init(number time, VectorProxyBase* upb)
 	UG_COND_THROW(!up, "Wrong algebra type!");
 	const v_type& u = up->m_v;
 
+	// get global fct index for ccyt function
+	FunctionGroup fctGrp(m_dd->dof_distribution_info());
+	fctGrp.add(this->m_vFct);
+	size_t ind_ccyt = fctGrp.unique_id(_CCYT_);
+
 	// for DoF index storage
 	std::vector<DoFIndex> dofIndex;
 
@@ -264,14 +269,21 @@ void RyR2<TDomain>::init(number time, VectorProxyBase* upb)
 			number& pC2 = m_aaC2[*it];
 			number& pC1 = m_aaC1[*it];
 
-			// get ca_cyt and ca_er;
-			// we suppose our approx space to be 1st order Lagrange (linear, DoFs in the vertices)
-			// and interpolate value at the center of the element
+			// get ca_cyt
 			number ca_cyt = 0.0;
-			m_dd->dof_indices(*it, _CCYT_, dofIndex, false, true);
-			UG_ASSERT(dofIndex.size() > 0, "No DoF found for function " << _CCYT_ << " on element.");
-			for (size_t i = 0; i < dofIndex.size(); ++i) ca_cyt += DoFRef(u, dofIndex[i]);
-			ca_cyt /= dofIndex.size();
+			if (!this->has_constant_value(_CCYT_, ca_cyt))
+			{
+				// we suppose our approx space to be 1st order Lagrange (linear, DoFs in the vertices)
+				// and interpolate value at the center of the element
+				m_dd->dof_indices(*it, ind_ccyt, dofIndex, false, true);
+				UG_ASSERT(dofIndex.size() > 0, "No DoF found for function " << ind_ccyt << " on element.");
+				for (size_t i = 0; i < dofIndex.size(); ++i) ca_cyt += DoFRef(u, dofIndex[i]);
+				ca_cyt /= dofIndex.size();
+			}
+			// else the constant value has been written to ca_cyt by has_constant_value()
+
+			// scale by appropriate factor for correct unit
+			ca_cyt *= this->scale_input(_CCYT_);
 
 			// calculate equilibrium
 			//pO1 = (1.0 / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));

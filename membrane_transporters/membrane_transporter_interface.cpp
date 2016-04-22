@@ -224,6 +224,11 @@ void IMembraneTransporter::set_scale_input(const size_t i, const number scale)
 	m_vScaleInputs[i] = scale;
 }
 
+number IMembraneTransporter::scale_input(const size_t i) const
+{
+	return m_vScaleInputs[i];
+}
+
 void IMembraneTransporter::set_scale_fluxes(const std::vector<number>& scale)
 {
 	m_vScaleFluxes.resize(n_fluxes(), 1.0);

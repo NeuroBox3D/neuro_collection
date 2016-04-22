@@ -351,7 +351,7 @@ class IMembraneTransporter
 		void set_scale_inputs(const std::vector<number>& scale);
 
 		/**
-		 * @brief Scaling of a single input
+		 * @brief Set scaling of a single input
 		 *
 		 * This method can be used to specify a scaling factor for the unit adaptation of a specific
 		 * involved function (which may differ from the unit required in the implementation).
@@ -362,6 +362,16 @@ class IMembraneTransporter
 		 * @param scale   scaling factor
 		 */
 		void set_scale_input(const size_t i, const number scale);
+
+		/**
+		 * @brief Get scaling factor of a single input
+		 *
+		 * The ordering of indices corresponds to that of the constructor.
+		 *
+		 * @param i		  index of the input to be scaled
+		 * @param scale   scaling factor
+		 */
+		number scale_input(const size_t i) const;
 
 		/**
 		 * @brief Scaling of the outputs
@@ -420,10 +430,11 @@ class IMembraneTransporter
 		 */
 		void create_local_vector_with_constants(const std::vector<number>& u, std::vector<number>& u_wc) const;
 
-	private:
+	protected:
 		/// local vector of supplied function names
 		std::vector<std::string> m_vFct;
 
+	private:
 		/// indices of unknowns in local vector (of supplied functions), if existent
 		std::map<size_t, size_t> m_mfInd;
 
