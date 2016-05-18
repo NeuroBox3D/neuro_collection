@@ -30,7 +30,16 @@
 #include "membrane_transporters/leak.h"
 #include "membrane_transporters/pmca.h"
 #include "membrane_transporters/ncx.h"
-#include "membrane_transporters/vdcc_bg.h"
+#include "membrane_transporters/vdcc_bg/vdcc_bg.h"
+#include "membrane_transporters/vdcc_bg/vdcc_bg_userdata.h"
+
+#ifdef VM2UG_ENEABLED
+	#include "membrane_transporters/vdcc_bg/vdcc_bg_vm2ug.h"
+	#ifdef NEURON_ENABLED
+		#include "membrane_transporters/vdcc_bg/vdcc_bg_neuron.h"
+	#endif
+#endif
+
 #include "membrane_transporters/mcu.h"
 #include "membrane_transporters/mncx.h"
 #include "stimulation/action_potential_train.h"
@@ -194,46 +203,6 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "VDCC_BG", tag);
 	}
 
-	// VDCC with Vm2UG
-	{
-		typedef VDCC_BG_VM2UG<TDomain> T;
-		typedef VDCC_BG<TDomain> TBase;
-		std::string name = std::string("VDCC_BG_VM2UG").append(suffix);
-		reg.add_class_<T, TBase>(name, grp)
-			.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&,
-				SmartPtr<ApproximationSpace<TDomain> >, const std::string, const char*, const std::string, const bool)>
-				("function(s) as vector#subset(s) as vector#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#fileInterval#fileOffset#vertexOrderOrPositionCanChange")
-			.template add_constructor<void (*)(const char*, const char*,
-				SmartPtr<ApproximationSpace<TDomain> >, const std::string, const char*, const std::string, const bool)>
-				("function(s) as comma-separated c-string#subset(s) as comma-separated c-string#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#fileInterval#fileOffset#vertexOrderOrPositionCanChange")
-			.add_method("set_file_times", &T::set_file_times, "", "file interval#file offset (first file)", "set times for which files with potential values are available")
-			.set_construct_as_smart_pointer(true);
-		reg.add_class_to_group(name, "VDCC_BG_VM2UG", tag);
-	}
-
-	// VDCC with Neuron
-	#ifdef MPMNEURON
-  #ifdef NCNEURON
-	{
-		typedef VDCC_BG_VM2UG_NEURON<TDomain> T;
-		typedef VDCC_BG<TDomain> TBase;
-		std::string name = std::string("VDCC_BG_VM2UG_NEURON").append(suffix);
-		reg.add_class_<T, TBase>(name, grp)
-			.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&,
-				SmartPtr<ApproximationSpace<TDomain> >, SmartPtr<Transformator>, const std::string, const char*, const std::string, const bool)>
-				("function(s) as vector#subset(s) as vector#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#vertexOrderOrPositionCanChange")
-			.template add_constructor<void (*)(const char*, const char*,
-				SmartPtr<ApproximationSpace<TDomain> >, SmartPtr<Transformator>, const std::string, const char*, const std::string, const bool)>
-				("function(s) as comma-separated c-string#subset(s) as comma-separated c-string#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#vertexOrderOrPositionCanChange")
-			.add_method("set_transformator", static_cast<void (T::*) (SmartPtr<Transformator>)> (&T::set_transformator), "", "", "")
-			.add_method("set_provider", static_cast<void (T::*) (SmartPtr<Mapper<TDomain::dim, number> >)> (&T::set_provider), "", "", "")
-			.add_method("set_mapper", static_cast<void (T::*) (SmartPtr<NeuronMPM>)> (&T::set_mapper), "", "", "")
-			.set_construct_as_smart_pointer(true);
-		reg.add_class_to_group(name, "VDCC_BG_VM2UG_NEURON", tag);
-	}
-  #endif
-	#endif
-
 	// VDCC with UserData
 	{
 		typedef VDCC_BG_UserData<TDomain> T;
@@ -253,6 +222,47 @@ static void Domain(Registry& reg, string grp)
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "VDCC_BG_UserData", tag);
 	}
+
+#ifdef VM2UG_ENEABLED
+	// VDCC with Vm2UG
+	{
+		typedef VDCC_BG_VM2UG<TDomain> T;
+		typedef VDCC_BG<TDomain> TBase;
+		std::string name = std::string("VDCC_BG_VM2UG").append(suffix);
+		reg.add_class_<T, TBase>(name, grp)
+			.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&,
+				SmartPtr<ApproximationSpace<TDomain> >, const std::string, const char*, const std::string, const bool)>
+				("function(s) as vector#subset(s) as vector#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#fileInterval#fileOffset#vertexOrderOrPositionCanChange")
+			.template add_constructor<void (*)(const char*, const char*,
+				SmartPtr<ApproximationSpace<TDomain> >, const std::string, const char*, const std::string, const bool)>
+				("function(s) as comma-separated c-string#subset(s) as comma-separated c-string#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#fileInterval#fileOffset#vertexOrderOrPositionCanChange")
+			.add_method("set_file_times", &T::set_file_times, "", "file interval#file offset (first file)", "set times for which files with potential values are available")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "VDCC_BG_VM2UG", tag);
+	}
+
+	// VDCC with Neuron
+#ifdef NEURON_ENABLED
+	{
+		typedef VDCC_BG_VM2UG_NEURON<TDomain> T;
+		typedef VDCC_BG<TDomain> TBase;
+		std::string name = std::string("VDCC_BG_VM2UG_NEURON").append(suffix);
+		reg.add_class_<T, TBase>(name, grp)
+			.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&,
+				SmartPtr<ApproximationSpace<TDomain> >, SmartPtr<Transformator>, const std::string, const char*, const std::string, const bool)>
+				("function(s) as vector#subset(s) as vector#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#vertexOrderOrPositionCanChange")
+			.template add_constructor<void (*)(const char*, const char*,
+				SmartPtr<ApproximationSpace<TDomain> >, SmartPtr<Transformator>, const std::string, const char*, const std::string, const bool)>
+				("function(s) as comma-separated c-string#subset(s) as comma-separated c-string#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#vertexOrderOrPositionCanChange")
+			.add_method("set_transformator", static_cast<void (T::*) (SmartPtr<Transformator>)> (&T::set_transformator), "", "", "")
+			.add_method("set_provider", static_cast<void (T::*) (SmartPtr<Mapper<TDomain::dim, number> >)> (&T::set_provider), "", "", "")
+			.add_method("set_mapper", static_cast<void (T::*) (SmartPtr<NeuronMPM>)> (&T::set_mapper), "", "", "")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "VDCC_BG_VM2UG_NEURON", tag);
+	}
+#endif // NEURON_ENABLED
+#endif // VM2UG_ENABLED
+
 }
 
 /**
