@@ -33,7 +33,7 @@
 #include "membrane_transporters/vdcc_bg/vdcc_bg.h"
 #include "membrane_transporters/vdcc_bg/vdcc_bg_userdata.h"
 
-#ifdef VM2UG_ENEABLED
+#ifdef VM2UG_ENABLED
 	#include "membrane_transporters/vdcc_bg/vdcc_bg_vm2ug.h"
 	#ifdef NEURON_ENABLED
 		#include "membrane_transporters/vdcc_bg/vdcc_bg_neuron.h"
@@ -223,7 +223,7 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "VDCC_BG_UserData", tag);
 	}
 
-#ifdef VM2UG_ENEABLED
+#ifdef VM2UG_ENABLED
 	// VDCC with Vm2UG
 	{
 		typedef VDCC_BG_VM2UG<TDomain> T;
