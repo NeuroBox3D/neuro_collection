@@ -60,11 +60,11 @@ if(buildEmbeddedPlugins)
 	
 	if (MembranePotentialMapping)
 		# add definition to plugin_main.cpp to include Vm2Ug-dependent channels
-		ExportSingleFileDefinitions(${CMAKE_CURRENT_SOURCE_DIR}/plugin_main.cpp VM2UG_ENABLED)
+		ExportSingleFileDefinitions(${CMAKE_CURRENT_SOURCE_DIR}/neuro_collection_plugin.cpp VM2UG_ENABLED)
 	
 		if (MPNEURON)
 			# add definition to plugin_main.cpp to include Neuron-dependent channels
-			ExportSingleFileDefinitions(${CMAKE_CURRENT_SOURCE_DIR}/plugin_main.cpp NEURON_ENABLED)
+			ExportSingleFileDefinitions(${CMAKE_CURRENT_SOURCE_DIR}/neuro_collection_plugin.cpp NEURON_ENABLED)
 		endif (MPNEURON)
 		
 	endif (MembranePotentialMapping)	
@@ -74,11 +74,11 @@ else(buildEmbeddedPlugins)
 	
 	if (MembranePotentialMapping)
 		# add definition to plugin_main.cpp to include Vm2Ug-dependent channels
-		set_source_files_properties(plugin_main.cpp PROPERTIES COMPILE_DEFINITIONS VM2UG_ENABLED)
+		set_source_files_properties(neuro_collection_plugin.cpp PROPERTIES COMPILE_DEFINITIONS VM2UG_ENABLED)
 		
 		if (MPNEURON)
 			# add definition to plugin_main.cpp to include Neuron-dependent channels
-			set_source_files_properties(plugin_main.cpp PROPERTIES COMPILE_DEFINITIONS NEURON_ENABLED)
+			set_source_files_properties(neuro_collection_plugin.cpp PROPERTIES COMPILE_DEFINITIONS NEURON_ENABLED)
 		endif (MPNEURON)
 		
 		# make plugin link against MPM
