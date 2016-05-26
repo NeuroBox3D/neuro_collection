@@ -60,25 +60,21 @@ if(buildEmbeddedPlugins)
 	
 	if (MembranePotentialMapping)
 		# add definition to plugin_main.cpp to include Vm2Ug-dependent channels
-		ExportSingleFileDefinitions(${CMAKE_CURRENT_SOURCE_DIR}/plugin_main.cpp VM2UG_ENEABLED)
+		ExportSingleFileDefinitions(${CMAKE_CURRENT_SOURCE_DIR}/plugin_main.cpp VM2UG_ENABLED)
 	
 		if (MPNEURON)
 			# add definition to plugin_main.cpp to include Neuron-dependent channels
 			ExportSingleFileDefinitions(${CMAKE_CURRENT_SOURCE_DIR}/plugin_main.cpp NEURON_ENABLED)
 		endif (MPNEURON)
 		
-	endif (MembranePotentialMapping)
-	
-	
-	
-	
+	endif (MembranePotentialMapping)	
 else(buildEmbeddedPlugins)
 	# create a shared library from the sources and link it against ug4.
 	add_library(${pluginName} SHARED ${SOURCES})
 	
 	if (MembranePotentialMapping)
 		# add definition to plugin_main.cpp to include Vm2Ug-dependent channels
-		set_source_files_properties(plugin_main.cpp PROPERTIES COMPILE_DEFINITIONS VM2UG_ENEABLED)
+		set_source_files_properties(plugin_main.cpp PROPERTIES COMPILE_DEFINITIONS VM2UG_ENABLED)
 		
 		if (MPNEURON)
 			# add definition to plugin_main.cpp to include Neuron-dependent channels
