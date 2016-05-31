@@ -13,7 +13,7 @@
 
 // replace this with util_domain_dependent.h or util_algebra_dependent.h
 // to speed up compilation time
-//#include "bridge/util_domain_algebra_dependent.h"
+#include "bridge/util_domain_algebra_dependent.h"
 #include "bridge/util_domain_dependent.h"
 
 #include "buffer_fv1.h"
@@ -44,6 +44,8 @@
 #include "membrane_transporters/mncx.h"
 #include "stimulation/action_potential_train.h"
 #include "grid_generation/bouton_generator/bouton_generator.h"
+
+#include "util/measurement.h"
 
 
 using namespace std;
@@ -81,6 +83,12 @@ static void DomainAlgebra(Registry& reg, string grp)
 {
 	string suffix = GetDomainAlgebraSuffix<TDomain,TAlgebra>();
 	string tag = GetDomainAlgebraTag<TDomain,TAlgebra>();
+
+	// extra commands for this plugin
+	reg.add_function("take_measurement", &takeMeasurement<GridFunction<TDomain, TAlgebra> >, grp.c_str(),
+					 "", "solution#time#subset names#function names#output file name",
+					 "outputs average values of unknowns on subsets");
+
 
 }
 
@@ -263,6 +271,11 @@ static void Domain(Registry& reg, string grp)
 #endif // NEURON_ENABLED
 #endif // VM2UG_ENABLED
 
+
+
+	// extra commands for this plugin
+	reg.add_function("compute_volume", static_cast<void (*) (ConstSmartPtr<ApproximationSpace<TDomain> >, const char*)>(&computeVolume<TDomain>), grp.c_str(),
+					 "", "approxSpace#subsetNames", "outputs subset volumes");
 }
 
 /**
@@ -506,7 +519,7 @@ InitUGPlugin_neuro_collection(Registry* reg, string grp)
 		//RegisterDimensionDependent<Functionality>(*reg,grp);
 		RegisterDomainDependent<Functionality>(*reg,grp);
 		//RegisterAlgebraDependent<Functionality>(*reg,grp);
-		//RegisterDomainAlgebraDependent<Functionality>(*reg,grp);
+		RegisterDomainAlgebraDependent<Functionality>(*reg,grp);
 	}
 	UG_REGISTRY_CATCH_THROW(grp);
 }
