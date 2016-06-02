@@ -6,6 +6,7 @@
  */
 
 #include "bouton_generator.h"
+#include "lib_grid/refinement/regular_refinement.h"
 
 
 namespace ug{
