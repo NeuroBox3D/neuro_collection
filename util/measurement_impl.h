@@ -224,7 +224,7 @@ void takeMeasurement
 
 			// write measurement
 			try {outFile << time << "\t" << value/vol << "\n";}
-			UG_CATCH_THROW("Output file" << ofnss.str() << "could not be written to.");
+			UG_CATCH_THROW("Output file " << ofnss.str() << " could not be written to.");
 			outFile.close();
 
 		#ifdef UG_PARALLEL

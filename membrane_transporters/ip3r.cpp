@@ -42,6 +42,11 @@ void IP3R::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<nu
 	number caER = u[_CER_];		// ER Ca2+ concentration
 	number ip3 = u[_IP3_];		// IP3 concentration
 
+	// TODO: Use single-channel current directly.
+	// A seemingly quite good estimate on how to do this is given in Bezprozvanny and Ehrlich, 1994
+	// This would be modeled by:
+	// I_ca = 1/(2F) * I_el_ref * (caER - caCyt) / REF_CA_ER
+
 	// membrane current corresponding to diffusion pressure
 	number current = R*T/(4*F*F) * MU_IP3R/REF_CA_ER * (caER - caCyt);
 
