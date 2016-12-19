@@ -116,6 +116,8 @@ static void Domain(Registry& reg, string grp)
 		string name = string("BufferFV1").append(suffix);
 		reg.add_class_<T, TBase>(name, grp)
 			.template add_constructor<void (*)(const char*)>("Subset(s)")
+			.add_method("set_num_reactions", &T::set_num_reactions, "", "number of reactions | default | value=1",
+				"set number of reactions about to be added")
 			.add_method("add_reaction", static_cast<void (T::*)
 				 (const char*, const char*, number, number, number)>(&T::add_reaction), "",
 				  "buffering substance | selection | value=[\"clb\"] # "

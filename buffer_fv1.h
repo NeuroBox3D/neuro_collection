@@ -123,6 +123,9 @@ class BufferFV1
 		/// destructor
         virtual ~BufferFV1();
 
+        /// set number of reactions
+        void set_num_reactions(size_t n);
+
         /// add a reaction (with DataImports)
         void add_reaction
 		(

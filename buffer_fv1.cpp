@@ -16,13 +16,25 @@ BufferFV1<TDomain>::BufferFV1(const char* subsets)
 : IElemDisc<TDomain>(NULL, subsets), m_bNonRegularGrid(false)
 {
 	register_all_fv1_funcs();
-	m_reactions.clear();
+	m_reactions.reserve(1);
 }
 
 template<typename TDomain>
 BufferFV1<TDomain>::~BufferFV1()
 {
 	// nothing to do
+}
+
+template<typename TDomain>
+void BufferFV1<TDomain>::set_num_reactions(size_t n)
+{
+	UG_COND_THROW(m_reactions.size(),
+		"Number of buffering reactions must be set before adding the first reaction.");
+
+	// we need to ensure the vector is big enough for all elements,
+	// as we cannot allow re-allocation of its elements
+	// (pointers to DataImports are held elsewhere through the register_import() method)
+	m_reactions.reserve(n);
 }
 
 
@@ -60,6 +72,12 @@ add_reaction(const char* fct1, const char* fct2,
 			 SmartPtr<CplUserData<number, dim> > k1,
 			 SmartPtr<CplUserData<number, dim> > k2)
 {
+	// check that we still have enough space in the reaction vector
+	UG_COND_THROW(m_reactions.size() >= m_reactions.capacity(),
+		"Reaction cannot be added, admissible number of reaction terms ("
+		<< m_reactions.capacity() << ") is reached.\n"
+		"Use the set_num_reactions() method before adding the first reaction to accommodate more.");
+
 	// determine function indices
 	// check if agents already in functions schema; if not: add
 	std::vector<std::string> fcts = this->symb_fcts();
@@ -97,6 +115,7 @@ add_reaction(const char* fct1, const char* fct2,
 	this->set_functions(fcts);
 
 	// set entry in reactions vector
+	UG_LOGN("ReactionInfo: " << fctIndex1 << ", " << fctIndex2);
 	m_reactions.push_back(ReactionInfo<dim>(fctIndex1, fctIndex2, tbc, k1, k2));
 
 	// register new DataImports
