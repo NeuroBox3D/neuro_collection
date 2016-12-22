@@ -32,16 +32,24 @@ set(SOURCES    neuro_collection_plugin.cpp
 
 
 ##message(STATUS "")
-##message(STATUS "Info: Additional options for the neuro_collection (-DNC for setting options) plugin:")
+##message(STATUS "Additional options for the neuro_collection plugin (-DNC for setting options):")
 
 if (MembranePotentialMapping)
+	set(NC_WITH_VM2UG 1)
     set(SOURCES ${SOURCES} membrane_transporters/vdcc_bg/vdcc_bg_vm2ug.cpp)
 
 	if (MPMNEURON)
+		set(NC_WITH_NEURON 1)
 	    set(SOURCES ${SOURCES} membrane_transporters/vdcc_bg/vdcc_bg_neuron.cpp)
 	endif(MPMNEURON)
 endif (MembranePotentialMapping)
 
+
+if (cable_neuron)
+	set(NC_WITH_CABLENEURON 1)
+	set(SOURCES ${SOURCES} membrane_transporters/vdcc_bg/vdcc_bg_cableneuron.cpp
+						   hybrid_neuron_communicator.cpp)
+endif (cable_neuron)
 
 
 ################################################################################
@@ -54,33 +62,28 @@ project(UG_PLUGIN_${pluginName})
 # include the definitions and dependencies for ug-plugins.
 include(${UG_ROOT_CMAKE_PATH}/ug_plugin_includes.cmake)
 
+
+# This will copy the configurable file config_cmake.h to
+# the final configuration header config.h,
+# setting the #defines as given by the current CMake variables.
+configure_file(config_cmake.h config.h)
+
+
 if(buildEmbeddedPlugins)
 	# add the sources to ug4's sources
 	EXPORTSOURCES(${CMAKE_CURRENT_SOURCE_DIR} ${SOURCES})
+
+	# add include path for config.h
+	ExportIncludes(${CMAKE_CURRENT_BINARY_DIR})
 	
-	if (MembranePotentialMapping)
-		# add definition to plugin_main.cpp to include Vm2Ug-dependent channels
-		ExportSingleFileDefinitions(${CMAKE_CURRENT_SOURCE_DIR}/neuro_collection_plugin.cpp VM2UG_ENABLED)
-	
-		if (MPNEURON)
-			# add definition to plugin_main.cpp to include Neuron-dependent channels
-			ExportSingleFileDefinitions(${CMAKE_CURRENT_SOURCE_DIR}/neuro_collection_plugin.cpp NEURON_ENABLED)
-		endif (MPNEURON)
-		
-	endif (MembranePotentialMapping)	
 else(buildEmbeddedPlugins)
 	# create a shared library from the sources and link it against ug4.
 	add_library(${pluginName} SHARED ${SOURCES})
 	
+	# add include path for tetgen_config.h
+	include_directories(${CMAKE_CURRENT_BINARY_DIR})
+	
 	if (MembranePotentialMapping)
-		# add definition to plugin_main.cpp to include Vm2Ug-dependent channels
-		set_source_files_properties(neuro_collection_plugin.cpp PROPERTIES COMPILE_DEFINITIONS VM2UG_ENABLED)
-		
-		if (MPNEURON)
-			# add definition to plugin_main.cpp to include Neuron-dependent channels
-			set_source_files_properties(neuro_collection_plugin.cpp PROPERTIES COMPILE_DEFINITIONS NEURON_ENABLED)
-		endif (MPNEURON)
-		
 		# make plugin link against MPM
 		set(linkLibraries MembranePotentialMapping ${linkLibraries})
 	endif (MembranePotentialMapping)

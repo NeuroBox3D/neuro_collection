@@ -16,11 +16,11 @@
 #include "bridge/util_domain_algebra_dependent.h"
 #include "bridge/util_domain_dependent.h"
 
+// configuration file for compile options
+#include "config.h"
+
 #include "buffer_fv1.h"
 #include "membrane_transport_fv1.h"
-//#include "one_sided_borg_graham_fv1.h"
-//#include "dependent_neumann_boundary_fv1.h"
-//#include "one_sided_membrane_transport_fv1.h"
 #include "user_flux_bnd_fv1.h"
 #include "membrane_transporters/membrane_transporter_interface.h"
 #include "membrane_transporters/ip3r.h"
@@ -33,9 +33,13 @@
 #include "membrane_transporters/vdcc_bg/vdcc_bg.h"
 #include "membrane_transporters/vdcc_bg/vdcc_bg_userdata.h"
 
-#ifdef VM2UG_ENABLED
+#ifdef NC_WITH_CABLENEURON
+    #include "membrane_transporters/vdcc_bg/vdcc_bg_cableneuron.h"
+#endif
+
+#ifdef NC_WITH_VM2UG
 	#include "membrane_transporters/vdcc_bg/vdcc_bg_vm2ug.h"
-	#ifdef NEURON_ENABLED
+	#ifdef NC_WITH_NEURON
 		#include "membrane_transporters/vdcc_bg/vdcc_bg_neuron.h"
 	#endif
 #endif
@@ -46,6 +50,7 @@
 #include "grid_generation/bouton_generator/bouton_generator.h"
 
 #include "util/measurement.h"
+#include "lib_disc/function_spaces/grid_function.h"
 
 
 using namespace std;
@@ -233,7 +238,21 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "VDCC_BG_UserData", tag);
 	}
 
-#ifdef VM2UG_ENABLED
+#ifdef NC_WITH_CABLENEURON
+	// VDCC with cable_neuron
+    {
+        typedef VDCC_BG_CN<TDomain> T;
+        typedef VDCC_BG<TDomain> TBase;
+        std::string name = std::string("VDCC_BG_CN").append(suffix);
+        reg.add_class_<T, TBase>(name, grp)
+            .template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&,
+                SmartPtr<ApproximationSpace<TDomain> >)> ("function(s) as vector#subset(s) as vector#approxSpace")
+            .set_construct_as_smart_pointer(true);
+        reg.add_class_to_group(name, "VDCC_BG_CN", tag);
+    }
+#endif
+
+#ifdef NC_WITH_VM2UG
 	// VDCC with Vm2UG
 	{
 		typedef VDCC_BG_VM2UG<TDomain> T;
@@ -252,7 +271,7 @@ static void Domain(Registry& reg, string grp)
 	}
 
 	// VDCC with Neuron
-#ifdef NEURON_ENABLED
+#ifdef NC_WITH_NEURON
 	{
 		typedef VDCC_BG_VM2UG_NEURON<TDomain> T;
 		typedef VDCC_BG<TDomain> TBase;
@@ -270,8 +289,8 @@ static void Domain(Registry& reg, string grp)
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "VDCC_BG_VM2UG_NEURON", tag);
 	}
-#endif // NEURON_ENABLED
-#endif // VM2UG_ENABLED
+#endif // NC_WITH_NEURON
+#endif // NC_WITH_VM2UG
 
 
 
