@@ -48,7 +48,7 @@ endif (MembranePotentialMapping)
 if (cable_neuron)
 	set(NC_WITH_CABLENEURON 1)
 	set(SOURCES ${SOURCES} membrane_transporters/vdcc_bg/vdcc_bg_cableneuron.cpp
-						   hybrid_neuron_communicator.cpp)
+	                       hybrid_neuron_communicator.cpp)
 endif (cable_neuron)
 
 

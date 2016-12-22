@@ -46,10 +46,10 @@ class HybridNeuronCommunicator
          * This method needs to be called whenever there are any changes in one of the geometries
          * or when one of the geometries has been redistributed.
          */
-        void reinit();
+        void reinit_potential_mappings();
 
         /// communicate potential values
-        void communicate_potential_values();
+        void coordinate_potential_values();
 
         /// get potential value for high-dim side element
         number potential(side_t* elem) const;
@@ -68,7 +68,7 @@ class HybridNeuronCommunicator
                 size_t cmp;
         };
 
-        void nearest_neighbor_search
+        int nearest_neighbor_search
 		(
 			const std::vector<posType>& queryPts,
 			const std::vector<posType>& dataPts,
@@ -76,17 +76,6 @@ class HybridNeuronCommunicator
 			std::vector<typename posType::value_type>& vDistOut
 		) const;
 
-    private:
-        struct SendInfo
-        {
-            int receiver;
-            std::vector<Vertex*> vVrts;
-        };
-        struct ReceiveInfo
-        {
-            int sender;
-            std::vector<side_t*> vElems;
-        };
 
     private:
         /// access to 1d cable discretization
@@ -95,11 +84,23 @@ class HybridNeuronCommunicator
         /// memory for side element potential values
         std::map<side_t*, number> m_mElemPot;
 
+#ifdef UG_PARALLEL
         /// list of 1d sender vertices on this proc and who they send to
-        std::vector<SendInfo> m_vSendInfo;
+        std::map<int, std::vector<Vertex*> > m_mSendInfo;
 
         /// list of 3d receiver elems and who they receive from
-        std::vector<ReceiveInfo> m_vReceiveInfo;
+        std::map<int, std::vector<side_t*> > m_mReceiveInfo;
+
+        int* rcvSize;
+        int* rcvFrom;
+        void* rcvBuf;
+
+        int* sendSize;
+        int* sendTo;
+        void* sendBuf;
+#endif
+
+        std::map<side_t*, Vertex*> m_mPotElemToVertex;  // direct map (only for the serial case)
 
         SmartPtr<ApproximationSpace<TDomain> > m_spApprox1d;
         SmartPtr<ApproximationSpace<TDomain> > m_spApprox3d;

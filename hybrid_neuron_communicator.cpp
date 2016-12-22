@@ -9,6 +9,7 @@
 #include "lib_grid/algorithms/debug_util.h" // ElementDebugInfo
 
 #include <algorithm>	// std::sort
+#include <limits>       // std::numeric_limits
 
 
 namespace ug {
@@ -21,12 +22,27 @@ HybridNeuronCommunicator<TDomain>::HybridNeuronCommunicator
     SmartPtr<ApproximationSpace<TDomain> > spApprox3d,
     SmartPtr<ApproximationSpace<TDomain> > spApprox1d
 )
-: m_spCE(SPNULL), m_spApprox1d(spApprox1d), m_spApprox3d(spApprox3d) {}
+: m_spCE(SPNULL),
+#ifdef UG_PARALLEL
+  rcvSize(NULL), rcvFrom(NULL), rcvBuf(NULL),
+  sendSize(NULL), sendTo(NULL), sendBuf(NULL),
+#endif
+  m_spApprox1d(spApprox1d), m_spApprox3d(spApprox3d)
+{}
 
 
 template <typename TDomain>
 HybridNeuronCommunicator<TDomain>::~HybridNeuronCommunicator()
-{}
+{
+#ifdef UG_PARALLEL
+    if (rcvSize) delete[] rcvSize;
+    if (rcvFrom) delete[] rcvFrom;
+    if (rcvBuf) delete[] (char*) rcvBuf;
+    if (sendSize) delete[] sendSize;
+    if (sendTo) delete[] sendTo;
+    if (sendBuf)  delete[] (char*) sendBuf;
+#endif
+}
 
 
 template <typename TDomain>
@@ -46,146 +62,279 @@ void HybridNeuronCommunicator<TDomain>::set_potential_subsets(const std::vector<
     for (size_t si = 0; si < ssGrp.size(); si++)
         m_vPotSubset3d.push_back(ssGrp[si]);
 
-    reinit();
+    reinit_potential_mappings();
 }
 
 
 template <typename TDomain>
-void HybridNeuronCommunicator<TDomain>::reinit()
+void HybridNeuronCommunicator<TDomain>::reinit_potential_mappings()
 {
+    typedef typename DoFDistribution::traits<side_t>::const_iterator SideItType;
+    typedef typename DoFDistribution::traits<Vertex>::const_iterator VrtItType;
+    typedef typename TDomain::position_accessor_type posAccType;
+
+    posAccType aaPos = m_spApprox3d->domain()->position_accessor();
+    ConstSmartPtr<DoFDistribution> dd1 = m_spApprox1d->dof_distribution(GridLevel());
+    ConstSmartPtr<DoFDistribution> dd3 = m_spApprox3d->dof_distribution(GridLevel());
+
     // find all elements of the 3d geometry boundary on which the potential is defined
-	// store their coords in the same order
-	typedef typename DoFDistribution::traits<side_t>::const_iterator SideItType;
-	typedef typename DoFDistribution::traits<Vertex>::const_iterator VrtItType;
-	typedef typename TDomain::position_accessor_type posAccType;
+    // store their center coords in the same order
+    std::vector<posType> vLocPotElemPos;
+    size_t numSs = m_vPotSubset3d.size();
+    for (size_t s = 0; s < numSs; ++s)
+    {
+        int si = m_vPotSubset3d[s];
+        SideItType it = dd1->template begin<side_t>(si);
+        SideItType it_end = dd1->template end<side_t>(si);
 
-	posAccType aaPos = m_spApprox3d->domain()->position_accessor();
-	ConstSmartPtr<DoFDistribution> dd1 = m_spApprox1d->dof_distribution(GridLevel());
-	ConstSmartPtr<DoFDistribution> dd3 = m_spApprox3d->dof_distribution(GridLevel());
+        for (; it != it_end; ++it)
+            vLocPotElemPos.push_back(CalculateCenter(*it, aaPos));
+    }
 
-	std::vector<posType> vLocPotElemPos;
-	size_t numSs = m_vPotSubset3d.size();
-	for (size_t s = 0; s < numSs; ++s)
-	{
-		int si = m_vPotSubset3d[s];
-		SideItType it = dd1->template begin<side_t>(si);
-		SideItType it_end = dd1->template end<side_t>(si);
+    // find all 1d vertices and store them and their positions
+    std::vector<Vertex*> vLocVrt;
+    std::vector<posType> vLocVrtPos;
 
-		for (; it != it_end; ++it)
-			vLocPotElemPos.push_back(CalculateCenter(*it, aaPos));
-	}
+    VrtItType it = dd3->template begin<Vertex>();
+    VrtItType it_end = dd3->template end<Vertex>();
+    for (; it != it_end; ++it)
+    {
+       vLocVrt.push_back(*it);
+       vLocVrtPos.push_back(aaPos[*it]);
+    }
 
-	// TODO: somehow work with neuron and neurite IDs and parameterization
-	// along the neurites, where this is possible
+#ifdef UG_PARALLEL
+    if (pcl::NumProcs() <= 1) goto serial_case;
 
-	// find the procs on which reside the corresponding 1d vertices
-	// use nearest neighbor search for that
+    {
+        // TODO: somehow work with neuron and neurite IDs and parameterization
+        // along the neurites, where this is possible
+        // this would come with the considerable benefit that only those
+        // neurons would need to communicate which have the required neuron(s)
 
-	// first step: communicate search positions to every proc
-	pcl::ProcessCommunicator procComm;
+        // communicate search positions to every proc
+        std::vector<posType> vGlobPotElemPos;
+        std::vector<int> vOffsets;
+        pcl::ProcessCommunicator procComm;
+        procComm.allgatherv(vGlobPotElemPos, vLocPotElemPos, NULL, &vOffsets);
 
-	std::vector<posType> vGlobPotElemPos;
-	std::vector<int> vSizes;
-	procComm.allgatherv(vGlobPotElemPos, vLocPotElemPos, &vSizes);
+        // local nearest neighbor search for all elem centers
+        std::vector<size_t> vNearest;
+        std::vector<typename posType::value_type> vDist;
+        int noNeighbors = nearest_neighbor_search(vGlobPotElemPos, vLocVrtPos, vNearest, vDist);
 
-	// second step: local nearest neighbor search for all elem centers
-	std::vector<posType> vLocVrtPos;
+        // NN search return 1 if no neighbors found
+        if (noNeighbors)
+            vDist.resize(vGlobPotElemPos.size(), std::numeric_limits<typename posType::value_type>::max());
 
-	VrtItType it = dd3->template begin<Vertex>();
-	VrtItType it_end = dd3->template end<Vertex>();
-	for (; it != it_end; ++it)
-		vLocVrtPos.push_back(aaPos[*it]);
+        // find global minimal dists
+        std::vector<typename posType::value_type> minDist;
+        procComm.allreduce(vDist, minDist, PCL_RO_MIN);
 
-	std::vector<size_t> vNearest;
-	std::vector<typename posType::value_type> vDist;
-	nearest_neighbor_search(vGlobPotElemPos, vLocVrtPos, vNearest, vDist);
+        // now all procs know the global min distances, however, they might not be unique
+        std::vector<int> locRank, globRank;
+        locRank.resize(minDist.size());
+        size_t sz = locRank.size();
+        int myRank = pcl::ProcRank();
+        for (size_t i = 0; i < sz; ++i)
+        {
+            if (minDist[i] == vDist[i])
+            {
+                UG_COND_THROW(minDist[i] == std::numeric_limits<typename posType::value_type>::max(),
+                    "No vertex can be mapped for elem at " << vGlobPotElemPos[i] << " on any proc.");
+
+                locRank[i] = myRank;
+            }
+            else locRank[i] = 0;
+        }
+
+        // after this, globRank contains the rank of the proc containing the NN for all query points
+        procComm.allreduce(locRank, globRank, PCL_RO_MAX);
+
+        // fill m_vSendInfo and m_vReceiveInfo
+        // first, sendInfo
+        int receiver = 0;
+        std::vector<Vertex*> vVrt;
+        for (size_t i = 0; i < sz; ++i)
+        {
+            // increase receiver ID if necessary
+            if (receiver < (int)(vOffsets.size())-1 && receiver >= vOffsets[receiver+1])
+            {
+                // push old receiver if any NN for it are present
+                if (vVrt.size())
+                {
+                    m_mSendInfo[receiver] = vVrt;
+                    vVrt.clear();
+                }
+
+                // increase receiver index as long as necessary
+                ++receiver;
+                while (receiver < (int)(vOffsets.size())-1 && receiver >= vOffsets[receiver+1])
+                    ++receiver;
+            }
+
+            // this proc is sender if it holds the NN
+            if (globRank[i] == myRank)
+                vVrt.push_back(vLocVrt[vNearest[i]]);
+        }
+
+        // push last receiver if any NN for it are present
+        if (vVrt.size())
+        {
+            m_mSendInfo[receiver] = vVrt;
+            vVrt.clear();
+        }
+
+        // now receiveInfo
+        size_t i = (size_t) vOffsets[(size_t) myRank];
+        for (size_t s = 0; s < numSs; ++s)
+        {
+            int si = m_vPotSubset3d[s];
+            SideItType it = dd1->template begin<side_t>(si);
+            SideItType it_end = dd1->template end<side_t>(si);
+            for (; it != it_end; ++it)
+            {
+                m_mReceiveInfo[globRank[i]].push_back(*it);
+                ++i;
+            }
+        }
 
 
-    // communicate both to one another to fill m_vSendInfo and m_vReceiveInfo
-    // take extra care to preserve the order!
+        // at last, prepare communication arrays
+        // delete present ones of this is a re-initialization
+        if (rcvSize) delete[] rcvSize;
+        if (rcvFrom) delete[] rcvFrom;
+        if (rcvBuf) delete[] (char*) rcvBuf;
+        if (sendSize) delete[] sendSize;
+        if (sendTo) delete[] sendTo;
+        if (sendBuf)  delete[] (char*) sendBuf;
+
+        // receiving setup
+        int numRcv = (int) m_mReceiveInfo.size();
+        rcvSize = new int[numRcv];
+        rcvFrom = new int[numRcv];
+        size_t rcvBytes = 0;
+
+        i = 0;
+        typename std::map<int, std::vector<side_t*> >::const_iterator itRec = m_mReceiveInfo.begin();
+        typename std::map<int, std::vector<side_t*> >::const_iterator itRec_end = m_mReceiveInfo.end();
+        for (; itRec != itRec_end; ++itRec)
+        {
+            rcvFrom[i] = itRec->first;
+            rcvSize[i] = (int) (itRec->second.size() * sizeof(number));
+            rcvBytes += rcvSize[i];
+            ++i;
+        }
+        rcvBuf = new char[rcvBytes];
+
+        // sending setup
+        int numSend = (int) m_mSendInfo.size();
+        sendSize = new int[numSend];
+        sendTo = new int[numSend];
+        size_t sendBytes = 0;
+
+        i = 0;
+        std::map<int, std::vector<Vertex*> >::const_iterator itSend = m_mSendInfo.begin();
+        std::map<int, std::vector<Vertex*> >::const_iterator itSend_end = m_mSendInfo.end();
+        for (; itSend != itSend_end; ++itSend)
+        {
+            sendTo[i] = itSend->first;
+            sendSize[i] = (int) (itSend->second.size() * sizeof(number));
+            sendBytes += sendSize[i];
+            ++i;
+        }
+        sendBuf = new char[sendBytes];
+
+    }
+
+    return;
+
+serial_case:
+#endif
+        // local nearest neighbor search for all elem centers
+        std::vector<size_t> vNearest;
+        std::vector<typename posType::value_type> vDist;
+        int noNeighbors = nearest_neighbor_search(vLocPotElemPos, vLocVrtPos, vNearest, vDist);
+        UG_COND_THROW(noNeighbors, "No 1d vertices are present to map 3d potential elements to.");
+
+        // fill 3d->1d map
+        size_t i = 0;
+        for (size_t s = 0; s < numSs; ++s)
+        {
+            int si = m_vPotSubset3d[s];
+            SideItType it = dd1->template begin<side_t>(si);
+            SideItType it_end = dd1->template end<side_t>(si);
+            for (; it != it_end; ++it)
+            {
+                m_mPotElemToVertex[*it] = vLocVrt[vNearest[i]];
+                ++i;
+            }
+        }
 }
 
 
 template <typename TDomain>
-void HybridNeuronCommunicator<TDomain>::communicate_potential_values()
+void HybridNeuronCommunicator<TDomain>::coordinate_potential_values()
 {
-    // TODO: only do setup when receiver elems or sender vertices change
+#ifdef UG_PARALLEL
+    if (pcl::NumProcs() <= 1) goto serial_case;
 
-	// TODO: only communicate in parallel env
-
-    // receiving setup
-    int numRcv = (int) m_vReceiveInfo.size();
-    int* rcvSize = new int[numRcv];
-    int* rcvFrom = new int[numRcv];
-    size_t rcvBytes = 0;
-    for (size_t i = 0; i < (size_t) numRcv; ++i)
     {
-        rcvFrom[i] = m_vReceiveInfo[i].sender;
-        rcvSize[i] = (int) (m_vReceiveInfo[i].vElems.size() * sizeof(number));
-        rcvBytes += rcvSize[i];
-    }
-    void* rcvBuf = new char[rcvBytes];
+        // collect potential values of this proc in send buffer
+         int numRcv = (int) m_mReceiveInfo.size();
+         int numSend = (int) m_mSendInfo.size();
+         number* curVal = (number*) sendBuf;
 
-    // sending setup
-    int numSend = (int) m_vSendInfo.size();
-    int* sendSize = new int[numSend];
-    int* sendTo = new int[numSend];
-    size_t sendBytes = 0;
-    for (size_t i = 0; i < (size_t) numSend; ++i)
-    {
-        sendTo[i] = m_vSendInfo[i].receiver;
-        sendSize[i] = (int) (m_vSendInfo[i].vVrts.size() * sizeof(number));
-        sendBytes += sendSize[i];
-    }
-    void* sendBuf = new char[sendBytes];
+         std::map<int, std::vector<Vertex*> >::const_iterator itSend = m_mSendInfo.begin();
+         std::map<int, std::vector<Vertex*> >::const_iterator itSend_end = m_mSendInfo.end();
+         for (; itSend != itSend_end; ++itSend)
+         {
+             const std::vector<Vertex*>& vVrts = itSend->second;
+             size_t sz = vVrts.size();
+             for (size_t j = 0; j < sz; ++j)
+             {
+                 *curVal = m_spCE->vm(vVrts[j]);
+                 ++curVal;
+             }
+         }
 
-    // collect potential values of this proc in send buffer
-    number* curVal = (number*) sendBuf;
-    for (size_t i = 0; i < (size_t) numSend; ++i)
-    {
-        const std::vector<Vertex*>& vVrts = m_vSendInfo[i].vVrts;
-        size_t sz = vVrts.size();
-        for (size_t j = 0; j < sz; ++j)
+        // communicate
+        pcl::ProcessCommunicator procComm;
+        procComm.distribute_data
+        (
+            rcvBuf,     // receive buffer (for all data to be received)
+            rcvSize,    // sizes of segments in receive buffer
+            rcvFrom,    // processes from which data is received
+            numRcv,     // number of procs from which data is received
+            sendBuf,    // send buffer (for all data to be sent)
+            sendSize,   // sizes of segments in send buffer
+            sendTo,     // processes to send data to
+            numSend     // number of procs to send data to
+        );
+
+        // save values in map
+        curVal = (number*) rcvBuf;
+        typename std::map<int, std::vector<side_t*> >::const_iterator itRec = m_mReceiveInfo.begin();
+        typename std::map<int, std::vector<side_t*> >::const_iterator itRec_end = m_mReceiveInfo.end();
+        for (; itRec != itRec_end; ++itRec)
         {
-            *curVal = m_spCE->vm(vVrts[j]);
-            ++curVal;
+            const std::vector<side_t*>& vElems = itRec->second;
+            size_t sz = vElems.size();
+            for (size_t j = 0; j < sz; ++j)
+            {
+                m_mElemPot[vElems[j]] = *curVal;
+                ++curVal;
+            }
         }
     }
 
-    // communicate
-    pcl::ProcessCommunicator procComm;
-    procComm.distribute_data
-    (
-        rcvBuf,     // receive buffer (for all data to be received)
-        rcvSize,    // sizes of segments in receive buffer
-        rcvFrom,    // processes from which data is received
-        numRcv,     // number of procs from which data is received
-        sendBuf,    // send buffer (for all data to be sent)
-        sendSize,   // sizes of segments in send buffer
-        sendTo,     // processes to send data to
-        numSend     // number of procs to send data to
-    );
+serial_case:
+#endif
 
-    // save values in map
-    curVal = (number*) rcvBuf;
-    for (size_t i = 0; i < (size_t) numRcv; ++i)
-    {
-        const std::vector<side_t*>& vElems = m_vReceiveInfo[i].vElems;
-        size_t sz = vElems.size();
-        for (size_t j = 0; j < sz; ++j)
-        {
-            m_mElemPot[vElems[j]] = *curVal;
-            ++curVal;
-        }
-    }
-
-    // free memory
-    delete[] rcvSize;
-    delete[] rcvFrom;
-    delete[] (char*) rcvBuf;
-    delete[] sendSize;
-    delete[] sendTo;
-    delete[] (char*) sendBuf;
+    typename std::map<side_t*, number>::iterator it = m_mElemPot.begin();
+    typename std::map<side_t*, number>::iterator it_end = m_mElemPot.end();
+    for (; it != it_end; ++it)
+        it->second = m_spCE->vm(m_mPotElemToVertex[it->first]);
 }
 
 
@@ -201,7 +350,7 @@ number HybridNeuronCommunicator<TDomain>::potential(side_t* elem) const
 
 
 template <typename TDomain>
-void HybridNeuronCommunicator<TDomain>::nearest_neighbor_search
+int HybridNeuronCommunicator<TDomain>::nearest_neighbor_search
 (
 	const std::vector<posType>& queryPts,
 	const std::vector<posType>& dataPts,
@@ -209,12 +358,47 @@ void HybridNeuronCommunicator<TDomain>::nearest_neighbor_search
 	std::vector<typename posType::value_type>& vDistOut
 ) const
 {
-	if (!queryPts.size() || !dataPts.size()) return;
+	// TODO: speed might benefit from octree or some other spatial tree structure
+    size_t qSz = queryPts.size();
+    size_t dSz = dataPts.size();
 
+    if (!dSz)
+    {
+        if (!qSz) return 0;
+        return 1; // return that no neighbors could be found at all
+    }
+
+    vNNout.resize(qSz);
+    vDistOut.resize(qSz);
+
+    for (size_t q = 0; q < qSz; ++q)
+    {
+        const posType& qp = queryPts[q];
+        typename posType::value_type& minDist = vDistOut[q];
+        size_t& minPt = vNNout[q];
+
+        minPt = 0;
+        minDist = VecDistanceSq(qp, dataPts[0]);
+        for (size_t d = 1; d < dSz; ++d)
+        {
+            number dist = VecDistanceSq(qp, dataPts[d]);
+            if (dist < minDist)
+            {
+                minDist = dist;
+                minPt = d;
+            }
+        }
+    }
+
+    return 0;
+
+
+	/* // probably too complicated, too little gain
 	// for some speedup in the NN search, we first sort both point sets
 	// with respect to the coordinate axis with biggest variance in the bigger set
 	// then we will be able to drop some comparisons
-	// TODO: speed might benefit from octree or some other spatial tree structure
+
+    if (!queryPts.size() || !dataPts.size()) return;
 
 	// compute variation in one pass
 	const std::vector<posType>& biggerVec = queryPts.size() > dataPts.size() ? queryPts : dataPts;
@@ -253,8 +437,7 @@ void HybridNeuronCommunicator<TDomain>::nearest_neighbor_search
 
 	std::sort(qIndices.begin(), qIndices.end(), cmpQ);
 	std::sort(dIndices.begin(), dIndices.end(), cmpD);
-
-
+	*/
 }
 
 

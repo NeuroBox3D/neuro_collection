@@ -38,7 +38,7 @@ template <typename TDomain>
 void VDCC_BG_CN<TDomain>::prep_timestep(const number time, VectorProxyBase* upb)
 {
     // first: communicate current membrane potential values
-    m_spHNC->communicate_potential_values();
+    m_spHNC->coordinate_potential_values();
 
     // call regular prep timestep from base class
     VDCC_BG<TDomain>::prep_timestep(time, upb);
