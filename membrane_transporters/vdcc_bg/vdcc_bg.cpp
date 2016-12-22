@@ -21,7 +21,7 @@ VDCC_BG<TDomain>::VDCC_BG
 )
 : IMembraneTransporter(fcts),
   R(8.314), T(310.0), F(96485.0),
-  m_dom(approx->domain()), m_mg(m_dom->grid()), m_dd(approx->dof_distribution(GridLevel::TOP)),
+  m_dom(approx->domain()), m_mg(m_dom->grid()), m_dd(approx->dof_distribution(GridLevel())),
   m_sh(m_dom->subset_handler()), m_aaPos(m_dom->position_accessor()), m_vSubset(subsets),
   m_gpMGate(3.4, -21.0, 1.5), m_gpHGate(-2.0, -40.0, 75.0), m_time(0.0), m_oldTime(0.0),
   m_perm(3.8e-19), m_mp(2), m_hp(1), m_channelType(BG_Ntype), m_initiated(false)
@@ -38,7 +38,7 @@ VDCC_BG<TDomain>::VDCC_BG
 )
 : IMembraneTransporter(fcts),
   R(8.314), T(310.0), F(96485.0),
-  m_dom(approx->domain()), m_mg(m_dom->grid()), m_dd(approx->dof_distribution(GridLevel::TOP)),
+  m_dom(approx->domain()), m_mg(m_dom->grid()), m_dd(approx->dof_distribution(GridLevel())),
   m_sh(m_dom->subset_handler()), m_aaPos(m_dom->position_accessor()), m_vSubset(TokenizeString(subsets)),
   m_gpMGate(3.4, -21.0, 1.5), m_gpHGate(-2.0, -40.0, 75.0), m_time(0.0), m_oldTime(0.0),
   m_perm(3.8e-19), m_mp(2), m_hp(1), m_channelType(BG_Ntype), m_initiated(false)
@@ -364,16 +364,23 @@ void VDCC_BG<TDomain>::prep_timestep
 {
 	update_time(time);
 
-	// loop sides and update potential and then gatings
-	typedef typename DoFDistribution::traits<side_t>::const_iterator it_type;
-	it_type it = m_dd->begin<side_t>();
-	it_type it_end = m_dd->end<side_t>();
+	SubsetGroup ssGrp;
+    try { ssGrp = SubsetGroup(m_dom->subset_handler(), this->m_vSubset);}
+    UG_CATCH_THROW("Subset group creation failed.");
 
-	for (; it != it_end; ++it)
-	{
-		update_potential(*it);
-		update_gating(*it);
-	}
+    typedef typename DoFDistribution::traits<side_t>::const_iterator it_type;
+
+    for (std::size_t si = 0; si < ssGrp.size(); si++)
+    {
+        // loop sides and update potential and then gatings
+        it_type it = m_dd->begin<side_t>(ssGrp[si]);
+        it_type it_end = m_dd->end<side_t>(ssGrp[si]);
+        for (; it != it_end; ++it)
+        {
+            update_potential(*it);
+            update_gating(*it);
+        }
+    }
 }
 
 

@@ -56,13 +56,13 @@ namespace neuro_collection{
  *  	f	: mol*s^-1	ionic flux
  *
  *  Remarks:
- *  	- Internally all membrane potentials are attached to elements in [V] for
+ *  	- Internally, all membrane potentials are attached to elements in [V] for
  *  	  the element discretization!
  *
  *  	- VDCC_BG & VDCC_BG_UserData use [ms] and [mV] in gating and flux calculations!
  *  	  This is due to the use of the original gating parameter sets by Borg-Graham
  *  	  with tau_0 in [ms] and V_12 in [mV].
- *  	  Note, that the update potential method already takes care of this, when calling
+ *  	  Note that the update potential method already takes care of this, when calling
  *  	  the corresponding gating & flux calculation methods.
  *
 **/
