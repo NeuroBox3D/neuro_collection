@@ -88,6 +88,11 @@ else(buildEmbeddedPlugins)
 		set(linkLibraries MembranePotentialMapping ${linkLibraries})
 	endif (MembranePotentialMapping)
 	
+	if (cable_neuron)
+		# make plugin link against cable_neuron
+		set(linkLibraries cable_neuron ${linkLibraries})
+	endif (cable_neuron)
+	
 	target_link_libraries (${pluginName} ug4 ${linkLibraries})
 endif(buildEmbeddedPlugins)
 
