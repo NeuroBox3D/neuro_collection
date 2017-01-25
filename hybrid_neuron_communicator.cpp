@@ -23,12 +23,24 @@ HybridNeuronCommunicator<TDomain>::HybridNeuronCommunicator
     SmartPtr<ApproximationSpace<TDomain> > spApprox1d
 )
 : m_spCE(SPNULL),
+  m_spSynHandler(SPNULL),
 #ifdef UG_PARALLEL
   rcvSize(NULL), rcvFrom(NULL), rcvBuf(NULL),
   sendSize(NULL), sendTo(NULL), sendBuf(NULL),
 #endif
-  m_spApprox1d(spApprox1d), m_spApprox3d(spApprox3d)
-{}
+  m_spApprox1d(spApprox1d), m_spApprox3d(spApprox3d),
+  m_spGrid1d(SPNULL),
+  m_aNID(GlobalAttachments::attachment<ANeuronID>("NeuronID"))
+{
+	m_spGrid1d = m_spApprox1d->domain()->grid();
+
+	if (!m_spGrid1d->has_vertex_attachment(m_aNID))
+		m_spGrid1d->attach_to_vertices(m_aNID);
+	m_aaNID = Grid::VertexAttachmentAccessor<ANeuronID>(*m_spGrid1d, m_aNID);
+
+	m_aaPos1d = m_spApprox1d->domain()->position_accessor();
+	m_aaPos3d = m_spApprox1d->domain()->position_accessor();
+}
 
 
 template <typename TDomain>
@@ -49,6 +61,7 @@ template <typename TDomain>
 void HybridNeuronCommunicator<TDomain>::set_ce_object(ConstSmartPtr<cable_neuron::CableEquation<TDomain> > spCEDisc)
 {
     m_spCE = spCEDisc;
+    m_spSynHandler = m_spCE->synapse_handler();
 }
 
 
@@ -439,6 +452,241 @@ int HybridNeuronCommunicator<TDomain>::nearest_neighbor_search
 	std::sort(dIndices.begin(), dIndices.end(), cmpD);
 	*/
 }
+
+
+
+template <typename TDomain>
+void HybridNeuronCommunicator<TDomain>::neuron_identification()
+{
+	// FIXME: use only base level here and propagate to higher levels afterwards
+	int nid = 0;
+	//initialize with -1
+	for(VertexIterator vIter = m_spGrid1d->begin<Vertex>(); vIter != m_spGrid1d->end<Vertex>(); ++vIter ) {
+		Vertex* v = *vIter;
+		m_aaNID[v] = -1;
+	}
+
+	for(VertexIterator vIter = m_spGrid1d->begin<Vertex>(); vIter != m_spGrid1d->end<Vertex>(); ++vIter ) {
+		UG_COND_THROW(nid < 0, "Too many neurons");
+		Vertex* v = *vIter;
+		if(deep_first_search(v, nid)) {
+			nid++;
+		}
+	}
+	std::cout << "\nNIDs: " << nid + 1 << std::endl << std::endl; //dbg: prints out number of neurons (+1 because of 0 being first index)
+}
+
+template <typename TDomain>
+int HybridNeuronCommunicator<TDomain>::deep_first_search(Vertex* v, int id)
+{
+	if(m_aaNID[v] >= 0) {
+		return 0; //vertex v is already identified
+	} else {
+		m_aaNID[v] = id; //v gets id
+	}
+
+	Grid::traits<Edge>::secure_container edges; //get all edges incident to v
+	m_spGrid1d->associated_elements(edges, v);
+
+	for(size_t i=0; i<edges.size(); ++i) {
+		deep_first_search( (*edges[i])[0], id ); //dfs for every connected vertex
+		deep_first_search( (*edges[i])[1], id );
+	}
+	return 1;
+}
+
+template <typename TDomain>
+int HybridNeuronCommunicator<TDomain>::get_neuron_id(SYNAPSE_ID id)
+{
+	for(EdgeIterator eIter = m_spGrid1d->begin<Edge>(); eIter != m_spGrid1d->end<Edge>(); ++eIter) {
+		Edge* e = *eIter;
+		std::vector<IBaseSynapse*> v = m_spSynHandler->get_synapses_on_edge(e);
+		for(size_t j=0; j<v.size(); ++j) {
+			if(v[j]->id() == id) {
+				return m_aaNID[(*e)[0]];
+			}
+		}
+	}
+
+	return -1;
+}
+
+template <typename TDomain>
+int HybridNeuronCommunicator<TDomain>::Mapping3d(int neuron_id, std::vector<Vertex*>& vMinimizing3dVertices, std::vector<std::vector<number> >& vMinimizingSynapseCoords)
+{
+	std::vector<std::vector<number> > syn_coords_local;
+	std::vector<Vertex*> v3dVertices; //todo: where to get local 3d vertices from?
+	std::vector<Vertex*> vMap;
+	std::vector<number> vDistances;
+
+
+	//gather local synapse coords, that are interesting
+	SmartPtr<SynapseIter<cable_neuron::synapse_handler::IBaseSynapse> > synIt = m_spSynHandler->template begin<cable_neuron::synapse_handler::IBaseSynapse>();
+	SmartPtr<SynapseIter<cable_neuron::synapse_handler::IBaseSynapse> > synItEnd = m_spSynHandler->template end<cable_neuron::synapse_handler::IBaseSynapse>();
+	for (; synIt.get() != synItEnd.get(); ++*synIt)
+	{
+		IBaseSynapse* syn = **synIt;
+		if( get_neuron_id(syn->id()) == neuron_id) {
+			std::vector<number> coords;
+			get_coordinates(syn->id(), coords);
+			syn_coords_local.push_back(coords);
+		}
+	}
+
+#ifdef UG_PARALLEL
+
+	pcl::ProcessCommunicator com;
+	std::vector<std::vector<number> > syn_coords_global; //synapses coords of neuron with given id
+	std::vector<int> syn_sizes;
+	std::vector<int> syn_offsets;
+
+	//communicate all interesting synapse coords to all procs
+	com.allgatherv(syn_coords_global, syn_coords_local, &syn_sizes, &syn_offsets); //syn_coords_global contains all synapses, which are interesting for a 3d mapping
+
+	//compute local min distances
+	nearest_neighbor(syn_coords_global, v3dVertices, vMap, vDistances);
+
+	//communicate all distances to all processes
+	std::vector<number> vGloblDistances;
+	std::vector<std::vector<number> > mGloblDistances;
+
+	// TODO: for big process numbers, try to minimize communication:
+	//       using gather (in a loop over 1d synapse holder procs),
+	//       only send min_distances back to the holders of 1d synapses
+	//       and let them decide on global minimum
+	com.allgatherv(vGloblDistances, vDistances);
+	for(size_t i=0; i<com.size(); ++i) { //assemble global distances matrix
+		std::vector<number> tmp;
+		for(size_t j=0; j<vDistances.size(); ++j) {
+			tmp.push_back(vGloblDistances[i]);
+		}
+		mGloblDistances.push_back(tmp);
+	}
+
+	//compute minimizing proc for each 1d synapse
+	std::vector<int> vMinimizingProc;
+	for(size_t j=0; j<vDistances.size(); ++j) {//iterate over columns, ie synapses
+		number min = mGloblDistances[j][0]; //init global min with proc0's min
+		int min_proc = 0;					//minimizing proc
+		for(size_t i=0; i<com.size(); ++i) {//iterate over rows, ie local min distances
+			if(mGloblDistances[j][i] < min) {
+				min = mGloblDistances[j][i];
+				min_proc = i;
+			}
+		}
+		vMinimizingProc.push_back(min_proc);
+	}
+
+	//construct index array sorted by proc (ascending order)
+	std::vector<size_t> synapse_index;
+	std::vector<size_t> sizes_synapse_index;
+	std::vector<size_t> offsets_synapse_index;
+
+	size_t offset=0;
+	for(size_t i=0; i<vMinimizingProc.size(); ++i) {
+		size_t size=0;										//number of elements for proc i
+		offsets_synapse_index.push_back(offset);
+		for(size_t j=0; j<vMinimizingProc.size(); ++j) {
+			if( static_cast<size_t>(vMinimizingProc[j]) == i) {
+				synapse_index.push_back(j);
+				size++;
+			}
+		}
+		sizes_synapse_index.push_back(size);
+		offset += size;
+	}
+
+
+	//every proc constructs its minimizing vector of vertices
+	//with offsets and sizes for the range of proc_i then follows:
+	//range_i = [offsets_synapse_index, offsets_synapse_index + sizes_synapse_index)
+	vMinimizing3dVertices.clear();
+	vMinimizingSynapseCoords.clear();
+
+	size_t loc_start = offsets_synapse_index[pcl::ProcRank()];
+	size_t loc_end = offsets_synapse_index[pcl::ProcRank()] + sizes_synapse_index[pcl::ProcRank()];
+	for(size_t i=loc_start; i<loc_end; ++i) {
+		vMinimizing3dVertices.push_back(vMap[ synapse_index[i] ]);
+		vMinimizingSynapseCoords.push_back( syn_coords_global[synapse_index[i]] );
+	}
+
+	//vMinimizing3dVertices should finally contain the nearest 3d Vertex to the corresponding 1d synapse at the same position in vMinimizingSynapseCoords
+
+
+
+
+
+#else
+	nearest_neighbor(syn_coords_local, v3dVertices, vMap, vDistances)
+#endif
+	return 1;
+}
+
+template <typename TDomain>
+int HybridNeuronCommunicator<TDomain>::nearest_neighbor(	const std::vector<std::vector<number> >& v1dCoords,
+													const std::vector<Vertex*>& v3dVertices,
+													std::vector<Vertex*>& vMap,
+													std::vector<number>& vDistances)
+{
+	vMap.clear();
+	vDistances.clear();
+
+	//iterate over 1dSynapses
+	for(size_t i=0; i<v1dCoords.size(); i++) {
+		std::vector<number> vSqDist(3);
+
+		// TODO: use MathVector from the beginning
+		MathVector<dim> v1dCoords_mv;
+		for (size_t j = 0; j < dim; ++j)
+			v1dCoords_mv[j] = v1dCoords[i][j];
+
+        number min_distance = VecDistanceSq(m_aaPos3d[v3dVertices[0]], v1dCoords_mv);
+		vMap.push_back(v3dVertices[0]);
+
+		//iterate over 3dVertices
+		for(size_t j=1; j<v3dVertices.size(); ++j) {
+			for (size_t j = 0; j < dim; ++j)
+				v1dCoords_mv[j] = v1dCoords[i][j];
+
+			number distance = VecDistanceSq(m_aaPos3d[v3dVertices[j]], v1dCoords_mv);
+			if(distance < min_distance) {
+				min_distance = distance;
+				vMap[i] = v3dVertices[j];
+			}
+		}
+		vDistances.push_back(min_distance); //after comparisons with all 3dVertices add min_distance to the output vector
+	}
+	return 1;
+}
+
+template <typename TDomain>
+void HybridNeuronCommunicator<TDomain>::get_coordinates(SYNAPSE_ID id, std::vector<number>& vCoords)
+{
+	vCoords.clear();
+
+	//Search for Edge
+	for(EdgeIterator eIter = m_spGrid1d->begin<Edge>(); eIter != m_spGrid1d->end<Edge>(); ++eIter) {
+		Edge* e = *eIter;
+		std::vector<IBaseSynapse*> v = m_spSynHandler->get_synapses_on_edge(e);
+		for(size_t j=0; j<v.size(); ++j) {
+			if(v[j]->id() == id) {
+				Vertex* v0 = (*e)[0];
+				Vertex* v1 = (*e)[1];
+
+				number localcoord = v[j]->location();
+
+				MathVector<dim> help;
+				VecScaleAdd(help, localcoord, m_aaPos1d[v0], localcoord, m_aaPos1d[v1]);
+
+				// TODO: use MathVector<dim> also in function head
+				vCoords.push_back(help[0]);
+				if (dim > 1) vCoords.push_back(help[dim>1 ? 1 : 0]);
+				if (dim > 2) vCoords.push_back(help[dim>2 ? 2 : 0]);
+			}
+		}
+	}
+}
+
 
 
 
