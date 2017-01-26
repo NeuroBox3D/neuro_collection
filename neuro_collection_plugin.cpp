@@ -49,7 +49,10 @@
 #include "stimulation/action_potential_train.h"
 #include "grid_generation/bouton_generator/bouton_generator.h"
 
+#include "test/test_neurite_proj.h"
+
 #include "util/measurement.h"
+#include "lib_grid/refinement/projectors/neurite_projector.h"
 #include "lib_disc/function_spaces/grid_function.h"
 
 
@@ -516,6 +519,15 @@ static void Common(Registry& reg, string grp)
 								"", "bExtSpace#radius#numRefinements#numReleaseSites#TbarHeight#TbarLegRadius#TbarTopRadius#TbarTopHeight#fileName",
 								"Generates a drosophila NMJ bouton volume grid.");
 	}
+
+	// test neurite projector
+	{
+	    reg.add_function("test_neurite_projector", &test_neurite_projector_with_four_section_tube, "", "", "");
+        reg.add_function("test_neurite_projector_with_bp", &test_neurite_projector_with_four_section_tube_and_branch_point, "", "", "");
+        reg.add_function("test_import_swc", &test_import_swc, "", "file name", "");
+	}
+
+
 }
 
 }; // end Functionality
@@ -534,6 +546,9 @@ InitUGPlugin_neuro_collection(Registry* reg, string grp)
 {
 	grp.append("/neuro_collection");
 	typedef neuro_collection::Functionality Functionality;
+
+    typedef Attachment<NeuriteProjector::SurfaceParams> NPSurfParam;
+    GlobalAttachments::declare_attachment<NPSurfParam>("npSurfParams", true);
 
 	try{
 		RegisterCommon<Functionality>(*reg,grp);

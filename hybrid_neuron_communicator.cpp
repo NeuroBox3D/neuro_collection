@@ -644,9 +644,10 @@ int HybridNeuronCommunicator<TDomain>::nearest_neighbor(	const std::vector<std::
 		vMap.push_back(v3dVertices[0]);
 
 		//iterate over 3dVertices
-		for(size_t j=1; j<v3dVertices.size(); ++j) {
-			for (size_t j = 0; j < dim; ++j)
-				v1dCoords_mv[j] = v1dCoords[i][j];
+		for(size_t j=1; j<v3dVertices.size(); ++j)
+		{
+			for (size_t k = 0; k < dim; ++k)
+				v1dCoords_mv[k] = v1dCoords[i][k];
 
 			number distance = VecDistanceSq(m_aaPos3d[v3dVertices[j]], v1dCoords_mv);
 			if(distance < min_distance) {
