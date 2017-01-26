@@ -27,10 +27,10 @@ set(SOURCES    neuro_collection_plugin.cpp
 			   membrane_transporters/mcu.cpp
 			   membrane_transporters/mncx.cpp
 			   stimulation/action_potential_train.cpp
-			   grid_generation/bouton_generator/bouton_generator.cpp
-			   test/test_neurite_proj.cpp
-			   test/neurite_refMarkAdjuster.cpp
-   )
+			   grid_generation/bouton_generator/bouton_generator.cpp)
+	#		   test/test_neurite_proj.cpp
+	#		   test/neurite_refMarkAdjuster.cpp
+ #  )
 
 
 ##message(STATUS "")
