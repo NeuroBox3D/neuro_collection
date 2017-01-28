@@ -49,10 +49,10 @@
 #include "stimulation/action_potential_train.h"
 #include "grid_generation/bouton_generator/bouton_generator.h"
 
+//#include "lib_grid/refinement/projectors/neurite_projector.h"
 //#include "test/test_neurite_proj.h"
 
 #include "util/measurement.h"
-#include "lib_grid/refinement/projectors/neurite_projector.h"
 #include "lib_disc/function_spaces/grid_function.h"
 
 
@@ -241,6 +241,7 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "VDCC_BG_UserData", tag);
 	}
 
+/* temporarily commented out until synapse handler is replaced by split synapse handler
 #ifdef NC_WITH_CABLENEURON
 	// VDCC with cable_neuron
     {
@@ -254,6 +255,7 @@ static void Domain(Registry& reg, string grp)
         reg.add_class_to_group(name, "VDCC_BG_CN", tag);
     }
 #endif
+*/
 
 #ifdef NC_WITH_VM2UG
 	// VDCC with Vm2UG
@@ -519,15 +521,15 @@ static void Common(Registry& reg, string grp)
 								"", "bExtSpace#radius#numRefinements#numReleaseSites#TbarHeight#TbarLegRadius#TbarTopRadius#TbarTopHeight#fileName",
 								"Generates a drosophila NMJ bouton volume grid.");
 	}
+
 /*
 	// test neurite projector
 	{
-	    reg.add_function("test_neurite_projector", &test_neurite_projector_with_four_section_tube, "", "", "");
+        reg.add_function("test_neurite_projector", &test_neurite_projector_with_four_section_tube, "", "", "");
         reg.add_function("test_neurite_projector_with_bp", &test_neurite_projector_with_four_section_tube_and_branch_point, "", "", "");
         reg.add_function("test_import_swc", &test_import_swc, "", "file name", "");
 	}
 */
-
 }
 
 }; // end Functionality

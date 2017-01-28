@@ -27,10 +27,11 @@ set(SOURCES    neuro_collection_plugin.cpp
 			   membrane_transporters/mcu.cpp
 			   membrane_transporters/mncx.cpp
 			   stimulation/action_potential_train.cpp
-			   grid_generation/bouton_generator/bouton_generator.cpp)
-	#		   test/test_neurite_proj.cpp
-	#		   test/neurite_refMarkAdjuster.cpp
- #  )
+			   grid_generation/bouton_generator/bouton_generator.cpp
+   )
+#			   test/test_neurite_proj.cpp
+#			   test/neurite_refMarkAdjuster.cpp
+#   )
 
 
 ##message(STATUS "")
@@ -46,12 +47,12 @@ if (MembranePotentialMapping)
 	endif(MPMNEURON)
 endif (MembranePotentialMapping)
 
-
-if (cable_neuron)
-	set(NC_WITH_CABLENEURON 1)
-	set(SOURCES ${SOURCES} membrane_transporters/vdcc_bg/vdcc_bg_cableneuron.cpp
-	                       hybrid_neuron_communicator.cpp)
-endif (cable_neuron)
+## temporarily commented out until split synapse handler replaces synapse handler
+#if (cable_neuron)
+#	set(NC_WITH_CABLENEURON 1)
+#	set(SOURCES ${SOURCES} membrane_transporters/vdcc_bg/vdcc_bg_cableneuron.cpp
+#	                       hybrid_neuron_communicator.cpp)
+#endif (cable_neuron)
 
 
 ################################################################################
@@ -90,10 +91,11 @@ else(buildEmbeddedPlugins)
 		set(linkLibraries MembranePotentialMapping ${linkLibraries})
 	endif (MembranePotentialMapping)
 	
-	if (cable_neuron)
-		# make plugin link against cable_neuron
-		set(linkLibraries cable_neuron ${linkLibraries})
-	endif (cable_neuron)
+	## temporarily commented out until split synapse handler replaces synapse handler
+	#if (cable_neuron)
+	#	# make plugin link against cable_neuron
+	#	set(linkLibraries cable_neuron ${linkLibraries})
+	#endif (cable_neuron)
 	
 	target_link_libraries (${pluginName} ug4 ${linkLibraries})
 endif(buildEmbeddedPlugins)
