@@ -549,8 +549,8 @@ InitUGPlugin_neuro_collection(Registry* reg, string grp)
 	grp.append("/neuro_collection");
 	typedef neuro_collection::Functionality Functionality;
 
-    typedef Attachment<NeuriteProjector::SurfaceParams> NPSurfParam;
-    GlobalAttachments::declare_attachment<NPSurfParam>("npSurfParams", true);
+    //typedef Attachment<NeuriteProjector::SurfaceParams> NPSurfParam;
+    //GlobalAttachments::declare_attachment<NPSurfParam>("npSurfParams", true);
 
 	try{
 		RegisterCommon<Functionality>(*reg,grp);
