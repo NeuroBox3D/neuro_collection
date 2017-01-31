@@ -512,9 +512,11 @@ int HybridNeuronCommunicator<TDomain>::get_neuron_id(SYNAPSE_ID id)
 }
 
 template <typename TDomain>
-int HybridNeuronCommunicator<TDomain>::Mapping3d(int neuron_id, std::vector<Vertex*>& vMinimizing3dVertices, std::vector<std::vector<number> >& vMinimizingSynapseCoords)
+int HybridNeuronCommunicator<TDomain>::Mapping3d(int neuron_id,
+												 std::vector<Vertex*>& vMinimizing3dVertices,
+												 std::vector<MathVector<dim> >& vMinimizingSynapseCoords)
 {
-	std::vector<std::vector<number> > syn_coords_local;
+	std::vector<MathVector<dim> > syn_coords_local;
 	std::vector<Vertex*> v3dVertices; //todo: where to get local 3d vertices from?
 	std::vector<Vertex*> vMap;
 	std::vector<number> vDistances;
@@ -527,7 +529,7 @@ int HybridNeuronCommunicator<TDomain>::Mapping3d(int neuron_id, std::vector<Vert
 	{
 		IBaseSynapse* syn = **synIt;
 		if( get_neuron_id(syn->id()) == neuron_id) {
-			std::vector<number> coords;
+			MathVector<dim> coords;
 			get_coordinates(syn->id(), coords);
 			syn_coords_local.push_back(coords);
 		}
@@ -617,13 +619,13 @@ int HybridNeuronCommunicator<TDomain>::Mapping3d(int neuron_id, std::vector<Vert
 
 
 #else
-	nearest_neighbor(syn_coords_local, v3dVertices, vMap, vDistances)
+	nearest_neighbor(syn_coords_local, v3dVertices, vMap, vDistances);
 #endif
 	return 1;
 }
 
 template <typename TDomain>
-int HybridNeuronCommunicator<TDomain>::nearest_neighbor(	const std::vector<std::vector<number> >& v1dCoords,
+int HybridNeuronCommunicator<TDomain>::nearest_neighbor(	const std::vector<MathVector<dim> >& v1dCoords,
 													const std::vector<Vertex*>& v3dVertices,
 													std::vector<Vertex*>& vMap,
 													std::vector<number>& vDistances)
@@ -633,23 +635,14 @@ int HybridNeuronCommunicator<TDomain>::nearest_neighbor(	const std::vector<std::
 
 	//iterate over 1dSynapses
 	for(size_t i=0; i<v1dCoords.size(); i++) {
-		std::vector<number> vSqDist(3);
 
-		// TODO: use MathVector from the beginning
-		MathVector<dim> v1dCoords_mv;
-		for (size_t j = 0; j < dim; ++j)
-			v1dCoords_mv[j] = v1dCoords[i][j];
-
-        number min_distance = VecDistanceSq(m_aaPos3d[v3dVertices[0]], v1dCoords_mv);
+        number min_distance = VecDistanceSq(m_aaPos3d[v3dVertices[0]], v1dCoords[0]);
 		vMap.push_back(v3dVertices[0]);
 
 		//iterate over 3dVertices
 		for(size_t j=1; j<v3dVertices.size(); ++j)
 		{
-			for (size_t k = 0; k < dim; ++k)
-				v1dCoords_mv[k] = v1dCoords[i][k];
-
-			number distance = VecDistanceSq(m_aaPos3d[v3dVertices[j]], v1dCoords_mv);
+			number distance = VecDistanceSq(m_aaPos3d[v3dVertices[j]], v1dCoords[i]);
 			if(distance < min_distance) {
 				min_distance = distance;
 				vMap[i] = v3dVertices[j];
@@ -661,9 +654,8 @@ int HybridNeuronCommunicator<TDomain>::nearest_neighbor(	const std::vector<std::
 }
 
 template <typename TDomain>
-void HybridNeuronCommunicator<TDomain>::get_coordinates(SYNAPSE_ID id, std::vector<number>& vCoords)
+void HybridNeuronCommunicator<TDomain>::get_coordinates(SYNAPSE_ID id, MathVector<dim>& vCoords)
 {
-	vCoords.clear();
 
 	//Search for Edge
 	for(EdgeIterator eIter = m_spGrid1d->begin<Edge>(); eIter != m_spGrid1d->end<Edge>(); ++eIter) {
@@ -676,13 +668,7 @@ void HybridNeuronCommunicator<TDomain>::get_coordinates(SYNAPSE_ID id, std::vect
 
 				number localcoord = v[j]->location();
 
-				MathVector<dim> help;
-				VecScaleAdd(help, localcoord, m_aaPos1d[v0], localcoord, m_aaPos1d[v1]);
-
-				// TODO: use MathVector<dim> also in function head
-				vCoords.push_back(help[0]);
-				if (dim > 1) vCoords.push_back(help[dim>1 ? 1 : 0]);
-				if (dim > 2) vCoords.push_back(help[dim>2 ? 2 : 0]);
+				VecScaleAdd(vCoords, localcoord, m_aaPos1d[v0], localcoord, m_aaPos1d[v1]);
 			}
 		}
 	}

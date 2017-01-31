@@ -85,19 +85,19 @@ class HybridNeuronCommunicator
     	 * Calculates real coordinates of given Synapse (by ID) and returns in vCoords
     	 * If SynapseId not found vCoords is empty.
     	 */
-    	void get_coordinates(SYNAPSE_ID id, std::vector<number>& vCoords);
+    	void get_coordinates(SYNAPSE_ID id, MathVector<dim>& vCoords);
     	int get_neuron_id(SYNAPSE_ID id);
 
     protected:
         void neuron_identification();
 		int deep_first_search(Vertex* v, int id);
-		int Mapping3d(int neuron_id, std::vector<Vertex*>& vMinimizing3dVertices, std::vector<std::vector<number> >& vMinimizingSynapseCoords);
+		int Mapping3d(int neuron_id, std::vector<Vertex*>& vMinimizing3dVertices, std::vector<MathVector<dim> >& vMinimizingSynapseCoords);
 
 		/**
 		 * Takes a std::vector of Synapses by coordinates and a std::vector of Vertexcoordinates and writes the nearest neighbor of each
 		 * synapse out in vMap, so that the order of v1dSynapses euqals the order of vMap
 		 */
-		int nearest_neighbor(	const std::vector<std::vector<number> >& v1dCoords,
+		int nearest_neighbor(	const std::vector<MathVector<dim> >& v1dCoords,
 								const std::vector<Vertex*>& v3dVertices,
 								std::vector<Vertex*>& vMap,
 								std::vector<number>& vDistances);
