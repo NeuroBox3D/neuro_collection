@@ -87,7 +87,7 @@ class HybridNeuronCommunicator
     	 */
     	void get_coordinates(SYNAPSE_ID id, MathVector<dim>& vCoords);
     	int get_neuron_id(SYNAPSE_ID id);
-
+    	void prep_timestep(const number& t, const int& id, std::vector<number>& vCurr, std::vector<SYNAPSE_ID>& vSid);
     protected:
         void neuron_identification();
 		int deep_first_search(Vertex* v, int id);
@@ -141,6 +141,42 @@ class HybridNeuronCommunicator
     	Grid::VertexAttachmentAccessor<ANeuronID> m_aaNID;
 
         std::vector<int> m_vPotSubset3d;
+};
+
+
+template <typename TDomain, typename TAlgebra>
+class HybridSynapseCurrentAssembler : public IDomainConstraint<TDomain, TAlgebra>
+{
+	typedef typename HybridNeuronCommunicator<TDomain> hnc_type;
+private:
+	ConstSmartPtr<hnc_type> m_spHNC;
+public:
+
+	HybridSynapseCurrentAssembler();
+	virtual ~HybridSynapseCurrentAssembler(){}
+
+	void adjust_jacobian(matrix_type& J, const vector_type& u,
+			                             ConstSmartPtr<DoFDistribution> dd, int type, number time = 0.0,
+			                             ConstSmartPtr<VectorTimeSeries<vector_type> > vSol = SPNULL,
+										 const number s_a0 = 1.0) {}
+
+	void adjust_defect(vector_type& d, const vector_type& u,
+									   ConstSmartPtr<DoFDistribution> dd, int type, number time = 0.0,
+									   ConstSmartPtr<VectorTimeSeries<vector_type> > vSol = SPNULL,
+									   const std::vector<number>* vScaleMass = NULL,
+									   const std::vector<number>* vScaleStiff = NULL);
+
+	void adjust_linear(matrix_type& mat, vector_type& rhs,
+			                           ConstSmartPtr<DoFDistribution> dd, int type, number time = 0.0){}
+
+	void adjust_rhs(vector_type& rhs, const vector_type& u,
+			                        ConstSmartPtr<DoFDistribution> dd, int type, number time = 0.0){}
+
+	void adjust_solution(vector_type& u, ConstSmartPtr<DoFDistribution> dd, int type,
+										 number time = 0.0){}
+
+	int type() const;
+
 };
 
 } // namespace neuro_collection

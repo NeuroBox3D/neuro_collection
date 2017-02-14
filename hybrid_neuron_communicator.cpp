@@ -454,7 +454,6 @@ int HybridNeuronCommunicator<TDomain>::nearest_neighbor_search
 }
 
 
-
 template <typename TDomain>
 void HybridNeuronCommunicator<TDomain>::neuron_identification()
 {
@@ -474,6 +473,12 @@ void HybridNeuronCommunicator<TDomain>::neuron_identification()
 		}
 	}
 	std::cout << "\nNIDs: " << nid + 1 << std::endl << std::endl; //dbg: prints out number of neurons (+1 because of 0 being first index)
+}
+
+template <typename TDomain>
+void HybridNeuronCommunicator<TDomain>::prep_timestep(const number& t, const int& id, std::vector<number>& vCurr, std::vector<SYNAPSE_ID>& vSid)
+{
+	m_spSynHandler->get_currents(t, id, vCurr, vSid);
 }
 
 template <typename TDomain>
