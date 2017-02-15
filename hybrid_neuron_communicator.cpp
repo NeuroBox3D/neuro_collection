@@ -264,25 +264,25 @@ void HybridNeuronCommunicator<TDomain>::reinit_potential_mappings()
 
 serial_case:
 #endif
-        // local nearest neighbor search for all elem centers
-        std::vector<size_t> vNearest;
-        std::vector<typename posType::value_type> vDist;
-        int noNeighbors = nearest_neighbor_search(vLocPotElemPos, vLocVrtPos, vNearest, vDist);
-        UG_COND_THROW(noNeighbors, "No 1d vertices are present to map 3d potential elements to.");
+	// local nearest neighbor search for all elem centers
+	std::vector<size_t> vNearest;
+	std::vector<typename posType::value_type> vDist;
+	int noNeighbors = nearest_neighbor_search(vLocPotElemPos, vLocVrtPos, vNearest, vDist);
+	UG_COND_THROW(noNeighbors, "No 1d vertices are present to map 3d potential elements to.");
 
-        // fill 3d->1d map
-        size_t i = 0;
-        for (size_t s = 0; s < numSs; ++s)
-        {
-            int si = m_vPotSubset3d[s];
-            SideItType it = dd1->template begin<side_t>(si);
-            SideItType it_end = dd1->template end<side_t>(si);
-            for (; it != it_end; ++it)
-            {
-                m_mPotElemToVertex[*it] = vLocVrt[vNearest[i]];
-                ++i;
-            }
-        }
+	// fill 3d->1d map
+	size_t i = 0;
+	for (size_t s = 0; s < numSs; ++s)
+	{
+		int si = m_vPotSubset3d[s];
+		SideItType it = dd3->template begin<side_t>(si);
+		SideItType it_end = dd3->template end<side_t>(si);
+		for (; it != it_end; ++it)
+		{
+			m_mPotElemToVertex[*it] = vLocVrt[vNearest[i]];
+			++i;
+		}
+	}
 }
 
 

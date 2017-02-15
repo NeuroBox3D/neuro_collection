@@ -95,7 +95,7 @@ class HybridNeuronCommunicator
 
 		/**
 		 * Takes a std::vector of Synapses by coordinates and a std::vector of Vertexcoordinates and writes the nearest neighbor of each
-		 * synapse out in vMap, so that the order of v1dSynapses euqals the order of vMap
+		 * synapse out in vMap, so that the order of v1dSynapses equals the order of vMap
 		 */
 		int nearest_neighbor(	const std::vector<MathVector<dim> >& v1dCoords,
 								const std::vector<Vertex*>& v3dVertices,
