@@ -88,6 +88,7 @@ class HybridNeuronCommunicator
     	void get_coordinates(SYNAPSE_ID id, MathVector<dim>& vCoords);
     	int get_neuron_id(SYNAPSE_ID id);
     	void prep_timestep(const number& t, const int& id, std::vector<number>& vCurr, std::vector<SYNAPSE_ID>& vSid);
+
     protected:
         void neuron_identification();
 		int deep_first_search(Vertex* v, int id);
@@ -185,6 +186,21 @@ public:
 										 number time = 0.0){}
 
 	int type() const;
+
+	void set_flowing_substance_name(const std::string& fct); // todo: better name!
+
+private:
+	/// function index of the carried ion species
+	size_t m_fctInd;
+
+	/// Faraday constant
+	const number m_F; // todo: set in constructor
+
+	/// valency of the carried ion species
+	number m_valency; // todo: implement a setter and default value for constructor!
+
+	/// which fraction of the current is carried by the ion species in question
+	number m_current_percentage; // todo: implement a setter and default value for constructor
 
 };
 

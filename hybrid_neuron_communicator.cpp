@@ -522,7 +522,7 @@ int HybridNeuronCommunicator<TDomain>::Mapping3d(int neuron_id,
 												 std::vector<MathVector<dim> >& vMinimizingSynapseCoords)
 {
 	std::vector<MathVector<dim> > syn_coords_local;
-	std::vector<Vertex*> v3dVertices; //todo: where to get local 3d vertices from?
+	std::vector<Vertex*> v3dVertices; //todo: where to get local 3d vertices from? (-> base level plasma membrane subset vertices!)
 	std::vector<Vertex*> vMap;
 	std::vector<number> vDistances;
 
@@ -686,7 +686,62 @@ void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::adjust_defect(vector_type
 		   const std::vector<number>* vScaleMass = NULL,
 		   const std::vector<number>* vScaleStiff = NULL)
 {
+	// we want to add inward currents to the defect
+	// at all vertices representing an active synapse (or more)
+
+	// TODO: Using the m_spHNC, get a list of all (3d) vertices on this proc
+	//       that are mapped to an active (1d) synapse (on any proc);
+	//       also get the corresponding current values at the same time.
+	std::vector<Vertex*> vActiveList; // = ...;
+	std::vector<number> vCurrent; // = ...;
+
+	size_t sz = vActiveList.size();
+	for (size_t i = 0; i < sz; ++i)
+	{
+		Vertex* v = vActiveList[i];
+
+		// get the DoFIndex for this vertex
+		std::vector<DoFIndex> vIndex;
+		dd->inner_dof_indices(v, m_fctInd, vIndex, false); // we don't need hanging indices as vertices are all from base level
+
+		UG_COND_THROW(!vIndex.size(), "Function given by 'set_flowing_substance_name' is not defined for "
+			<< ElementDebugInfo(this->m_spApproxSpace->domain()->grid(), v) << ".")
+
+		UG_ASSERT(vIndex.size() == 1, "Apparently, you are using shape functions different from P1, this is not supported.");
+
+		const DoFIndex& dofInd = vIndex[0];
+
+		// evaluate current (use the same current for all time points)
+		// this way, we enforce explicit Euler scheme for current discretization
+
+		// if this happens, get dt from elsewhere (to be set and updated by user)
+		UG_COND_THROW(!vScaleStiff, "No stiffness scales given.");
+
+		// sum of stiffness factors should be dt (shouldn't it!?)
+		number dt = 0.0;
+		size_t ntp = vScaleStiff->size();
+		for (size_t tp = 0; tp < ntp; ++tp)
+			dt += vScaleStiff[tp];
+
+		// add synaptic current * dt to defect
+		// careful, inward current means negative sign in the defect!
+		DoFRef(d, dofInd) -= dt * vCurrent[i] / (m_valency*m_F);
+	}
 }
+
+
+template <typename TDomain, typename TAlgebra>
+void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::set_flowing_substance_name(const std::string& fct)
+{
+	// get function index of whatever it is that the current carries (in our case: calcium)
+	FunctionGroup fctGrp(this->m_spApproxSpace->function_pattern());
+	try {fctGrp.add(fct);}
+	UG_CATCH_THROW("Function " << fct << " could not be identified in given approximation space.");
+	m_fctInd = fctGrp.unique_id(0);
+}
+
+
+
 
 
 
