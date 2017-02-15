@@ -10,7 +10,7 @@
 
 #include <algorithm>	// std::sort
 #include <limits>       // std::numeric_limits
-
+#include <vector>
 
 namespace ug {
 namespace neuro_collection {
@@ -679,6 +679,14 @@ void HybridNeuronCommunicator<TDomain>::get_coordinates(SYNAPSE_ID id, MathVecto
 	}
 }
 
+template <typename TDomain, typename TAlgebra>
+void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::adjust_defect(vector_type& d, const vector_type& u,
+		   ConstSmartPtr<DoFDistribution> dd, int type, number time = 0.0,
+		   ConstSmartPtr<VectorTimeSeries<vector_type> > vSol = SPNULL,
+		   const std::vector<number>* vScaleMass = NULL,
+		   const std::vector<number>* vScaleStiff = NULL)
+{
+}
 
 
 

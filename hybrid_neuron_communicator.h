@@ -147,10 +147,19 @@ class HybridNeuronCommunicator
 template <typename TDomain, typename TAlgebra>
 class HybridSynapseCurrentAssembler : public IDomainConstraint<TDomain, TAlgebra>
 {
-	typedef typename HybridNeuronCommunicator<TDomain> hnc_type;
+
 private:
 	ConstSmartPtr<hnc_type> m_spHNC;
 public:
+
+	typedef typename HybridNeuronCommunicator<TDomain> hnc_type;
+	typedef TDomain domain_type;
+	typedef TAlgebra algebra_type;
+	typedef typename algebra_type::matrix_type matrix_type;
+	typedef typename algebra_type::vector_type vector_type;
+
+
+
 
 	HybridSynapseCurrentAssembler();
 	virtual ~HybridSynapseCurrentAssembler(){}
