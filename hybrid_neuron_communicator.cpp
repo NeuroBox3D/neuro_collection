@@ -778,7 +778,18 @@ void HybridNeuronCommunicator<TDomain>::get_coordinates(synapse_id id, MathVecto
 }
 
 template <typename TDomain, typename TAlgebra>
+HybridSynapseCurrentAssembler<TDomain, TAlgebra>::HybridSynapseCurrentAssembler(const std::string& fct)
+:m_fctInd(0), m_F(96485.309), m_valency(2), m_current_percentage(0.1)
+{
+	// get function index of whatever it is that the current carries (in our case: calcium)
+	FunctionGroup fctGrp(this->m_spApproxSpace->function_pattern());
+	try {fctGrp.add(fct);}
+	UG_CATCH_THROW("Function " << fct << " could not be identified in given approximation space.");
+	m_fctInd = fctGrp.unique_id(0);
+}
 
+
+template <typename TDomain, typename TAlgebra>
 void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::adjust_defect
 (
     vector_type& d,
@@ -849,7 +860,7 @@ void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::adjust_defect
 }
 
 
-template <typename TDomain, typename TAlgebra>
+/*template <typename TDomain, typename TAlgebra>
 void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::set_flowing_substance_name(const std::string& fct)
 {
 	// get function index of whatever it is that the current carries (in our case: calcium)
@@ -857,7 +868,7 @@ void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::set_flowing_substance_nam
 	try {fctGrp.add(fct);}
 	UG_CATCH_THROW("Function " << fct << " could not be identified in given approximation space.");
 	m_fctInd = fctGrp.unique_id(0);
-}
+}*/
 
 
 

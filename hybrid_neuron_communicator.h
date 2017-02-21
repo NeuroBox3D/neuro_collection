@@ -197,7 +197,7 @@ private:
 public:
 
 
-	HybridSynapseCurrentAssembler();
+	HybridSynapseCurrentAssembler(const std::string& fct);
 	virtual ~HybridSynapseCurrentAssembler(){}
 
 	void adjust_jacobian(matrix_type& J, const vector_type& u,
@@ -222,20 +222,25 @@ public:
 
 	int type() const;
 
-	void set_flowing_substance_name(const std::string& fct); // todo: better name!
+	//void set_flowing_substance_name(const std::string& fct); // todo: better name!
+
+	void set_valency(const number& val) {m_valency = val;}
+
+	void set_current_percentage(const number& val) {m_current_percentage = val;}
+
 
 private:
 	/// function index of the carried ion species
 	size_t m_fctInd;
 
 	/// Faraday constant
-	const number m_F; // todo: set in constructor
+	const number m_F; //in C/mol
 
 	/// valency of the carried ion species
-	number m_valency; // todo: implement a setter and default value for constructor!
+	number m_valency;
 
 	/// which fraction of the current is carried by the ion species in question
-	number m_current_percentage; // todo: implement a setter and default value for constructor
+	number m_current_percentage;
 
 };
 
