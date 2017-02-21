@@ -9,6 +9,10 @@
 #define UG__PLUGINS__NEURO_COLLECTION__HYBRID_NEURON_COMMUNICATOR
 
 #include "../cable_neuron/cable_disc/cable_equation.h"
+#include "../cable_neuron/synapse_handling/synapse_handler.h"
+#include "../cable_neuron/synapse_handling/synapses/base_synapse.h"
+#include "../cable_neuron/synapse_handling/synapses/post_synapse.h"
+#include "../cable_neuron/synapse_handling/synapses/pre_synapse.h"
 
 
 namespace ug {
@@ -25,7 +29,7 @@ class HybridNeuronCommunicator
     	typedef typename TDomain::position_type posType;
     	typedef typename TDomain::position_accessor_type aaPos_type;
 
-    	typedef typename cable_neuron::synapse_handler::SplitSynapseHandler<TDomain> synh_type;
+    	typedef typename cable_neuron::synapse_handler::SynapseHandler<TDomain> synh_type;
     	typedef Attachment<int> ANeuronID;
 
     public:
@@ -44,6 +48,9 @@ class HybridNeuronCommunicator
 
         /// set subsets on which to communicate the potential values from 1d to 3d
         void set_potential_subsets(const std::vector<std::string>& vSubset);
+
+        /// set subsets on which to communicate the current values from 1d to 3d
+        void set_current_subsets(const std::vector<std::string>& vSubset);
 
         /// reinitialize communication
         /**
@@ -85,9 +92,9 @@ class HybridNeuronCommunicator
     	 * Calculates real coordinates of given Synapse (by ID) and returns in vCoords
     	 * If SynapseId not found vCoords is empty.
     	 */
-    	void get_coordinates(SYNAPSE_ID id, MathVector<dim>& vCoords);
-    	int get_neuron_id(SYNAPSE_ID id);
-    	void prep_timestep(const number& t, const int& id, std::vector<number>& vCurr, std::vector<SYNAPSE_ID>& vSid);
+    	void get_coordinates(synapse_id id, MathVector<dim>& vCoords);
+    	int get_neuron_id(synapse_id id);
+    	void prep_timestep(const number& t, const int& id, std::vector<number>& vCurr, std::vector<synapse_id>& vSid);
 
     protected:
         void neuron_identification();
@@ -113,6 +120,9 @@ class HybridNeuronCommunicator
         /// memory for side element potential values
         std::map<side_t*, number> m_mElemPot;
 
+        //Synapse to 3d-Vertex mapping
+        std::map<synapse_id, Vertex*> m_mSynapse3dVertex;
+
 #ifdef UG_PARALLEL
         /// list of 1d sender vertices on this proc and who they send to
         std::map<int, std::vector<Vertex*> > m_mSendInfo;
@@ -134,6 +144,9 @@ class HybridNeuronCommunicator
         SmartPtr<ApproximationSpace<TDomain> > m_spApprox1d;
         SmartPtr<ApproximationSpace<TDomain> > m_spApprox3d;
         SmartPtr<MultiGrid> m_spGrid1d;
+        SmartPtr<MultiGrid> m_spGrid3d;
+        SmartPtr<MultiGridSubsetHandler> m_spMGSSH3d;
+
 
         aaPos_type m_aaPos1d;
         aaPos_type m_aaPos3d;
@@ -142,24 +155,22 @@ class HybridNeuronCommunicator
     	Grid::VertexAttachmentAccessor<ANeuronID> m_aaNID;
 
         std::vector<int> m_vPotSubset3d;
+        std::vector<int> m_vCurrentSubset3d;
 };
 
 
 template <typename TDomain, typename TAlgebra>
 class HybridSynapseCurrentAssembler : public IDomainConstraint<TDomain, TAlgebra>
 {
-
-private:
-	ConstSmartPtr<hnc_type> m_spHNC;
-public:
-
-	typedef typename HybridNeuronCommunicator<TDomain> hnc_type;
+	typedef HybridNeuronCommunicator<TDomain> hnc_type;
 	typedef TDomain domain_type;
 	typedef TAlgebra algebra_type;
 	typedef typename algebra_type::matrix_type matrix_type;
 	typedef typename algebra_type::vector_type vector_type;
 
-
+private:
+	ConstSmartPtr<hnc_type> m_spHNC;
+public:
 
 
 	HybridSynapseCurrentAssembler();
