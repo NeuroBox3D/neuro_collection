@@ -192,12 +192,8 @@ public:
     typedef typename algebra_type::matrix_type matrix_type;
     typedef typename algebra_type::vector_type vector_type;
 
-private:
-	ConstSmartPtr<hnc_type> m_spHNC;
-public:
 
-
-	HybridSynapseCurrentAssembler(const std::string& fct);
+	HybridSynapseCurrentAssembler(ConstSmartPtr<hnc_type>, const std::string& fct);
 	virtual ~HybridSynapseCurrentAssembler(){}
 
 	void adjust_jacobian(matrix_type& J, const vector_type& u,
@@ -241,6 +237,8 @@ private:
 
 	/// which fraction of the current is carried by the ion species in question
 	number m_current_percentage;
+
+	ConstSmartPtr<hnc_type> m_spHNC;
 
 };
 
