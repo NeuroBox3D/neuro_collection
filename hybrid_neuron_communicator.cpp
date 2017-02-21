@@ -735,8 +735,20 @@ void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::adjust_defect(vector_type
 	// TODO: Using the m_spHNC, get a list of all (3d) vertices on this proc
 	//       that are mapped to an active (1d) synapse (on any proc);
 	//       also get the corresponding current values at the same time.
-	std::vector<Vertex*> vActiveList; // = ...;
-	std::vector<number> vCurrent; // = ...;
+	std::vector<Vertex*> vActiveList;
+	std::vector<number> vCurrent;
+
+	const std::vector<synapse_id> vActiveSynapsesId = m_spHNC->synapse_handler()->active_presynapses();
+
+	std::map<synapse_id, Vertex*> mSynVrtMap = m_spHNC->synapse_3dVertex_map();
+	for(size_t i=0; i<vActiveSynapsesId.size(); ++i) {
+		synapse_id sid = vActiveSynapsesId[i];
+		if(mSynVrtMap.find(sid) != mSynVrtMap.end() ) {
+			vActiveList.push_back(mSynVrtMap[sid]);
+			vCurrent.push_back( m_spHNC->synapse_handler()->current(sid) );
+		}
+	}
+
 
 	size_t sz = vActiveList.size();
 	for (size_t i = 0; i < sz; ++i)

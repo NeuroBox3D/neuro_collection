@@ -52,6 +52,8 @@ class HybridNeuronCommunicator
         /// set subsets on which to communicate the current values from 1d to 3d
         void set_current_subsets(const std::vector<std::string>& vSubset);
 
+        ConstSmartPtr<synh_type> synapse_handler() {return m_spSynHandler;}
+
         /// reinitialize communication
         /**
          * This method needs to be called whenever there are any changes in one of the geometries
@@ -95,6 +97,8 @@ class HybridNeuronCommunicator
     	void get_coordinates(synapse_id id, MathVector<dim>& vCoords);
     	int get_neuron_id(synapse_id id);
     	void prep_timestep(const number& t, const int& id, std::vector<number>& vCurr, std::vector<synapse_id>& vSid);
+
+    	std::map<synapse_id, Vertex*>& synapse_3dVertex_map() {return m_mSynapse3dVertex;}
 
     protected:
         void neuron_identification();
