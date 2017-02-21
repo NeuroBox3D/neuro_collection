@@ -24,15 +24,18 @@ HybridNeuronCommunicator<TDomain>::HybridNeuronCommunicator
 )
 : m_spCE(SPNULL),
   m_spSynHandler(SPNULL),
+  m_mSynapse3dVertex(std::map<synapse_id, Vertex*>()),
 #ifdef UG_PARALLEL
   rcvSize(NULL), rcvFrom(NULL), rcvBuf(NULL),
   sendSize(NULL), sendTo(NULL), sendBuf(NULL),
 #endif
   m_spApprox1d(spApprox1d), m_spApprox3d(spApprox3d),
-  m_spGrid1d(SPNULL),
+  m_spGrid1d(SPNULL), m_spGrid3d(SPNULL), m_spMGSSH3d(SPNULL),
   m_aNID(GlobalAttachments::attachment<ANeuronID>("NeuronID"))
 {
 	m_spGrid1d = m_spApprox1d->domain()->grid();
+	m_spGrid3d = m_spApprox3d->domain()->grid();
+	m_spMGSSH3d = m_spApprox3d->domain()->subset_handler();
 
 	if (!m_spGrid1d->has_vertex_attachment(m_aNID))
 		m_spGrid1d->attach_to_vertices(m_aNID);
@@ -76,6 +79,18 @@ void HybridNeuronCommunicator<TDomain>::set_potential_subsets(const std::vector<
         m_vPotSubset3d.push_back(ssGrp[si]);
 
     reinit_potential_mappings();
+}
+
+template <typename TDomain>
+void HybridNeuronCommunicator<TDomain>::set_current_subsets(const std::vector<std::string>& vSubset)
+{
+    SubsetGroup ssGrp;
+    try {ssGrp = SubsetGroup(m_spApprox3d->domain()->subset_handler(), vSubset);}
+    UG_CATCH_THROW("Subset group creation failed.");
+
+    for (size_t si = 0; si < ssGrp.size(); si++)
+    	m_vCurrentSubset3d.push_back(ssGrp[si]);
+
 }
 
 
@@ -476,7 +491,7 @@ void HybridNeuronCommunicator<TDomain>::neuron_identification()
 }
 
 template <typename TDomain>
-void HybridNeuronCommunicator<TDomain>::prep_timestep(const number& t, const int& id, std::vector<number>& vCurr, std::vector<SYNAPSE_ID>& vSid)
+void HybridNeuronCommunicator<TDomain>::prep_timestep(const number& t, const int& id, std::vector<number>& vCurr, std::vector<synapse_id>& vSid)
 {
 	m_spSynHandler->get_currents(t, id, vCurr, vSid);
 }
@@ -501,18 +516,18 @@ int HybridNeuronCommunicator<TDomain>::deep_first_search(Vertex* v, int id)
 }
 
 template <typename TDomain>
-int HybridNeuronCommunicator<TDomain>::get_neuron_id(SYNAPSE_ID id)
+int HybridNeuronCommunicator<TDomain>::get_neuron_id(synapse_id id)
 {
 	for(EdgeIterator eIter = m_spGrid1d->begin<Edge>(); eIter != m_spGrid1d->end<Edge>(); ++eIter) {
 		Edge* e = *eIter;
-		std::vector<IBaseSynapse*> v = m_spSynHandler->get_synapses_on_edge(e);
+		//std::vector<IBaseSynapse*> v = m_spSynHandler->get_synapses_on_edge(e);
+		std::vector<cable_neuron::synapse_handler::IBaseSynapse*> v;
 		for(size_t j=0; j<v.size(); ++j) {
 			if(v[j]->id() == id) {
 				return m_aaNID[(*e)[0]];
 			}
 		}
 	}
-
 	return -1;
 }
 
@@ -522,33 +537,48 @@ int HybridNeuronCommunicator<TDomain>::Mapping3d(int neuron_id,
 												 std::vector<MathVector<dim> >& vMinimizingSynapseCoords)
 {
 	std::vector<MathVector<dim> > syn_coords_local;
-	std::vector<Vertex*> v3dVertices; //todo: where to get local 3d vertices from? (-> base level plasma membrane subset vertices!)
+	std::vector<synapse_id> syn_ids_local;
+
+	std::vector<Vertex*> v3dVertices;
 	std::vector<Vertex*> vMap;
 	std::vector<number> vDistances;
 
+	//gather plasma membrane surface vertices:
+	for(unsigned int i=m_vCurrentSubset3d[0]; i<m_vCurrentSubset3d.size(); ++i) {
+		geometry_traits<Vertex>::const_iterator vrtIt = m_spMGSSH3d->begin<Vertex>(i, 0);
+		geometry_traits<Vertex>::const_iterator vrtItend = m_spMGSSH3d->end<Vertex>(i, 0);
+
+		while(vrtIt != vrtItend) {
+			v3dVertices.push_back(*vrtIt);
+		}
+	}
+
 
 	//gather local synapse coords, that are interesting
-	SmartPtr<SynapseIter<cable_neuron::synapse_handler::IBaseSynapse> > synIt = m_spSynHandler->template begin<cable_neuron::synapse_handler::IBaseSynapse>();
-	SmartPtr<SynapseIter<cable_neuron::synapse_handler::IBaseSynapse> > synItEnd = m_spSynHandler->template end<cable_neuron::synapse_handler::IBaseSynapse>();
-	for (; synIt.get() != synItEnd.get(); ++*synIt)
+	cable_neuron::synapse_handler::SynapseIter<cable_neuron::synapse_handler::IBaseSynapse> synIt = m_spSynHandler->template begin<cable_neuron::synapse_handler::IBaseSynapse>();
+	cable_neuron::synapse_handler::SynapseIter<cable_neuron::synapse_handler::IBaseSynapse> synItEnd = m_spSynHandler->template end<cable_neuron::synapse_handler::IBaseSynapse>();
+	for (; synIt != synItEnd; ++synIt)
 	{
-		IBaseSynapse* syn = **synIt;
+		cable_neuron::synapse_handler::IBaseSynapse* syn = *synIt;
 		if( get_neuron_id(syn->id()) == neuron_id) {
 			MathVector<dim> coords;
 			get_coordinates(syn->id(), coords);
 			syn_coords_local.push_back(coords);
+			syn_ids_local.push_back(syn->id());
 		}
 	}
 
 #ifdef UG_PARALLEL
 
 	pcl::ProcessCommunicator com;
-	std::vector<std::vector<number> > syn_coords_global; //synapses coords of neuron with given id
+	std::vector<MathVector<dim> > syn_coords_global; //synapses coords of neuron with given id
+	std::vector<synapse_id> syn_ids_global;
 	std::vector<int> syn_sizes;
 	std::vector<int> syn_offsets;
 
 	//communicate all interesting synapse coords to all procs
 	com.allgatherv(syn_coords_global, syn_coords_local, &syn_sizes, &syn_offsets); //syn_coords_global contains all synapses, which are interesting for a 3d mapping
+	com.allgatherv(syn_ids_global, syn_ids_local, &syn_sizes, &syn_offsets);
 
 	//compute local min distances
 	nearest_neighbor(syn_coords_global, v3dVertices, vMap, vDistances);
@@ -584,6 +614,7 @@ int HybridNeuronCommunicator<TDomain>::Mapping3d(int neuron_id,
 		vMinimizingProc.push_back(min_proc);
 	}
 
+	/* Tried another aproach below commented snippet.
 	//construct index array sorted by proc (ascending order)
 	std::vector<size_t> synapse_index;
 	std::vector<size_t> sizes_synapse_index;
@@ -616,8 +647,14 @@ int HybridNeuronCommunicator<TDomain>::Mapping3d(int neuron_id,
 		vMinimizing3dVertices.push_back(vMap[ synapse_index[i] ]);
 		vMinimizingSynapseCoords.push_back( syn_coords_global[synapse_index[i]] );
 	}
-
 	//vMinimizing3dVertices should finally contain the nearest 3d Vertex to the corresponding 1d synapse at the same position in vMinimizingSynapseCoords
+	*/
+
+	//Create local HNC map out of vMap and vMinimizingProc
+	for(size_t i=0; i<vMap.size(); ++i) {
+		if(pcl::ProcRank() == vMinimizingProc[i] )
+			m_mSynapse3dVertex[ syn_ids_global[i] ] = vMap[i];
+	}
 
 
 
@@ -625,6 +662,10 @@ int HybridNeuronCommunicator<TDomain>::Mapping3d(int neuron_id,
 
 #else
 	nearest_neighbor(syn_coords_local, v3dVertices, vMap, vDistances);
+
+	for(size_t i=0; i<vMap.size(); ++i) {
+		m_mSynapse3dVertex[ syn_ids_local[i] ] = vMap[i];
+	}
 #endif
 	return 1;
 }
@@ -659,13 +700,13 @@ int HybridNeuronCommunicator<TDomain>::nearest_neighbor(	const std::vector<MathV
 }
 
 template <typename TDomain>
-void HybridNeuronCommunicator<TDomain>::get_coordinates(SYNAPSE_ID id, MathVector<dim>& vCoords)
+void HybridNeuronCommunicator<TDomain>::get_coordinates(synapse_id id, MathVector<dim>& vCoords)
 {
 
 	//Search for Edge
 	for(EdgeIterator eIter = m_spGrid1d->begin<Edge>(); eIter != m_spGrid1d->end<Edge>(); ++eIter) {
 		Edge* e = *eIter;
-		std::vector<IBaseSynapse*> v = m_spSynHandler->get_synapses_on_edge(e);
+		std::vector<cable_neuron::synapse_handler::IBaseSynapse*> v = m_spSynHandler->get_synapses_on_edge(e);
 		for(size_t j=0; j<v.size(); ++j) {
 			if(v[j]->id() == id) {
 				Vertex* v0 = (*e)[0];
@@ -677,14 +718,16 @@ void HybridNeuronCommunicator<TDomain>::get_coordinates(SYNAPSE_ID id, MathVecto
 			}
 		}
 	}
+
+
 }
 
 template <typename TDomain, typename TAlgebra>
 void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::adjust_defect(vector_type& d, const vector_type& u,
-		   ConstSmartPtr<DoFDistribution> dd, int type, number time = 0.0,
-		   ConstSmartPtr<VectorTimeSeries<vector_type> > vSol = SPNULL,
-		   const std::vector<number>* vScaleMass = NULL,
-		   const std::vector<number>* vScaleStiff = NULL)
+		   ConstSmartPtr<DoFDistribution> dd, int type, number time,
+		   ConstSmartPtr<VectorTimeSeries<vector_type> > vSol,
+		   const std::vector<number>* vScaleMass,
+		   const std::vector<number>* vScaleStiff)
 {
 	// we want to add inward currents to the defect
 	// at all vertices representing an active synapse (or more)
@@ -721,7 +764,7 @@ void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::adjust_defect(vector_type
 		number dt = 0.0;
 		size_t ntp = vScaleStiff->size();
 		for (size_t tp = 0; tp < ntp; ++tp)
-			dt += vScaleStiff[tp];
+			dt += (*vScaleStiff)[tp];
 
 		// add synaptic current * dt to defect
 		// careful, inward current means negative sign in the defect!
