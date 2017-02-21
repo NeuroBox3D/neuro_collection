@@ -115,7 +115,6 @@ add_reaction(const char* fct1, const char* fct2,
 	this->set_functions(fcts);
 
 	// set entry in reactions vector
-	UG_LOGN("ReactionInfo: " << fctIndex1 << ", " << fctIndex2);
 	m_reactions.push_back(ReactionInfo<dim>(fctIndex1, fctIndex2, tbc, k1, k2));
 
 	// register new DataImports

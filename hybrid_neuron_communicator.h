@@ -24,8 +24,9 @@ class HybridNeuronCommunicator
         typedef typename elem_t::side side_t;
     	typedef typename TDomain::position_type posType;
     	typedef typename TDomain::position_accessor_type aaPos_type;
+        typedef CPUAlgebra algebra_t;
 
-    	typedef typename cable_neuron::synapse_handler::SplitSynapseHandler<TDomain> synh_type;
+    	typedef typename cable_neuron::synapse_handler::SynapseHandler<TDomain> synh_type;
     	typedef Attachment<int> ANeuronID;
 
     public:
@@ -44,6 +45,17 @@ class HybridNeuronCommunicator
 
         /// set subsets on which to communicate the potential values from 1d to 3d
         void set_potential_subsets(const std::vector<std::string>& vSubset);
+
+        /// set current solution vector and function index of potential
+        void set_solution_and_potential_index(ConstSmartPtr<GridFunction<TDomain, algebra_t> > u, size_t fctInd);
+
+        /**
+         * @brief Set scale factor from 3d to 1d.
+         * This is required as 3d and 1d morphology might be differently scaled.
+         * For example, 1d geometries used in the cable_neuron code should be scaled to length unit [m],
+         * while 3d simulation length scale is often [um]. In that case, we need a scaling factor of 1e-6.
+         */
+        void set_coordinate_scale_factor_3d_to_1d(number scale);
 
         /// reinitialize communication
         /**
@@ -85,9 +97,9 @@ class HybridNeuronCommunicator
     	 * Calculates real coordinates of given Synapse (by ID) and returns in vCoords
     	 * If SynapseId not found vCoords is empty.
     	 */
-    	void get_coordinates(SYNAPSE_ID id, MathVector<dim>& vCoords);
-    	int get_neuron_id(SYNAPSE_ID id);
-    	void prep_timestep(const number& t, const int& id, std::vector<number>& vCurr, std::vector<SYNAPSE_ID>& vSid);
+    	void get_coordinates(synapse_id id, MathVector<dim>& vCoords);
+    	int get_neuron_id(synapse_id id);
+    	void prep_timestep(const number& t, const int& id, std::vector<number>& vCurr, std::vector<synapse_id>& vSid);
 
     protected:
         void neuron_identification();
@@ -133,7 +145,13 @@ class HybridNeuronCommunicator
 
         SmartPtr<ApproximationSpace<TDomain> > m_spApprox1d;
         SmartPtr<ApproximationSpace<TDomain> > m_spApprox3d;
+
+        ConstSmartPtr<GridFunction<TDomain, algebra_t> > m_spU;
+        size_t m_potFctInd;
+
         SmartPtr<MultiGrid> m_spGrid1d;
+
+        number m_scale_factor_from_3d_to_1d;
 
         aaPos_type m_aaPos1d;
         aaPos_type m_aaPos3d;
@@ -148,16 +166,15 @@ class HybridNeuronCommunicator
 template <typename TDomain, typename TAlgebra>
 class HybridSynapseCurrentAssembler : public IDomainConstraint<TDomain, TAlgebra>
 {
+public:
+    typedef HybridNeuronCommunicator<TDomain> hnc_type;
+    typedef TDomain domain_type;
+    typedef TAlgebra algebra_type;
+    typedef typename algebra_type::matrix_type matrix_type;
+    typedef typename algebra_type::vector_type vector_type;
 
 private:
 	ConstSmartPtr<hnc_type> m_spHNC;
-public:
-
-	typedef typename HybridNeuronCommunicator<TDomain> hnc_type;
-	typedef TDomain domain_type;
-	typedef TAlgebra algebra_type;
-	typedef typename algebra_type::matrix_type matrix_type;
-	typedef typename algebra_type::vector_type vector_type;
 
 
 
