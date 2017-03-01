@@ -224,10 +224,27 @@ public:
 
 	void set_current_percentage(const number& val) {m_current_percentage = val;}
 
+	/**
+	 * change scaling factors, that have to be applied to 3d values, so that 1d and 3d values
+	 * have equal units
+	 */
+	void set_scaling_factors(const number& scaling_3d_to_1d_amount_of_substance,
+							 const number& scaling_3d_to_1d_electric_charge,
+							 const number& scaling_3d_to_1d_coordinates)
+	{
+		m_scaling_3d_to_1d_amount_of_substance = scaling_3d_to_1d_amount_of_substance;
+		m_scaling_3d_to_1d_electric_charge = scaling_3d_to_1d_electric_charge;
+		m_scaling_3d_to_1d_coordinates = scaling_3d_to_1d_coordinates;
+	}
 
 private:
 	/// function index of the carried ion species
 	size_t m_fctInd;
+
+	/// scaling factors
+	number m_scaling_3d_to_1d_amount_of_substance;
+	number m_scaling_3d_to_1d_electric_charge;
+	number m_scaling_3d_to_1d_coordinates;
 
 	/// Faraday constant
 	const number m_F; //in C/mol
