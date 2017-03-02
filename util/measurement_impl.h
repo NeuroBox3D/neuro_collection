@@ -107,7 +107,7 @@ void computeVolume
 {
 	// retrieve domain, dofDistr and dim from approxSpace
 	ConstSmartPtr<TDomain> domain = approx->domain();
-	ConstSmartPtr<DoFDistribution> dofDistr = approx->dof_distribution(GridLevel::TOP);
+	ConstSmartPtr<DoFDistribution> dofDistr = approx->dof_distribution(GridLevel());
 
 	// get subset group to be measured on
 	SubsetGroup ssGrp;

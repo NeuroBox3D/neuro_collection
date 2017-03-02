@@ -210,6 +210,10 @@ void VDCC_BG_CN<TDomain>::init(number time)
 template <typename TDomain>
 void VDCC_BG_CN<TDomain>::prep_timestep(const number time, VectorProxyBase* upb)
 {
+    // do nothing if new time is older than we are
+    // (might happen in case of external reset due to non-convergence)
+    if (time <= m_curTime) return;
+
     // the 1d simulation needs to be updated to the given time
     // modify time step size if needed
     number nsteps = floor((time - m_curTime) / m_dt);
