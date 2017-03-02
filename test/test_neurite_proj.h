@@ -9,6 +9,9 @@
 #define UG__PLUGINS__NEURO_COLLECTION__TEST__TEST_NEURITE_PROJ_H
 
 #include "common/math/ugmath_types.h"   // vector3
+#include "common/util/smart_pointer.h"
+#include "lib_grid/multi_grid.h"
+#include "lib_grid/refinement/projectors/neurite_projector.h"
 #include <vector>
 #include <string>
 #include <list>
@@ -55,6 +58,8 @@ void test_neurite_projector_with_four_section_tube();
 void test_neurite_projector_with_four_section_tube_and_branch_point();
 
 void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuriteProj);
+
+void test_cylinder_volume_projector();
 
 } // namespace neuro_collection
 } // namespace ug

@@ -318,7 +318,7 @@ serial_case:
 		for (; it != it_end; ++it)
 		{
 		    m_mPotElemToVertex[*it] = vLocVrt[vNearest[i]];
-	        UG_LOGN(i << " " << vDist[vNearest[i]]);
+//UG_LOGN(i << " " << vDist[vNearest[i]]);
 			++i;
 		}
 	}

@@ -6,6 +6,7 @@
  */
 
 #include "test_neurite_proj.h"
+#include "lib_grid/refinement/projectors/cylinder_volume_projector.h"
 #include "lib_grid/refinement/projectors/neurite_projector.h"
 #include "lib_grid/file_io/file_io_ugx.h"  // GridWriterUGX
 #include "lib_grid/file_io/file_io.h"  // SaveGridHierarchyTransformed
@@ -214,8 +215,8 @@ void convert_pointlist_to_neuritelist
             VecSubtract(parentDir, pt.coords, vPoints[pind].coords);
             VecNormalize(parentDir, parentDir);
 
-            size_t parentToBeDiscarded;
-            size_t minAngleInd;
+            size_t parentToBeDiscarded = 0;
+            size_t minAngleInd = 0;
             number minAngle = std::numeric_limits<number>::infinity();
 
             for (size_t i = 0; i < nConn; ++i)
@@ -1260,6 +1261,83 @@ void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuritePr
 	}
 }
 
+
+
+
+
+void test_cylinder_volume_projector()
+{
+    // grid preparation
+    Grid g;
+    SubsetHandler sh(g);
+    sh.set_default_subset_index(0);
+    g.attach_to_vertices(aPosition);
+    Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+    Selector sel(g);
+
+    // projection handling
+    ProjectionHandler projHandler(&sh);
+    SmartPtr<IGeometry<3> > geom3d = MakeGeometry3d(g, aPosition);
+    projHandler.set_geometry(geom3d);
+    SmartPtr<CylinderVolumeProjector> cylVolProj(new CylinderVolumeProjector(geom3d, vector3(0,0,0), vector3(0,0,1)));
+    projHandler.set_projector(0, cylVolProj);
+
+    // create quadrilateral
+    Vertex* v0 = *g.create<RegularVertex>();
+    Vertex* v1 = *g.create<RegularVertex>();
+    Vertex* v2 = *g.create<RegularVertex>();
+    Vertex* v3 = *g.create<RegularVertex>();
+
+    aaPos[v0] = vector3(1,1,0);
+    aaPos[v1] = vector3(-1,1,0);
+    aaPos[v2] = vector3(-1,-1,0);
+    aaPos[v3] = vector3(1,-1,0);
+
+    *g.create<Quadrilateral>(QuadrilateralDescriptor(v0, v1, v2, v3));
+
+    // refinement
+    AssignSubsetColors(sh);
+
+    std::string fileName = FilenameWithoutPath(std::string("testCylVolProj.ugx"));
+    GridWriterUGX ugxWriter;
+    ugxWriter.add_grid(g, "defGrid", aPosition);
+    ugxWriter.add_subset_handler(sh, "defSH", 0);
+    ugxWriter.add_projection_handler(projHandler, "defPH", 0);
+    if (!ugxWriter.write_to_file(fileName.c_str()))
+        UG_THROW("Grid could not be written to file '" << fileName << "'.");
+
+    Domain3d dom;
+    try {LoadDomain(dom, fileName.c_str());}
+    UG_CATCH_THROW("Failed loading domain from '" << fileName << "'.");
+    HangingNodeRefiner_MultiGrid ref(*dom.grid(), dom.refinement_projector());
+    SmartPtr<MultiGrid> mg = dom.grid();
+    for (size_t i = 0; i < 6; ++i)
+    {
+        int topLv = mg->num_levels() - 1;
+        FaceIterator it = dom.grid()->begin<Face>(topLv);
+        FaceIterator it_end = dom.grid()->end<Face>(topLv);
+        for (; it!= it_end; ++it)
+            ref.mark(*it, RM_REFINE);
+
+        UG_LOGN("refinement step " << i);
+        ref.refine();
+        //Refine(g, sel, &projHandler);
+
+        std::ostringstream oss;
+        oss << "_refined_" << i+1 << ".ugx";
+        std::string curFileName = fileName.substr(0, fileName.size()-4) + oss.str();
+        number offset = 1;
+        try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
+        UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
+
+        //GridWriterUGX ugxWriter;
+        //ugxWriter.add_grid(g, "defGrid", aPosition);
+        //ugxWriter.add_subset_handler(sh, "defSH", 0);
+        //ugxWriter.add_projection_handler(projHandler, "defPH", 0);
+        //if (!ugxWriter.write_to_file(fileName.c_str()))
+        //    UG_THROW("Grid could not be written to file '" << fileName << "'.");
+    }
+}
 
 
 } // namespace neuro_collection
