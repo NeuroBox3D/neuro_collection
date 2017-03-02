@@ -97,6 +97,24 @@ static void DomainAlgebra(Registry& reg, string grp)
 					 "", "solution#time#subset names#function names#output file name",
 					 "outputs average values of unknowns on subsets");
 
+	// HybridSynapseCurrentAssembler
+	{
+		typedef HybridSynapseCurrentAssembler<TDomain, TAlgebra> T;
+		typedef IDomainConstraint<TDomain, TAlgebra> TBase;
+		string name = string("HybridSynapseCurrentAssembler").append(suffix);
+		reg.add_class_<T, TBase>(name, grp)
+			.template add_constructor<void (*)(SmartPtr<ApproximationSpace<TDomain> >,
+				SmartPtr<ApproximationSpace<TDomain> >,
+				SmartPtr<cable_neuron::synapse_handler::SynapseHandler<TDomain> >,
+				const std::vector<std::string>&, const std::string&)>
+				("Subset(s)")
+			.add_method("set_current_percentage", &T::set_current_percentage, "", "", "")
+			.add_method("set_valency", &T::set_valency, "", "", "")
+			.add_method("set_scaling_factors", &T::set_scaling_factors, "", "", "")
+			.set_construct_as_smart_pointer(true);
+
+		reg.add_class_to_group(name, "HybridSynapseCurrentAssembler", tag);
+	}
 
 }
 
@@ -536,14 +554,14 @@ static void Common(Registry& reg, string grp)
                          "", "bExtSpace#radius#numRefinements#numReleaseSites#TbarHeight#TbarLegRadius#TbarTopRadius#TbarTopHeight#fileName",
                          "Generates a drosophila NMJ bouton volume grid.");
 	}
-
 /*
 	// test neurite projector
 	{
         reg.add_function("test_neurite_projector", &test_neurite_projector_with_four_section_tube, "", "", "");
         reg.add_function("test_neurite_projector_with_bp", &test_neurite_projector_with_four_section_tube_and_branch_point, "", "", "");
         reg.add_function("test_import_swc", &test_import_swc, "", "file name", "");
-        reg.add_function("apply_neurite_projector", &apply_neurite_projector, "", "multigrid, neurite projector", "");
+        //reg.add_function("apply_neurite_projector", &apply_neurite_projector, "", "multigrid, neurite projector", "");
+        reg.add_function("test_cylinder_volume_projector", &test_cylinder_volume_projector, "", "", "");
 	}
 */
 }

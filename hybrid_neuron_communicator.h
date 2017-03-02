@@ -2,13 +2,12 @@
  * hybrid_neuron_communicator.h
  *
  *  Created on: 20.12.2016
- *      Author: mbreit
+ *      Author: mbreit, lreinhardt
  */
 
 #ifndef UG__PLUGINS__NEURO_COLLECTION__HYBRID_NEURON_COMMUNICATOR
 #define UG__PLUGINS__NEURO_COLLECTION__HYBRID_NEURON_COMMUNICATOR
 
-#include "../cable_neuron/cable_disc/cable_equation.h"
 #include "../cable_neuron/synapse_handling/synapse_handler.h"
 #include "../cable_neuron/synapse_handling/synapses/base_synapse.h"
 #include "../cable_neuron/synapse_handling/synapses/post_synapse.h"
@@ -44,8 +43,8 @@ class HybridNeuronCommunicator
         /// destructor
         ~HybridNeuronCommunicator();
 
-        /// set cable equation object
-        void set_ce_object(ConstSmartPtr<cable_neuron::CableEquation<TDomain> > spCEDisc);
+        /// set synapse handler object
+        void set_synapse_handler(SmartPtr<cable_neuron::synapse_handler::SynapseHandler<TDomain> > spSH);
 
         /// set subsets on which to communicate the potential values from 1d to 3d
         void set_potential_subsets(const std::vector<std::string>& vSubset);
@@ -53,7 +52,7 @@ class HybridNeuronCommunicator
         /// set subsets on which to communicate the current values from 1d to 3d
         void set_current_subsets(const std::vector<std::string>& vSubset);
 
-        ConstSmartPtr<synh_type> synapse_handler() {return m_spSynHandler;}
+        ConstSmartPtr<synh_type> synapse_handler() const {return m_spSynHandler;}
         /// set current solution vector and function index of potential
         void set_solution_and_potential_index(ConstSmartPtr<GridFunction<TDomain, algebra_t> > u, size_t fctInd);
 
@@ -107,9 +106,9 @@ class HybridNeuronCommunicator
     	 */
     	void get_coordinates(synapse_id id, MathVector<dim>& vCoords);
     	int get_neuron_id(synapse_id id);
-    	void prep_timestep(const number& t, const int& id, std::vector<number>& vCurr, std::vector<synapse_id>& vSid);
+    	//void prep_timestep(const number& t, const int& id, std::vector<number>& vCurr, std::vector<synapse_id>& vSid);
 
-    	std::map<synapse_id, Vertex*>& synapse_3dVertex_map() {return m_mSynapse3dVertex;}
+    	const std::map<synapse_id, Vertex*>& synapse_3dVertex_map() const {return m_mSynapse3dVertex;}
 
 
     protected:
@@ -128,9 +127,6 @@ class HybridNeuronCommunicator
 
 
     private:
-        /// access to 1d cable discretization
-        ConstSmartPtr<cable_neuron::CableEquation<TDomain> > m_spCE;
-
         SmartPtr<synh_type> m_spSynHandler;
 
         /// memory for side element potential values
@@ -176,6 +172,9 @@ class HybridNeuronCommunicator
     	ANeuronID m_aNID;
     	Grid::VertexAttachmentAccessor<ANeuronID> m_aaNID;
 
+    	// todo: use a vector
+    	int m_nid;
+
         std::vector<int> m_vPotSubset3d;
         std::vector<int> m_vCurrentSubset3d;
 };
@@ -193,7 +192,14 @@ public:
     typedef typename algebra_type::vector_type vector_type;
 
 
-	HybridSynapseCurrentAssembler(ConstSmartPtr<hnc_type>, const std::string& fct);
+	HybridSynapseCurrentAssembler(
+		SmartPtr<ApproximationSpace<TDomain> > spApprox3d,
+		SmartPtr<ApproximationSpace<TDomain> > spApprox1d,
+		SmartPtr<cable_neuron::synapse_handler::SynapseHandler<TDomain> > spSH,
+		const std::vector<std::string>& PlasmaMembraneSubsetName,
+		const std::string& fct
+	);
+
 	virtual ~HybridSynapseCurrentAssembler(){}
 
 	void adjust_jacobian(matrix_type& J, const vector_type& u,
@@ -216,47 +222,46 @@ public:
 	void adjust_solution(vector_type& u, ConstSmartPtr<DoFDistribution> dd, int type,
 										 number time = 0.0){}
 
-	int type() const;
+	int type() const {return CT_CONSTRAINTS;};
 
-	//void set_flowing_substance_name(const std::string& fct); // todo: better name!
+	void set_valency(int val) {m_valency = val;}
 
-	void set_valency(const number& val) {m_valency = val;}
-
-	void set_current_percentage(const number& val) {m_current_percentage = val;}
+	void set_current_percentage(number val) {m_current_percentage = val;}
 
 	/**
 	 * change scaling factors, that have to be applied to 3d values, so that 1d and 3d values
 	 * have equal units
 	 */
-	void set_scaling_factors(const number& scaling_3d_to_1d_amount_of_substance,
-							 const number& scaling_3d_to_1d_electric_charge,
-							 const number& scaling_3d_to_1d_coordinates)
+	void set_scaling_factors(number scaling_3d_to_1d_amount_of_substance = 1.0,
+			 	 	 	 	 number scaling_3d_to_1d_coordinates = 1.0,
+							 number scaling_3d_to_1d_electric_charge = 1.0)
 	{
 		m_scaling_3d_to_1d_amount_of_substance = scaling_3d_to_1d_amount_of_substance;
 		m_scaling_3d_to_1d_electric_charge = scaling_3d_to_1d_electric_charge;
 		m_scaling_3d_to_1d_coordinates = scaling_3d_to_1d_coordinates;
+
+		m_spHNC->set_coordinate_scale_factor_3d_to_1d(m_scaling_3d_to_1d_coordinates);
 	}
 
 private:
 	/// function index of the carried ion species
 	size_t m_fctInd;
 
-	/// scaling factors
-	number m_scaling_3d_to_1d_amount_of_substance;
-	number m_scaling_3d_to_1d_electric_charge;
-	number m_scaling_3d_to_1d_coordinates;
-
 	/// Faraday constant
 	const number m_F; //in C/mol
 
 	/// valency of the carried ion species
-	number m_valency;
+	int m_valency;
 
 	/// which fraction of the current is carried by the ion species in question
 	number m_current_percentage;
 
-	ConstSmartPtr<hnc_type> m_spHNC;
+	SmartPtr<hnc_type> m_spHNC;
 
+	/// scaling factors
+	number m_scaling_3d_to_1d_amount_of_substance;
+	number m_scaling_3d_to_1d_electric_charge;
+	number m_scaling_3d_to_1d_coordinates;
 };
 
 } // namespace neuro_collection
