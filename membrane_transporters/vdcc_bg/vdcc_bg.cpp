@@ -359,10 +359,14 @@ void VDCC_BG<TDomain>::update_time(const number newTime)
 template<typename TDomain>
 void VDCC_BG<TDomain>::prep_timestep
 (
-	const number time, VectorProxyBase* upb
+    number future_time, const number time, VectorProxyBase* upb
 )
 {
-	update_time(time);
+    // initiate if this has not already been done
+    if (!m_initiated)
+        init(time);
+
+	update_time(future_time);
 
 	SubsetGroup ssGrp;
     try { ssGrp = SubsetGroup(m_dom->subset_handler(), this->m_vSubset);}

@@ -134,7 +134,7 @@ RyR2<TDomain>::~RyR2()
 
 
 template <typename TDomain>
-void RyR2<TDomain>::prep_timestep(const number time, VectorProxyBase* upb)
+void RyR2<TDomain>::prep_timestep(number future_time, const number time, VectorProxyBase* upb)
 {
 	// before the first step: initiate to equilibrium
 	if (!m_initiated)
@@ -159,10 +159,10 @@ void RyR2<TDomain>::prep_timestep(const number time, VectorProxyBase* upb)
 	std::vector<DoFIndex> dofIndex;
 
 	// update time
-	if (time != m_time)
+	if (future_time != m_time)
 	{
 		m_oldTime = m_time;
-		m_time = time;
+		m_time = future_time;
 	}
 	number dt = m_time - m_oldTime;
 

@@ -141,7 +141,7 @@ class VDCC_BG : public IMembraneTransporter
 		/// @copydoc IMembraneTransporter::prep_timestep()
 		virtual void prep_timestep
 		(
-			const number time, VectorProxyBase* upb
+			number future_time, const number time, VectorProxyBase* upb
 		);
 
 		/// @copydoc IMembraneTransporter::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const

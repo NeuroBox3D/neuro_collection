@@ -102,14 +102,13 @@ class IMembraneTransporter
 		 * This is especially useful for the implementation of the Borg-Graham type VDCCs using
 		 * grid attachments.
 		 *
-		 * @param time            new point in time
-		 * @param u               local vector of unknowns
-		 * @param elem            the element modifications can be made for
-		 * @param vCornerCoords   the element's corner coordinates
+         * @param future_time     new point in time
+         * @param time            current point in time
+		 * @param upb             wrapper for the current solution vector
 		 */
 		virtual void prep_timestep
 		(
-			const number time, VectorProxyBase* upb
+			number future_time, const number time, VectorProxyBase* upb
 		);
 
 		/**

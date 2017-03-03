@@ -98,7 +98,7 @@ class MembraneTransportFV1
 		virtual void prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid);
 
 	/// @copydoc IElemDisc<TDomain>::prepare_timestep()
-		void prep_timestep(number time, VectorProxyBase* upb);
+		void prep_timestep(number future_time, number time, VectorProxyBase* upb);
 
 	protected:
 		SmartPtr<CplUserData<number,dim> > m_spDensityFct;

@@ -208,19 +208,23 @@ void VDCC_BG_CN<TDomain>::init(number time)
 
 
 template <typename TDomain>
-void VDCC_BG_CN<TDomain>::prep_timestep(const number time, VectorProxyBase* upb)
+void VDCC_BG_CN<TDomain>::prep_timestep(number future_time, const number time, VectorProxyBase* upb)
 {
+    // initiate if this has not already been done
+    if (!this->m_initiated)
+        init(time);
+
     // do nothing if new time is older than we are
     // (might happen in case of external reset due to non-convergence)
-    if (time <= m_curTime) return;
+    if (future_time <= m_curTime) return;
 
     // the 1d simulation needs to be updated to the given time
     // modify time step size if needed
-    number nsteps = floor((time - m_curTime) / m_dt);
-    if (time - (m_curTime + nsteps*m_dt) > 1e-3)
-        m_dt = (time - m_curTime) / nsteps;
+    number nsteps = floor((future_time - m_curTime) / m_dt);
+    if (future_time - (m_curTime + nsteps*m_dt) > 1e-3)
+        m_dt = (future_time - m_curTime) / nsteps;
 
-    while (time - m_curTime > 1e-4*m_dt)
+    while (future_time - m_curTime > 1e-4*m_dt)
     {
         // setup time disc for old solutions and time step
         m_spTimeDisc->prepare_step(m_spSolTimeSeries, m_dt);
@@ -284,7 +288,7 @@ void VDCC_BG_CN<TDomain>::prep_timestep(const number time, VectorProxyBase* upb)
             m_spHNC->coordinate_potential_values();
 
             // call regular prep timestep from base class
-            VDCC_BG<TDomain>::prep_timestep(m_curTime, upb);
+            VDCC_BG<TDomain>::prep_timestep(future_time, time, upb);
 
             m_timeSinceLastPotentialUpdate -= m_dt_potentialUpdate;
         }

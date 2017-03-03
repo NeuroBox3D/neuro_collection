@@ -186,18 +186,12 @@ void MembraneTransportFV1<TDomain>::prepare_setting(const std::vector<LFEID>& vL
 template<typename TDomain>
 void MembraneTransportFV1<TDomain>::prep_timestep
 (
-	number time,
-	VectorProxyBase* upb
+    number future_time,
+    number time,
+    VectorProxyBase* upb
 )
 {
-	/*
-	typedef CPUAlgebra::vector_type v_type;
-	typedef VectorProxy<v_type> vp_type;
-	vp_type* up = dynamic_cast<vp_type*>(upb);
-	UG_COND_THROW(!up, "Wrong algebra type!");
-	const v_type& u = up->m_v;
-	*/
-	m_spMembraneTransporter->prep_timestep(time, upb);
+	m_spMembraneTransporter->prep_timestep(future_time, time, upb);
 }
 
 
