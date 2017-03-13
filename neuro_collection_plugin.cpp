@@ -50,8 +50,8 @@
 #include "stimulation/action_potential_train.h"
 #include "grid_generation/bouton_generator/bouton_generator.h"
 
-//#include "lib_grid/refinement/projectors/neurite_projector.h"
-//#include "test/test_neurite_proj.h"
+#include "lib_grid/refinement/projectors/neurite_projector.h"
+#include "test/test_neurite_proj.h"
 
 #include "util/measurement.h"
 #include "lib_disc/function_spaces/grid_function.h"
@@ -573,7 +573,6 @@ static void Common(Registry& reg, string grp)
                          "Generates a drosophila NMJ bouton volume grid.");
 	}
 
-/*
 	// test neurite projector
 	{
         reg.add_function("test_neurite_projector", &test_neurite_projector_with_four_section_tube, "", "", "");
@@ -582,7 +581,6 @@ static void Common(Registry& reg, string grp)
         //reg.add_function("apply_neurite_projector", &apply_neurite_projector, "", "multigrid, neurite projector", "");
         reg.add_function("test_cylinder_volume_projector", &test_cylinder_volume_projector, "", "", "");
 	}
-*/
 }
 
 }; // end Functionality
