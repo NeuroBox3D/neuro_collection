@@ -18,6 +18,11 @@ namespace ug {
 namespace neuro_collection {
 
 
+// TODO: register this object as refinement listener
+//       and as redistribution listener
+//       it has to react to both events with a call to reinit_potential_mappings()
+//       as well as Mapping3d()
+
 template <typename TDomain>
 class HybridNeuronCommunicator
 {

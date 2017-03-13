@@ -34,6 +34,7 @@
 #include "membrane_transporters/vdcc_bg/vdcc_bg_userdata.h"
 
 #ifdef NC_WITH_CABLENEURON
+	#include "hybrid_neuron_communicator.h"
     #include "membrane_transporters/vdcc_bg/vdcc_bg_cableneuron.h"
 #endif
 
@@ -97,6 +98,7 @@ static void DomainAlgebra(Registry& reg, string grp)
 					 "", "solution#time#subset names#function names#output file name",
 					 "outputs average values of unknowns on subsets");
 
+#ifdef NC_WITH_CABLENEURON
 	// HybridSynapseCurrentAssembler
 	{
 		typedef HybridSynapseCurrentAssembler<TDomain, TAlgebra> T;
@@ -115,6 +117,7 @@ static void DomainAlgebra(Registry& reg, string grp)
 
 		reg.add_class_to_group(name, "HybridSynapseCurrentAssembler", tag);
 	}
+#endif
 
 }
 

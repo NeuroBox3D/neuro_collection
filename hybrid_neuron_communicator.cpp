@@ -30,6 +30,7 @@ HybridNeuronCommunicator<TDomain>::HybridNeuronCommunicator
   sendSize(NULL), sendTo(NULL), sendBuf(NULL),
 #endif
   m_spApprox1d(spApprox1d), m_spApprox3d(spApprox3d),
+  m_potFctInd(0),
   m_spGrid1d(SPNULL), m_spGrid3d(SPNULL), m_spMGSSH3d(SPNULL),
   m_scale_factor_from_3d_to_1d(1.0),
   m_aNID(GlobalAttachments::attachment<ANeuronID>("neuronID")),
@@ -318,7 +319,6 @@ serial_case:
 		for (; it != it_end; ++it)
 		{
 		    m_mPotElemToVertex[*it] = vLocVrt[vNearest[i]];
-//UG_LOGN(i << " " << vDist[vNearest[i]]);
 			++i;
 		}
 	}
@@ -405,8 +405,7 @@ serial_case:
         Vertex* vrt = it->second;
 
         // get DoFIndex for vertex
-        vIndex.clear();
-        dd1->inner_dof_indices(vrt, m_potFctInd, vIndex, false);
+        dd1->inner_dof_indices(vrt, m_potFctInd, vIndex, true);
 
         UG_COND_THROW(!vIndex.size(), "Potential function (index: "
             << m_potFctInd << ") is not defined for "
@@ -856,7 +855,7 @@ void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::adjust_defect
 
 		// get the DoFIndex for this vertex
 		std::vector<DoFIndex> vIndex;
-		dd->inner_dof_indices(v, m_fctInd, vIndex, false); // we don't need hanging indices as vertices are all from base level
+		dd->inner_dof_indices(v, m_fctInd, vIndex, false);
 
 		UG_COND_THROW(!vIndex.size(), "Function given by 'set_flowing_substance_name' is not defined for "
 			<< ElementDebugInfo(*this->m_spApproxSpace->domain()->grid(), v) << ".")
