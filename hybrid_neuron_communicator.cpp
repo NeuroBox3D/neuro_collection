@@ -31,21 +31,17 @@ HybridNeuronCommunicator<TDomain>::HybridNeuronCommunicator
 #endif
   m_spApprox1d(spApprox1d), m_spApprox3d(spApprox3d),
   m_potFctInd(0),
-  m_spGrid1d(SPNULL), m_spGrid3d(SPNULL), m_spMGSSH3d(SPNULL),
+  m_spGrid1d(m_spApprox1d->domain()->grid()), m_spGrid3d(m_spApprox3d->domain()->grid()),
+  m_spMGSSH3d(m_spApprox3d->domain()->subset_handler()),
   m_scale_factor_from_3d_to_1d(1.0),
+  m_aaPos1d(m_spApprox1d->domain()->position_accessor()),
+  m_aaPos3d(m_spApprox3d->domain()->position_accessor()),
   m_aNID(GlobalAttachments::attachment<ANeuronID>("neuronID")),
-  m_nid(0)
+  m_nid(0)	// TODO: provide a setter for this
 {
-	m_spGrid1d = m_spApprox1d->domain()->grid();
-	m_spGrid3d = m_spApprox3d->domain()->grid();
-	m_spMGSSH3d = m_spApprox3d->domain()->subset_handler();
-
 	if (!m_spGrid1d->has_vertex_attachment(m_aNID))
 		m_spGrid1d->attach_to_vertices(m_aNID);
 	m_aaNID = Grid::VertexAttachmentAccessor<ANeuronID>(*m_spGrid1d, m_aNID);
-
-	m_aaPos1d = m_spApprox1d->domain()->position_accessor();
-	m_aaPos3d = m_spApprox1d->domain()->position_accessor();
 }
 
 
@@ -95,9 +91,7 @@ void HybridNeuronCommunicator<TDomain>::set_current_subsets(const std::vector<st
     	m_vCurrentSubset3d.push_back(ssGrp[si]);
 
     // perform 1d synapse -> 3d vertex mapping
-    std::vector<Vertex*> foo;
-    std::vector<MathVector<dim> > fop;
-    Mapping3d(m_nid, foo, fop);
+    Mapping3d(m_nid);
 }
 
 
@@ -589,9 +583,7 @@ int HybridNeuronCommunicator<TDomain>::get_neuron_id(synapse_id id)
 }
 
 template <typename TDomain>
-int HybridNeuronCommunicator<TDomain>::Mapping3d(int neuron_id,
-												 std::vector<Vertex*>& vMinimizing3dVertices,
-												 std::vector<MathVector<dim> >& vMinimizingSynapseCoords)
+int HybridNeuronCommunicator<TDomain>::Mapping3d(int neuron_id)
 {
 	std::vector<MathVector<dim> > syn_coords_local;
 	std::vector<synapse_id> syn_ids_local;
@@ -600,25 +592,30 @@ int HybridNeuronCommunicator<TDomain>::Mapping3d(int neuron_id,
 	std::vector<Vertex*> vMap;
 	std::vector<number> vDistances;
 
-	//gather plasma membrane surface vertices:
-	for(unsigned int i=0; i<m_vCurrentSubset3d.size(); ++i) {
-		geometry_traits<Vertex>::const_iterator vrtIt = m_spMGSSH3d->begin<Vertex>(m_vCurrentSubset3d[i], 0);
-		geometry_traits<Vertex>::const_iterator vrtItend = m_spMGSSH3d->end<Vertex>(m_vCurrentSubset3d[i], 0);
+	// gather plasma membrane surface vertices:
+    typedef typename DoFDistribution::traits<Vertex>::const_iterator VrtItType;
+	ConstSmartPtr<DoFDistribution> dd3 = m_spApprox3d->dof_distribution(GridLevel());
+	size_t numSs = m_vCurrentSubset3d.size();
+	for (size_t s = 0; s < numSs; ++s)
+	{
+		int si = m_vCurrentSubset3d[s];
+		VrtItType it = dd3->template begin<Vertex>(si);
+		VrtItType it_end = dd3->template end<Vertex>(si);
 
-		for (; vrtIt != vrtItend; ++vrtIt) {
-			v3dVertices.push_back(*vrtIt);
-		}
+		for (; it != it_end; ++it)
+			v3dVertices.push_back(*it);
 	}
 
-
-	//gather local synapse coords, that are interesting
-	cable_neuron::synapse_handler::SynapseIter<cable_neuron::synapse_handler::IBaseSynapse> synIt = m_spSynHandler->template begin<cable_neuron::synapse_handler::IBaseSynapse>();
-	cable_neuron::synapse_handler::SynapseIter<cable_neuron::synapse_handler::IBaseSynapse> synItEnd = m_spSynHandler->template end<cable_neuron::synapse_handler::IBaseSynapse>();
+	// gather local synapse coords, that are interesting
+	typedef cable_neuron::synapse_handler::IPostSynapse PostSynapse;
+	typedef cable_neuron::synapse_handler::SynapseIter<PostSynapse> PostSynIter;
+	PostSynIter synIt = m_spSynHandler->template begin<PostSynapse>();
+	PostSynIter synItEnd = m_spSynHandler->template end<PostSynapse>();
 	for (; synIt != synItEnd; ++synIt)
 	{
-		cable_neuron::synapse_handler::IBaseSynapse* syn = *synIt;
-		if( get_neuron_id(syn->id()) == neuron_id) {
-
+		cable_neuron::synapse_handler::IPostSynapse* syn = *synIt;
+		if (get_neuron_id(syn->id()) == neuron_id)
+		{
 			MathVector<dim> coords;
 			get_coordinates(syn->id(), coords);
 			syn_coords_local.push_back(coords);
@@ -629,7 +626,6 @@ int HybridNeuronCommunicator<TDomain>::Mapping3d(int neuron_id,
 #ifdef UG_PARALLEL
 	if (pcl::NumProcs() > 1)
 	{
-
 		pcl::ProcessCommunicator com;
 		std::vector<MathVector<dim> > syn_coords_global; //synapses coords of neuron with given id
 		std::vector<synapse_id> syn_ids_global;
@@ -638,10 +634,9 @@ int HybridNeuronCommunicator<TDomain>::Mapping3d(int neuron_id,
 
 		//communicate all interesting synapse coords to all procs
 		com.allgatherv(syn_coords_global, syn_coords_local, &syn_sizes, &syn_offsets); //syn_coords_global contains all synapses, which are interesting for a 3d mapping
-		com.allgatherv(syn_ids_global, syn_ids_local, &syn_sizes, &syn_offsets);
+		com.allgatherv(syn_ids_global, syn_ids_local, NULL, NULL);
 
-
-		// compute local min distances
+		// compute min distances of all local 3d vertices to the global 1d synapse positions
 		nearest_neighbor(syn_coords_global, v3dVertices, vMap, vDistances);
 
 		// communicate all distances to all processes
@@ -712,7 +707,11 @@ int HybridNeuronCommunicator<TDomain>::Mapping3d(int neuron_id,
 		//Create local HNC map out of vMap and vMinimizingProc
 		for(size_t i=0; i<vMap.size(); ++i) {
 			if(pcl::ProcRank() == vMinimizingProc[i] )
+			{
 				m_mSynapse3dVertex[ syn_ids_global[i] ] = vMap[i];
+				//UG_LOGN("Synapse " << syn_ids_global[i] << " mapped to position "
+				//		<< m_aaPos3d[vMap[i]] << "." << std::endl);
+			}
 		}
 
 		// vMinimizing3dVertices should finally contain the nearest 3d Vertex to the corresponding 1d synapse at the same position in vMinimizingSynapseCoords
@@ -733,10 +732,13 @@ int HybridNeuronCommunicator<TDomain>::Mapping3d(int neuron_id,
 }
 
 template <typename TDomain>
-int HybridNeuronCommunicator<TDomain>::nearest_neighbor(	const std::vector<MathVector<dim> >& v1dCoords,
-													const std::vector<Vertex*>& v3dVertices,
-													std::vector<Vertex*>& vMap,
-													std::vector<number>& vDistances)
+int HybridNeuronCommunicator<TDomain>::nearest_neighbor
+(
+	const std::vector<MathVector<dim> >& v1dCoords,
+	const std::vector<Vertex*>& v3dVertices,
+	std::vector<Vertex*>& vMap,
+	std::vector<number>& vDistances
+)
 {
 	vMap.clear();
 	vDistances.clear();
@@ -744,9 +746,9 @@ int HybridNeuronCommunicator<TDomain>::nearest_neighbor(	const std::vector<MathV
 	// iterate over 1dSynapses
 	for(size_t i=0; i<v1dCoords.size(); i++) {
 
-		MathVector<dim> scaled3dVec;
+		MathVector<dim> scaled3dVec;	// TODO: avoid possible segfault if v3dvertices is empty
 		VecScale(scaled3dVec, m_aaPos3d[v3dVertices[0]], m_scale_factor_from_3d_to_1d);
-        number min_distance = VecDistanceSq(scaled3dVec, v1dCoords[0]);
+        number min_distance = VecDistanceSq(scaled3dVec, v1dCoords[i]);
 		vMap.push_back(v3dVertices[0]);
 
 		// iterate over 3dVertices
@@ -764,9 +766,70 @@ int HybridNeuronCommunicator<TDomain>::nearest_neighbor(	const std::vector<MathV
 	return 1;
 }
 
+
+
+template <typename TDomain>
+void HybridNeuronCommunicator<TDomain>::gather_synaptic_currents
+(
+	std::vector<Vertex*>& vActSynOut,
+	std::vector<number>& vSynCurrOut,
+	number time
+)
+{
+	vActSynOut.clear();
+	vSynCurrOut.clear();
+
+	// get locally active synapses
+	std::vector<synapse_id> vLocActSyn;
+	std::vector<number> vLocSynCurr;
+	m_spSynHandler->active_postsynapses_and_currents(vLocActSyn, vLocSynCurr, time);
+
+#ifdef UG_PARALLEL
+	if (pcl::NumProcs() == 1)
+		goto serial_case;
+
+	{
+		std::vector<synapse_id> vGlobActSyn;
+		std::vector<number> vGlobSynCurr;
+
+		pcl::ProcessCommunicator com;
+		com.allgatherv(vGlobActSyn, vLocActSyn, NULL, NULL);
+		com.allgatherv(vGlobSynCurr, vLocSynCurr, NULL, NULL);
+
+		for (size_t i=0; i<vGlobActSyn.size(); ++i)
+		{
+			synapse_id sid = vGlobActSyn[i];
+			std::map<synapse_id, Vertex*>::const_iterator it;
+			if ((it = m_mSynapse3dVertex.find(sid)) != m_mSynapse3dVertex.end())
+			{
+				vActSynOut.push_back(it->second);
+				vSynCurrOut.push_back(vGlobSynCurr[i]);
+			}
+		}
+	}
+
+	return;
+#endif
+
+serial_case:
+	for (size_t i=0; i<vLocActSyn.size(); ++i)
+	{
+		synapse_id sid = vLocActSyn[i];
+		std::map<synapse_id, Vertex*>::const_iterator it;
+		if ((it = m_mSynapse3dVertex.find(sid)) != m_mSynapse3dVertex.end())
+		{
+			vActSynOut.push_back(it->second);
+			vSynCurrOut.push_back(vLocSynCurr[i]);
+		}
+	}
+}
+
+
+
 template <typename TDomain>
 void HybridNeuronCommunicator<TDomain>::get_coordinates(synapse_id id, MathVector<dim>& vCoords)
 {
+	// TODO: This implementation is unfavorable; avoid the edge iteration in every call.
 
 	// Search for Edge
 	for(EdgeIterator eIter = m_spGrid1d->begin<Edge>(); eIter != m_spGrid1d->end<Edge>(); ++eIter) {
@@ -779,12 +842,12 @@ void HybridNeuronCommunicator<TDomain>::get_coordinates(synapse_id id, MathVecto
 
 				number localcoord = v[j]->location();
 
-				VecScaleAdd(vCoords, localcoord, m_aaPos1d[v0], localcoord, m_aaPos1d[v1]);
+				VecScaleAdd(vCoords, 1.0 - localcoord, m_aaPos1d[v0], localcoord, m_aaPos1d[v1]);
+
+				return;
 			}
 		}
 	}
-
-
 }
 
 template <typename TDomain, typename TAlgebra>
@@ -797,8 +860,8 @@ HybridSynapseCurrentAssembler
 	const std::vector<std::string>& PlasmaMembraneSubsetName,
 	const std::string& fct
 )
-:m_fctInd(0), m_F(96485.309), m_valency(2), m_current_percentage(0.1), m_spHNC(new hnc_type(spApprox3d, spApprox1d)),
- m_scaling_3d_to_1d_amount_of_substance(1.0), m_scaling_3d_to_1d_electric_charge(1.0), m_scaling_3d_to_1d_coordinates(1.0)
+: m_fctInd(0), m_F(96485.309), m_valency(2), m_current_percentage(0.1), m_spHNC(new hnc_type(spApprox3d, spApprox1d)),
+  m_scaling_3d_to_1d_amount_of_substance(1e-15), m_scaling_3d_to_1d_electric_charge(1.0), m_scaling_3d_to_1d_coordinates(1e-6)
 {
 	// get function index of whatever it is that the current carries (in our case: calcium)
 	FunctionGroup fctGrp(spApprox3d->function_pattern());
@@ -809,6 +872,12 @@ HybridSynapseCurrentAssembler
 	// init HNC
 	m_spHNC->set_synapse_handler(spSH);
 	m_spHNC->set_coordinate_scale_factor_3d_to_1d(m_scaling_3d_to_1d_coordinates);
+
+	// TODO: Important: The following command will initialize the coordinate mapping
+	//       in the underlying HNC object. However, the length scaling factor we assigned to it
+	//       is only the default one and not the one set via set_scaling_factors().
+	//       This has to be handled in a proper order while maintaining that the HNC init
+	//       procedure is only called once. Maybe do that just when it is first required?
 	m_spHNC->set_current_subsets(PlasmaMembraneSubsetName);
 }
 
@@ -834,20 +903,21 @@ void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::adjust_defect
 	// also get the corresponding current values at the same time.
 	std::vector<Vertex*> vActiveList;
 	std::vector<number> vCurrent;
-
-	const std::vector<synapse_id> vActiveSynapsesId = m_spHNC->synapse_handler()->active_presynapses();
-
-	const std::map<synapse_id, Vertex*>& mSynVrtMap = m_spHNC->synapse_3dVertex_map();
-	for (size_t i=0; i<vActiveSynapsesId.size(); ++i) {
-		synapse_id sid = vActiveSynapsesId[i];
-		std::map<synapse_id, Vertex*>::const_iterator it;
-		if ((it = mSynVrtMap.find(sid)) != mSynVrtMap.end()) {
-			vActiveList.push_back(it->second);
-			vCurrent.push_back(m_spHNC->synapse_handler()->current(sid));
-		}
-	}
+	m_spHNC->gather_synaptic_currents(vActiveList, vCurrent, time);
 
 
+	// calculate dt
+	// if the following happens, get dt from elsewhere (to be set and updated by user)
+	UG_COND_THROW(!vScaleStiff, "No stiffness scales given.");
+
+	// sum of stiffness factors should be dt (shouldn't it!?)
+	number dt = 0.0;
+	size_t ntp = vScaleStiff->size();
+	for (size_t tp = 0; tp < ntp; ++tp)
+		dt += (*vScaleStiff)[tp];
+
+
+	// loop active synapses
 	size_t sz = vActiveList.size();
 	for (size_t i = 0; i < sz; ++i)
 	{
@@ -864,23 +934,14 @@ void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::adjust_defect
 
 		const DoFIndex& dofInd = vIndex[0];
 
-		// evaluate current (use the same current for all time points)
-		// this way, we enforce explicit Euler scheme for current discretization
-
-		// if this happens, get dt from elsewhere (to be set and updated by user)
-		UG_COND_THROW(!vScaleStiff, "No stiffness scales given.");
-
-		// sum of stiffness factors should be dt (shouldn't it!?)
-		number dt = 0.0;
-		size_t ntp = vScaleStiff->size();
-		for (size_t tp = 0; tp < ntp; ++tp)
-			dt += (*vScaleStiff)[tp];
-
+		// Evaluate current (use the same current for all time points).
+		// This way, we enforce explicit Euler scheme for current discretization.
 		// The currents have to be scaled properly in case the units
 		// of the 1d and 3d simulations do not match!
-		// add synaptic current * dt to defect
-		// careful, inward current means negative sign in the defect!
-		DoFRef(d, dofInd) -= dt * vCurrent[i] / (m_valency*m_F) / m_scaling_3d_to_1d_amount_of_substance;
+		// Add synaptic current * dt to defect.
+		// Currents are outward in the synapse handler, so we add to defect.
+		DoFRef(d, dofInd) += dt * vCurrent[i] * m_current_percentage / (m_valency*m_F) / m_scaling_3d_to_1d_amount_of_substance;
+		//UG_LOGN("Adjusted defect by the amount " << dt * vCurrent[i] * m_current_percentage / (m_valency*m_F) / m_scaling_3d_to_1d_amount_of_substance);
 	}
 }
 

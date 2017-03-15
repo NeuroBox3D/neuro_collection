@@ -79,6 +79,9 @@ class HybridNeuronCommunicator
         /// communicate potential values
         void coordinate_potential_values();
 
+        /// coordinate synaptic current values (only active post-synapses)
+        void gather_synaptic_currents(std::vector<Vertex*>& vActSynOut, std::vector<number>& vSynCurrOut, number time);
+
         /// get potential value for high-dim side element
         number potential(side_t* elem) const;
 
@@ -119,11 +122,12 @@ class HybridNeuronCommunicator
     protected:
         void neuron_identification();
 		int deep_first_search(Vertex* v, int id);
-		int Mapping3d(int neuron_id, std::vector<Vertex*>& vMinimizing3dVertices, std::vector<MathVector<dim> >& vMinimizingSynapseCoords);
+		int Mapping3d(int neuron_id);
 
 		/**
 		 * Takes a std::vector of Synapses by coordinates and a std::vector of Vertexcoordinates and writes the nearest neighbor of each
 		 * synapse out in vMap, so that the order of v1dSynapses equals the order of vMap
+		 * @todo: use above NN search nearest_neighbor_search()
 		 */
 		int nearest_neighbor(	const std::vector<MathVector<dim> >& v1dCoords,
 								const std::vector<Vertex*>& v3dVertices,
