@@ -137,10 +137,9 @@ void computeVolume
 }
 
 
-// /////////////////// //
-// measurement command //
-// /////////////////// //
-
+// //////////////////// //
+// measurement commands //
+// //////////////////// //
 template <typename TGridFunction>
 void takeMeasurement
 (
@@ -149,6 +148,20 @@ void takeMeasurement
 	const char* subsetNames,
 	const char* functionNames,
 	const char* outFileName
+) {
+	takeMeasurement(solution, time, subsetNames, functionNames, outFileName, "");
+}
+
+
+template <typename TGridFunction>
+void takeMeasurement
+(
+	SmartPtr<TGridFunction> solution,
+	const number time,
+	const char* subsetNames,
+	const char* functionNames,
+	const char* outFileName,
+	const char* outFileExt
 )
 {
 	typedef typename TGridFunction::domain_type domain_type;
@@ -215,7 +228,7 @@ void takeMeasurement
 
 			// construct outFile name
 			std::ostringstream ofnss(outFileName, std::ios_base::app);
-			ofnss << "_" << ssGrp.name(si) << "_" << fctGrp.name(fi);
+			ofnss << "_" << ssGrp.name(si) << "_" << fctGrp.name(fi) << outFileExt;
 
 			// create if first time step, append otherwise
 			std::ofstream outFile;

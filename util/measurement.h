@@ -61,6 +61,7 @@ void computeVolume
  * 			For lower-dimensional objects it is possible that some are accounted for
  * 			more than once! --> master/slave layout !?
  */
+
 template <typename TGridFunction>
 void takeMeasurement
 (
@@ -69,6 +70,17 @@ void takeMeasurement
 	const char* subsetNames,
 	const char* functionNames,
 	const char* outFileName
+);
+
+template <typename TGridFunction>
+void takeMeasurement
+(
+	SmartPtr<TGridFunction> solution,
+	const number time,
+	const char* subsetNames,
+	const char* functionNames,
+	const char* outFileName,
+	const char* outFileExt
 );
 
 ///@}

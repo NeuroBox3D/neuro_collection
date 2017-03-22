@@ -92,12 +92,17 @@ static void DomainAlgebra(Registry& reg, string grp)
 	string suffix = GetDomainAlgebraSuffix<TDomain,TAlgebra>();
 	string tag = GetDomainAlgebraTag<TDomain,TAlgebra>();
 
+	typedef GridFunction<TDomain, TAlgebra> TGridFunction;
+
 	// extra commands for this plugin
-	reg.add_function("take_measurement", &takeMeasurement<GridFunction<TDomain, TAlgebra> >, grp.c_str(),
+	reg.add_function("take_measurement", static_cast<void (*)(SmartPtr<TGridFunction>, const number, const char*, const char*, const char*)>(&takeMeasurement<GridFunction<TDomain, TAlgebra> >), grp.c_str(),
 					 "", "solution#time#subset names#function names#output file name",
 					 "outputs average values of unknowns on subsets");
 
 
+	reg.add_function("take_measurement", static_cast<void (*)(SmartPtr<TGridFunction>, const number, const char*, const char*, const char*, const char*)>(&takeMeasurement<GridFunction<TDomain, TAlgebra> >), grp.c_str(),
+					 "", "solution#time#subset names#function names#output file name#output file extension",
+					 "outputs average values of unknowns on subsets");
 }
 
 /**
