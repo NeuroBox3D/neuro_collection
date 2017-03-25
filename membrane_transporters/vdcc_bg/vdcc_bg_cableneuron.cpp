@@ -36,6 +36,7 @@ VDCC_BG_CN<TDomain>::VDCC_BG_CN
   m_scaleFactor3dTo1d(1.0),
   m_bSolverVerboseOutput(false), m_bVTKOutput(false),
   m_vtkFileName(std::string("")), m_pstep(1e-3),
+  m_vNID(1,0),
   m_curTime(0.0), m_dt(1e-4), m_stepLv(0),
   m_dt_potentialUpdate(1e-4), m_timeSinceLastPotentialUpdate(0.0)
 {
@@ -63,12 +64,27 @@ void VDCC_BG_CN<TDomain>::set_cable_disc(SmartPtr<cable_neuron::CableEquation<TD
 
 
 template <typename TDomain>
+void VDCC_BG_CN<TDomain>::set_3d_neuron_ids(const std::vector<size_t>& ids)
+{
+	// uint is not registered, we therefore use size_t as param type
+	// but we need to convert this here
+	m_vNID.resize(ids.size());
+	for (size_t i = 0; i < ids.size(); ++i)
+		m_vNID[i] = (uint) ids[i];
+
+    if (m_spHNC.valid())
+    	m_spHNC->set_neuron_ids(m_vNID);
+}
+
+#if 0
+// unused
+template <typename TDomain>
 void VDCC_BG_CN<TDomain>::set_hybrid_neuron_communicator(SmartPtr<HybridNeuronCommunicator<TDomain> > spHNC)
 {
     m_spHNC = spHNC;
     m_spHNC->set_potential_subsets(this->m_vSubset);
 }
-
+#endif
 
 template <typename TDomain>
 void VDCC_BG_CN<TDomain>::set_coordinate_scale_factor_3d_to_1d(number scale)
@@ -195,8 +211,9 @@ void VDCC_BG_CN<TDomain>::init(number time)
     // finally, init hybrid neuron communicator ...
     m_spHNC = make_sp(new HybridNeuronCommunicator<TDomain>(m_spApprox3d, m_spApprox1d));
     m_spHNC->set_coordinate_scale_factor_3d_to_1d(m_scaleFactor3dTo1d);
-    m_spHNC->set_potential_subsets(this->m_vSubset);    // will also reinit mapping
+    m_spHNC->set_potential_subsets(this->m_vSubset);
     m_spHNC->set_solution_and_potential_index(m_spU, m_potFctInd);
+	m_spHNC->set_neuron_ids(m_vNID);
 
     // ... and communicate current membrane potential values
     m_spHNC->coordinate_potential_values();

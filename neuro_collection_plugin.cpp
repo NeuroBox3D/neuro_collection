@@ -113,6 +113,7 @@ static void DomainAlgebra(Registry& reg, string grp)
 			.add_method("set_current_percentage", &T::set_current_percentage, "", "", "")
 			.add_method("set_valency", &T::set_valency, "", "", "")
 			.add_method("set_scaling_factors", &T::set_scaling_factors, "", "", "")
+			.add_method("set_3d_neuron_ids", &T::set_3d_neuron_ids, "", "", "")
 			.set_construct_as_smart_pointer(true);
 
 		reg.add_class_to_group(name, "HybridSynapseCurrentAssembler", tag);
@@ -273,8 +274,10 @@ static void Domain(Registry& reg, string grp)
                 ("function(s) as vector#subset(s) as vector#approxSpace 1d#approxSpace 3d#potential function name")
             .add_method("set_domain_disc_1d", &T::set_domain_disc_1d, "", "domainDisc",
                 "Set the 1d cable domain discretization.")
-            .add_method("set_cable_disc", &T::set_cable_disc, "", "cableDisc",
-                "Set the 1d cable element discretization.")
+			.add_method("set_cable_disc", &T::set_cable_disc, "", "cableDisc",
+				"Set the 1d cable element discretization.")
+			.add_method("set_3d_neuron_ids", &T::set_3d_neuron_ids, "", "neuron ids as vector",
+				"Set the 3d represented neuron IDs.")
             .add_method("set_initial_values", &T::set_initial_values, "", "initial value(s) as vector",
                 "Set initial values for all unknowns in the 1d cable simulation.")
             .add_method("set_coordinate_scale_factor_3d_to_1d", &T::set_coordinate_scale_factor_3d_to_1d, "",

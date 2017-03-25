@@ -35,7 +35,7 @@ class HybridNeuronCommunicator
         typedef CPUAlgebra algebra_t;
 
     	typedef typename cable_neuron::synapse_handler::SynapseHandler<TDomain> synh_type;
-    	typedef Attachment<int> ANeuronID;
+    	typedef Attachment<uint> ANeuronID;
 
     public:
         /// constructor
@@ -57,7 +57,6 @@ class HybridNeuronCommunicator
         /// set subsets on which to communicate the current values from 1d to 3d
         void set_current_subsets(const std::vector<std::string>& vSubset);
 
-        ConstSmartPtr<synh_type> synapse_handler() const {return m_spSynHandler;}
         /// set current solution vector and function index of potential
         void set_solution_and_potential_index(ConstSmartPtr<GridFunction<TDomain, algebra_t> > u, size_t fctInd);
 
@@ -69,12 +68,9 @@ class HybridNeuronCommunicator
          */
         void set_coordinate_scale_factor_3d_to_1d(number scale);
 
-        /// reinitialize communication
-        /**
-         * This method needs to be called whenever there are any changes in one of the geometries
-         * or when one of the geometries has been redistributed.
-         */
-        void reinit_potential_mappings();
+        void set_neuron_ids(const std::vector<uint>& vNid);
+
+        ConstSmartPtr<synh_type> synapse_handler() const {return m_spSynHandler;}
 
         /// communicate potential values
         void coordinate_potential_values();
@@ -113,16 +109,26 @@ class HybridNeuronCommunicator
     	 * If SynapseId not found vCoords is empty.
     	 */
     	void get_coordinates(synapse_id id, MathVector<dim>& vCoords);
-    	int get_neuron_id(synapse_id id);
+    	uint get_neuron_id(synapse_id id);
     	//void prep_timestep(const number& t, const int& id, std::vector<number>& vCurr, std::vector<synapse_id>& vSid);
 
     	const std::map<synapse_id, Vertex*>& synapse_3dVertex_map() const {return m_mSynapse3dVertex;}
 
 
     protected:
-        void neuron_identification();
-		int deep_first_search(Vertex* v, int id);
-		int Mapping3d(int neuron_id);
+    	/**
+    	 * reinitialize internal mappings
+         * This method needs to be called whenever there are any changes in one of the geometries
+         * or when one of the geometries has been redistributed.
+        **/
+    	void reinit();
+
+        ///reinitialize mappings for 3d elem -> 1d vertex potential value mapping
+        void reinit_potential_mapping();
+
+
+        /// reinitialize mappings for 1d syn -> 3d vertex mapping
+        void reinit_synapse_mapping();
 
 		/**
 		 * Takes a std::vector of Synapses by coordinates and a std::vector of Vertexcoordinates and writes the nearest neighbor of each
@@ -182,10 +188,12 @@ class HybridNeuronCommunicator
     	Grid::VertexAttachmentAccessor<ANeuronID> m_aaNID;
 
     	// todo: use a vector
-    	int m_nid;
+    	std::vector<uint> m_vNid;
 
         std::vector<int> m_vPotSubset3d;
         std::vector<int> m_vCurrentSubset3d;
+
+        bool m_bInited;
 };
 
 
@@ -250,6 +258,17 @@ public:
 		m_scaling_3d_to_1d_coordinates = scaling_3d_to_1d_coordinates;
 
 		m_spHNC->set_coordinate_scale_factor_3d_to_1d(m_scaling_3d_to_1d_coordinates);
+	}
+
+	void set_3d_neuron_ids(const std::vector<size_t>& ids)
+	{
+		// uint is not registered, we therefore use size_t as param type
+		// but we need to convert this here
+		std::vector<uint> vID(ids.size());
+		for (size_t i = 0; i < ids.size(); ++i)
+			vID[i] = (uint) ids[i];
+
+		m_spHNC->set_neuron_ids(vID);
 	}
 
 private:

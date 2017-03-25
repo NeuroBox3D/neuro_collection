@@ -61,6 +61,9 @@ class VDCC_BG_CN
         /// set the elem disc for the cable problem
         void set_cable_disc(SmartPtr<cable_neuron::CableEquation<TDomain> > ce);
 
+        /// set the neuron IDs of the 3d represented neuron within the network
+        void set_3d_neuron_ids(const std::vector<size_t>& ids);
+
         /// set equilibrium potential
         void set_initial_values(const std::vector<number>& v_initVals);
 
@@ -83,7 +86,8 @@ class VDCC_BG_CN
         void set_time_steps_for_simulation_and_potential_update(number dtSim, number dtPot);
 
         /// set a communicator object for hybrid neuron treatment
-        void set_hybrid_neuron_communicator(SmartPtr<HybridNeuronCommunicator<TDomain> > spHNC);
+        //unused
+        //void set_hybrid_neuron_communicator(SmartPtr<HybridNeuronCommunicator<TDomain> > spHNC);
 
 
         /// @copydoc VDCC_BG::init()
@@ -125,6 +129,8 @@ class VDCC_BG_CN
         std::string m_vtkFileName;
         number m_pstep;
         std::vector<number> m_vInitVals;
+
+        std::vector<uint> m_vNID;
 
         number m_curTime;
         number m_dt;
