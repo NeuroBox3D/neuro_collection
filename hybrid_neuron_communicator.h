@@ -108,8 +108,8 @@ class HybridNeuronCommunicator
     	 * Calculates real coordinates of given Synapse (by ID) and returns in vCoords
     	 * If SynapseId not found vCoords is empty.
     	 */
-    	void get_coordinates(synapse_id id, MathVector<dim>& vCoords);
-    	uint get_neuron_id(synapse_id id);
+    	void get_postsyn_coordinates(synapse_id id, MathVector<dim>& vCoords);
+    	uint get_postsyn_neuron_id(synapse_id id);
     	//void prep_timestep(const number& t, const int& id, std::vector<number>& vCurr, std::vector<synapse_id>& vSid);
 
     	const std::map<synapse_id, Vertex*>& synapse_3dVertex_map() const {return m_mSynapse3dVertex;}
@@ -187,7 +187,6 @@ class HybridNeuronCommunicator
     	ANeuronID m_aNID;
     	Grid::VertexAttachmentAccessor<ANeuronID> m_aaNID;
 
-    	// todo: use a vector
     	std::vector<uint> m_vNid;
 
         std::vector<int> m_vPotSubset3d;
