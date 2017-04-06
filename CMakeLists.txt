@@ -47,12 +47,11 @@ if (MembranePotentialMapping)
 	endif(MPMNEURON)
 endif (MembranePotentialMapping)
 
-## temporarily commented out until split synapse handler replaces synapse handler
-#if (cable_neuron)
-#	set(NC_WITH_CABLENEURON 1)
-#	set(SOURCES ${SOURCES} membrane_transporters/vdcc_bg/vdcc_bg_cableneuron.cpp
-#	                       hybrid_neuron_communicator.cpp)
-#endif (cable_neuron)
+if (cable_neuron)
+	set(NC_WITH_CABLENEURON 1)
+	set(SOURCES ${SOURCES} membrane_transporters/vdcc_bg/vdcc_bg_cableneuron.cpp
+	                       hybrid_neuron_communicator.cpp)
+endif (cable_neuron)
 
 
 ################################################################################
@@ -92,10 +91,10 @@ else(buildEmbeddedPlugins)
 	endif (MembranePotentialMapping)
 	
 	## temporarily commented out until split synapse handler replaces synapse handler
-	#if (cable_neuron)
-	#	# make plugin link against cable_neuron
-	#	set(linkLibraries cable_neuron ${linkLibraries})
-	#endif (cable_neuron)
+	if (cable_neuron)
+		# make plugin link against cable_neuron
+		set(linkLibraries cable_neuron ${linkLibraries})
+	endif (cable_neuron)
 	
 	target_link_libraries (${pluginName} ug4 ${linkLibraries})
 endif(buildEmbeddedPlugins)

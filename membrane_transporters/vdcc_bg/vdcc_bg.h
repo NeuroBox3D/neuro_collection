@@ -141,7 +141,7 @@ class VDCC_BG : public IMembraneTransporter
 		/// @copydoc IMembraneTransporter::prep_timestep()
 		virtual void prep_timestep
 		(
-			const number time, VectorProxyBase* upb
+			number future_time, const number time, VectorProxyBase* upb
 		);
 
 		/// @copydoc IMembraneTransporter::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
@@ -176,17 +176,17 @@ class VDCC_BG : public IMembraneTransporter
 		/// sets the channel type
 		template<int TType> void set_channel_type();
 
-		/// initializes the defined channel type
-		/** During the initialization, the necessary attachments are attached to the vertices
-		 *	and their values calculated by the equilibrium state for the start membrane potential.
-		**/
-
-		/**
-		 * @brief Sets the permeability of this channel
-		 * @param perm    permeability values
-		 */
 		void set_permeability(const number perm);
 
+        /// initializes the defined channel type
+        /** During the initialization, the necessary attachments are attached to the vertices
+         *  and their values calculated by the equilibrium state for the start membrane potential.
+        **/
+
+        /**
+         * @brief Sets the permeability of this channel
+         * @param perm    permeability values
+         */
 		virtual void init(number time);
 
 		/// updates the potential values in the corresponding attachments to new time.

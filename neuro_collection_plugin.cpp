@@ -34,6 +34,7 @@
 #include "membrane_transporters/vdcc_bg/vdcc_bg_userdata.h"
 
 #ifdef NC_WITH_CABLENEURON
+	#include "hybrid_neuron_communicator.h"
     #include "membrane_transporters/vdcc_bg/vdcc_bg_cableneuron.h"
 #endif
 
@@ -99,6 +100,27 @@ static void DomainAlgebra(Registry& reg, string grp)
 					 "", "solution#time#subset names#function names#output file name",
 					 "outputs average values of unknowns on subsets");
 
+#ifdef NC_WITH_CABLENEURON
+	// HybridSynapseCurrentAssembler
+	{
+		typedef HybridSynapseCurrentAssembler<TDomain, TAlgebra> T;
+		typedef IDomainConstraint<TDomain, TAlgebra> TBase;
+		string name = string("HybridSynapseCurrentAssembler").append(suffix);
+		reg.add_class_<T, TBase>(name, grp)
+			.template add_constructor<void (*)(SmartPtr<ApproximationSpace<TDomain> >,
+				SmartPtr<ApproximationSpace<TDomain> >,
+				SmartPtr<cable_neuron::synapse_handler::SynapseHandler<TDomain> >,
+				const std::vector<std::string>&, const std::string&)>
+				("Subset(s)")
+			.add_method("set_current_percentage", &T::set_current_percentage, "", "", "")
+			.add_method("set_valency", &T::set_valency, "", "", "")
+			.add_method("set_scaling_factors", &T::set_scaling_factors, "", "", "")
+			.add_method("set_3d_neuron_ids", &T::set_3d_neuron_ids, "", "", "")
+			.set_construct_as_smart_pointer(true);
+
+		reg.add_class_to_group(name, "HybridSynapseCurrentAssembler", tag);
+	}
+#endif
 
 	reg.add_function("take_measurement", static_cast<number (*)(SmartPtr<TGridFunction>, const number, const char*, const char*, const char*, const char*)>(&takeMeasurement<GridFunction<TDomain, TAlgebra> >), grp.c_str(),
 					 "", "solution#time#subset names#function names#output file name#output file extension",
@@ -160,7 +182,6 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_<T, TBase >(name, grp)
 			.template add_constructor<void (*)(const char*, SmartPtr<IMembraneTransporter>)>("Subset(s) as comma-separated c-string#MembraneTransporter")
 			.template add_constructor<void (*)(const std::vector<std::string>&, SmartPtr<IMembraneTransporter>)>("Subset(s) as vector#MembraneTransporter")
-			//.template add_constructor<void (*)(const char*, const char*)>("Function(s)#MSubset(s)")	//TODO: delete
 			.add_method("set_density_function", static_cast<void (T::*) (const number)> (&T::set_density_function),
 						"", "", "add a constant density")
 #ifdef UG_FOR_LUA
@@ -246,7 +267,6 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "VDCC_BG_UserData", tag);
 	}
 
-/* temporarily commented out until synapse handler is replaced by split synapse handler
 #ifdef NC_WITH_CABLENEURON
 	// VDCC with cable_neuron
     {
@@ -255,12 +275,32 @@ static void Domain(Registry& reg, string grp)
         std::string name = std::string("VDCC_BG_CN").append(suffix);
         reg.add_class_<T, TBase>(name, grp)
             .template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&,
-                SmartPtr<ApproximationSpace<TDomain> >)> ("function(s) as vector#subset(s) as vector#approxSpace")
+                SmartPtr<ApproximationSpace<TDomain> >, SmartPtr<ApproximationSpace<TDomain> >, const std::string&)>
+                ("function(s) as vector#subset(s) as vector#approxSpace 1d#approxSpace 3d#potential function name")
+            .add_method("set_domain_disc_1d", &T::set_domain_disc_1d, "", "domainDisc",
+                "Set the 1d cable domain discretization.")
+			.add_method("set_cable_disc", &T::set_cable_disc, "", "cableDisc",
+				"Set the 1d cable element discretization.")
+			.add_method("set_3d_neuron_ids", &T::set_3d_neuron_ids, "", "neuron ids as vector",
+				"Set the 3d represented neuron IDs.")
+            .add_method("set_initial_values", &T::set_initial_values, "", "initial value(s) as vector",
+                "Set initial values for all unknowns in the 1d cable simulation.")
+            .add_method("set_coordinate_scale_factor_3d_to_1d", &T::set_coordinate_scale_factor_3d_to_1d, "",
+                "factor", "Set a factor for coordinate scaling from 3d to 1d representation.")
+            .add_method("set_solver_output_verbose", &T::set_solver_output_verbose, "",
+                "verbose", "Set whether the output of the 1d solver is to be verbose.")
+            .add_method("set_vtk_output", &T::set_vtk_output, "",
+                "file name#plot step", "Set a file name and a plotting interval for output to VTK file.")
+            .add_method("set_time_steps_for_simulation_and_potential_update", &T::set_time_steps_for_simulation_and_potential_update, "",
+                "simulation time step#potential update time step",
+                "Set a time step size (maximum) for the 1d simulation and for the potential update.")
+            // not necessary atm
+            //.add_method("set_hybrid_neuron_communicator", &T::set_hybrid_neuron_communicator, "",
+            //    "hybrid neuron communicator", "Set a hybrid neuron communicator.")
             .set_construct_as_smart_pointer(true);
         reg.add_class_to_group(name, "VDCC_BG_CN", tag);
     }
 #endif
-*/
 
 #ifdef NC_WITH_VM2UG
 	// VDCC with Vm2UG
@@ -301,7 +341,6 @@ static void Domain(Registry& reg, string grp)
 	}
 #endif // NC_WITH_NEURON
 #endif // NC_WITH_VM2UG
-
 
 
 	// extra commands for this plugin
@@ -521,10 +560,10 @@ static void Common(Registry& reg, string grp)
 			.set_construct_as_smart_pointer(true);
 	}
 	{
-		//	Build Bouton
-			reg.add_function(	"BuildBouton", &BuildBouton, grp,
-								"", "bExtSpace#radius#numRefinements#numReleaseSites#TbarHeight#TbarLegRadius#TbarTopRadius#TbarTopHeight#fileName",
-								"Generates a drosophila NMJ bouton volume grid.");
+		// build bouton
+        reg.add_function("BuildBouton", &BuildBouton, grp,
+                         "", "bExtSpace#radius#numRefinements#numReleaseSites#TbarHeight#TbarLegRadius#TbarTopRadius#TbarTopHeight#fileName",
+                         "Generates a drosophila NMJ bouton volume grid.");
 	}
 
 /*
@@ -533,6 +572,8 @@ static void Common(Registry& reg, string grp)
         reg.add_function("test_neurite_projector", &test_neurite_projector_with_four_section_tube, "", "", "");
         reg.add_function("test_neurite_projector_with_bp", &test_neurite_projector_with_four_section_tube_and_branch_point, "", "", "");
         reg.add_function("test_import_swc", &test_import_swc, "", "file name", "");
+        //reg.add_function("apply_neurite_projector", &apply_neurite_projector, "", "multigrid, neurite projector", "");
+        reg.add_function("test_cylinder_volume_projector", &test_cylinder_volume_projector, "", "", "");
 	}
 */
 }

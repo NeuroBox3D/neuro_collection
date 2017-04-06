@@ -134,7 +134,7 @@ RyR2<TDomain>::~RyR2()
 
 
 template <typename TDomain>
-void RyR2<TDomain>::prep_timestep(const number time, VectorProxyBase* upb)
+void RyR2<TDomain>::prep_timestep(number future_time, const number time, VectorProxyBase* upb)
 {
 	// before the first step: initiate to equilibrium
 	if (!m_initiated)
@@ -150,14 +150,19 @@ void RyR2<TDomain>::prep_timestep(const number time, VectorProxyBase* upb)
 	UG_COND_THROW(!up, "Wrong algebra type!");
 	const v_type& u = up->m_v;
 
+    // get global fct index for ccyt function
+    FunctionGroup fctGrp(m_dd->dof_distribution_info());
+    fctGrp.add(this->m_vFct);
+    size_t ind_ccyt = fctGrp.unique_id(_CCYT_);
+
 	// for DoF index storage
 	std::vector<DoFIndex> dofIndex;
 
 	// update time
-	if (time != m_time)
+	if (future_time != m_time)
 	{
 		m_oldTime = m_time;
-		m_time = time;
+		m_time = future_time;
 	}
 	number dt = m_time - m_oldTime;
 
@@ -177,14 +182,24 @@ void RyR2<TDomain>::prep_timestep(const number time, VectorProxyBase* upb)
 			number& pC2 = m_aaC2[*it];
 			number& pC1 = m_aaC1[*it];
 
-			// get ca_cyt and ca_er;
+			// get ca_cyt
 			// we suppose our approx space to be 1st order Lagrange (linear, DoFs in the vertices)
 			// and interpolate value at the center of the element
 			number ca_cyt = 0.0;
-			m_dd->dof_indices(*it, _CCYT_, dofIndex, false, true);
-			UG_ASSERT(dofIndex.size() > 0, "No DoF found for function " << _CCYT_ << "on element.");
-			for (size_t i = 0; i < dofIndex.size(); ++i) ca_cyt += DoFRef(u, dofIndex[i]);
-			ca_cyt /= dofIndex.size();
+            if (!this->has_constant_value(_CCYT_, ca_cyt))
+            {
+                // we suppose our approx space to be 1st order Lagrange (linear, DoFs in the vertices)
+                // and interpolate value at the center of the element
+                m_dd->dof_indices(*it, ind_ccyt, dofIndex, false, true);
+                UG_ASSERT(dofIndex.size() > 0, "No DoF found for function " << ind_ccyt << " on element.");
+                for (size_t i = 0; i < dofIndex.size(); ++i) ca_cyt += DoFRef(u, dofIndex[i]);
+                ca_cyt /= dofIndex.size();
+            }
+            // else the constant value has been written to ca_cyt by has_constant_value()
+
+            // scale by appropriate factor for correct unit
+            ca_cyt *= this->scale_input(_CCYT_);
+
 
 			// I am not sure whether this is correct ...
 			// It is definitely incorrect, e.g.: exponents for ca_cyt mixed up
@@ -325,6 +340,8 @@ void RyR2<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::
 	//number pOpen =  (1.0 + KB*pow(caCyt,3)) / (1.0 + KC + 1.0/(KA*pow(caCyt,4)) + KB*pow(caCyt,3));
 
 	flux[0] = pOpen * current;
+
+	//UG_LOGN("RyR2 single channel flux: " << flux[0]);
 }
 
 

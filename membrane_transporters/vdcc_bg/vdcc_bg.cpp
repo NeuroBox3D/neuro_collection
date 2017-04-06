@@ -305,7 +305,7 @@ void VDCC_BG<TDomain>::set_permeability(const number perm)
 template<typename TDomain>
 void VDCC_BG<TDomain>::init(number time)
 {
-	this->m_time = time;
+	m_time = time;
 
 	typedef typename DoFDistribution::traits<side_t>::const_iterator itType;
 	SubsetGroup ssGrp;
@@ -359,10 +359,14 @@ void VDCC_BG<TDomain>::update_time(const number newTime)
 template<typename TDomain>
 void VDCC_BG<TDomain>::prep_timestep
 (
-	const number time, VectorProxyBase* upb
+    number future_time, const number time, VectorProxyBase* upb
 )
 {
-	update_time(time);
+    // initiate if this has not already been done
+    if (!m_initiated)
+        init(time);
+
+	update_time(future_time);
 
 	SubsetGroup ssGrp;
     try { ssGrp = SubsetGroup(m_dom->subset_handler(), this->m_vSubset);}
@@ -370,6 +374,10 @@ void VDCC_BG<TDomain>::prep_timestep
 
     typedef typename DoFDistribution::traits<side_t>::const_iterator it_type;
 
+
+    // TODO: Think about updating only on the base level and then propagating upwards.
+    //       Typically, the potential does not need very fine resolution.
+    //       This would save a lot of work for very fine surface levels.
     for (std::size_t si = 0; si < ssGrp.size(); si++)
     {
         // loop sides and update potential and then gatings
