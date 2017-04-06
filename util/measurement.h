@@ -63,7 +63,7 @@ void computeVolume
  */
 
 template <typename TGridFunction>
-void takeMeasurement
+number takeMeasurement
 (
 	SmartPtr<TGridFunction> solution,
 	const number time,
@@ -73,7 +73,7 @@ void takeMeasurement
 );
 
 template <typename TGridFunction>
-void takeMeasurement
+number takeMeasurement
 (
 	SmartPtr<TGridFunction> solution,
 	const number time,

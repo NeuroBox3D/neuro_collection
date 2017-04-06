@@ -141,7 +141,7 @@ void computeVolume
 // measurement commands //
 // //////////////////// //
 template <typename TGridFunction>
-void takeMeasurement
+number takeMeasurement
 (
 	SmartPtr<TGridFunction> solution,
 	const number time,
@@ -149,12 +149,12 @@ void takeMeasurement
 	const char* functionNames,
 	const char* outFileName
 ) {
-	takeMeasurement(solution, time, subsetNames, functionNames, outFileName, "");
+	return takeMeasurement(solution, time, subsetNames, functionNames, outFileName, "");
 }
 
 
 template <typename TGridFunction>
-void takeMeasurement
+number takeMeasurement
 (
 	SmartPtr<TGridFunction> solution,
 	const number time,
@@ -182,10 +182,12 @@ void takeMeasurement
 	UG_CATCH_THROW("At least one of the functions in '" << functionNames
 					<< "' is not contained in the approximation space (or something else was wrong).");
 
+	number value = 0.;
+	number vol = 0.;
 	// loop subsets
 	for (size_t si = 0; si < ssGrp.size(); si++)
 	{
-		number vol = computeVolume(approx, ssGrp[si]);
+		vol = computeVolume(approx, ssGrp[si]);
 
 		int dim = ssGrp.dim(si);
 
@@ -193,7 +195,6 @@ void takeMeasurement
 		for (size_t fi = 0; fi < fctGrp.size(); fi++)
 		{
 
-			number value;
 			// special case for vertex
 			if (dim == 0)
 			{
@@ -246,7 +247,7 @@ void takeMeasurement
 		}
 	}
 
-	return;
+	return value/vol;
 }
 
 
