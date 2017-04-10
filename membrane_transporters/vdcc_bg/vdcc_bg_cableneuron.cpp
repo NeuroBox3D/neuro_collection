@@ -268,8 +268,8 @@ void VDCC_BG_CN<TDomain>::prep_timestep(number future_time, const number time, V
         // increase time step if cfl > m_dt / 2.0 (and if time is aligned with new bigger step size)
         while (m_dt*2.0 < cfl && m_stepLv > 0 && m_StepCheckBackCounter[m_stepLv] % 2 == 0)
         {
-            m_dt = m_dt*2.0;
-            m_stepLv = m_stepLv - 1;
+            m_dt *= 2.0;
+            --m_stepLv;
             m_StepCheckBackCounter[m_stepLv] += m_StepCheckBackCounter[m_stepLv+1]/2.0;
             m_StepCheckBackCounter[m_stepLv+1] = 0;
             if (m_bSolverVerboseOutput)
@@ -285,7 +285,7 @@ void VDCC_BG_CN<TDomain>::prep_timestep(number future_time, const number time, V
             m_spTimeDisc->prepare_step(m_spSolTimeSeries, m_dt);
 
         // assemble linear problem
-        bool matrixIsConst = m_curTime != 0.0 && !dtChanged;
+        bool matrixIsConst = m_curTime != 0.0 && !dtChanged; // TODO: what if start time is != 0 !?
         m_spAssTuner->set_matrix_is_const(matrixIsConst);
         AssembleLinearOperatorRhsAndSolution(*m_spLinOp, *m_spU, *m_spB);
 

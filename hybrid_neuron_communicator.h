@@ -110,7 +110,6 @@ class HybridNeuronCommunicator
     	 */
     	void get_postsyn_coordinates(synapse_id id, MathVector<dim>& vCoords);
     	uint get_postsyn_neuron_id(synapse_id id);
-    	//void prep_timestep(const number& t, const int& id, std::vector<number>& vCurr, std::vector<synapse_id>& vSid);
 
     	const std::map<synapse_id, Vertex*>& synapse_3dVertex_map() const {return m_mSynapse3dVertex;}
 
@@ -129,17 +128,6 @@ class HybridNeuronCommunicator
 
         /// reinitialize mappings for 1d syn -> 3d vertex mapping
         void reinit_synapse_mapping();
-
-		/**
-		 * Takes a std::vector of Synapses by coordinates and a std::vector of Vertexcoordinates and writes the nearest neighbor of each
-		 * synapse out in vMap, so that the order of v1dSynapses equals the order of vMap
-		 * @todo: use above NN search nearest_neighbor_search()
-		 */
-		int nearest_neighbor(	const std::vector<MathVector<dim> >& v1dCoords,
-								const std::vector<Vertex*>& v3dVertices,
-								std::vector<Vertex*>& vMap,
-								std::vector<number>& vDistances);
-
 
     private:
         SmartPtr<synh_type> m_spSynHandler;
