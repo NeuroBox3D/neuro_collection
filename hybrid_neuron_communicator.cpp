@@ -499,8 +499,6 @@ number HybridNeuronCommunicator<TDomain>::potential(side_t* elem) const
 	UG_COND_THROW(it == m_mElemPot.end(), "No potential value available for "
         << ElementDebugInfo(*m_spApprox3d->domain()->grid(), elem) << ".");
 
-    // TODO: The potentials will have to be scaled properly in case the units
-    // of the 1d and 3d simulations do not match!
     return it->second;
 }
 
@@ -772,10 +770,7 @@ void HybridNeuronCommunicator<TDomain>::gather_synaptic_currents
 	// get locally active synapses
 	std::vector<synapse_id> vLocActSyn;
 	std::vector<number> vLocSynCurr;
-
-	// todo: only get the synapses and currents located on the neurons of interest;
-	//       we need to pass the neuron_ids to the syn_handler for this
-	m_spSynHandler->active_postsynapses_and_currents(vLocActSyn, vLocSynCurr, time);
+	m_spSynHandler->active_postsynapses_and_currents(vLocActSyn, vLocSynCurr, m_vNid, m_aaNID, time);
 
 	// todo: in the parallel case, do not gather all active synapse ids and currents
 	//       on every proc; instead, send active synapses only to the procs that have
@@ -788,7 +783,6 @@ void HybridNeuronCommunicator<TDomain>::gather_synaptic_currents
 		std::vector<synapse_id> vGlobActSyn;
 		std::vector<number> vGlobSynCurr;
 
-		// todo: only send to the procs that hold the 3d vertex to any active synapses
 		pcl::ProcessCommunicator com;
 		com.allgatherv(vGlobActSyn, vLocActSyn, NULL, NULL);
 		com.allgatherv(vGlobSynCurr, vLocSynCurr, NULL, NULL);
