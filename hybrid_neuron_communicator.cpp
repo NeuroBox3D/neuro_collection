@@ -914,6 +914,10 @@ void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::adjust_defect
 		// of the 1d and 3d simulations do not match!
 		// Add synaptic current * dt to defect.
 		// Currents are outward in the synapse handler, so we add to defect.
+
+		// if the potential rises high, synaptic currents are reversed;
+		// we need to exclude calcium from this effect
+		if (vCurrent[i] > 0.0) vCurrent[i] = 0.0;
 		DoFRef(d, dofInd) += dt * vCurrent[i] * m_current_percentage / (m_valency*m_F) / m_scaling_3d_to_1d_amount_of_substance;
 	}
 }
