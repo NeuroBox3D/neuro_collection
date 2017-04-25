@@ -841,7 +841,9 @@ HybridSynapseCurrentAssembler
 	const std::string& fct
 )
 : m_fctInd(0), m_F(96485.309), m_valency(2), m_current_percentage(0.1), m_spHNC(new hnc_type(spApprox3d, spApprox1d)),
-  m_scaling_3d_to_1d_amount_of_substance(1e-15), m_scaling_3d_to_1d_electric_charge(1.0), m_scaling_3d_to_1d_coordinates(1e-6)
+  m_scaling_3d_to_1d_amount_of_substance(1e-15), m_scaling_3d_to_1d_electric_charge(1.0), m_scaling_3d_to_1d_coordinates(1e-6), m_j_ip3_max(20.86),
+  m_j_ip3_timeconstant(1.188), m_J_ip3_max(m_j_ip3_max/m_j_ip3_timeconstant), m_j_ip3_fraction(0.95),
+  m_j_ip3_duration( std::log(1/(1-m_j_ip3_fraction))/m_j_ip3_timeconstant)
 {
 	// get function index of whatever it is that the current carries (in our case: calcium)
 	FunctionGroup fctGrp(spApprox3d->function_pattern());
@@ -855,6 +857,29 @@ HybridSynapseCurrentAssembler
 	m_spHNC->set_current_subsets(PlasmaMembraneSubsetName);
 }
 
+
+template <typename TDomain, typename TAlgebra>
+number HybridSynapseCurrentAssembler<TDomain, TAlgebra>::get_ip3(Vertex* const v, number time)
+{
+	//check wether v is newly active
+	typename std::map<Vertex*, IP3Timing>::iterator it = m_mSynapseActivationTime.find(v);
+		if(it == m_mSynapseActivationTime.end()) {//true if v is not in the map yet
+			struct IP3Timing t;
+			t.t_start = time;
+			t.t_end = time + m_j_ip3_duration;
+			m_mSynapseActivationTime[v] = t;
+		} else { //v was found and it points to it
+			//check wether v is still active
+			number t_onset = it->second.t_start, t_end = it->second.t_end;
+			if(time >= t_end) {
+				//erase v
+				m_mSynapseActivationTime.erase(v);
+
+			} else { //v is still active
+				return m_j_ip3_max * std::exp(m_j_ip3_timeconstant*(time - t_onset) );
+			}
+		}
+}
 
 template <typename TDomain, typename TAlgebra>
 void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::adjust_defect

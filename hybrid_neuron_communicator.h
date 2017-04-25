@@ -231,6 +231,10 @@ public:
 
 	void set_current_percentage(number val) {m_current_percentage = val;}
 
+	void set_j_ip3_max(number val) {m_j_ip3_max = val; m_J_ip3_max = m_j_ip3_max/m_j_ip3_timeconstant;}
+
+	void set_j_ip3_timeconstant(number val) {m_j_ip3_timeconstant = val; m_J_ip3_max = m_j_ip3_max/m_j_ip3_timeconstant;}
+
 	/**
 	 * change scaling factors, that have to be applied to 3d values, so that 1d and 3d values
 	 * have equal units
@@ -257,7 +261,16 @@ public:
 		m_spHNC->set_neuron_ids(vID);
 	}
 
+	void set_ip3_duration(const number& dur) {m_j_ip3_duration = dur;}
+
+	number get_ip3(Vertex* const v, number time);
+
 private:
+	struct IP3Timing{
+		number t_start;
+		number t_end;
+	};
+
 	/// function index of the carried ion species
 	size_t m_fctInd;
 
@@ -276,6 +289,16 @@ private:
 	number m_scaling_3d_to_1d_amount_of_substance;
 	number m_scaling_3d_to_1d_electric_charge;
 	number m_scaling_3d_to_1d_coordinates;
+
+	//IP3 related
+	number m_j_ip3_max; //units: nmol/s
+	number m_j_ip3_timeconstant; //in 1/s
+	number m_J_ip3_max; //Amount of ip3 integrated over time from t_onset to infinity in nmol
+	number m_j_ip3_fraction; //fraction of total ip3 after which we want to cut ip3 influx
+	number m_j_ip3_duration; //duration of ip3 influx until specified ip3 fraction of total is reached
+
+	std::map<Vertex*, IP3Timing> m_mSynapseActivationTime; //maps a 3d vertex mapped synapse to their activation time for IP3 generation
+
 };
 
 } // namespace neuro_collection
