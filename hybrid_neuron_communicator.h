@@ -200,7 +200,8 @@ public:
 		SmartPtr<ApproximationSpace<TDomain> > spApprox1d,
 		SmartPtr<cable_neuron::synapse_handler::SynapseHandler<TDomain> > spSH,
 		const std::vector<std::string>& PlasmaMembraneSubsetName,
-		const std::string& fct
+		const std::string& fct,
+		const std::string& fct_ip3=""
 	);
 
 	virtual ~HybridSynapseCurrentAssembler(){}
@@ -241,11 +242,13 @@ public:
 	 */
 	void set_scaling_factors(number scaling_3d_to_1d_amount_of_substance = 1.0,
 			 	 	 	 	 number scaling_3d_to_1d_coordinates = 1.0,
-							 number scaling_3d_to_1d_electric_charge = 1.0)
+							 number scaling_3d_to_1d_electric_charge = 1.0,
+							 number scaling_3d_to_1d_ip3 = 1.0)
 	{
 		m_scaling_3d_to_1d_amount_of_substance = scaling_3d_to_1d_amount_of_substance;
 		m_scaling_3d_to_1d_electric_charge = scaling_3d_to_1d_electric_charge;
 		m_scaling_3d_to_1d_coordinates = scaling_3d_to_1d_coordinates;
+		m_scaling_3d_to_1d_ip3 = scaling_3d_to_1d_ip3;
 
 		m_spHNC->set_coordinate_scale_factor_3d_to_1d(m_scaling_3d_to_1d_coordinates);
 	}
@@ -266,13 +269,15 @@ public:
 	number get_ip3(Vertex* const v, number time);
 
 private:
-	struct IP3Timing{
+	struct IP3Timing {
 		number t_start;
 		number t_end;
 	};
 
 	/// function index of the carried ion species
 	size_t m_fctInd;
+	size_t m_fctInd_ip3;
+	bool m_ip3_set;
 
 	/// Faraday constant
 	const number m_F; //in C/mol
@@ -289,9 +294,10 @@ private:
 	number m_scaling_3d_to_1d_amount_of_substance;
 	number m_scaling_3d_to_1d_electric_charge;
 	number m_scaling_3d_to_1d_coordinates;
+	number m_scaling_3d_to_1d_ip3;					//1d units: (mol um)/(dm^3 s); scaling: u = 1e-6
 
 	//IP3 related
-	number m_j_ip3_max; //units: nmol/s
+	number m_j_ip3_max; //units calculated in 3d: (umol um)/(dm^3 s) (Fink et al.)
 	number m_j_ip3_timeconstant; //in 1/s
 	number m_J_ip3_max; //Amount of ip3 integrated over time from t_onset to infinity in nmol
 	number m_j_ip3_fraction; //fraction of total ip3 after which we want to cut ip3 influx
