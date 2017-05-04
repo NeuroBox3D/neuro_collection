@@ -575,11 +575,12 @@ static void Common(Registry& reg, string grp)
 
 	// test neurite projector
 	{
-        reg.add_function("test_neurite_projector", &test_neurite_projector_with_four_section_tube, "", "", "");
-        reg.add_function("test_neurite_projector_with_bp", &test_neurite_projector_with_four_section_tube_and_branch_point, "", "", "");
-        reg.add_function("test_import_swc", &test_import_swc, "", "file name", "");
-        //reg.add_function("apply_neurite_projector", &apply_neurite_projector, "", "multigrid, neurite projector", "");
-        reg.add_function("test_cylinder_volume_projector", &test_cylinder_volume_projector, "", "", "");
+		reg.add_function("test_smoothing", &test_smoothing, "", "", "");
+		reg.add_function("test_neurite_projector", &test_neurite_projector_with_four_section_tube, "", "", "");
+		reg.add_function("test_neurite_projector_with_bp", &test_neurite_projector_with_four_section_tube_and_branch_point, "", "", "");
+		reg.add_function("test_import_swc", &test_import_swc, "", "file name", "");
+		//reg.add_function("apply_neurite_projector", &apply_neurite_projector, "", "multigrid, neurite projector", "");
+		reg.add_function("test_cylinder_volume_projector", &test_cylinder_volume_projector, "", "", "");
 	}
 }
 
@@ -600,8 +601,9 @@ InitUGPlugin_neuro_collection(Registry* reg, string grp)
 	grp.append("/neuro_collection");
 	typedef neuro_collection::Functionality Functionality;
 
-    //typedef Attachment<NeuriteProjector::SurfaceParams> NPSurfParam;
-    //GlobalAttachments::declare_attachment<NPSurfParam>("npSurfParams", true);
+	GlobalAttachments::declare_attachment<ANumber>("diameter");
+	typedef Attachment<NeuriteProjector::SurfaceParams> NPSurfParam;
+	GlobalAttachments::declare_attachment<NPSurfParam>("npSurfParams", true);
 
 	// most (if not all) algebra-dependent code is only meant for non-blocked algebras
 	typedef boost::mpl::list

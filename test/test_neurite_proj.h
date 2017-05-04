@@ -44,6 +44,10 @@ void import_swc
     std::vector<SWCPoint>& vPointsOut
 );
 
+// TODO: both need debugging!
+void smoothing(std::vector<SWCPoint>& vPointsInOut, size_t n, number h, number gamma);
+void collapse_short_edges(Grid& g, SubsetHandler& sh);
+
 void convert_pointlist_to_neuritelist
 (
     const std::vector<SWCPoint>& vPoints,
@@ -53,6 +57,7 @@ void convert_pointlist_to_neuritelist
     std::vector<size_t>& vRootNeuriteIndsOut
 );
 
+void test_smoothing(const std::string& fileName, size_t n, number h, number gamma);
 void test_import_swc(const std::string& fileName);
 void test_neurite_projector_with_four_section_tube();
 void test_neurite_projector_with_four_section_tube_and_branch_point();
