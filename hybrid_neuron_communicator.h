@@ -195,13 +195,23 @@ public:
     typedef typename algebra_type::vector_type vector_type;
 
 
+    /// construcor with IP3
 	HybridSynapseCurrentAssembler(
 		SmartPtr<ApproximationSpace<TDomain> > spApprox3d,
 		SmartPtr<ApproximationSpace<TDomain> > spApprox1d,
 		SmartPtr<cable_neuron::synapse_handler::SynapseHandler<TDomain> > spSH,
 		const std::vector<std::string>& PlasmaMembraneSubsetName,
 		const std::string& fct,
-		const std::string& fct_ip3=""
+		const std::string& fct_ip3
+	);
+
+	/// constructor without IP3
+	HybridSynapseCurrentAssembler(
+		SmartPtr<ApproximationSpace<TDomain> > spApprox3d,
+		SmartPtr<ApproximationSpace<TDomain> > spApprox1d,
+		SmartPtr<cable_neuron::synapse_handler::SynapseHandler<TDomain> > spSH,
+		const std::vector<std::string>& PlasmaMembraneSubsetName,
+		const std::string& fct
 	);
 
 	virtual ~HybridSynapseCurrentAssembler(){}
@@ -232,9 +242,18 @@ public:
 
 	void set_current_percentage(number val) {m_current_percentage = val;}
 
-	void set_j_ip3_max(number val) {m_j_ip3_max = val; m_J_ip3_max = m_j_ip3_max/m_j_ip3_timeconstant;}
+	void set_ip3_production_params(number j_max, number decayRate)
+	{
+		m_j_ip3_max = j_max;
+		m_j_ip3_decayRate = decayRate;
 
-	void set_j_ip3_timeconstant(number val) {m_j_ip3_timeconstant = val; m_J_ip3_max = m_j_ip3_max/m_j_ip3_timeconstant;}
+		// We "turn off" the IP3 production when 95% of the total amount have been produced.
+		// This amounts to a production time of log(1/(1-0.95)) / decayRate and as log(20)
+		// is 3.0 pretty exactly, we simply choose 3.0. :)
+		m_j_ip3_duration = 3.0 / m_j_ip3_decayRate;
+	}
+	//void set_j_ip3_max(number val) {m_j_ip3_max = val; m_J_ip3_max = m_j_ip3_max/m_j_ip3_decayRate;}
+	//void set_j_ip3_decayRate(number val) {m_j_ip3_decayRate = val; m_J_ip3_max = m_j_ip3_max/m_j_ip3_decayRate;}
 
 	/**
 	 * change scaling factors, that have to be applied to 3d values, so that 1d and 3d values
@@ -264,8 +283,9 @@ public:
 		m_spHNC->set_neuron_ids(vID);
 	}
 
-	void set_ip3_duration(const number& dur) {m_j_ip3_duration = dur;}
+	//void set_ip3_duration(const number& dur) {m_j_ip3_duration = dur;}
 
+protected:
 	number get_ip3(Vertex* const v, number time);
 
 private:
@@ -296,15 +316,12 @@ private:
 	number m_scaling_3d_to_1d_coordinates;
 	number m_scaling_3d_to_1d_ip3;					//1d units: (mol um)/(dm^3 s); scaling: u = 1e-6
 
-	//IP3 related
-	number m_j_ip3_max; //units calculated in 3d: (umol um)/(dm^3 s) (Fink et al.)
-	number m_j_ip3_timeconstant; //in 1/s
-	number m_J_ip3_max; //Amount of ip3 integrated over time from t_onset to infinity in nmol
-	number m_j_ip3_fraction; //fraction of total ip3 after which we want to cut ip3 influx
-	number m_j_ip3_duration; //duration of ip3 influx until specified ip3 fraction of total is reached
+	// IP3-related
+	number m_j_ip3_max; // maximal ip3 "current" (in  mol/s) (adapted from Fink et al.)
+	number m_j_ip3_decayRate; //in 1/s
+	number m_j_ip3_duration; //duration of ip3 influx until specified ip3 fraction of total is reached (in s)
 
 	std::map<Vertex*, IP3Timing> m_mSynapseActivationTime; //maps a 3d vertex mapped synapse to their activation time for IP3 generation
-
 };
 
 } // namespace neuro_collection
