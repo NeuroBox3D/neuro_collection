@@ -830,40 +830,6 @@ void HybridNeuronCommunicator<TDomain>::get_postsyn_coordinates(synapse_id id, M
 	VecScaleAdd(vCoords, 1.0 - localcoord, m_aaPos1d[v0], localcoord, m_aaPos1d[v1]);
 }
 
-
-template <typename TDomain, typename TAlgebra>
-HybridSynapseCurrentAssembler<TDomain, TAlgebra>::
-HybridSynapseCurrentAssembler
-(
-	SmartPtr<ApproximationSpace<TDomain> > spApprox3d,
-	SmartPtr<ApproximationSpace<TDomain> > spApprox1d,
-	SmartPtr<cable_neuron::synapse_handler::SynapseHandler<TDomain> > spSH,
-	const std::vector<std::string>& PlasmaMembraneSubsetName,
-	const std::string& fct,
-	const std::string& fct_ip3
-)
-: m_fctInd(0), m_fctInd_ip3(0), m_ip3_set(true), m_F(96485.309), m_valency(2), m_current_percentage(0.1), m_spHNC(new hnc_type(spApprox3d, spApprox1d)),
-  m_scaling_3d_to_1d_amount_of_substance(1e-15), m_scaling_3d_to_1d_electric_charge(1.0), m_scaling_3d_to_1d_coordinates(1e-6), m_scaling_3d_to_1d_ip3(1e-15),
-  m_j_ip3_max(6e-19), m_j_ip3_decayRate(1.188), m_j_ip3_duration(3.0 / m_j_ip3_decayRate)
-{
-	// get function index of whatever it is that the current carries (in our case: calcium)
-	FunctionGroup fctGrp(spApprox3d->function_pattern());
-	try {fctGrp.add(fct);}
-	UG_CATCH_THROW("Function " << fct << " could not be identified in given approximation space.");
-	m_fctInd = fctGrp.unique_id(0);
-
-	//get function index if use of ip3 is enabled
-	try {fctGrp.add(fct_ip3);}
-	UG_CATCH_THROW("Function " << fct_ip3 << " could not be identified in given approximation space.");
-	m_fctInd_ip3 = fctGrp.unique_id(0);
-
-	// init HNC
-	m_spHNC->set_synapse_handler(spSH);
-	m_spHNC->set_coordinate_scale_factor_3d_to_1d(m_scaling_3d_to_1d_coordinates);
-	m_spHNC->set_current_subsets(PlasmaMembraneSubsetName);
-}
-
-
 template <typename TDomain, typename TAlgebra>
 HybridSynapseCurrentAssembler<TDomain, TAlgebra>::
 HybridSynapseCurrentAssembler
@@ -874,9 +840,8 @@ HybridSynapseCurrentAssembler
 	const std::vector<std::string>& PlasmaMembraneSubsetName,
 	const std::string& fct
 )
-: m_fctInd(0), m_fctInd_ip3(0), m_ip3_set(false), m_F(96485.309), m_valency(2), m_current_percentage(0.1), m_spHNC(new hnc_type(spApprox3d, spApprox1d)),
-  m_scaling_3d_to_1d_amount_of_substance(1e-15), m_scaling_3d_to_1d_electric_charge(1.0), m_scaling_3d_to_1d_coordinates(1e-6), m_scaling_3d_to_1d_ip3(1e-15),
-  m_j_ip3_max(6e-19), m_j_ip3_decayRate(1.188), m_j_ip3_duration(3.0 / m_j_ip3_decayRate)
+: m_fctInd(0), m_F(96485.309), m_valency(2), m_current_percentage(0.1), m_spHNC(new hnc_type(spApprox3d, spApprox1d)),
+  m_scaling_3d_to_1d_amount_of_substance(1e-15), m_scaling_3d_to_1d_electric_charge(1.0), m_scaling_3d_to_1d_coordinates(1e-6)
 {
 	// get function index of whatever it is that the current carries (in our case: calcium)
 	FunctionGroup fctGrp(spApprox3d->function_pattern());
@@ -890,33 +855,6 @@ HybridSynapseCurrentAssembler
 	m_spHNC->set_current_subsets(PlasmaMembraneSubsetName);
 }
 
-
-template <typename TDomain, typename TAlgebra>
-number HybridSynapseCurrentAssembler<TDomain, TAlgebra>::get_ip3(Vertex* const v, number time)
-{
-	//check wether v is newly active
-	typename std::map<Vertex*, IP3Timing>::iterator it = m_mSynapseActivationTime.find(v);
-		if(it == m_mSynapseActivationTime.end()) {//true if v is not in the map yet
-			struct IP3Timing t;
-			t.t_start = time;
-			t.t_end = time + m_j_ip3_duration;
-			m_mSynapseActivationTime[v] = t;
-
-			return m_j_ip3_max;
-
-		} else { //v was found and it points to it
-			//check wether v is still active
-			number t_onset = it->second.t_start, t_end = it->second.t_end;
-			if(time >= t_end) {
-				//erase v
-				m_mSynapseActivationTime.erase(v);
-				return 0;
-
-			} else { //v is still active
-				return m_j_ip3_max * std::exp(m_j_ip3_decayRate*(t_onset - time));
-			}
-		}
-}
 
 template <typename TDomain, typename TAlgebra>
 void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::adjust_defect
@@ -981,19 +919,6 @@ void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::adjust_defect
 		// we need to exclude calcium from this effect
 		if (vCurrent[i] > 0.0) vCurrent[i] = 0.0;
 		DoFRef(d, dofInd) += dt * vCurrent[i] * m_current_percentage / (m_valency*m_F) / m_scaling_3d_to_1d_amount_of_substance;
-
-		if(!m_ip3_set) return;
-		//get DoFIndex for this vertex (ip3)
-		std::vector<DoFIndex> vIndex_ip3;
-		dd->inner_dof_indices(v, m_fctInd_ip3, vIndex_ip3, false);
-
-		UG_COND_THROW(!vIndex_ip3.size(), "Function for IP3 is not defined for "
-			<< ElementDebugInfo(*this->m_spApproxSpace->domain()->grid(), v) << ".")
-
-		UG_ASSERT(vIndex_ip3.size() == 1, "Apparently, you are using shape functions different from P1, this is not supported.");
-
-		const DoFIndex& dofInd_ip3 = vIndex_ip3[0];
-		DoFRef(d, dofInd_ip3) += get_ip3(v, time) * dt / m_scaling_3d_to_1d_ip3;
 	}
 }
 
