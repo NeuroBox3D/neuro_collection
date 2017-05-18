@@ -195,6 +195,17 @@ public:
     typedef typename algebra_type::vector_type vector_type;
 
 
+    /// construcor with IP3
+	HybridSynapseCurrentAssembler(
+		SmartPtr<ApproximationSpace<TDomain> > spApprox3d,
+		SmartPtr<ApproximationSpace<TDomain> > spApprox1d,
+		SmartPtr<cable_neuron::synapse_handler::SynapseHandler<TDomain> > spSH,
+		const std::vector<std::string>& PlasmaMembraneSubsetName,
+		const std::string& fct,
+		const std::string& fct_ip3
+	);
+
+	/// constructor without IP3
 	HybridSynapseCurrentAssembler(
 		SmartPtr<ApproximationSpace<TDomain> > spApprox3d,
 		SmartPtr<ApproximationSpace<TDomain> > spApprox1d,
@@ -231,17 +242,32 @@ public:
 
 	void set_current_percentage(number val) {m_current_percentage = val;}
 
+	void set_ip3_production_params(number j_max, number decayRate)
+	{
+		m_j_ip3_max = j_max;
+		m_j_ip3_decayRate = decayRate;
+
+		// We "turn off" the IP3 production when 95% of the total amount have been produced.
+		// This amounts to a production time of log(1/(1-0.95)) / decayRate and as log(20)
+		// is 3.0 pretty exactly, we simply choose 3.0. :)
+		m_j_ip3_duration = 3.0 / m_j_ip3_decayRate;
+	}
+	//void set_j_ip3_max(number val) {m_j_ip3_max = val; m_J_ip3_max = m_j_ip3_max/m_j_ip3_decayRate;}
+	//void set_j_ip3_decayRate(number val) {m_j_ip3_decayRate = val; m_J_ip3_max = m_j_ip3_max/m_j_ip3_decayRate;}
+
 	/**
 	 * change scaling factors, that have to be applied to 3d values, so that 1d and 3d values
 	 * have equal units
 	 */
 	void set_scaling_factors(number scaling_3d_to_1d_amount_of_substance = 1.0,
 			 	 	 	 	 number scaling_3d_to_1d_coordinates = 1.0,
-							 number scaling_3d_to_1d_electric_charge = 1.0)
+							 number scaling_3d_to_1d_electric_charge = 1.0,
+							 number scaling_3d_to_1d_ip3 = 1.0)
 	{
 		m_scaling_3d_to_1d_amount_of_substance = scaling_3d_to_1d_amount_of_substance;
 		m_scaling_3d_to_1d_electric_charge = scaling_3d_to_1d_electric_charge;
 		m_scaling_3d_to_1d_coordinates = scaling_3d_to_1d_coordinates;
+		m_scaling_3d_to_1d_ip3 = scaling_3d_to_1d_ip3;
 
 		m_spHNC->set_coordinate_scale_factor_3d_to_1d(m_scaling_3d_to_1d_coordinates);
 	}
@@ -257,9 +283,21 @@ public:
 		m_spHNC->set_neuron_ids(vID);
 	}
 
+	//void set_ip3_duration(const number& dur) {m_j_ip3_duration = dur;}
+
+protected:
+	number get_ip3(Vertex* const v, number time);
+
 private:
+	struct IP3Timing {
+		number t_start;
+		number t_end;
+	};
+
 	/// function index of the carried ion species
 	size_t m_fctInd;
+	size_t m_fctInd_ip3;
+	bool m_ip3_set;
 
 	/// Faraday constant
 	const number m_F; //in C/mol
@@ -276,6 +314,14 @@ private:
 	number m_scaling_3d_to_1d_amount_of_substance;
 	number m_scaling_3d_to_1d_electric_charge;
 	number m_scaling_3d_to_1d_coordinates;
+	number m_scaling_3d_to_1d_ip3;					//1d units: (mol um)/(dm^3 s); scaling: u = 1e-6
+
+	// IP3-related
+	number m_j_ip3_max; // maximal ip3 "current" (in  mol/s) (adapted from Fink et al.)
+	number m_j_ip3_decayRate; //in 1/s
+	number m_j_ip3_duration; //duration of ip3 influx until specified ip3 fraction of total is reached (in s)
+
+	std::map<Vertex*, IP3Timing> m_mSynapseActivationTime; //maps a 3d vertex mapped synapse to their activation time for IP3 generation
 };
 
 } // namespace neuro_collection

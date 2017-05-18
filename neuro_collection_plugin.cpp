@@ -111,10 +111,18 @@ static void DomainAlgebra(Registry& reg, string grp)
 				SmartPtr<ApproximationSpace<TDomain> >,
 				SmartPtr<cable_neuron::synapse_handler::SynapseHandler<TDomain> >,
 				const std::vector<std::string>&, const std::string&)>
-				("Subset(s)")
+				("3d approximation space#1d approximation space#synapse handler#subset(s) vector#"
+				 "calcium function name")
+			.template add_constructor<void (*)(SmartPtr<ApproximationSpace<TDomain> >,
+				SmartPtr<ApproximationSpace<TDomain> >,
+				SmartPtr<cable_neuron::synapse_handler::SynapseHandler<TDomain> >,
+				const std::vector<std::string>&, const std::string&, const std::string&)>
+				("3d approximation space#1d approximation space#synapse handler#subset(s) vector#"
+				 "calcium function name#ip3 function name")
 			.add_method("set_current_percentage", &T::set_current_percentage, "", "", "")
 			.add_method("set_valency", &T::set_valency, "", "", "")
 			.add_method("set_scaling_factors", &T::set_scaling_factors, "", "", "")
+			.add_method("set_ip3_production_params", &T::set_ip3_production_params, "", "single synapse maximal production rate#decay rate", "")
 			.add_method("set_3d_neuron_ids", &T::set_3d_neuron_ids, "", "", "")
 			.set_construct_as_smart_pointer(true);
 
