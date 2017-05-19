@@ -1582,7 +1582,8 @@ void swc_points_to_grid
 (
 	const std::vector<SWCPoint>& vPts,
 	Grid& g,
-	SubsetHandler& sh
+	SubsetHandler& sh,
+	number scale_length = 1.0
 )
 {
 	if (!g.has_vertex_attachment(aPosition))
@@ -1603,9 +1604,9 @@ void swc_points_to_grid
 
 		// create vertex and save
 		Vertex* v = vrts[i] = *g.create<RegularVertex>();
-		aaPos[v] = pt.coords;
+		VecScale(aaPos[v], pt.coords, scale_length);
 		sh.assign_subset(v, pt.type - 1);
-		aaDiam[v] = 2*pt.radius;
+		aaDiam[v] = 2 * pt.radius * scale_length;
 
 		// create edge connections to already created vertices
 		for (size_t j = 0; j < pt.conns.size(); ++j)
