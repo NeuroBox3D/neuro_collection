@@ -120,6 +120,7 @@ class RyR2 : public IMembraneTransporter
 		Grid::AttachmentAccessor<side_t, ADouble> m_aaC2;		//!< accessor for channels
 
 		number m_time;								//!< current time
+		number m_initTime;							//!< time of initialization
 		number m_oldTime;							//!< time step before current time
 		bool m_initiated;							//!< indicates whether channel has been initialized by init()
 };

@@ -249,6 +249,7 @@ class VDCC_BG : public IMembraneTransporter
 		GatingParams m_gpHGate;						//!< gating parameter set for inactivating gate
 
 		number m_time;								//!< current time
+		number m_initTime;							//!< time of initialization
 		number m_oldTime;							//!< time step before current time
 
 		number m_perm;								//!< channel permeability [m^3/s] (= diff coeff * cross section / membrane thickness)

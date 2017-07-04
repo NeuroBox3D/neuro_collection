@@ -182,6 +182,9 @@ void VDCC_BG<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, st
 	else maxFlux = -m_perm * 2*F/(R*T) * vm * (caExt - caCyt*exp(2*F/(R*T)*vm)) / (1.0 - exp(2*F/(R*T)*vm));
 
 	flux[0] = gating * maxFlux;
+
+	//UG_COND_THROW(flux[0] != flux[0],
+	//	"VDCC NaN: gating = " << gating << ", maxFlux = " << maxFlux);
 }
 
 
@@ -306,6 +309,7 @@ template<typename TDomain>
 void VDCC_BG<TDomain>::init(number time)
 {
 	m_time = time;
+	m_initTime = time;
 
 	typedef typename DoFDistribution::traits<side_t>::const_iterator itType;
 	SubsetGroup ssGrp;
@@ -362,8 +366,8 @@ void VDCC_BG<TDomain>::prep_timestep
     number future_time, const number time, VectorProxyBase* upb
 )
 {
-    // initiate if this has not already been done
-    if (!m_initiated)
+    // initiate if this has not already been done (or init again; stationary case)
+    if (!m_initiated || future_time == m_initTime)
         init(time);
 
 	update_time(future_time);

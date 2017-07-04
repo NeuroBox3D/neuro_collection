@@ -136,8 +136,8 @@ RyR2<TDomain>::~RyR2()
 template <typename TDomain>
 void RyR2<TDomain>::prep_timestep(number future_time, const number time, VectorProxyBase* upb)
 {
-	// before the first step: initiate to equilibrium
-	if (!m_initiated)
+	// before the first step: initiate to equilibrium (or init again; stationary case)
+	if (!m_initiated || future_time == m_initTime)
 	{
 		init(time, upb);
 		return;
@@ -200,21 +200,10 @@ void RyR2<TDomain>::prep_timestep(number future_time, const number time, VectorP
             // scale by appropriate factor for correct unit
             ca_cyt *= this->scale_input(_CCYT_);
 
-
-			// I am not sure whether this is correct ...
-			// It is definitely incorrect, e.g.: exponents for ca_cyt mixed up
-			//number pO1num = (1 + dt * KBminus) * ((-pC2 + 1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3)) - pC1 * (1 + dt * KCminus)) - pO2 * (1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3));
-			//number pO1den = (1 + dt * KBminus) * ((1 + dt * KCminus) * (dt * KAminus) + (dt * KCplus + 1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3))) + (dt * KBplus * pow(ca_cyt, 4)) * (1 + dt * KCminus) * (1 + dt * KAplus * pow(ca_cyt, 3));
-			//pO1 = pO1num / pO1den;
-			//pO2 = (pO2 + dt * KBplus * pow(ca_cyt, 4) * pO1) / (1 + dt * KBminus);
-			//pC1 = (pC1 + dt * KAminus * pO1) / (1 + dt * KAplus * pow(ca_cyt, 3));
-			//pC2 = (pC2 + dt * KCplus * pO1) / (1 + dt * KCminus);
-
-
 			// We use backwards Euler here to evolve o1, o2, c1, c2:
 			// the following relation must hold:
 			//
-			//     u_new = u_old + dt * Au
+			//     u_new = u_old + dt * Au_new
 			//
 			// where u_new, u_old are three-component vectors belonging to o2, c1, c2,
 			// A is a 3x4 matrix defined by the Markov model and u is the vector
@@ -239,7 +228,7 @@ void RyR2<TDomain>::prep_timestep(number future_time, const number time, VectorP
 			number c2 = dt * KCminus;
 
 			pO1 = (1.0 - pO2/(1.0+b2) - pC1/(1.0+a1) - pC2/(1.0+c2))
-				/ (1.0 + b1/(1.0+b2)  + a2/(1.0/a1)  + c1/(1.0+c2) );
+				/ (1.0 + b1/(1.0+b2)  + a2/(1.0+a1)  + c1/(1.0+c2) );
 
 			pO2 = (pO2 + b1*pO1) / (1.0 + b2);
 			pC1 = (pC1 + a2*pO1) / (1.0 + a1);
@@ -253,6 +242,7 @@ template<typename TDomain>
 void RyR2<TDomain>::init(number time, VectorProxyBase* upb)
 {
 	this->m_time = time;
+	this->m_initTime = time;
 
 	// get solution u with which to prepare time step (this code only accepts CPUAlgebra type)
 	typedef CPUAlgebra::vector_type v_type;
@@ -301,11 +291,6 @@ void RyR2<TDomain>::init(number time, VectorProxyBase* upb)
 			ca_cyt *= this->scale_input(_CCYT_);
 
 			// calculate equilibrium
-			//pO1 = (1.0 / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
-			//pO2 = (KBplus/KBminus*pow(ca_cyt,3) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
-			//pC1 = ((1/KAplus/KAminus*pow(ca_cyt,3)) / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
-			//pC2 = (KCplus/KCminus / (1.0 + KCplus/KCminus + (1/KAplus/KAminus*pow(ca_cyt,3)) + KBplus/KBminus*pow(ca_cyt,4)));
-
 			number KA = KAplus/KAminus * ca_cyt*ca_cyt*ca_cyt*ca_cyt;
 			number KB = KBplus/KBminus * ca_cyt*ca_cyt*ca_cyt;
 			number KC = KCplus/KCminus;
@@ -319,7 +304,7 @@ void RyR2<TDomain>::init(number time, VectorProxyBase* upb)
 		}
 	}
 
-	this->m_initiated = true;
+	m_initiated = true;
 }
 
 template<typename TDomain>
@@ -337,9 +322,11 @@ void RyR2<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::
 
 	// open probability
 	number pOpen = m_aaO1[elem] + m_aaO2[elem];
-	//number pOpen =  (1.0 + KB*pow(caCyt,3)) / (1.0 + KC + 1.0/(KA*pow(caCyt,4)) + KB*pow(caCyt,3));
 
 	flux[0] = pOpen * current;
+
+	//UG_COND_THROW(pOpen != pOpen || current != current,
+	//	"RyR NaN: pOpen = " << pOpen << ", current = " << current);
 
 	//UG_LOGN("RyR2 single channel flux: " << flux[0]);
 }
