@@ -38,6 +38,9 @@ void PMCA::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<nu
 	number gatingFactor = caCyt*caCyt / (KD_P*KD_P + caCyt*caCyt);
 
 	flux[0] = gatingFactor * IMAX_P;
+
+	//UG_COND_THROW(flux[0] != flux[0],
+	//	"PMCA NaN: gatingFactor = " << gatingFactor);
 }
 
 

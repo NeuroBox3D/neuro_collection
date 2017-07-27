@@ -38,6 +38,9 @@ void SERCA::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<n
 	number caER = u[_CER_];		// ER Ca2+ concentration
 
 	flux[0] = VS*caCyt / ((KS + caCyt) * caER);
+
+	//UG_COND_THROW(flux[0] != flux[0],
+	//	"SERCA NaN: caCyt = " << caCyt << ", caER = " << caER);
 }
 
 

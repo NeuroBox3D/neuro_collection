@@ -38,6 +38,9 @@ void NCX::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<num
 	number gatingFactor = caCyt / (KD_N + caCyt);
 
 	flux[0] = gatingFactor * IMAX_N;
+
+	//UG_COND_THROW(flux[0] != flux[0],
+	//	"NCX NaN: gatingFactor = " << gatingFactor);
 }
 
 
