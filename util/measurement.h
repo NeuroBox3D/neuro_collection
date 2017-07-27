@@ -5,8 +5,8 @@
  *      Author: mbreit
  */
 
-#ifndef UG__PLUGINS__NEURO_COLLECTION__MEASUREMENT_H
-#define UG__PLUGINS__NEURO_COLLECTION__MEASUREMENT_H
+#ifndef UG__PLUGINS__NEURO_COLLECTION__UTIL__MEASUREMENT_H
+#define UG__PLUGINS__NEURO_COLLECTION__UTIL__MEASUREMENT_H
 
 #include "common/util/smart_pointer.h"
 #include "lib_disc/function_spaces/approximation_space.h"
@@ -18,6 +18,20 @@ namespace neuro_collection {
 ///@addtogroup plugin_neuro_collection
 ///@{
 
+
+/**
+ * \brief calculates the volume of a subset
+ *
+ * \param approx   the underlying approximation space
+ * \param subset   contains the subset index that the volume measurement
+ *                 is to be performed for
+ *
+ * @todo In the parallel case:
+ *       For lower-dimensional objects it is possible that some are accounted for
+ *       more than once! --> master/slave layout !?
+ */
+template <typename TDomain>
+number computeVolume(ConstSmartPtr<ApproximationSpace<TDomain> > approx, const int subset);
 
 
 /**
@@ -90,4 +104,4 @@ number takeMeasurement
 
 #include "measurement_impl.h"
 
-#endif // UG__PLUGINS__NEURO_COLLECTION__MEASUREMENT_H
+#endif // UG__PLUGINS__NEURO_COLLECTION__UTIL__MEASUREMENT_H
