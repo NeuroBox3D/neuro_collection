@@ -214,6 +214,27 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "MembraneTransportFV1", tag);
 	}
 
+	// implementation of two-sided membrane transport systems (1d "cable", fcts const in radius and angle)
+	{
+		typedef MembraneTransport1d<TDomain> T;
+		typedef IElemDisc<TDomain> TBase;
+		string name = string("MembraneTransport1d").append(suffix);
+		reg.add_class_<T, TBase >(name, grp)
+			.template add_constructor<void (*)(const char*, SmartPtr<IMembraneTransporter>)>("Subset(s) as comma-separated c-string#MembraneTransporter")
+			.template add_constructor<void (*)(const std::vector<std::string>&, SmartPtr<IMembraneTransporter>)>("Subset(s) as vector#MembraneTransporter")
+			.add_method("set_density_function", static_cast<void (T::*) (const number)> (&T::set_density_function),
+						"", "", "add a constant density")
+#ifdef UG_FOR_LUA
+			.add_method("set_density_function", static_cast<void (T::*) (const char*)> (&T::set_density_function),
+						"", "", "add a density function")
+#endif
+			.add_method("set_density_function", static_cast<void (T::*) (SmartPtr<CplUserData<number,dim> >)>
+					(&T::set_density_function), "", "", "add a density function")
+			.add_method("set_radius", &T::set_radius, "", "", "sets the radius the membrane is located at")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "MembraneTransport1d", tag);
+	}
+
 	// user flux boundary
 	{
 		typedef UserFluxBoundaryFV1<TDomain> T;
