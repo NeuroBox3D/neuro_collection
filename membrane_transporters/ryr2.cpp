@@ -2,11 +2,14 @@
  *	Discretization for the RyR calcium channel in the ER membrane
  *
  *  Created on: Nov 12, 2015
- *      Author: marcuskessler
+ *      Author: marcuskessler, mbreit
  */
 
 #include "ryr2.h"
 
+#include "lib_grid/algorithms/debug_util.h"   // for ElementDebugInfo
+#include "lib_grid/grid/grid_base_objects.h"  // for VERTEX ...
+#include "lib_grid/tools/surface_view.h"      // for MG_ALL
 
 namespace ug{
 namespace neuro_collection{
@@ -24,7 +27,7 @@ R(8.314), T(310.0), F(96485.0),
 KAplus(1500.0e12), KBplus(1500.0e9), KCplus(1.75),
 KAminus(28.8), KBminus(385.9), KCminus(0.1),
 MU_RYR(5.0e-11), REF_CA_ER(2.5e-1),
-m_time(0.0), m_oldTime(0.0), m_initiated(false)
+m_time(0.0), m_initiated(false)
 {
 	construct(subsets, approx);
 }
@@ -42,7 +45,7 @@ R(8.314), T(310.0), F(96485.0),
 KAplus(1500.0e12), KBplus(1500.0e9), KCplus(1.75),
 KAminus(28.8), KBminus(385.9), KCminus(0.1),
 MU_RYR(5.0e-11), REF_CA_ER(2.5e-1),
-m_time(0.0), m_oldTime(0.0), m_initiated(false)
+m_time(0.0), m_initiated(false)
 {
 	construct(TokenizeString(subsets), approx);
 }
@@ -62,6 +65,9 @@ void RyR2<TDomain>::construct
 	m_mg = m_dom->grid();
 
 	// save underlying surface dof distribution
+	// TODO: think about: do we also need level DDs in the multi-grid context?
+	//       after all, the derivatives in the level matrices depend on pOpen!
+	//       the surface attachments should be copied down
 	m_dd = approx->dof_distribution(GridLevel(), true);
 
 
@@ -96,40 +102,47 @@ void RyR2<TDomain>::construct
 
 
 // manage attachments
-	if (m_mg->template has_attachment<side_t>(this->m_aO1))
-	UG_THROW("Attachment necessary for RyR channel dynamics "
-			 "could not be made, since it already exists.");
-	m_mg->template attach_to<side_t>(this->m_aO1);
-
-	if (m_mg->template has_attachment<side_t>(this->m_aO2))
+	if (m_mg->template has_attachment<Vertex>(this->m_aO2))
 		UG_THROW("Attachment necessary for RyR channel dynamics "
-				 "could not be made, since it already exists.");
-	m_mg->template attach_to<side_t>(this->m_aO2);
+				 "could not be created, since it already exists.");
+	m_mg->template attach_to<Vertex>(this->m_aO2);
 
-	if (m_mg->template has_attachment<side_t>(this->m_aC1))
+	if (m_mg->template has_attachment<Vertex>(this->m_aC1))
 		UG_THROW("Attachment necessary for RyR channel dynamics "
-				 "could not be made, since it already exists.");
-	m_mg->template attach_to<side_t>(this->m_aC1);
+				 "could not be created, since it already exists.");
+	m_mg->template attach_to<Vertex>(this->m_aC1);
 
-	if (m_mg->template has_attachment<side_t>(this->m_aC2))
+	if (m_mg->template has_attachment<Vertex>(this->m_aC2))
 		UG_THROW("Attachment necessary for RyR channel dynamics "
-				 "could not be made, since it already exists.");
-	m_mg->template attach_to<side_t>(this->m_aC2);
+				 "could not be created, since it already exists.");
+	m_mg->template attach_to<Vertex>(this->m_aC2);
 
-	m_aaO1 = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_aO1);
-	m_aaO2 = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_aO2);
-	m_aaC1 = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_aC1);
-	m_aaC2 = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_aC2);
+	if (m_mg->template has_attachment<Vertex>(this->m_aOavg))
+		UG_THROW("Attachment necessary for RyR channel dynamics "
+				 "could not be created, since it already exists.");
+	m_mg->template attach_to<Vertex>(this->m_aOavg);
+
+	if (m_mg->template has_attachment<Vertex>(this->m_aCaOld))
+		UG_THROW("Attachment necessary for RyR channel dynamics "
+				 "could not be created, since it already exists.");
+	m_mg->template attach_to<Vertex>(this->m_aCaOld);
+
+	m_aaO2 = Grid::AttachmentAccessor<Vertex, ADouble>(*m_mg, m_aO2);
+	m_aaC1 = Grid::AttachmentAccessor<Vertex, ADouble>(*m_mg, m_aC1);
+	m_aaC2 = Grid::AttachmentAccessor<Vertex, ADouble>(*m_mg, m_aC2);
+	m_aaOavg = Grid::AttachmentAccessor<Vertex, ANumber>(*m_mg, m_aOavg);
+	m_aaCaOld = Grid::AttachmentAccessor<Vertex, ANumber>(*m_mg, m_aCaOld);
 }
 
 
 template<typename TDomain>
 RyR2<TDomain>::~RyR2()
 {
-	m_mg->template detach_from<side_t>(this->m_aO1);
-	m_mg->template detach_from<side_t>(this->m_aO2);
-	m_mg->template detach_from<side_t>(this->m_aC1);
-	m_mg->template detach_from<side_t>(this->m_aC2);
+	m_mg->template detach_from<Vertex>(this->m_aO2);
+	m_mg->template detach_from<Vertex>(this->m_aC1);
+	m_mg->template detach_from<Vertex>(this->m_aC2);
+	m_mg->template detach_from<Vertex>(this->m_aOavg);
+	m_mg->template detach_from<Vertex>(this->m_aCaOld);
 };
 
 
@@ -138,17 +151,7 @@ void RyR2<TDomain>::prep_timestep(number future_time, const number time, VectorP
 {
 	// before the first step: initiate to equilibrium (or init again; stationary case)
 	if (!m_initiated || future_time == m_initTime)
-	{
 		init(time, upb);
-		return;
-	}
-
-	// get solution u with which to prepare time step (this code only accepts CPUAlgebra type)
-	typedef CPUAlgebra::vector_type v_type;
-	typedef VectorProxy<v_type> vp_type;
-	vp_type* up = dynamic_cast<vp_type*>(upb);
-	UG_COND_THROW(!up, "Wrong algebra type!");
-	const v_type& u = up->m_v;
 
     // get global fct index for ccyt function
     FunctionGroup fctGrp(m_dd->dof_distribution_info());
@@ -159,28 +162,26 @@ void RyR2<TDomain>::prep_timestep(number future_time, const number time, VectorP
 	std::vector<DoFIndex> dofIndex;
 
 	// update time
-	if (future_time != m_time)
-	{
-		m_oldTime = m_time;
-		m_time = future_time;
-	}
-	number dt = m_time - m_oldTime;
+	m_time = future_time;
+	number dt = m_time - time;
 
 	// loop sides and update potential and then gatings
-	typedef typename DoFDistribution::traits<side_t>::const_iterator it_type;
+	typedef typename DoFDistribution::traits<Vertex>::const_iterator it_type;
 
 	size_t si_sz = m_vSubset.size();
 	for (size_t si = 0; si < si_sz; ++si)
 	{
-		it_type it = m_dd->begin<side_t>(m_vSubset[si]);
-		it_type it_end = m_dd->end<side_t>(m_vSubset[si]);
+		it_type it = m_dd->begin<Vertex>(m_vSubset[si], SurfaceView::MG_ALL); // shadow rim copy are required!
+		it_type it_end = m_dd->end<Vertex>(m_vSubset[si], SurfaceView::MG_ALL);
 
 		for (; it != it_end; ++it)
 		{
 			number& pO2 = m_aaO2[*it];
-			number& pO1 = m_aaO1[*it];
 			number& pC2 = m_aaC2[*it];
 			number& pC1 = m_aaC1[*it];
+			number& pOavg = m_aaOavg[*it];
+			number pO1 = 1.0 - (pO2 + pC1 + pC2);
+			number& pCaOld = m_aaCaOld[*it];
 
 			// get ca_cyt
 			// we suppose our approx space to be 1st order Lagrange (linear, DoFs in the vertices)
@@ -189,16 +190,20 @@ void RyR2<TDomain>::prep_timestep(number future_time, const number time, VectorP
             if (!this->has_constant_value(_CCYT_, ca_cyt))
             {
                 // we suppose our approx space to be 1st order Lagrange (linear, DoFs in the vertices)
-                // and interpolate value at the center of the element
-                m_dd->dof_indices(*it, ind_ccyt, dofIndex, false, true);
-                UG_ASSERT(dofIndex.size() > 0, "No DoF found for function " << ind_ccyt << " on element.");
-                for (size_t i = 0; i < dofIndex.size(); ++i) ca_cyt += DoFRef(u, dofIndex[i]);
-                ca_cyt /= dofIndex.size();
+                m_dd->dof_indices(*it, ind_ccyt, dofIndex, true, true);
+                UG_ASSERT(dofIndex.size() == 1, "Not exactly 1 DoF found for function " << ind_ccyt
+                	<< " in vertex " << ElementDebugInfo(*m_mg, *it));
+                ca_cyt = upb->evaluate(dofIndex[0]);
             }
             // else the constant value has been written to ca_cyt by has_constant_value()
 
             // scale by appropriate factor for correct unit
             ca_cyt *= this->scale_input(_CCYT_);
+
+            // approximate the Ca derivative and retain the calcium value for future time step
+            const number caDeriv = (ca_cyt - pCaOld) / dt;
+            pCaOld = ca_cyt;
+
 
 			// We use backwards Euler here to evolve o1, o2, c1, c2:
 			// the following relation must hold:
@@ -219,20 +224,70 @@ void RyR2<TDomain>::prep_timestep(number future_time, const number time, VectorP
 			// with coefficients as defined in the code directly below.
 			// We solve this by transformation into a lower-left triangular matrix
 			// (i.e., solving for o1_new) and then inverting the rest iteratively.
+            number inner_dt = dt;
+            size_t nSteps = 1;
+            const number thresh = 1e-6;
+            if (fabs(inner_dt) > thresh)
+            {
+            	nSteps = (size_t) ceil(fabs(dt) / thresh);
+            	inner_dt = dt / nSteps;
+            }
 
-			number a1 = dt * KAplus * ca_cyt*ca_cyt*ca_cyt*ca_cyt;
-			number a2 = dt * KAminus;
-			number b1 = dt * KBplus * ca_cyt*ca_cyt*ca_cyt;
-			number b2 = dt * KBminus;
-			number c1 = dt * KCplus;
-			number c2 = dt * KCminus;
+            // forward step (implicit)
+            if (inner_dt > 0)
+            {
+            	pOavg = 0.0;
+				for (size_t i = 0; i < nSteps; ++i)
+				{
+					// estimate current calcium
+					ca_cyt += caDeriv*inner_dt;
 
-			pO1 = (1.0 - pO2/(1.0+b2) - pC1/(1.0+a1) - pC2/(1.0+c2))
-				/ (1.0 + b1/(1.0+b2)  + a2/(1.0+a1)  + c1/(1.0+c2) );
+					const number a1 = inner_dt * KAplus * ca_cyt*ca_cyt*ca_cyt*ca_cyt;
+					const number a2 = inner_dt * KAminus;
+					const number b1 = inner_dt * KBplus * ca_cyt*ca_cyt*ca_cyt;
+					const number b2 = inner_dt * KBminus;
+					const number c1 = inner_dt * KCplus;
+					const number c2 = inner_dt * KCminus;
 
-			pO2 = (pO2 + b1*pO1) / (1.0 + b2);
-			pC1 = (pC1 + a2*pO1) / (1.0 + a1);
-			pC2 = (pC2 + c1*pO1) / (1.0 + c2);
+					pO1 = (1.0 - pO2/(1.0+b2) - pC1/(1.0+a1) - pC2/(1.0+c2))
+						/ (1.0 + b1/(1.0+b2)  + a2/(1.0+a1)  + c1/(1.0+c2));
+
+					pO2 = (pO2 + b1*pO1) / (1.0 + b2);
+					pC1 = (pC1 + a2*pO1) / (1.0 + a1);
+					pC2 = 1.0 - (pO1 + pO2 + pC1); // make sure sum is 1;
+
+					pOavg += inner_dt * (pO1 + pO2);
+				}
+				pOavg /= dt;
+            }
+
+            // backward step (explicit)
+            else if (inner_dt < 0)
+            {
+            	for (size_t i = 0; i < nSteps; ++i)
+				{
+            		// TODO: this might be very wrong if the previous forward step was large
+					// estimate current calcium
+					ca_cyt -= caDeriv*inner_dt;
+
+					const number a1 = inner_dt * KAplus * ca_cyt*ca_cyt*ca_cyt*ca_cyt;
+					const number a2 = inner_dt * KAminus;
+					const number b1 = inner_dt * KBplus * ca_cyt*ca_cyt*ca_cyt;
+					const number b2 = inner_dt * KBminus;
+					const number c1 = inner_dt * KCplus;
+					const number c2 = inner_dt * KCminus;
+
+					pC2 += c2 * pC2 - c1 * pO1;
+					pC1 += a1 * pC1 - a2 * pO1;
+					pO2 += b2 * pO2 - b1 * pO1;
+					pO1 = 1.0 - (pO2 + pC1 + pC2);
+				}
+
+            	// TODO: How is pOavg to be treated? Atm, take constant pO1+pO2.
+            	pOavg = pO1 + pO2;
+            }
+
+            // if time step is zero, do nothing
 		}
 	}
 }
@@ -244,12 +299,14 @@ void RyR2<TDomain>::init(number time, VectorProxyBase* upb)
 	this->m_time = time;
 	this->m_initTime = time;
 
+	/*
 	// get solution u with which to prepare time step (this code only accepts CPUAlgebra type)
 	typedef CPUAlgebra::vector_type v_type;
 	typedef VectorProxy<v_type> vp_type;
 	vp_type* up = dynamic_cast<vp_type*>(upb);
 	UG_COND_THROW(!up, "Wrong algebra type!");
 	const v_type& u = up->m_v;
+	*/
 
 	// get global fct index for ccyt function
 	FunctionGroup fctGrp(m_dd->dof_distribution_info());
@@ -259,36 +316,37 @@ void RyR2<TDomain>::init(number time, VectorProxyBase* upb)
 	// for DoF index storage
 	std::vector<DoFIndex> dofIndex;
 
-	typedef typename DoFDistribution::traits<side_t>::const_iterator it_type;
+	typedef typename DoFDistribution::traits<Vertex>::const_iterator it_type;
 
 	size_t si_sz = m_vSubset.size();
 	for (size_t si = 0; si < si_sz; ++si)
 	{
-		it_type it = m_dd->begin<side_t>(m_vSubset[si]);
-		it_type it_end = m_dd->end<side_t>(m_vSubset[si]);
+		it_type it = m_dd->begin<Vertex>(m_vSubset[si], SurfaceView::MG_ALL); // shadow rim copy are required!
+		it_type it_end = m_dd->end<Vertex>(m_vSubset[si], SurfaceView::MG_ALL);
 
 		for (; it != it_end; ++it)
 		{
 			number& pO2 = m_aaO2[*it];
-			number& pO1 = m_aaO1[*it];
 			number& pC2 = m_aaC2[*it];
 			number& pC1 = m_aaC1[*it];
+			number& pOavg = m_aaOavg[*it];
+			number& pCaOld = m_aaCaOld[*it];
 
 			// get ca_cyt
 			number ca_cyt = 0.0;
 			if (!this->has_constant_value(_CCYT_, ca_cyt))
 			{
 				// we suppose our approx space to be 1st order Lagrange (linear, DoFs in the vertices)
-				// and interpolate value at the center of the element
-				m_dd->dof_indices(*it, ind_ccyt, dofIndex, false, true);
-				UG_ASSERT(dofIndex.size() > 0, "No DoF found for function " << ind_ccyt << " on element.");
-				for (size_t i = 0; i < dofIndex.size(); ++i) ca_cyt += DoFRef(u, dofIndex[i]);
-				ca_cyt /= dofIndex.size();
+				m_dd->dof_indices(*it, ind_ccyt, dofIndex, true, true);
+                UG_ASSERT(dofIndex.size() == 1, "Not exactly 1 DoF found for function " << ind_ccyt
+                	<< " in vertex " << ElementDebugInfo(*m_mg, *it));
+                ca_cyt = upb->evaluate(dofIndex[0]);
 			}
 			// else the constant value has been written to ca_cyt by has_constant_value()
 
 			// scale by appropriate factor for correct unit
 			ca_cyt *= this->scale_input(_CCYT_);
+			pCaOld = ca_cyt;
 
 			// calculate equilibrium
 			number KA = KAplus/KAminus * ca_cyt*ca_cyt*ca_cyt*ca_cyt;
@@ -297,23 +355,62 @@ void RyR2<TDomain>::init(number time, VectorProxyBase* upb)
 
 			number denom_inv = 1.0 / (1.0 + KC + 1.0/KA + KB);
 
-			pO1 = denom_inv;
 			pO2 = KB * denom_inv;
 			pC1 = denom_inv / KA;
 			pC2 = KC * denom_inv;
+			pOavg = 1.0 - (pC1 + pC2);
 		}
 	}
 
 	m_initiated = true;
 }
 
+
+
+template<typename TDomain>
+template<typename TBaseElem>
+number RyR2<TDomain>::open_prob(GridObject* o) const
+{
+	TBaseElem* e = static_cast<TBaseElem*>(o);
+	number pOpen = 0.0;
+	const size_t nVrt = e->num_vertices();
+	for (size_t v = 0; v < nVrt; ++v)
+	{
+		Vertex* vrt = e->vertex(v);
+//if (m_aaC1[vrt] == 0.0)
+//	UG_LOGN("accessing vrt " << ElementDebugInfo(*m_mg, vrt));
+		pOpen += m_aaOavg[vrt];
+	}
+	return pOpen /= nVrt;
+}
+
+
+template<typename TDomain>
+number RyR2<TDomain>::open_prob_for_grid_object(GridObject* o) const
+{
+	switch (o->base_object_id())
+	{
+		case VERTEX:
+		{
+			Vertex* vrt = static_cast<Vertex*>(o);
+			return m_aaOavg[vrt];
+		}
+		case EDGE:
+			return open_prob<Edge>(o);
+		case FACE:
+			return open_prob<Face>(o);
+		default:
+		{
+			UG_THROW("Base object id must be VERTEX, EDGE or FACE, but is "
+				<< o->base_object_id() << ".");
+		}
+	}
+}
+
+
 template<typename TDomain>
 void RyR2<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
 {
-	// cast to side_type
-	side_t* elem = dynamic_cast<side_t*>(e);
-	if (!elem) UG_THROW("RyR2 fluxDensityFunction called with the wrong type of element.");
-
 	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
 	number caER = u[_CER_];		// ER Ca2+ concentration
 
@@ -321,25 +418,29 @@ void RyR2<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::
 	number current = R*T/(4*F*F) * MU_RYR/REF_CA_ER * (caER - caCyt);
 
 	// open probability
-	number pOpen = m_aaO1[elem] + m_aaO2[elem];
+	number pOpen = open_prob_for_grid_object(e);
 
 	flux[0] = pOpen * current;
 
 	//UG_COND_THROW(pOpen != pOpen || current != current,
 	//	"RyR NaN: pOpen = " << pOpen << ", current = " << current);
 
-	//UG_LOGN("RyR2 single channel flux: " << flux[0]);
+	/*
+	static size_t cnt = 0;
+	if (!cnt)
+	{
+		UG_LOGN("RyR2 single channel flux: " << flux[0] << ",  pOpen = " << pOpen);
+		++cnt;
+	}
+	*/
 }
 
 
 template<typename TDomain>
 void RyR2<TDomain>::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
-	// cast to side_type
-	side_t* elem = dynamic_cast<side_t*>(e);
-	if (!elem) UG_THROW("RyR2 fluxDensityFunction called with the wrong type of element.");
-
-	number deriv_value = R*T/(4*F*F) * MU_RYR/REF_CA_ER * (m_aaO1[elem] + m_aaO2[elem]);
+	number pOpen = open_prob_for_grid_object(e);
+	number deriv_value = pOpen * R*T/(4*F*F) * MU_RYR/REF_CA_ER;
 
 	size_t i = 0;
 	if (!has_constant_value(_CCYT_))

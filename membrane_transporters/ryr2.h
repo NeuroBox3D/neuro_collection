@@ -2,7 +2,7 @@
  *	Alternative discretization for the RyR calcium channel in the ER membrane with time delay
  *
  *  Created on: Nov 12, 2015
- *      Author: marcuskessler
+ *      Author: marcuskessler, mbreit
  */
 
 #ifndef __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__RYR2_H__
@@ -12,8 +12,8 @@
 #include "lib_disc/spatial_disc/elem_disc/inner_boundary/inner_boundary.h"
 
 
-namespace ug{
-namespace neuro_collection{
+namespace ug {
+namespace neuro_collection {
 
 
 ///@addtogroup plugin_neuro_collection
@@ -22,7 +22,7 @@ namespace neuro_collection{
 
 /// Discretization for the RyR calcium channel in the ER membrane
 /**
- * This class implements the InnerBoundaryElemDisc to provide flux densities
+ * This class implements the IMembraneTransporter interface to provide flux densities
  * and their derivatives for the Keizer & Levine (1996) RyR model.
  *
  * Units used in the implementation of this channel:
@@ -102,6 +102,12 @@ class RyR2 : public IMembraneTransporter
 		// init gating variables to equilibrium
 		void init(number time, VectorProxyBase* upb);
 
+		// calculate open probability at grid object
+		template <typename TBaseElem>
+		number open_prob(GridObject* o) const;
+
+		number open_prob_for_grid_object(GridObject* o) const;
+
 	protected:
 		SmartPtr<TDomain> m_dom;					//!< underlying domain
 		SmartPtr<MultiGrid> m_mg;					//!< underlying multigrid
@@ -109,19 +115,20 @@ class RyR2 : public IMembraneTransporter
 
 		std::vector<size_t> m_vSubset;				//!< subset indices this mechanism works on
 
-		ADouble m_aO1;								//!< proportion of channels currently in state O1
 		ADouble m_aO2;								//!< proportion of channels currently in state O2
 		ADouble m_aC1;								//!< proportion of channels currently in state C1
 		ADouble m_aC2;								//!< proportion of channels currently in state C2
+		ANumber m_aOavg; 							//!< average open probability between two consecutive time steps
+		ANumber m_aCaOld; 							//!< old calcium value
 
-		Grid::AttachmentAccessor<side_t, ADouble> m_aaO1;		//!< accessor for channels
-		Grid::AttachmentAccessor<side_t, ADouble> m_aaO2;		//!< accessor for channels
-		Grid::AttachmentAccessor<side_t, ADouble> m_aaC1;		//!< accessor for channels
-		Grid::AttachmentAccessor<side_t, ADouble> m_aaC2;		//!< accessor for channels
+		Grid::AttachmentAccessor<Vertex, ADouble> m_aaO2;		//!< accessor for channel states
+		Grid::AttachmentAccessor<Vertex, ADouble> m_aaC1;		//!< accessor for channel states
+		Grid::AttachmentAccessor<Vertex, ADouble> m_aaC2;		//!< accessor for channel states
+		Grid::AttachmentAccessor<Vertex, ANumber> m_aaOavg;		//!< accessor for avg. open prob.
+		Grid::AttachmentAccessor<Vertex, ANumber> m_aaCaOld;	//!< accessor for old calcium value
 
 		number m_time;								//!< current time
 		number m_initTime;							//!< time of initialization
-		number m_oldTime;							//!< time step before current time
 		bool m_initiated;							//!< indicates whether channel has been initialized by init()
 };
 
