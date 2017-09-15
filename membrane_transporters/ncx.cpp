@@ -12,13 +12,13 @@ namespace neuro_collection{
 
 
 NCX::NCX(const std::vector<std::string>& fcts) : IMembraneTransporter(fcts),
-KD_N(1.8e-3), IMAX_N(2.5e-21)
+KD_N(1.8e-3), IMAX_N(2.5e-21)	// TODO: Graupner says 4.8, not 2.5!? (Tab. 4.2, p. 85)
 {
 	// nothing to do
 }
 
 NCX::NCX(const char* fcts) : IMembraneTransporter(fcts),
-KD_N(1.8e-3), IMAX_N(2.5e-21)
+KD_N(1.8e-3), IMAX_N(2.5e-21)	// TODO: Graupner says 4.8, not 2.5!? (Tab. 4.2, p. 85)
 {
 	// nothing to do
 }
