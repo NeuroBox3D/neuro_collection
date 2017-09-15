@@ -35,6 +35,7 @@
 
 #ifdef NC_WITH_CABLENEURON
 	#include "hybrid_neuron_communicator.h"
+	#include "hybrid_synapse_current_assembler.h"
     #include "membrane_transporters/vdcc_bg/vdcc_bg_cableneuron.h"
 #endif
 
