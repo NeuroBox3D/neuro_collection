@@ -26,6 +26,7 @@
 #include "membrane_transporters/ip3r.h"
 #include "membrane_transporters/ryr.h"
 #include "membrane_transporters/ryr2.h"
+#include "membrane_transporters/ryr_implicit.h"
 #include "membrane_transporters/serca.h"
 #include "membrane_transporters/leak.h"
 #include "membrane_transporters/pmca.h"
@@ -134,6 +135,53 @@ static void DomainAlgebra(Registry& reg, string grp)
 	reg.add_function("take_measurement", static_cast<number (*)(SmartPtr<TGridFunction>, const number, const char*, const char*, const char*, const char*)>(&takeMeasurement<GridFunction<TDomain, TAlgebra> >), grp.c_str(),
 					 "", "solution#time#subset names#function names#output file name#output file extension",
 					 "outputs average values of unknowns on subsets");
+
+
+	// export all template realizations of RyRImplicit::calculate_steady_state()
+	{
+		typedef RyRImplicit<TDomain> T;
+		ClassGroupDesc* cgd = reg.get_class_group(std::string("RyRImplicit"));
+		size_t numClasses = cgd->num_classes();
+		size_t i = 0;
+		for (; i < numClasses; ++i)
+		{
+			std::string classTag = cgd->get_class_tag(i);
+			if (classTag == GetDomainTag<TDomain>())
+			{
+				ExportedClass<T>* expClass = dynamic_cast<ExportedClass<T>* >(cgd->get_class(i));
+				UG_COND_THROW(!expClass, "Exported class can not be cast to the correct type.");
+
+				expClass->add_method("calculate_steady_state",
+					&T::template calculate_steady_state<typename TAlgebra::vector_type>, "", "", "");
+
+				break;
+			}
+		}
+		UG_COND_THROW(i == numClasses, "No class with domain tag '" << GetDomainTag<TDomain>()
+			<< "' found in RyRImplicit class group to add algebra-dependent functionality to.");
+
+		// same again for 1d special case
+		typedef RyRImplicit_1drotsym<TDomain> T1;
+		cgd = reg.get_class_group(std::string("RyRImplicit_1drotsym"));
+		numClasses = cgd->num_classes();
+		i = 0;
+		for (; i < numClasses; ++i)
+		{
+			std::string classTag = cgd->get_class_tag(i);
+			if (classTag == GetDomainTag<TDomain>())
+			{
+				ExportedClass<T1>* expClass = dynamic_cast<ExportedClass<T1>* >(cgd->get_class(i));
+				UG_COND_THROW(!expClass, "Exported class can not be cast to the correct type.");
+
+				expClass->add_method("calculate_steady_state",
+					&T1::template calculate_steady_state<typename TAlgebra::vector_type>, "", "", "");
+
+				break;
+			}
+		}
+		UG_COND_THROW(i == numClasses, "No class with domain tag '" << GetDomainTag<TDomain>()
+			<< "' found in RyRImplicit_1drotsym class group to add algebra-dependent functionality to.");
+	}
 }
 
 /**
@@ -269,6 +317,44 @@ static void Domain(Registry& reg, string grp)
 				 "subsets vector, approximation space")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "RyR2", tag);
+	}
+
+	// fully implicit RyR
+	{
+		typedef RyRImplicit<TDomain> T;
+		typedef IMembraneTransporter TBase1;
+		typedef IElemDisc<TDomain> TBase2;
+		std::string name = std::string("RyRImplicit").append(suffix);
+		reg.add_class_<T, TBase1, TBase2>(name, grp)
+			.template add_constructor<void (*)(const char*, const char*)>
+				("Functions as comma-separated string with the order: "
+				 "{\"cytosolic calcium\", \"endoplasmic calcium\", \"O2 channel state\", \"C1 channel state\", \"C2 channel state\"} # "
+				 "subsets as comma-separated string")
+			.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&)>
+				("Function vector with the order: "
+				 "{\"cytosolic calcium\", \"endoplasmic calcium\", \"O2 channel state\", \"C1 channel state\", \"C2 channel state\"} # "
+				 "subsets vector,")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "RyRImplicit", tag);
+	}
+
+	// fully implicit RyR (special case 1d, rotationally symmetric "cable")
+	{
+		typedef RyRImplicit_1drotsym<TDomain> T;
+		typedef IElemDisc<TDomain> TBase;
+		std::string name = std::string("RyRImplicit_1drotsym").append(suffix);
+		reg.add_class_<T, TBase>(name, grp)
+			.template add_constructor<void (*)(const char*, const char*)>
+				("Functions as comma-separated string with the order: "
+				 "{\"cytosolic calcium\", \"endoplasmic calcium\", \"O2 channel state\", \"C1 channel state\", \"C2 channel state\"} # "
+				 "subsets as comma-separated string")
+			.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&)>
+				("Function vector with the order: "
+				 "{\"cytosolic calcium\", \"endoplasmic calcium\", \"O2 channel state\", \"C1 channel state\", \"C2 channel state\"} # "
+				 "subsets vector,")
+			.add_method("set_calcium_scale", &T::set_calcium_scale, "", "cytosolic calcium scale", "")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "RyRImplicit_1drotsym", tag);
 	}
 
 	// VDCC base type
