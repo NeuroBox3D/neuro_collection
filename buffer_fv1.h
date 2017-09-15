@@ -135,6 +135,17 @@ class BufferFV1
         	SmartPtr<CplUserData<number, dim> > k2
 		);
 
+#ifdef UG_FOR_LUA
+        /// add a reaction (with strings for binding constant functions)
+        void add_reaction
+		(
+			const char* fct1, const char* fct2,
+			number tbc,
+        	const char* k1,
+        	const char* k2
+		);
+#endif
+
         /// add a reaction (with constants)
         void add_reaction(const char* fct1, const char* fct2, number tbc, number k1, number k2);
 

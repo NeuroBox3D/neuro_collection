@@ -169,6 +169,16 @@ static void Domain(Registry& reg, string grp)
 				  "association rate | default | value=27.0e06D # "
 				  "dissociation rate | default | value=19.0D",
 				  "add a new reaction definition")
+#ifdef UG_FOR_LUA
+			.add_method("add_reaction", static_cast<void (T::*)
+				 (const char*, const char*, number, const char*, const char*)>(&T::add_reaction), "",
+				  "buffering substance | selection | value=[\"clb\"] # "
+				  "buffered substance | selection | value=[\"ca_cyt\"] # "
+				  "total buffer | default |	value=160.0e-6D # "
+				  "association rate | default | value=27.0e06D # "
+				  "dissociation rate | default | value=19.0D",
+				  "add a new reaction definition")
+#endif
 			.add_method("add_reaction", static_cast<void (T::*)
 				(const char*, const char*, SmartPtr<CplUserData<number, dim> >,
 				 SmartPtr<CplUserData<number, dim> >, SmartPtr<CplUserData<number, dim> >)>(&T::add_reaction), "",

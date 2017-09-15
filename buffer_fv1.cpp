@@ -124,6 +124,20 @@ add_reaction(const char* fct1, const char* fct2,
 }
 
 
+#ifdef UG_FOR_LUA
+template<typename TDomain>
+void
+BufferFV1<TDomain>::
+add_reaction(const char* fct1, const char* fct2, number tbc, const char* k1, const char* k2)
+{
+	add_reaction(fct1, fct2,
+				 make_sp(new ConstUserNumber<dim>(tbc)),
+				 LuaUserDataFactory<number,dim>::create(k1),
+				 LuaUserDataFactory<number,dim>::create(k2));
+}
+#endif
+
+
 template<typename TDomain>
 void
 BufferFV1<TDomain>::
