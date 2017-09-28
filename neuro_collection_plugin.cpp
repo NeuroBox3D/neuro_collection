@@ -56,6 +56,7 @@
 //#include "test/test_neurite_proj.h"
 
 #include "util/measurement.h"
+#include "util/ca_wave_util.h"
 #include "lib_disc/function_spaces/grid_function.h"
 
 
@@ -101,6 +102,17 @@ static void DomainAlgebra(Registry& reg, string grp)
 	reg.add_function("take_measurement", static_cast<number (*)(SmartPtr<TGridFunction>, const number, const char*, const char*, const char*)>(&takeMeasurement<GridFunction<TDomain, TAlgebra> >), grp.c_str(),
 					 "", "solution#time#subset names#function names#output file name",
 					 "outputs average values of unknowns on subsets");
+
+	// calcium wave examination functions
+	reg.add_function("max_ryr_flux_density", &maxRyRFluxDensity<TGridFunction>, grp.c_str(),
+					 "", "solution # function names for ca_cyt, ca_er, c1, c2 as c-style string #"
+						 "RyR-carrying membrane subset names as c-style string # RyR channel",
+					 "maximal flux density through RyR channel (mol/(m^2*s))");
+	reg.add_function("wave_front_x", &waveFrontX<TGridFunction>, grp.c_str(),
+					 "", "solution # function names for c1, c2 as c-style string #"
+						 "RyR-carrying membrane subset names as c-style string # threshold open probability",
+					 "rightmost vertex where threshold value is exceeded");
+
 
 #ifdef NC_WITH_CABLENEURON
 	// HybridSynapseCurrentAssembler
