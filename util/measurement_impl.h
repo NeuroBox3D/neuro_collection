@@ -206,11 +206,11 @@ number takeMeasurement
 					= make_sp(new StdFuncIntegrand<TGridFunction>(solution, fctGrp[fi]));
 
 				if (dim == worldDim)
-					value = IntegrateSubset<TGridFunction, worldDim>(spIntegrand, solution, ssGrp[si], 1, "best");
+					value = IntegrateSubset<TGridFunction, worldDim>(*spIntegrand, *solution, ssGrp[si], 1, "best");
 				else if (dim == worldDim-1 && worldDim > 1)
-					value = IntegrateSubset<TGridFunction, (worldDim>1 ? worldDim-1 : 1)>(spIntegrand, solution, ssGrp[si], 1, "best");
+					value = IntegrateSubset<TGridFunction, (worldDim>1 ? worldDim-1 : 1)>(*spIntegrand, *solution, ssGrp[si], 1, "best");
 				else if (dim == worldDim-2 && worldDim > 2)
-					value = IntegrateSubset<TGridFunction, (worldDim>2 ? worldDim-2 : 1)>(spIntegrand, solution, ssGrp[si], 1, "best");
+					value = IntegrateSubset<TGridFunction, (worldDim>2 ? worldDim-2 : 1)>(*spIntegrand, *solution, ssGrp[si], 1, "best");
 				else {UG_THROW("Unknown dim (" << dim << ") or worldDim (" << worldDim << ").");}
 			}
 		#ifdef UG_PARALLEL
