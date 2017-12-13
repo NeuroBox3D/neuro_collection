@@ -87,22 +87,23 @@ class UserFluxBoundaryFV1
 		/// calculates the flux density
 		bool fluxDensityFct(const std::vector<LocalVector::value_type>& u, GridObject* e, const MathVector<dim>& coords, int si, FluxCond& fc)
 		{
-			if (u.size() != 1)
-			{
-				UG_LOG( "ERROR in 'FV1UserFluxBoundary:fluxDensityFct':"
-						" LocalVector u does not have " << u.size() <<
-						" functions, but needs exactly 1.");
-				return false;
-			}
-
 			number fluxDensity;
 			if (this->m_fluxFct.valid())
 				(*this->m_fluxFct)(fluxDensity, coords, this->time(), si);
 			else fluxDensity = 0.0;
 
-			fc.flux.resize(1, 0.0);	fc.flux[0] = fluxDensity;
-			fc.to.resize(1);		fc.to[0] = 0;
-			fc.from.resize(1);		fc.from[0] = InnerBoundaryConstants::_IGNORE_;
+			fc.flux.resize(1, 0.0);
+			fc.flux[0] = fluxDensity;
+
+			fc.to.resize(1);
+			fc.to[0] = 0;
+
+			// if a source is given, then use it; otherwise don't
+			fc.from.resize(1);
+			if (this->m_vFct.size() > 1)
+				fc.from[0] = 1;
+			else
+				fc.from[0] = InnerBoundaryConstants::_IGNORE_;
 
 			return true;
 		}
