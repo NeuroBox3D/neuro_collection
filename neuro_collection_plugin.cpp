@@ -755,6 +755,7 @@ static void Common(Registry& reg, string grp)
                          "Generates a drosophila NMJ bouton volume grid.");
 	}
 
+#ifndef UG_FOR_VRL
 	// test neurite projector
 	{
 		reg.add_function("test_smoothing", &test_smoothing, "", "", "");
@@ -764,6 +765,7 @@ static void Common(Registry& reg, string grp)
 		//reg.add_function("apply_neurite_projector", &apply_neurite_projector, "", "multigrid, neurite projector", "");
 		reg.add_function("test_cylinder_volume_projector", &test_cylinder_volume_projector, "", "", "");
 	}
+#endif
 }
 
 }; // end Functionality
