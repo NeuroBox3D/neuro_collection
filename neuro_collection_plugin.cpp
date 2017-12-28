@@ -778,7 +778,7 @@ InitUGPlugin_neuro_collection(Registry* reg, string grp)
 	GlobalAttachments::declare_attachment<ANumber>("diameter");
 	typedef Attachment<NeuriteProjector::SurfaceParams> NPSurfParam;
 	GlobalAttachments::declare_attachment<NPSurfParam>("npSurfParams", true);
-/*
+
 	// most (if not all) algebra-dependent code is only meant for non-blocked algebras
 	typedef boost::mpl::list
 	<
@@ -787,13 +787,13 @@ InitUGPlugin_neuro_collection(Registry* reg, string grp)
 		#endif
 		end_boost_list
 	> MyCompileAlgebraList;
-*/
+
 	try{
 		RegisterCommon<Functionality>(*reg,grp);
 		//RegisterDimensionDependent<Functionality>(*reg,grp);
 		RegisterDomainDependent<Functionality>(*reg,grp);
 		//RegisterAlgebraDependent<Functionality>(*reg,grp);
-		RegisterDomainAlgebraDependent<Functionality, CompileDomainList, CompileAlgebraList>(*reg,grp);
+		RegisterDomainAlgebraDependent<Functionality, CompileDomainList, MyCompileAlgebraList>(*reg,grp);
 		//RegisterDomainAlgebraDependent<Functionality>(*reg,grp);
 	}
 	UG_REGISTRY_CATCH_THROW(grp);
