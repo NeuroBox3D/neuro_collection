@@ -109,21 +109,8 @@ number ActionPotentialTrain::membrane_potential(number time)
 
 number ActionPotentialTrain::global_to_local_AP_time(number time)
 {
-//	convert time from s into ms
-	number time_in_ms = time * 1e3;
-	number AP_duration_in_ms = m_AP_duration * 1e3;
-
-//	temporary calculation in ms
-	int t_int = static_cast<int>(time_in_ms);
-	int AP_dur_int = static_cast<int>(AP_duration_in_ms);
-	number t_rest = time_in_ms - t_int;
-	int t_int_in_AP_interval = t_int % AP_dur_int;
-	number t_in_AP_interval = t_int_in_AP_interval + t_rest;
-	
-//	reconversion into s
-	t_in_AP_interval *= 1e-3;
-
-	return t_in_AP_interval;
+	int nCompletedAPs = time / m_AP_duration;
+	return time - m_AP_duration * nCompletedAPs;
 }
 
 
