@@ -59,6 +59,7 @@
 
 #include "util/measurement.h"
 #include "util/ca_wave_util.h"
+#include "util/misc_util.h"
 #include "lib_disc/function_spaces/grid_function.h"
 
 
@@ -115,6 +116,13 @@ static void DomainAlgebra(Registry& reg, string grp)
 						 "RyR-carrying membrane subset names as c-style string # threshold open probability",
 					 "rightmost vertex where threshold value is exceeded");
 
+	// scaling of dimless solution vectors
+	{
+		reg.add_function("scale_dimless_vector", &scale_dimless_vector<TGridFunction>,
+			grp.c_str(), "", "scaled output vector#dimless input vector#vector of scaling factors for each function",
+			"Scales the dimensionless input vector using the given scaling factors for each function and writes "
+			"the result to the output vector");
+	}
 
 #ifdef NC_WITH_CABLENEURON
 	// HybridSynapseCurrentAssembler
