@@ -40,8 +40,8 @@ class SERCA : public IMembraneTransporter
     
 
     protected:
-		const number VS;			// maxmimal transport power per pump (divided by [ca_ER])
-		const number KS;			// concentration at which halfmaximal pumping occurs
+		const number VS;			// maximal transport power per pump (divided by [ca_ER])
+		const number KS;			// concentration at which half-maximal pumping occurs
 
 	public:
 		/// @copydoc IMembraneTransporter::IMembraneTransporter(const std::vector<std::string)
