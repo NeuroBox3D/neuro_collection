@@ -6,6 +6,7 @@
  */
 
 #include "test_neurite_proj.h"
+#include "lib_grid/refinement/projectors/projection_handler.h"
 #include "lib_grid/refinement/projectors/cylinder_volume_projector.h"
 #include "lib_grid/refinement/projectors/neurite_projector.h"
 #include "lib_grid/file_io/file_io_ugx.h"  // GridWriterUGX
@@ -41,7 +42,8 @@ namespace neuro_collection {
 void import_swc
 (
     const std::string& fileName,
-    std::vector<SWCPoint>& vPointsOut
+    std::vector<SWCPoint>& vPointsOut,
+    bool correct
 )
 {
     vPointsOut.clear();
@@ -125,6 +127,24 @@ void import_swc
 
         // increase current point index
         ++curInd;
+    }
+
+    if (correct) {
+    	for (int conn = 0; conn < curInd; conn++) {
+      		size_t parentId = indexMap[conn];
+      		swc_type type = vPointsOut[parentId].type;
+       		if ((type != SWC_SOMA) && (type != SWC_UNDF)) {
+       			if (vPointsOut[parentId].conns.size() == 3) { /// branch
+       				std::cout << "Correcting branch no: " << conn << std::endl;
+       				ug::vector3& p1 = vPointsOut[vPointsOut[parentId].conns[0]].coords;
+       				ug::vector3& p2 = vPointsOut[vPointsOut[parentId].conns[1]].coords;
+       				vPointsOut[parentId].coords = ug::vector3(p1[0]/2+p2[0]/2, p2[1]/2+p1[1]/2, p1[2]/2+p2[2]/2);
+       			} else {
+       				/// TODO: generalize to n branches: can be calculated exactly if the n points lie in a plane
+       				UG_WARNING("More than two (2) branches encounetered and this is not yet supported.")
+       			}
+       		}
+       	}
     }
 }
 
@@ -417,7 +437,7 @@ void convert_pointlist_to_neuritelist
     vRootNeuriteIndsOut.clear();
 
     // TODO: we suppose we only have one cell here
-    // find soma
+    // find soma: index i
     size_t nPts = vPoints.size();
     size_t i = 0;
     for (; i < nPts; ++i)
@@ -432,6 +452,7 @@ void convert_pointlist_to_neuritelist
     std::vector<std::pair<size_t, size_t> > rootPts;
     std::queue<std::pair<size_t, size_t> > soma_queue;
     soma_queue.push(std::make_pair((size_t)-1,i));
+    std::vector<std::pair<size_t, size_t> > somaPts;
     while (!soma_queue.empty())
     {
         size_t pind = soma_queue.front().first;
@@ -439,20 +460,35 @@ void convert_pointlist_to_neuritelist
         soma_queue.pop();
 
         const SWCPoint& pt = vPoints[ind];
-        if (pt.type == SWC_SOMA)
-        {
+
+        if (pt.type == SWC_SOMA) {
             size_t nConn = pt.conns.size();
             for (size_t i = 0; i < nConn; ++i)
-                if (pt.conns[i] != pind)
+                if (pt.conns[i] != pind) {
                     soma_queue.push(std::make_pair(ind, pt.conns[i]));
+                    somaPts.push_back(std::make_pair(ind, pt.conns[i]));
+                }
+        } else {
+        	rootPts.push_back(std::make_pair(pind, ind));
         }
-        else
-            rootPts.push_back(std::make_pair(pind, ind));
+    }
+    /// TODO: use soma queue to process soma: could consider as separate neurite? and add all connections to some as points
+    for (size_t i = 0; i < somaPts.size(); ++i) {
+    	UG_LOGN("from: " << somaPts[i].first << " to: " << somaPts[i].second << std::endl);
+    	/// TODO: Need to add connections? And need to remove from other neurites these points (before soma these points have been processed by other neurites)
+    	UG_LOGN("point (from): " << vPoints[somaPts[i].first].coords << std::endl);
+    	UG_LOGN("point (to):" << vPoints[somaPts[i].second].coords << std::endl);
+    	UG_LOGN("nConn (first): " << vPoints[somaPts[i].first].conns.size());
+    	UG_LOGN("nConn (second): " << vPoints[somaPts[i].second].conns.size());
+    	///rootPts.push_back(std::make_pair(somaPts[i].first, somaPts[i].second));
     }
 
-    vPosOut.resize(rootPts.size());
-    vRadOut.resize(rootPts.size());
-    vBPInfoOut.resize(rootPts.size());
+    UG_LOGN("Number of soma points: " << somaPts.size() << std::endl);
+
+    /// note: +1 for soma "neurite"
+    vPosOut.resize(rootPts.size()+1);
+    vRadOut.resize(rootPts.size()+1);
+    vBPInfoOut.resize(rootPts.size()+1);
 
     std::stack<std::pair<size_t, size_t> > processing_stack;
     for (size_t i = 0; i < rootPts.size(); ++i)
@@ -574,8 +610,6 @@ void convert_pointlist_to_neuritelist
                     vRootNeuriteIndsOut.push_back(curNeuriteInd);
                 }
             }
-
-
         }
 
         // normal point
@@ -587,6 +621,21 @@ void convert_pointlist_to_neuritelist
                     processing_stack.push(std::make_pair(ind, pt.conns[i]));
             }
         }
+    }
+
+    /// add the soma manually (only soma root) -> need to add all points of somaPts potentially!
+    ++curNeuriteInd;
+    vPosOut[curNeuriteInd].push_back(vPoints[somaPts[0].first].coords);
+    vRadOut[curNeuriteInd].push_back(vPoints[somaPts[0].first].radius);
+    for (size_t i = 0; i < somaPts.size()-1; ++i) {
+    	ug::vector3 coords = vPoints[somaPts[i].second].coords;
+    	vPosOut[curNeuriteInd].push_back(vPoints[somaPts[i+1].second].coords);
+    	vRadOut[curNeuriteInd].push_back(vPoints[somaPts[i+1].second].radius);
+    }
+
+    /// debug output
+    for (size_t i = 0; i < vPosOut[curNeuriteInd].size(); ++i) {
+    	UG_LOGN("Coords for soma: " << vPosOut[curNeuriteInd][i]);
     }
 }
 
@@ -616,6 +665,7 @@ static void create_spline_data_for_neurites
         const std::vector<vector3>& pos = vPos[n];
         std::vector<number> r = vR[n];
         std::vector<std::pair<size_t, std::vector<size_t> > >* bpInfo = NULL;
+
         if (vBPInfo)
              bpInfo = &((*vBPInfo)[n]);
 
@@ -1632,7 +1682,7 @@ void swc_points_to_grid
 void test_smoothing(const std::string& fileName, size_t n, number h, number gamma)
 {
 	std::vector<SWCPoint> vPoints;
-	import_swc(fileName, vPoints);
+	import_swc(fileName, vPoints, false);
 
 	// export original cell to ugx
 	Grid g;
@@ -1663,7 +1713,7 @@ void test_smoothing(const std::string& fileName, size_t n, number h, number gamm
 }
 
 
-void test_import_swc(const std::string& fileName)
+void test_import_swc(const std::string& fileName, bool correct)
 {
 	// preconditioning
     test_smoothing(fileName, 5, 1.0, 1.0);
@@ -1672,7 +1722,7 @@ void test_import_swc(const std::string& fileName)
     std::vector<SWCPoint> vPoints;
     std::string fn_noext = FilenameWithoutExtension(fileName);
     std::string fn_precond = fn_noext + "_precond.swc";
-    import_swc(fn_precond, vPoints);
+    import_swc(fn_precond, vPoints, correct);
 
     // convert intermediate structure to neurite data
     std::vector<std::vector<vector3> > vPos;
