@@ -117,6 +117,21 @@ static void DomainAlgebra(Registry& reg, string grp)
 						 "RyR-carrying membrane subset names as c-style string # threshold open probability",
 					 "rightmost vertex where threshold value is exceeded");
 
+	// WaveProfileExporter
+	{
+		typedef WaveProfileExporter<TDomain, TAlgebra> T;
+		string name = string("WaveProfileExporter").append(suffix);
+		reg.add_class_<T>(name, grp)
+			.template add_constructor<void (*)(SmartPtr<ApproximationSpace<TDomain> >,
+				const char*, const char*, const std::string&)>
+				("approximation space # function names (comma-separated c-string) # "
+					"subset names (comma-separated c-string) # file base name")
+			.add_method("exportWaveProfileX", &T::exportWaveProfileX, "", "", "")
+			.set_construct_as_smart_pointer(true);
+
+		reg.add_class_to_group(name, "WaveProfileExporter", tag);
+	}
+
 	// scaling of dimless solution vectors
 	{
 		reg.add_function("scale_dimless_vector", &scale_dimless_vector<TGridFunction>,

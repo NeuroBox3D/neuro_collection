@@ -60,18 +60,73 @@ number maxRyRFluxDensity
  *
  * @param u             solution grid function
  * @param fctNames      names for functions c1, c2 (in this order)
- * @param subsetNames   names of all ER membrane subsets with RyR channels
+ * @param subsetName    name of ER membrane subset with RyR channels
  * @param thresh        threshold value of (1-(c1+c2))
  * @return              rightmost vertex where threshold value is exceeded
  */
 template <typename TGridFunction>
 number waveFrontX
 (
-	ConstSmartPtr<TGridFunction> u,
+	SmartPtr<TGridFunction> u,
 	const char* fctNames,
-	const char* subsetNames,
+	const char* subsetName,
 	number thresh
 );
+
+/**
+ * @brief Export solution on 1d subset, sorted by x coordinate.
+ *
+ * Processors must hold contiguous (in direction of x) parts of the subsets
+ * being processed (otherwise, the export order will be screwed up).
+ *
+ * @param u              solution grid function
+ * @param fctNames       name for function profiles to be exported
+ * @param subsetNames    names of subsets to export profiles for
+ * @param fileBaseName   base name of output files
+ * @param time           point in time
+ */
+template <typename TDomain, typename TAlgebra>
+class WaveProfileExporter
+{
+	public:
+		typedef GridFunction<TDomain, TAlgebra> gf_type;
+
+	public:
+		WaveProfileExporter
+		(
+			SmartPtr<ApproximationSpace<TDomain> > approxSpace,
+			const char* fctNames,
+			const char* subsetNames,
+			const std::string& fileBaseName
+		);
+
+		void exportWaveProfileX(ConstSmartPtr<gf_type> u, number time);
+
+	private:
+		struct CmpVrtPos
+		{
+			public:
+				CmpVrtPos(const std::vector<number>& vPos)
+				: pvPos(vPos) {}
+
+				bool operator()(const size_t& a, const size_t& b)
+				{
+					return pvPos[a] < pvPos[b];
+				}
+
+			private:
+				const std::vector<number>& pvPos;
+		};
+
+	private:
+		SmartPtr<ApproximationSpace<TDomain> > m_spApprox;
+		std::vector<std::string> m_vFct;
+		std::vector<std::string> m_vSs;
+		const std::string m_fileName;
+
+		std::vector<std::vector<std::vector<DoFIndex> > > m_vvvDoFSeries;
+		std::vector<std::vector<number> > m_vvXPos;
+};
 
 
 ///@}
