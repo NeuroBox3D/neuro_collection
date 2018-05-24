@@ -51,6 +51,7 @@
 
 #include "membrane_transporters/mcu.h"
 #include "membrane_transporters/mncx.h"
+#include "membrane_transporters/nmdar.h"
 #include "stimulation/action_potential_train.h"
 #include "grid_generation/bouton_generator/bouton_generator.h"
 
@@ -735,6 +736,23 @@ static void Common(Registry& reg, string grp)
 			.add_method("set_psi", &T::set_psi,
 						"Sets mitochondrial membrane potential.")
 			.add_method("get_flux", &T::get_flux, "Debug method.")
+			.set_construct_as_smart_pointer(true);
+	}
+	{
+		typedef NMDAR T;
+		typedef IMembraneTransporter TBase;
+		std::string name = std::string("NMDAR");
+		reg.add_class_<T, TBase>(name, grp)
+			.add_constructor<void (*)(const char*)>
+				("Functions as comma-separated string with the following order: "
+				"extracellular calcium, intracellular calcium")
+			.add_constructor<void (*)(const std::vector<std::string>&)>
+				("Function vector with the following order: {extracellular calcium, intracellular calcium}")
+			.add_method("set_activation_time", &T::set_activation_time, "", "", "")
+			.add_method("set_decay_time", &T::set_decay_time, "", "", "")
+			.add_method("set_permeability", &T::set_permeability, "", "", "")
+			.add_method("set_membrane_potential", &T::set_membrane_potential, "", "", "")
+			.add_method("set_temperature", &T::set_temperature, "", "", "")
 			.set_construct_as_smart_pointer(true);
 	}
 	{
