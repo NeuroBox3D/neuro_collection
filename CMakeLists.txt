@@ -38,12 +38,12 @@ set(SOURCES neuro_collection_plugin.cpp
    )
 
 ## add experimental neurite projector impl (but not in VRL)   
-#if (NOT buildForVRL)
-#	set(SOURCES ${SOURCES}
-#			   test/test_neurite_proj.cpp
-#			   test/neurite_refMarkAdjuster.cpp
-#      )
-#endif (NOT buildForVRL)
+if (NOT buildForVRL)
+	set(SOURCES ${SOURCES}
+			   test/test_neurite_proj.cpp
+			   test/neurite_refMarkAdjuster.cpp
+       )
+endif (NOT buildForVRL)
 
 
 ##message(STATUS "")
