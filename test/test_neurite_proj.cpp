@@ -472,15 +472,14 @@ void convert_pointlist_to_neuritelist
         	rootPts.push_back(std::make_pair(pind, ind));
         }
     }
-    /// TODO: use soma queue to process soma: could consider as separate neurite? and add all connections to some as points
+
+    /// debug. use soma queue to process soma: could consider as separate neurite? and add all connections to some as points
     for (size_t i = 0; i < somaPts.size(); ++i) {
     	UG_LOGN("from: " << somaPts[i].first << " to: " << somaPts[i].second << std::endl);
-    	/// TODO: Need to add connections? And need to remove from other neurites these points (before soma these points have been processed by other neurites)
     	UG_LOGN("point (from): " << vPoints[somaPts[i].first].coords << std::endl);
     	UG_LOGN("point (to):" << vPoints[somaPts[i].second].coords << std::endl);
     	UG_LOGN("nConn (first): " << vPoints[somaPts[i].first].conns.size());
     	UG_LOGN("nConn (second): " << vPoints[somaPts[i].second].conns.size());
-    	///rootPts.push_back(std::make_pair(somaPts[i].first, somaPts[i].second));
     }
 
     UG_LOGN("Number of soma points: " << somaPts.size() << std::endl);
@@ -495,7 +494,6 @@ void convert_pointlist_to_neuritelist
         processing_stack.push(rootPts[i]);
 
     size_t curNeuriteInd = 0;
-
     vRootNeuriteIndsOut.push_back(0);
 
     // helper map to be used to correctly save BPs:
@@ -624,18 +622,21 @@ void convert_pointlist_to_neuritelist
     }
 
     /// add the soma manually (only soma root) -> need to add all points of somaPts potentially!
-    ++curNeuriteInd;
-    vPosOut[curNeuriteInd].push_back(vPoints[somaPts[0].first].coords);
-    vRadOut[curNeuriteInd].push_back(vPoints[somaPts[0].first].radius);
-    for (size_t i = 0; i < somaPts.size()-1; ++i) {
-    	ug::vector3 coords = vPoints[somaPts[i].second].coords;
-    	vPosOut[curNeuriteInd].push_back(vPoints[somaPts[i+1].second].coords);
-    	vRadOut[curNeuriteInd].push_back(vPoints[somaPts[i+1].second].radius);
-    }
+    bool bAddSomaManually = true;
+    if (bAddSomaManually) {
+            ++curNeuriteInd;
+            vPosOut[curNeuriteInd].push_back(vPoints[somaPts[0].first].coords);
+            vRadOut[curNeuriteInd].push_back(vPoints[somaPts[0].first].radius);
+            for (size_t i = 0; i < somaPts.size()-1; ++i) {
+                    //ug::vector3 coords = vPoints[somaPts[i].second].coords;
+                    vPosOut[curNeuriteInd].push_back(vPoints[somaPts[i+1].second].coords);
+                    vRadOut[curNeuriteInd].push_back(vPoints[somaPts[i+1].second].radius);
+            }
 
-    /// debug output
-    for (size_t i = 0; i < vPosOut[curNeuriteInd].size(); ++i) {
-    	UG_LOGN("Coords for soma: " << vPosOut[curNeuriteInd][i]);
+            /// debug output
+            for (size_t i = 0; i < vPosOut[curNeuriteInd].size(); ++i) {
+                    UG_LOGN("Coords for soma: " << vPosOut[curNeuriteInd][i]);
+            }
     }
 }
 
@@ -678,6 +679,7 @@ static void create_spline_data_for_neurites
         {
             tSuppPos[i] = totalLength;
             totalLength += VecDistance(pos[i], pos[i+1]);
+            UG_LOGN("Position: " << pos[i]);
         }
         for (size_t i = 0; i < nVrt-1; ++i)
             tSuppPos[i] /= totalLength;
@@ -853,6 +855,7 @@ static void create_spline_data_for_neurites
 
             neuriteOut.vSec.push_back(sec);
         }
+    UG_LOGN("sections: " << neuriteOut.vSec.size());
     }
 
 /*
