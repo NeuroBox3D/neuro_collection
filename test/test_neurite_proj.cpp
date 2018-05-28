@@ -140,8 +140,8 @@ void import_swc
        				ug::vector3& p2 = vPointsOut[vPointsOut[parentId].conns[1]].coords;
        				vPointsOut[parentId].coords = ug::vector3(p1[0]/2+p2[0]/2, p2[1]/2+p1[1]/2, p1[2]/2+p2[2]/2);
        			} else {
-       				/// TODO: generalize to n branches: can be calculated exactly if the n points lie in a plane
-       				UG_WARNING("More than two (2) branches encounetered and this is not yet supported.")
+       				/// Note: Generalize to n-branches
+       				UG_THROW("More than two branches detected. Current implementation does not support this.")
        			}
        		}
        	}
@@ -440,26 +440,25 @@ void convert_pointlist_to_neuritelist
     size_t nPts = vPoints.size();
     size_t i = 0;
     int firstSoma = -1;
-    size_t somaCount = 0;
+    size_t numSomatas = 0;
     for (; i < nPts; ++i) {
         if (vPoints[i].type == SWC_SOMA) {
-        	if (somaCount == -1) {
+        	if (firstSoma == -1) {
         		firstSoma = i;
         	}
-            somaCount++;
+        	numSomatas++;
         }
     }
 
     i = firstSoma;
     UG_COND_THROW(i == nPts, "No soma contained in swc point list.")
-    UG_COND_THROW(somaCount > 1, "Too many somatas contained in swc point list.")
+    UG_COND_THROW(numSomatas > 1, "Too many somatas contained in swc point list.")
 
-    // TODO: process soma somehow; here, they are simply ignored
     // collect neurite root points
     std::vector<std::pair<size_t, size_t> > rootPts;
+    std::vector<std::pair<size_t, size_t> > soma_candidates;
     std::queue<std::pair<size_t, size_t> > soma_queue;
     soma_queue.push(std::make_pair((size_t)-1,i));
-    std::vector<std::pair<size_t, size_t> > somaPts;
     while (!soma_queue.empty())
     {
         size_t pind = soma_queue.front().first;
@@ -473,28 +472,18 @@ void convert_pointlist_to_neuritelist
             for (size_t i = 0; i < nConn; ++i)
                 if (pt.conns[i] != pind) {
                     soma_queue.push(std::make_pair(ind, pt.conns[i]));
-                    somaPts.push_back(std::make_pair(ind, pt.conns[i]));
+                    soma_candidates.push_back(std::make_pair(ind, pt.conns[i]));
                 }
         } else {
         	rootPts.push_back(std::make_pair(pind, ind));
         }
     }
 
-    /// debug: use soma queue to process soma: could consider as separate neurite? and add all connections to some as points
-    for (size_t i = 0; i < somaPts.size(); ++i) {
-    	UG_LOGN("from: " << somaPts[i].first << " to: " << somaPts[i].second << std::endl);
-    	UG_LOGN("point (from): " << vPoints[somaPts[i].first].coords << std::endl);
-    	UG_LOGN("point (to):" << vPoints[somaPts[i].second].coords << std::endl);
-    	UG_LOGN("nConn (first): " << vPoints[somaPts[i].first].conns.size());
-    	UG_LOGN("nConn (second): " << vPoints[somaPts[i].second].conns.size());
-    }
+    std::vector<SWCPoint> somaPts;
 
-    UG_LOGN("Number of soma points: " << somaPts.size() << std::endl);
-
-    /// note: +1 for soma "neurite"
-    vPosOut.resize(rootPts.size()+1);
-    vRadOut.resize(rootPts.size()+1);
-    vBPInfoOut.resize(rootPts.size()+1);
+    vPosOut.resize(rootPts.size()+numSomatas);
+    vRadOut.resize(rootPts.size()+numSomatas);
+    vBPInfoOut.resize(rootPts.size()+numSomatas);
 
     std::stack<std::pair<size_t, size_t> > processing_stack;
     for (size_t i = 0; i < rootPts.size(); ++i)
@@ -627,24 +616,6 @@ void convert_pointlist_to_neuritelist
             }
         }
     }
-
-    /// add the soma manually (only soma root) -> need to add all points of somaPts potentially!
-    bool bAddSomaManually = true;
-    if (bAddSomaManually) {
-            ++curNeuriteInd;
-            vPosOut[curNeuriteInd].push_back(vPoints[somaPts[0].first].coords);
-            vRadOut[curNeuriteInd].push_back(vPoints[somaPts[0].first].radius);
-            for (size_t i = 0; i < somaPts.size()-1; ++i) {
-                    //ug::vector3 coords = vPoints[somaPts[i].second].coords;
-                    vPosOut[curNeuriteInd].push_back(vPoints[somaPts[i+1].second].coords);
-                    vRadOut[curNeuriteInd].push_back(vPoints[somaPts[i+1].second].radius);
-            }
-
-            /// debug output
-            for (size_t i = 0; i < vPosOut[curNeuriteInd].size(); ++i) {
-                    UG_LOGN("Coords for soma: " << vPosOut[curNeuriteInd][i]);
-            }
-    }
 }
 
 
@@ -686,7 +657,6 @@ static void create_spline_data_for_neurites
         {
             tSuppPos[i] = totalLength;
             totalLength += VecDistance(pos[i], pos[i+1]);
-            UG_LOGN("Position: " << pos[i]);
         }
         for (size_t i = 0; i < nVrt-1; ++i)
             tSuppPos[i] /= totalLength;
@@ -862,7 +832,6 @@ static void create_spline_data_for_neurites
 
             neuriteOut.vSec.push_back(sec);
         }
-    UG_LOGN("sections: " << neuriteOut.vSec.size());
     }
 
 /*
@@ -1048,6 +1017,13 @@ void calculate_segment_axial_positions
 
 	// maybe write last position (should not happen, but you never know)
 	segAxPosOut[nSeg-1] = t_end;
+}
+
+static void create_soma
+(
+)
+{
+
 }
 
 
