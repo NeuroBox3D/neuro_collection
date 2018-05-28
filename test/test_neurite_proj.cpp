@@ -420,7 +420,6 @@ void collapse_short_edges(Grid& g, SubsetHandler& sh)
 }
 
 
-
 void convert_pointlist_to_neuritelist
 (
     const std::vector<SWCPoint>& vPoints,
@@ -436,7 +435,7 @@ void convert_pointlist_to_neuritelist
     vBPInfoOut.clear();
     vRootNeuriteIndsOut.clear();
 
-    // find first soma in geometry and save the index i
+    // find first soma's root point in geometry and save its index as i
     size_t nPts = vPoints.size();
     size_t i = 0;
     int firstSoma = -1;
@@ -456,9 +455,9 @@ void convert_pointlist_to_neuritelist
 
     // collect neurite root points
     std::vector<std::pair<size_t, size_t> > rootPts;
-    std::vector<std::pair<size_t, size_t> > soma_candidates;
     std::queue<std::pair<size_t, size_t> > soma_queue;
     soma_queue.push(std::make_pair((size_t)-1,i));
+    std::vector<SWCPoint> somaPts;
     while (!soma_queue.empty())
     {
         size_t pind = soma_queue.front().first;
@@ -468,22 +467,20 @@ void convert_pointlist_to_neuritelist
         const SWCPoint& pt = vPoints[ind];
 
         if (pt.type == SWC_SOMA) {
+        	somaPts.push_back(vPoints[i]);
             size_t nConn = pt.conns.size();
             for (size_t i = 0; i < nConn; ++i)
                 if (pt.conns[i] != pind) {
                     soma_queue.push(std::make_pair(ind, pt.conns[i]));
-                    soma_candidates.push_back(std::make_pair(ind, pt.conns[i]));
                 }
         } else {
         	rootPts.push_back(std::make_pair(pind, ind));
         }
     }
 
-    std::vector<SWCPoint> somaPts;
-
-    vPosOut.resize(rootPts.size()+numSomatas);
-    vRadOut.resize(rootPts.size()+numSomatas);
-    vBPInfoOut.resize(rootPts.size()+numSomatas);
+    vPosOut.resize(rootPts.size());
+    vRadOut.resize(rootPts.size());
+    vBPInfoOut.resize(rootPts.size());
 
     std::stack<std::pair<size_t, size_t> > processing_stack;
     for (size_t i = 0; i < rootPts.size(); ++i)
@@ -616,9 +613,22 @@ void convert_pointlist_to_neuritelist
             }
         }
     }
+
+    /// TODO: process soma (only one soma is valid and one soma)
+    UG_LOGN("Number of soma points: " << somaPts.size());
+    for (size_t i = 0; i < somaPts.size(); i++) {
+    	UG_LOGN("Coords for soma: " << somaPts[i].coords);
+    }
+
+    if (somaPts.size() == 1) {
+    	/// can use icosahedron impl from Sebastian
+    } else {
+    	UG_THROW("More then one soma point currently not supported by this implementation")
+    	/// might be able to use recipe from here: http://blog.andreaskahler.com/2009/06/creating-icosphere-mesh-in-code.html
+		/// or: approximate as sphere from all points we want (probably also include first vertex of each dendrite?)
+    }
+    /// need to refactor !!! => allow for separate soma processing -> spline data + grid generation
 }
-
-
 
 
 static void create_spline_data_for_neurites
@@ -1715,6 +1725,7 @@ void test_import_swc(const std::string& fileName, bool correct)
     std::vector<std::vector<number> > vRad;
     std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
     std::vector<size_t> vRootNeuriteIndsOut;
+
     convert_pointlist_to_neuritelist(vPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 
 /* debug
