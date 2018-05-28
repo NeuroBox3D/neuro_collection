@@ -436,16 +436,23 @@ void convert_pointlist_to_neuritelist
     vBPInfoOut.clear();
     vRootNeuriteIndsOut.clear();
 
-    // TODO: we suppose we only have one cell here
-    // find soma: index i
+    // find first soma in geometry and save the index i
     size_t nPts = vPoints.size();
     size_t i = 0;
-    for (; i < nPts; ++i)
-    {
-        if (vPoints[i].type == SWC_SOMA)
-            break;
+    int firstSoma = -1;
+    size_t somaCount = 0;
+    for (; i < nPts; ++i) {
+        if (vPoints[i].type == SWC_SOMA) {
+        	if (somaCount == -1) {
+        		firstSoma = i;
+        	}
+            somaCount++;
+        }
     }
-    UG_COND_THROW(i == nPts, "No soma contained in swc point list.");
+
+    i = firstSoma;
+    UG_COND_THROW(i == nPts, "No soma contained in swc point list.")
+    UG_COND_THROW(somaCount > 1, "Too many somatas contained in swc point list.")
 
     // TODO: process soma somehow; here, they are simply ignored
     // collect neurite root points
@@ -473,7 +480,7 @@ void convert_pointlist_to_neuritelist
         }
     }
 
-    /// debug. use soma queue to process soma: could consider as separate neurite? and add all connections to some as points
+    /// debug: use soma queue to process soma: could consider as separate neurite? and add all connections to some as points
     for (size_t i = 0; i < somaPts.size(); ++i) {
     	UG_LOGN("from: " << somaPts[i].first << " to: " << somaPts[i].second << std::endl);
     	UG_LOGN("point (from): " << vPoints[somaPts[i].first].coords << std::endl);
