@@ -24,6 +24,7 @@
 #include "lib_disc/function_spaces/error_elem_marking_strategy.h" // GlobalMarking
 #include "lib_grid/algorithms/element_side_util.h" // GetOpposingSide
 #include "lib_disc/quadrature/gauss_legendre/gauss_legendre.h"
+#include "lib_grid/algorithms/grid_generation/icosahedron.h" // icosahedron
 
 #include <boost/lexical_cast.hpp>
 
@@ -130,7 +131,7 @@ void import_swc
     }
 
     if (correct) {
-    	for (int conn = 0; conn < curInd; conn++) {
+    	for (size_t conn = 0; conn < curInd; conn++) {
       		size_t parentId = indexMap[conn];
       		swc_type type = vPointsOut[parentId].type;
        		if ((type != SWC_SOMA) && (type != SWC_UNDF)) {
@@ -140,7 +141,7 @@ void import_swc
        				ug::vector3& p2 = vPointsOut[vPointsOut[parentId].conns[1]].coords;
        				vPointsOut[parentId].coords = ug::vector3(p1[0]/2+p2[0]/2, p2[1]/2+p1[1]/2, p1[2]/2+p2[2]/2);
        			} else {
-       				/// Note: Generalize to n-branches
+       				/// TODO: Generalize to n-branches and debug
        				UG_THROW("More than two branches detected. Current implementation does not support this.")
        			}
        		}
@@ -423,6 +424,7 @@ void collapse_short_edges(Grid& g, SubsetHandler& sh)
 void convert_pointlist_to_neuritelist
 (
     const std::vector<SWCPoint>& vPoints,
+    std::vector<SWCPoint>& vSomaPoints,
     std::vector<std::vector<vector3> >& vPosOut,
     std::vector<std::vector<number> >& vRadOut,
     std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > >& vBPInfoOut,
@@ -457,7 +459,6 @@ void convert_pointlist_to_neuritelist
     std::vector<std::pair<size_t, size_t> > rootPts;
     std::queue<std::pair<size_t, size_t> > soma_queue;
     soma_queue.push(std::make_pair((size_t)-1,i));
-    std::vector<SWCPoint> somaPts;
     while (!soma_queue.empty())
     {
         size_t pind = soma_queue.front().first;
@@ -467,7 +468,7 @@ void convert_pointlist_to_neuritelist
         const SWCPoint& pt = vPoints[ind];
 
         if (pt.type == SWC_SOMA) {
-        	somaPts.push_back(vPoints[i]);
+        	vSomaPoints.push_back(vPoints[i]);
             size_t nConn = pt.conns.size();
             for (size_t i = 0; i < nConn; ++i)
                 if (pt.conns[i] != pind) {
@@ -614,21 +615,14 @@ void convert_pointlist_to_neuritelist
         }
     }
 
-    /// TODO: process soma (only one soma is valid and one soma)
-    UG_LOGN("Number of soma points: " << somaPts.size());
-    for (size_t i = 0; i < somaPts.size(); i++) {
-    	UG_LOGN("Coords for soma: " << somaPts[i].coords);
+    size_t numSomaPoints = vSomaPoints.size();
+    UG_LOGN("Number of soma points: " << numSomaPoints);
+    for (size_t i = 0; i < numSomaPoints; i++) {
+    	UG_LOGN("Coords for soma: " << vSomaPoints[i].coords);
     }
 
-    if (somaPts.size() == 1) {
-    	/// can use icosahedron impl from Sebastian
-    } else {
-    	UG_THROW("More then one soma point currently not supported by this implementation")
-    	/// might be able to use recipe from here: http://blog.andreaskahler.com/2009/06/creating-icosphere-mesh-in-code.html
-		/// or: approximate as sphere from all points we want (probably also include first vertex of each dendrite?)
-    }
-    /// need to refactor !!! => allow for separate soma processing -> spline data + grid generation
 }
+
 
 
 static void create_spline_data_for_neurites
@@ -1031,9 +1025,23 @@ void calculate_segment_axial_positions
 
 static void create_soma
 (
+		const std::vector<SWCPoint>& somaPts,
+		Grid& g,
+		Grid::VertexAttachmentAccessor<APosition>& aaPos
 )
 {
+	if (somaPts.size() == 1) {
+		// create soma as icosahedron
+		GenerateIcosahedron(g, somaPts[0].coords, somaPts[0].radius, aPosition);
+	} else {
+		// TODO: generalize this: can take recipe from here to geerate a deformated icosahedron:
+		// http://blog.andreaskahler.com/2009/06/creating-icosphere-mesh-in-code.html
+		UG_THROW("Currently only one soma point is allowed by this implementation.");
+	}
+}
 
+static void connect_neurites_with_soma() {
+	/// TODO: implement this
 }
 
 
@@ -1716,6 +1724,7 @@ void test_import_swc(const std::string& fileName, bool correct)
 
 	// read in file to intermediate structure
     std::vector<SWCPoint> vPoints;
+    std::vector<SWCPoint> vSomaPoints;
     std::string fn_noext = FilenameWithoutExtension(fileName);
     std::string fn_precond = fn_noext + "_precond.swc";
     import_swc(fn_precond, vPoints, correct);
@@ -1726,7 +1735,7 @@ void test_import_swc(const std::string& fileName, bool correct)
     std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
     std::vector<size_t> vRootNeuriteIndsOut;
 
-    convert_pointlist_to_neuritelist(vPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 
 /* debug
     std::cout << "BPInfo:" << std::endl;
@@ -1796,9 +1805,19 @@ void test_import_swc(const std::string& fileName, bool correct)
         g.erase(tmp);
     }
 
+    // create soma
+    sel.clear();
+    sh.set_default_subset_index(1);
+    create_soma(vSomaPoints, g, aaPos);
+    sh.set_default_subset_index(0);
+
+    // connect soma with neurites
+    connect_neurites_with_soma();
+
     // refinement
     AssignSubsetColors(sh);
-    sh.set_subset_name("surf", 0);
+    sh.set_subset_name("neurites", 0);
+    sh.set_subset_name("soma", 1);
 
     std::string outFileName = FilenameWithoutPath(std::string("testNeuriteProjector.ugx"));
     GridWriterUGX ugxWriter;
@@ -1812,15 +1831,18 @@ void test_import_swc(const std::string& fileName, bool correct)
     try {LoadDomain(dom, outFileName.c_str());}
     UG_CATCH_THROW("Failed loading domain from '" << outFileName << "'.");
 
+    std::string curFileName("testNeuriteProjector.ugx");
+    number offset=10;
+    try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
+    UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
+
     GlobalMultiGridRefiner ref(*dom.grid(), dom.refinement_projector());
     for (size_t i = 0; i < 4; ++i)
     {
         ref.refine();
-
         std::ostringstream oss;
         oss << "_refined_" << i+1 << ".ugx";
-        std::string curFileName = outFileName.substr(0, outFileName.size()-4) + oss.str();
-        number offset = 10;
+        curFileName = outFileName.substr(0, outFileName.size()-4) + oss.str();
         try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
         UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
     }
