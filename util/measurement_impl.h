@@ -182,8 +182,9 @@ number takeMeasurement
 	UG_CATCH_THROW("At least one of the functions in '" << functionNames
 					<< "' is not contained in the approximation space (or something else was wrong).");
 
-	number value = 0.;
-	number vol = 0.;
+	number value = 0.0;
+	number vol = 0.0;
+
 	// loop subsets
 	for (size_t si = 0; si < ssGrp.size(); si++)
 	{

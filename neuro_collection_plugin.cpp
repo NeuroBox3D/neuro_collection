@@ -51,11 +51,12 @@
 
 #include "membrane_transporters/mcu.h"
 #include "membrane_transporters/mncx.h"
+#include "membrane_transporters/nmdar.h"
 #include "stimulation/action_potential_train.h"
 #include "grid_generation/bouton_generator/bouton_generator.h"
 
-#include "lib_grid/refinement/projectors/neurite_projector.h"
-#include "test/test_neurite_proj.h"
+//#include "lib_grid/refinement/projectors/neurite_projector.h"
+//#include "test/test_neurite_proj.h"
 
 #include "util/measurement.h"
 #include "util/ca_wave_util.h"
@@ -115,6 +116,21 @@ static void DomainAlgebra(Registry& reg, string grp)
 					 "", "solution # function names for c1, c2 as c-style string #"
 						 "RyR-carrying membrane subset names as c-style string # threshold open probability",
 					 "rightmost vertex where threshold value is exceeded");
+
+	// WaveProfileExporter
+	{
+		typedef WaveProfileExporter<TDomain, TAlgebra> T;
+		string name = string("WaveProfileExporter").append(suffix);
+		reg.add_class_<T>(name, grp)
+			.template add_constructor<void (*)(SmartPtr<ApproximationSpace<TDomain> >,
+				const char*, const char*, const std::string&)>
+				("approximation space # function names (comma-separated c-string) # "
+					"subset names (comma-separated c-string) # file base name")
+			.add_method("exportWaveProfileX", &T::exportWaveProfileX, "", "", "")
+			.set_construct_as_smart_pointer(true);
+
+		reg.add_class_to_group(name, "WaveProfileExporter", tag);
+	}
 
 	// scaling of dimless solution vectors
 	{
@@ -738,6 +754,23 @@ static void Common(Registry& reg, string grp)
 			.set_construct_as_smart_pointer(true);
 	}
 	{
+		typedef NMDAR T;
+		typedef IMembraneTransporter TBase;
+		std::string name = std::string("NMDAR");
+		reg.add_class_<T, TBase>(name, grp)
+			.add_constructor<void (*)(const char*)>
+				("Functions as comma-separated string with the following order: "
+				"extracellular calcium, intracellular calcium")
+			.add_constructor<void (*)(const std::vector<std::string>&)>
+				("Function vector with the following order: {extracellular calcium, intracellular calcium}")
+			.add_method("set_activation_time", &T::set_activation_time, "", "", "")
+			.add_method("set_decay_time", &T::set_decay_time, "", "", "")
+			.add_method("set_permeability", &T::set_permeability, "", "", "")
+			.add_method("set_membrane_potential", &T::set_membrane_potential, "", "", "")
+			.add_method("set_temperature", &T::set_temperature, "", "", "")
+			.set_construct_as_smart_pointer(true);
+	}
+	{
 		typedef ActionPotentialTrain T;
 		std::string name = std::string("ActionPotentialTrain");
 		reg.add_class_<T>(name, grp)
@@ -755,6 +788,7 @@ static void Common(Registry& reg, string grp)
                          "Generates a drosophila NMJ bouton volume grid.");
 	}
 
+/*
 #ifndef UG_FOR_VRL
 	// test neurite projector
 	{
@@ -766,6 +800,7 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("test_cylinder_volume_projector", &test_cylinder_volume_projector, "", "", "");
 	}
 #endif
+*/
 }
 
 }; // end Functionality
@@ -786,8 +821,8 @@ InitUGPlugin_neuro_collection(Registry* reg, string grp)
 	typedef neuro_collection::Functionality Functionality;
 
 	GlobalAttachments::declare_attachment<ANumber>("diameter");
-	typedef Attachment<NeuriteProjector::SurfaceParams> NPSurfParam;
-	GlobalAttachments::declare_attachment<NPSurfParam>("npSurfParams", true);
+//	typedef Attachment<NeuriteProjector::SurfaceParams> NPSurfParam;
+//	GlobalAttachments::declare_attachment<NPSurfParam>("npSurfParams", true);
 /*
 	// most (if not all) algebra-dependent code is only meant for non-blocked algebras
 	typedef boost::mpl::list

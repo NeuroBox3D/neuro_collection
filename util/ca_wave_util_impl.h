@@ -9,9 +9,12 @@
 
 #include "common/error.h"                       // UG_THROW etc.
 #include "lib_disc/common/multi_index.h"        // DoFIndex
+#include "lib_grid/common_attachments.h"        // for aPosition2
+#include "lib_grid/algorithms/element_side_util.h"  // for GetOpposingSide
 
 #include <sstream>
 #include <vector>
+#include <algorithm>  // for std::sort
 
 
 namespace ug {
@@ -120,9 +123,9 @@ number maxRyRFluxDensity
 template <typename TGridFunction>
 number waveFrontX
 (
-	ConstSmartPtr<TGridFunction> u,
+	SmartPtr<TGridFunction> u,
 	const char* fctNames,
-	const char* subsetNames,
+	const char* subsetName,
 	number thresh
 )
 {
@@ -138,7 +141,7 @@ number waveFrontX
 	try {fctGrp = u->fct_grp_by_name(fctNames);}
 	UG_CATCH_THROW("Something went wrong during creation of function group for \n"
 		"function names '" << fctNames << "' and provided solution.");
-	UG_COND_THROW(fctGrp.size() != 2, "Function group must have exactly 5 entries.\n"
+	UG_COND_THROW(fctGrp.size() != 2, "Function group must have exactly 2 entries.\n"
 		"Make sure you provided exactly 2 function names in the following order:\n"
 		"c1, c2.");
 
@@ -147,53 +150,91 @@ number waveFrontX
 
 	// get subset indices via SubsetGroup
 	SubsetGroup ssGrp;
-	try {ssGrp = u->subset_grp_by_name(subsetNames);}
+	try {ssGrp = u->subset_grp_by_name(subsetName);}
 	UG_CATCH_THROW("Something went wrong during creation of subset group for \n"
-		"membrane subset names '" << subsetNames << "' and provided solution.");
+		"membrane subset names '" << subsetName << "' and provided solution.");
+	UG_COND_THROW(ssGrp.size() != 1, "Subset group must have exactly 1 entry.\n"
+			"Make sure you provide exactly 1 subset name for ER membrane subset.");
+	int si = ssGrp[0];
 
-	// loop membrane subsets
 	double xMax = -std::numeric_limits<double>::max();
-	size_t nsi = ssGrp.size();
-	for (size_t s = 0; s < nsi; ++s)
+	Vertex* maxVrt = NULL;
+	number pOpenMax = 0.0;
+
+	// loop vertices on that subset
+	DoFDistribution::traits<Vertex>::const_iterator it, itEnd;
+	it = dd->begin<Vertex>(si);
+	itEnd = dd->end<Vertex>(si);
+	for (; it != itEnd; ++it)
 	{
-		int si = ssGrp[s];
+		Vertex* vrt = *it;
 
-		// loop vertices on that subset
-		DoFDistribution::traits<Vertex>::const_iterator it, itEnd;
-		it = dd->begin<Vertex>(si);
-		itEnd = dd->end<Vertex>(si);
-		for (; it != itEnd; ++it)
+		// only treat vertices to the right of the current max
+		number xCoord = aaPos[vrt][0];
+		if ((double) xCoord <= xMax)
+			continue;
+
+		// get function values in that vertex
+		std::vector<DoFIndex> ind;
+
+		UG_COND_THROW(!dd->is_def_in_subset(fi_c1, si),
+			"Function " << fi_c1 << " is not defined on subset " << si << ".");
+		size_t numInd = dd->dof_indices(vrt, fi_c1, ind, true, true);
+		UG_ASSERT(numInd == 1, "More (or less) than one function index found on a vertex!");
+		number c1 = DoFRef(*u, ind[0]);
+
+		UG_COND_THROW(!dd->is_def_in_subset(fi_c2, si),
+			"Function " << fi_c2 << " is not defined on subset " << si << ".");
+		numInd = dd->dof_indices(vrt, fi_c2, ind, true, true);
+		UG_ASSERT(numInd == 1, "More (or less) than one function index found on a vertex!");
+		number c2 = DoFRef(*u, ind[0]);
+
+		// calculate open probability
+		number pOpen = 1.0 - (c1 + c2);
+
+		// update xMax if necessary
+		if (pOpen > thresh)
 		{
-			Vertex* vrt = *it;
+			xMax = xCoord;
+			pOpenMax = pOpen;
+			maxVrt = vrt;
+		}
+	}
 
-			// only treat vertices to the right of the current max
-			number xCoord = aaPos[vrt][0];
+	// interpolate exact threshold position
+	if (maxVrt)
+	{
+		MultiGrid& mg = *u->domain()->grid();
+		MGSubsetHandler& sh = *u->domain()->subset_handler();
+
+		typename Grid::traits<Edge>::secure_container edges;
+		mg.associated_elements(edges, maxVrt);
+		size_t esz = edges.size();
+		for (size_t e = 0; e < esz; ++e)
+		{
+			Edge* ed = edges[e];
+			Vertex* other = GetOpposingSide(mg, ed, maxVrt);
+			if (sh.get_subset_index(other) != si)
+				continue;
+
+			number xCoord = aaPos[other][0];
 			if ((double) xCoord <= xMax)
 				continue;
 
-			// get function values in that vertex
+			// now we have the right neighbor vertex (if it exists)
+			// per def of the max, it has a value below thresh
 			std::vector<DoFIndex> ind;
-
-			UG_COND_THROW(!dd->is_def_in_subset(fi_c1, si),
-				"Function " << fi_c1 << " is not defined on subset " << si << ".");
-			size_t numInd = dd->dof_indices(vrt, fi_c1, ind, true, true);
-			UG_ASSERT(numInd == 1, "More (or less) than one function index found on a vertex!");
+			dd->dof_indices(other, fi_c1, ind, true, true);
 			number c1 = DoFRef(*u, ind[0]);
-
-			UG_COND_THROW(!dd->is_def_in_subset(fi_c2, si),
-				"Function " << fi_c2 << " is not defined on subset " << si << ".");
-			numInd = dd->dof_indices(vrt, fi_c2, ind, true, true);
-			UG_ASSERT(numInd == 1, "More (or less) than one function index found on a vertex!");
+			dd->dof_indices(other, fi_c2, ind, true, true);
 			number c2 = DoFRef(*u, ind[0]);
-
-			// calculate open probability
 			number pOpen = 1.0 - (c1 + c2);
 
-			// update xMax if necessary
-			if (pOpen > thresh)
-				xMax = xCoord;
+			xMax = (xMax*(pOpen-thresh) - xCoord*(pOpenMax - thresh)) / (pOpen-pOpenMax);
+			break;
 		}
 	}
+
 
 	// max over all processes
 #ifdef UG_PARALLEL
@@ -206,6 +247,207 @@ number waveFrontX
 #endif
 
 	return xMax;
+}
+
+
+
+
+
+template <typename TDomain, typename TAlgebra>
+WaveProfileExporter<TDomain, TAlgebra>::WaveProfileExporter
+(
+	SmartPtr<ApproximationSpace<TDomain> > approxSpace,
+	const char* fctNames,
+	const char* subsetNames,
+	const std::string& fileBaseName
+)
+: m_spApprox(approxSpace),
+  m_vFct(TokenizeString(fctNames)),
+  m_vSs(TokenizeString(subsetNames)),
+  m_fileName(fileBaseName),
+  m_vvvDoFSeries(m_vSs.size()),
+  m_vvXPos(m_vSs.size())
+{
+	typedef typename DoFDistribution::traits<Vertex>::const_iterator vrt_it;
+
+	ConstSmartPtr<MGSubsetHandler> sh = m_spApprox->domain()->subset_handler();
+	ConstSmartPtr<DoFDistribution> dd = m_spApprox->dof_distribution(GridLevel(), false);
+
+	SubsetGroup ssg(sh);
+	try {ssg.add(m_vSs);}
+	UG_CATCH_THROW("Could not add all subsets to WaveProfileExporter.");
+
+	FunctionGroup fg(m_spApprox->function_pattern());
+	try {fg.add(m_vFct);}
+	UG_CATCH_THROW("Could not add all functions to WaveProfileExporter.");
+
+	Grid::VertexAttachmentAccessor<APosition2> aaPos(*m_spApprox->domain()->grid(), aPosition2);
+
+	// iterate all subsets
+	size_t nfct = fg.size();
+	size_t nss = ssg.size();
+	for (size_t s = 0; s < nss; ++s)
+	{
+		const int si = ssg[s];
+		m_vvvDoFSeries[s].resize(nfct);
+
+		// iterate all surface vertices in subset
+		vrt_it it = dd->begin<Vertex>(si);
+		vrt_it itEnd = dd->end<Vertex>(si);
+		for (; it != itEnd; ++it)
+		{
+			Vertex* vrt = *it;
+
+			// save vertex
+			m_vvXPos[s].push_back(aaPos[vrt][0]);
+
+			// iterate functions
+			for (size_t f = 0; f < nfct; ++f)
+			{
+				const size_t fct = fg[f];
+
+				// save DoFIndices
+				std::vector<DoFIndex>& vdi = m_vvvDoFSeries[s][f];
+				UG_COND_THROW(!dd->is_def_in_subset(fct, si), "Function '" << m_vFct[f]
+					<< "' is not defined on subset '" << m_vSs[s] << "'.");
+				dd->inner_dof_indices(vrt, fct, vdi, false);
+			}
+		}
+
+		// sort DoFs from left to right
+		CmpVrtPos cmp(m_vvXPos[s]);
+		size_t nVrt = m_vvXPos[s].size();
+		std::vector<size_t> perm(nVrt);
+		for (size_t i = 0; i < nVrt; ++i)
+			perm[i] = i;
+		std::sort(perm.begin(), perm.end(), cmp);
+
+		{
+			std::vector<number> sortedPos(nVrt);
+			for (size_t i = 0; i < nVrt; ++i)
+				sortedPos[i] = m_vvXPos[s][perm[i]];
+			sortedPos.swap(m_vvXPos[s]);
+		}
+
+		for (size_t f = 0; f < nfct; ++f)
+		{
+			std::vector<DoFIndex>& vdi = m_vvvDoFSeries[s][f];
+			UG_COND_THROW(vdi.size() != nVrt, "nVrt and nDoF size mismatch");
+			std::vector<DoFIndex> vdiNew(nVrt);
+			for (size_t i = 0; i < nVrt; ++i)
+				vdiNew[i] = vdi[perm[i]];
+			vdiNew.swap(vdi);
+		}
+	}
+}
+
+
+#ifdef UG_PARALLEL
+struct MyCompare
+{
+	MyCompare(const std::vector<number>& _v) : v(_v) {};
+
+	bool operator()(const size_t& a, const size_t& b)
+	{
+		return v[a] < v[b];
+	}
+
+	private:
+		const std::vector<number>& v;
+};
+
+static void writeParallelFile(const std::string& data, const std::string& fileName, number minX)
+{
+	pcl::ProcessCommunicator pc;
+
+	MPI_Status status;
+	MPI_Comm m_mpiComm = pc.get_mpi_communicator();
+	MPI_File fh;
+
+	// open file
+	if (MPI_File_open(m_mpiComm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh))
+		UG_THROW("Unable to open "<< fileName << ".");
+
+
+	// find out correct order of procs
+	size_t np = pcl::NumProcs();
+	std::vector<number> allMinX(np);
+	pc.allgather(&minX, 1, PCL_DT_DOUBLE, &allMinX[0], 1, PCL_DT_DOUBLE);
+	std::vector<size_t> rankOrder(np);
+	for (size_t i = 0; i < np; ++i)
+		rankOrder[i] = i;
+
+	MyCompare cmp(allMinX);
+	std::sort(rankOrder.begin(), rankOrder.end(), cmp);
+
+
+	// calculate offsets for each proc
+	unsigned long mySize = data.size();
+	std::vector<unsigned long> allSizes(np);
+	pc.allgather(&mySize, 1, PCL_DT_UNSIGNED_LONG, &allSizes[0], 1, PCL_DT_UNSIGNED_LONG);
+
+	size_t myRank = pcl::ProcRank();
+	size_t offset = 0;
+	for (size_t i = 0; i < np; ++i)
+	{
+		if (rankOrder[i] == myRank)
+			break;
+
+		offset += allSizes[rankOrder[i]];
+	}
+
+
+	// write data at correct offset
+	MPI_File_seek(fh, offset, MPI_SEEK_SET);
+	MPI_File_write(fh, data.c_str(), mySize, MPI_BYTE, &status);
+
+
+	// close file
+	MPI_File_close(&fh);
+}
+#endif
+
+
+static void writeSerialFile(const std::string& data, const std::string& fileName)
+{
+	std::ofstream ofs(fileName.c_str());
+	try {ofs << data;}
+	UG_CATCH_THROW("Output file '" << fileName << "' could not be written to.");
+	ofs.close();
+}
+
+
+
+template <typename TDomain, typename TAlgebra>
+void WaveProfileExporter<TDomain, TAlgebra>::
+exportWaveProfileX(ConstSmartPtr<gf_type> u, number time)
+{
+	const size_t nsi = m_vvvDoFSeries.size();
+	for (size_t s = 0; s < nsi; ++s)
+	{
+		const size_t nfct = m_vvvDoFSeries[s].size();
+		for (size_t f = 0; f < nfct; ++f)
+		{
+			const std::vector<DoFIndex>& vdi = m_vvvDoFSeries[s][f];
+
+			// construct file name
+			std::ostringstream ossFn;
+			ossFn << m_fileName << "_" << m_vSs[s] << "_" << m_vFct[f] << "_" << time << ".dat";
+
+			// write this proc's values to buffer
+			std::ostringstream ossVal;
+			size_t nVrt = m_vvXPos[s].size();
+			for (size_t i = 0; i < nVrt; ++i)
+				ossVal << m_vvXPos[s][i] << "\t" << DoFRef(*u, vdi[i]) << "\n";
+
+#ifdef UG_PARALLEL
+			if (pcl::NumProcs() > 1)
+				writeParallelFile(ossVal.str(), ossFn.str(), nVrt ? m_vvXPos[s][0] : 0.0);
+			else
+#endif
+			writeSerialFile(ossVal.str(), ossFn.str());
+		}
+	}
 }
 
 
