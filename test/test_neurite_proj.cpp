@@ -1040,15 +1040,39 @@ static void create_soma
 	}
 }
 
-static void connect_neurites_with_soma() {
-	/// TODO: implement this
-	/// Idea:
-	/*
-	 * 1. For each neurite find starting section
-	 * 2. For each starting section find best face of icosahedron to connect to analogue to the branching point code
-	 * 3. Connect and create quads.
-	 */
+static void connect_neurites_with_soma
+(
+	   Grid& g,
+	   Grid::VertexAttachmentAccessor<APosition>& aaPos,
+	   std::vector<Vertex*> outVerts,
+	   size_t si
+) {
+	// 1. the initial 4 vertices closest to the soma for each neurite
+	std::vector<std::vector<ug::vector4> > quads;
+	for (size_t i = 0; i < outVerts.size(); i+=4) {
+		for (size_t j = 0; j < 3; j++) {
+			ug::vector3 temp = aaPos[outVerts[(i*4)+j]];
+			quads[i].push_back(ug::vector4(temp.x(), temp.y(), temp.z(), 1));
+		}
+	}
+
+	// 2. Find closest and best orientation towards faces of icosehadron (soma)
+	for (size_t i = 0; i < quads.size(); i++) {
+		MathMatrix<4, 4> quad;
+		for (size_t j = 0; j < 3; j++) {
+			quad.assign(quads[i][j], j);
+		}
+		number det = Determinant(quad);
+		UG_COND_THROW(det != 0, "Quad points lie not in a plane.");
+		ug::vector3 normal;
+		VecCross(normal, aaPos[outVerts[(i*4)]], aaPos[outVerts[(i*4)+1]]);
+		/// TODO: determine best face of icosahedron analogue to branching point code
+		// select with subset index si the octahedron faces... then do the above
+	}
+
+	// 3. TODO connect soma with the neurites
 }
+
 
 
 static void create_neurite
@@ -1061,7 +1085,8 @@ static void create_neurite
     Grid::VertexAttachmentAccessor<APosition>& aaPos,
     Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
     std::vector<Vertex*>* connectingVrts = NULL,
-    std::vector<Edge*>* connectingEdges = NULL
+    std::vector<Edge*>* connectingEdges = NULL,
+    std::vector<Vertex*>* outVerts = NULL
 )
 {
     const NeuriteProjector::Neurite& neurite = vNeurites[nid];
@@ -1144,6 +1169,7 @@ static void create_neurite
             aaSurfParams[v].neuriteID = nid;
             aaSurfParams[v].axial = 0.0;
             aaSurfParams[v].angular = angle;
+            outVerts->push_back(v);
 
         }
         for (size_t i = 0; i < 4; ++i)
@@ -1743,6 +1769,7 @@ void test_import_swc(const std::string& fileName, bool correct)
     std::vector<size_t> vRootNeuriteIndsOut;
 
     convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+    std::vector<Vertex*> outVerts;
 
 /* debug
     std::cout << "BPInfo:" << std::endl;
@@ -1798,7 +1825,7 @@ void test_import_swc(const std::string& fileName, bool correct)
         neuriteProj->add_neurite(vNeurites[i]);
 
     for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i)
-        create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL);
+        create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts);
 
     // at branching points, we have not computed the correct positions yet,
     // so project the complete geometry using the projector
@@ -1819,7 +1846,7 @@ void test_import_swc(const std::string& fileName, bool correct)
     sh.set_default_subset_index(0);
 
     // connect soma with neurites
-    connect_neurites_with_soma();
+    connect_neurites_with_soma(g, aaPos, outVerts, 1);
 
     // refinement
     AssignSubsetColors(sh);
@@ -1916,6 +1943,7 @@ void test_neurite_projector_with_four_section_tube()
     neuriteProj->add_neurite(neurite);
     projHandler.set_projector(0, neuriteProj);
 
+    std::vector<Vertex*> outVerts;
     create_neurite(vNeurites, vPos, vR, 0, g, aaPos, aaSurfParams);
 
 
