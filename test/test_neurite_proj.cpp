@@ -1042,6 +1042,12 @@ static void create_soma
 
 static void connect_neurites_with_soma() {
 	/// TODO: implement this
+	/// Idea:
+	/*
+	 * 1. For each neurite find starting section
+	 * 2. For each starting section find best face of icosahedron to connect to analogue to the branching point code
+	 * 3. Connect and create quads.
+	 */
 }
 
 
@@ -1138,6 +1144,7 @@ static void create_neurite
             aaSurfParams[v].neuriteID = nid;
             aaSurfParams[v].axial = 0.0;
             aaSurfParams[v].angular = angle;
+
         }
         for (size_t i = 0; i < 4; ++i)
             vEdge[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i], vVrt[(i+1)%4]));

@@ -55,8 +55,8 @@
 #include "stimulation/action_potential_train.h"
 #include "grid_generation/bouton_generator/bouton_generator.h"
 
-//#include "lib_grid/refinement/projectors/neurite_projector.h"
-//#include "test/test_neurite_proj.h"
+#include "lib_grid/refinement/projectors/neurite_projector.h"
+#include "test/test_neurite_proj.h"
 
 #include "util/measurement.h"
 #include "util/ca_wave_util.h"
@@ -788,7 +788,6 @@ static void Common(Registry& reg, string grp)
                          "Generates a drosophila NMJ bouton volume grid.");
 	}
 
-/*
 #ifndef UG_FOR_VRL
 	// test neurite projector
 	{
@@ -800,7 +799,6 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("test_cylinder_volume_projector", &test_cylinder_volume_projector, "", "", "");
 	}
 #endif
-*/
 }
 
 }; // end Functionality
@@ -821,8 +819,8 @@ InitUGPlugin_neuro_collection(Registry* reg, string grp)
 	typedef neuro_collection::Functionality Functionality;
 
 	GlobalAttachments::declare_attachment<ANumber>("diameter");
-//	typedef Attachment<NeuriteProjector::SurfaceParams> NPSurfParam;
-//	GlobalAttachments::declare_attachment<NPSurfParam>("npSurfParams", true);
+	typedef Attachment<NeuriteProjector::SurfaceParams> NPSurfParam;
+	GlobalAttachments::declare_attachment<NPSurfParam>("npSurfParams", true);
 /*
 	// most (if not all) algebra-dependent code is only meant for non-blocked algebras
 	typedef boost::mpl::list
