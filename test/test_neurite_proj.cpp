@@ -1049,12 +1049,16 @@ static void connect_neurites_with_soma
 ) {
 	// 1. the initial 4 vertices closest to the soma for each neurite
 	std::vector<std::vector<ug::vector4> > quads;
-	for (size_t i = 0; i < outVerts.size(); i+=4) {
-		for (size_t j = 0; j < 3; j++) {
+	size_t numQuads = outVerts.size()/4;
+	quads.reserve(numQuads);
+
+	for (size_t i = 0; i < numQuads; i++) {
+		for (size_t j = 0; j < 4; j++) {
 			ug::vector3 temp = aaPos[outVerts[(i*4)+j]];
 			quads[i].push_back(ug::vector4(temp.x(), temp.y(), temp.z(), 1));
 		}
 	}
+
 
 	// 2. Find closest and best orientation towards faces of icosehadron (soma)
 	for (size_t i = 0; i < quads.size(); i++) {
