@@ -7,7 +7,7 @@
 
 #include "test_neurite_proj.h"
 #include "lib_grid/refinement/projectors/projection_handler.h"
-#include "lib_grid/refinement/projectors/cylinder_volume_projector.h"
+#include "../../ugcore/ugbase/lib_grid/refinement/projectors/cylinder_volume_projector.h"
 #include "lib_grid/refinement/projectors/neurite_projector.h"
 #include "lib_grid/file_io/file_io_ugx.h"  // GridWriterUGX
 #include "lib_grid/file_io/file_io.h"  // SaveGridHierarchyTransformed
@@ -25,6 +25,7 @@
 #include "lib_grid/algorithms/element_side_util.h" // GetOpposingSide
 #include "lib_disc/quadrature/gauss_legendre/gauss_legendre.h"
 #include "lib_grid/algorithms/grid_generation/icosahedron.h" // icosahedron
+#include "common/math/ugmath_types.h"
 
 #include <boost/lexical_cast.hpp>
 
@@ -1045,7 +1046,8 @@ static void connect_neurites_with_soma
 	   Grid& g,
 	   Grid::VertexAttachmentAccessor<APosition>& aaPos,
 	   std::vector<Vertex*> outVerts,
-	   size_t si
+	   size_t si,
+	   SubsetHandler& sh
 ) {
 	// 1. the initial 4 vertices closest to the soma for each neurite
 	std::vector<std::vector<ug::vector4> > quads;
@@ -1060,21 +1062,76 @@ static void connect_neurites_with_soma
 	}
 
 
-	// 2. Find closest and best orientation towards faces of icosehadron (soma)
-	for (size_t i = 0; i < quads.size(); i++) {
+	// 2. Find closest and best orientated face of icosahedron to connect a neurite to
+	std::vector<Face*> bestFaces;
+	Selector sel(g);
+	SelectSubsetElements<Face>(sel, sh, si, true);
+	for (size_t i = 0; i < numQuads; i++) {
 		MathMatrix<4, 4> quad;
 		for (size_t j = 0; j < 3; j++) {
 			quad.assign(quads[i][j], j);
 		}
 		number det = Determinant(quad);
-		UG_COND_THROW(det != 0, "Quad points lie not in a plane.");
-		ug::vector3 normal;
-		VecCross(normal, aaPos[outVerts[(i*4)]], aaPos[outVerts[(i*4)+1]]);
-		/// TODO: determine best face of icosahedron analogue to branching point code
-		// select with subset index si the octahedron faces... then do the above
+		UG_COND_THROW(det != 0, "Quad point does not lie in a common plane.");
+		ug::vector3 normalDir;
+		VecCross(normalDir, aaPos[outVerts[(i*4)]], aaPos[outVerts[(i*4)+1]]);
+
+		Selector::traits<Face>::iterator fit = sel.faces_begin();
+		Selector::traits<Face>::iterator fit_end = sel.faces_end();
+		number bestDist = -1;
+		Face* best = NULL; // best face
+		/// calculate distance from plane (triangle of icosahedron) to the first vertex of a quad and find minimum distance
+		for (; fit != fit_end; ++fit) {
+			/// plane and point
+			ug::vector3 normal;
+			CalculateNormal(normal, *fit, aaPos);
+			ug::vector3 v0;
+			v0 = aaPos[(*fit)->vertex(0)];
+			ug::vector3 temp;
+			VecSubtract(temp, aaPos[outVerts[(i*4)]], v0);
+			number sn = -VecDot(normal, temp);
+			number sd = VecDot(normal, normal);
+			number sb = sn / sd;
+			ug::vector3 B = aaPos[outVerts[(i*4)]];
+			ug::vector3 temp2;
+			VecScale(temp2, v0, sb);
+			VecAdd(temp2, temp2, aaPos[outVerts[(i*4)]]);
+			number dist = VecDistance(aaPos[outVerts[(i*4)]], temp2);
+
+			if (bestDist == -1) {
+				best = *fit;
+				bestDist = dist;
+			}
+
+			if (dist < bestDist) {
+				best = *fit;
+				bestDist = dist;
+			}
+
+		}
+		bestFaces.push_back(best);
 	}
 
-	// 3. TODO connect soma with the neurites
+	/// 3. debug: save best faces
+	sel.clear();
+
+	size_t numBestFaces = bestFaces.size();
+	UG_COND_THROW(numBestFaces != numQuads, "Could not find a face for some quad.")
+	UG_LOGN("Faces found: " << numBestFaces);
+	std::vector<Face*>::const_iterator it = bestFaces.begin();
+	std::vector<Face*>::const_iterator it_end = bestFaces.end();
+
+	for (; it != it_end; ++it) {
+		sel.select(*it);
+		si++;
+		AssignSelectionToSubset(sel, sh, si);
+		sel.deselect(*it);
+	}
+	SaveGridToFile(g, sh, "testNeuriteProjectors_bestFaces.ugx");
+
+	// 4. TODO connect soma with the neurites by generating edges to the soma triangles
+	// refine icosahedron, then connect two triangles (now a quad) to a quad from the neurite
+	// try to assign the same diameter for the quad formed out of the two triangles as for the neurite
 }
 
 
@@ -1850,7 +1907,7 @@ void test_import_swc(const std::string& fileName, bool correct)
     sh.set_default_subset_index(0);
 
     // connect soma with neurites
-    connect_neurites_with_soma(g, aaPos, outVerts, 1);
+    connect_neurites_with_soma(g, aaPos, outVerts, 1, sh);
 
     // refinement
     AssignSubsetColors(sh);
