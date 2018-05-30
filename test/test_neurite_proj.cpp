@@ -1108,7 +1108,6 @@ static void connect_neurites_with_soma
 				best = *fit;
 				bestDist = dist;
 			}
-
 		}
 		bestFaces.push_back(std::make_pair(best, i));
 	}
@@ -1122,13 +1121,15 @@ static void connect_neurites_with_soma
 	std::vector<std::pair<Face*, size_t> >::const_iterator it = bestFaces.begin();
 	std::vector<std::pair<Face*, size_t> >::const_iterator it_end = bestFaces.end();
 
+	size_t l_si = si;
 	for (; it != it_end; ++it) {
+		std::vector<Vertex*> vertices;
 		sel.select(it->first);
-		si++;
+		l_si++;
 		for (size_t i = 0; i < 4; i++) {
 			sel.select(outVerts[(it->second*4)+i]);
 		}
-		AssignSelectionToSubset(sel, sh, si);
+		AssignSelectionToSubset(sel, sh, l_si);
 		sel.deselect(it->first);
 		for (size_t i = 0; i < 4; i++) {
 			sel.deselect(outVerts[(it->second*4)+i]);
@@ -1137,9 +1138,24 @@ static void connect_neurites_with_soma
 	AssignDefaultSubsetColors(sh);
 	SaveGridToFile(g, sh, "testNeuriteProjectors_bestFaces.ugx");
 
-	// 4. TODO connect soma with the neurites by generating edges to the soma triangles
-	// refine icosahedron, then connect two triangles (now a quad) to a quad from the neurite
-	// try to assign the same diameter for the quad formed out of the two triangles as for the neurite
+	std::vector<std::vector<Vertex*> > vFaceVertices;
+	vFaceVertices.reserve(numQuads);
+
+	// 4. refine icosahedron, at least once is necessary (TODO: check diameters of cylinders and see if really necessary, at least once is necessary for connecting to quads later...!)
+	//   this can be done by refining each subset specifically if necessary for connecting to the neurites: check for each quad and refine if necessary!
+	sel.clear();
+	SelectSubsetElements<Face>(sel, sh, si, true);
+	SelectSubsetElements<Edge>(sel, sh, si, true);
+	SelectSubsetElements<Vertex>(sel, sh, si, true);
+	Refine(g, sel, NULL, false);
+	SaveGridToFile(g, sh, "testNeuriteProjectors_bestFaces_refined.ugx");
+	sel.clear();
+
+	// 5. TODO Find two best faces for each subset index for each quad
+	/// refactor code from above to helper method ...
+
+	// 6. TODO connect soma with the neurites by generating edges to the soma triangles
+	// use faces / triangles from refiend icoshedron and create edges to the new quad make out of two triangles
 }
 
 
