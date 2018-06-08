@@ -1042,6 +1042,114 @@ static void create_soma
 	}
 }
 
+static void find_best_faces
+(
+		Grid& grid,
+		SubsetHandler& sh,
+		size_t si,
+		size_t numQuads,
+		std::vector<std::vector<ug::vector4> >& quads,
+		std::vector<Vertex*>& outVerts,
+		Grid::VertexAttachmentAccessor<APosition>& aaPos,
+		std::vector<std::pair<Face*, size_t> >& bestFaces,
+		std::vector<std::pair<Face*, size_t> >& leastBestFaces
+
+)
+{
+		Selector sel(grid);
+		SelectSubsetElements<Face>(sel, sh, si, true);
+		for (size_t i = 0; i < numQuads; i++) {
+			MathMatrix<4, 4> quad;
+			for (size_t j = 0; j < 3; j++) {
+				quad.assign(quads[i][j], j);
+			}
+			number det = Determinant(quad);
+			///UG_COND_THROW(det != 0, "Quad point does not lie in a common plane.");
+			ug::vector3 normalDir;
+			VecCross(normalDir, aaPos[outVerts[(i*4)]], aaPos[outVerts[(i*4)+1]]);
+
+			Selector::traits<Face>::iterator fit = sel.faces_begin();
+			Selector::traits<Face>::iterator fit_end = sel.faces_end();
+			number bestDist = -1;
+			Selector sel2(grid);
+			Face* best = NULL; // best face
+			/// calculate minimal distance between center of triangle and the quad's vertices -> best face is closest
+			for (; fit != fit_end; ++fit) {
+				for (size_t j = 0; j < 3; j++) {
+					/// plane and point
+					ug::vector3 v0;
+					sel2.clear();
+					sel2.select(*fit);
+
+					/// center of triangle
+					CalculateCenter(v0, sel2, aaPos);
+					sel2.deselect(*fit);
+					ug::vector3 v1 = aaPos[outVerts[(i*4)+j]];
+					number dist = VecDistance(v1, v0);
+
+					if (bestDist == -1) {
+						best = *fit;
+						bestDist = dist;
+					}
+
+					if (dist < bestDist) {
+						best = *fit;
+						bestDist = dist;
+					}
+				}
+			}
+			bestFaces.push_back(std::make_pair(best, i));
+			Face* veryBest = best;
+			best = NULL;
+			bestDist = -1;
+			fit = sel.faces_begin();
+			for (; fit != fit_end; ++fit) {
+			for (size_t j = 0; j < 3; j++) {
+				/// plane and point
+				ug::vector3 v0;
+				sel2.clear();
+				sel2.select(*fit);
+
+				/// center of triangle
+				CalculateCenter(v0, sel2, aaPos);
+				sel2.deselect(*fit);
+				ug::vector3 v1 = aaPos[outVerts[(i*4)+j]];
+				number dist = VecDistance(v1, v0);
+
+				if (*fit != veryBest) {
+					bool adjacent = false;
+					for (int side = 0; side < 3; side++) {
+						std::vector<Face*> neighbors;
+						GetNeighbours(neighbors, grid, veryBest, side, true);
+						std::vector<Face*>::const_iterator it = neighbors.begin();
+						std::vector<Face*>::const_iterator it_end = neighbors.end();
+						for (; it != it_end; ++it) {
+							if (*it == *fit) {
+								adjacent = true;
+							}
+						}
+					}
+
+					if (adjacent) {
+						if (bestDist == -1) {
+							best = *fit;
+							bestDist = dist;
+						}
+
+						if (dist < bestDist) {
+							best = *fit;
+							bestDist = dist;
+						}
+					}
+				}
+			}
+			}
+			leastBestFaces.push_back(std::make_pair(best, i));
+		 }
+}
+
+
+
 static void connect_neurites_with_soma
 (
 	   Grid& g,
@@ -1064,7 +1172,6 @@ static void connect_neurites_with_soma
 
 	// 2. Find closest and best orientated face of icosahedron to connect a neurite to
 	std::vector<std::pair<Face*, size_t> > bestFaces;
-	std::vector<std::pair<Face*, size_t> > leastBestFaces;
 	Selector sel(g);
 	SelectSubsetElements<Face>(sel, sh, si, true);
 	for (size_t i = 0; i < numQuads; i++) {
@@ -1073,7 +1180,7 @@ static void connect_neurites_with_soma
 			quad.assign(quads[i][j], j);
 		}
 		number det = Determinant(quad);
-		UG_COND_THROW(det != 0, "Quad point does not lie in a common plane.");
+		///UG_COND_THROW(det != 0, "Quad point does not lie in a common plane.");
 		ug::vector3 normalDir;
 		VecCross(normalDir, aaPos[outVerts[(i*4)]], aaPos[outVerts[(i*4)+1]]);
 
@@ -1108,36 +1215,6 @@ static void connect_neurites_with_soma
 			}
 		}
 		bestFaces.push_back(std::make_pair(best, i));
-		Face* veryBest = best;
-		best = NULL;
-		fit = sel.faces_begin();
-		for (; fit != fit_end; ++fit) {
-		for (size_t j = 0; j < 3; j++) {
-			/// plane and point
-			ug::vector3 v0;
-			sel2.clear();
-			sel2.select(*fit);
-
-			/// center of triangle
-			CalculateCenter(v0, sel2, aaPos);
-			sel2.deselect(*fit);
-			ug::vector3 v1 = aaPos[outVerts[(i*4)+j]];
-			number dist = VecDistance(v1, v0);
-
-			if (*fit != veryBest) {
-				if (bestDist == -1) {
-					best = *fit;
-					bestDist = dist;
-				}
-
-			if (dist < bestDist) {
-				best = *fit;
-				bestDist = dist;
-			}
-			}
-		}
-		}
-		leastBestFaces.push_back(std::make_pair(best, i));
 	 }
 
 
@@ -1170,7 +1247,7 @@ static void connect_neurites_with_soma
 	std::vector<std::vector<Vertex*> > vFaceVertices;
 	vFaceVertices.reserve(numQuads);
 
-	// 4. refine icosahedron, at least once is necessary (TODO: check diameters of cylinders and see if really necessary, at least once is necessary for connecting to quads later...!)
+	// 4. pre-refine whole icosahedron, at least once is necessary (TODO: check diameters of cylinders and see if really necessary, at least once is necessary for connecting to quads later...!)
 	//   this can be done by refining each subset specifically if necessary for connecting to the neurites: check for each quad and refine if necessary!
 	sel.clear();
 	SelectSubsetElements<Face>(sel, sh, si, true);
@@ -1180,14 +1257,47 @@ static void connect_neurites_with_soma
 	SaveGridToFile(g, sh, "testNeuriteProjectors_bestFaces_refined.ugx");
 	AssignSelectionToSubset(sel, sh, 1);
 	sel.clear();
+	UG_LOGN("refinment done")
 
-	// 5. TODO Find two best faces for each subset index for each quad
-	/// refactor code from above to helper method ...
+	// 5. find two best faces for each quad and assign: TODO second best face is a adjacent face
+	std::vector<std::pair<Face*, size_t> > bestFacesNew;
+	std::vector<std::pair<Face*, size_t> > leastBestFacesNew;
+	find_best_faces(g, sh, 1, numQuads, quads, outVerts, aaPos, bestFacesNew, leastBestFacesNew);
 
-	// 6. TODO connect soma with the neurites by generating edges to the soma triangles
-	// use faces / triangles from refiend icoshedron and create edges to the new quad make out of two triangles
+	numBestFaces = bestFacesNew.size();
+	UG_LOGN("Faces found: " << numBestFaces);
+	UG_COND_THROW(numBestFaces != numQuads, "Could not find a best face for some quad.")
+	it = bestFacesNew.begin();
+	it_end = bestFacesNew.end();
+	size_t count = 1;
+	for (; it != it_end; ++it) {
+		sel.select(it->first);
+		AssignSelectionToSubset(sel, sh, si+count);
+		sel.deselect(it->first);
+		count++;
+	}
+	UG_LOGN("assigned best faces")
+	SaveGridToFile(g, sh, "testNeuriteProjectors_faces_found.ugx");
+
+	numBestFaces = leastBestFacesNew.size();
+	UG_LOGN("Faces found: " << numBestFaces);
+	UG_COND_THROW(numBestFaces != numQuads, "Could not find a least best face for some quad.")
+	it = leastBestFacesNew.begin();
+	it_end = leastBestFacesNew.end();
+	count = 1;
+	for (; it != it_end; ++it) {
+		sel.select(it->first);
+		AssignSelectionToSubset(sel, sh, si+count);
+		sel.deselect(it->first);
+		count++;
+	}
+	UG_LOGN("assigend least best faces")
+	SaveGridToFile(g, sh, "testNeuriteProjectors_all_faces_found.ugx");
+
+	/// TODO: 6. find closest vertices, then erase triangle faces
+
+	/// TODO: 7. connect vertices of merged faces (triangles) now a quad to quad of neurite
 }
-
 
 
 static void create_neurite
