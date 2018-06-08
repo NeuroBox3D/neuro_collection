@@ -1032,122 +1032,9 @@ static void create_soma
 		Grid::VertexAttachmentAccessor<APosition>& aaPos
 )
 {
-	if (somaPts.size() == 1) {
-		// create soma as icosahedron
-		GenerateIcosahedron(g, somaPts[0].coords, somaPts[0].radius, aPosition);
-	} else {
-		// TODO: generalize this: can take recipe from here to geerate a deformated icosahedron:
-		// http://blog.andreaskahler.com/2009/06/creating-icosphere-mesh-in-code.html
-		UG_THROW("Currently only one soma point is allowed by this implementation.");
-	}
+	UG_COND_THROW(somaPts.size() != 1, "Currently only one soma point is allowed by this implementation");
+	GenerateIcosphere(g, somaPts.front().coords, somaPts.front().radius, 1, aPosition);
 }
-
-static void find_best_faces
-(
-		Grid& grid,
-		SubsetHandler& sh,
-		size_t si,
-		size_t numQuads,
-		std::vector<std::vector<ug::vector4> >& quads,
-		std::vector<Vertex*>& outVerts,
-		Grid::VertexAttachmentAccessor<APosition>& aaPos,
-		std::vector<std::pair<Face*, size_t> >& bestFaces,
-		std::vector<std::pair<Face*, size_t> >& leastBestFaces
-
-)
-{
-		Selector sel(grid);
-		SelectSubsetElements<Face>(sel, sh, si, true);
-		for (size_t i = 0; i < numQuads; i++) {
-			MathMatrix<4, 4> quad;
-			for (size_t j = 0; j < 3; j++) {
-				quad.assign(quads[i][j], j);
-			}
-			number det = Determinant(quad);
-			///UG_COND_THROW(det != 0, "Quad point does not lie in a common plane.");
-			ug::vector3 normalDir;
-			VecCross(normalDir, aaPos[outVerts[(i*4)]], aaPos[outVerts[(i*4)+1]]);
-
-			Selector::traits<Face>::iterator fit = sel.faces_begin();
-			Selector::traits<Face>::iterator fit_end = sel.faces_end();
-			number bestDist = -1;
-			Selector sel2(grid);
-			Face* best = NULL; // best face
-			/// calculate minimal distance between center of triangle and the quad's vertices -> best face is closest
-			for (; fit != fit_end; ++fit) {
-				for (size_t j = 0; j < 3; j++) {
-					/// plane and point
-					ug::vector3 v0;
-					sel2.clear();
-					sel2.select(*fit);
-
-					/// center of triangle
-					CalculateCenter(v0, sel2, aaPos);
-					sel2.deselect(*fit);
-					ug::vector3 v1 = aaPos[outVerts[(i*4)+j]];
-					number dist = VecDistance(v1, v0);
-
-					if (bestDist == -1) {
-						best = *fit;
-						bestDist = dist;
-					}
-
-					if (dist < bestDist) {
-						best = *fit;
-						bestDist = dist;
-					}
-				}
-			}
-			bestFaces.push_back(std::make_pair(best, i));
-			Face* veryBest = best;
-			best = NULL;
-			bestDist = -1;
-			fit = sel.faces_begin();
-			for (; fit != fit_end; ++fit) {
-			for (size_t j = 0; j < 3; j++) {
-				/// plane and point
-				ug::vector3 v0;
-				sel2.clear();
-				sel2.select(*fit);
-
-				/// center of triangle
-				CalculateCenter(v0, sel2, aaPos);
-				sel2.deselect(*fit);
-				ug::vector3 v1 = aaPos[outVerts[(i*4)+j]];
-				number dist = VecDistance(v1, v0);
-
-				if (*fit != veryBest) {
-					bool adjacent = false;
-					for (int side = 0; side < 3; side++) {
-						std::vector<Face*> neighbors;
-						GetNeighbours(neighbors, grid, veryBest, side, true);
-						std::vector<Face*>::const_iterator it = neighbors.begin();
-						std::vector<Face*>::const_iterator it_end = neighbors.end();
-						for (; it != it_end; ++it) {
-							if (*it == *fit) {
-								adjacent = true;
-							}
-						}
-					}
-
-					if (adjacent) {
-						if (bestDist == -1) {
-							best = *fit;
-							bestDist = dist;
-						}
-
-						if (dist < bestDist) {
-							best = *fit;
-							bestDist = dist;
-						}
-					}
-				}
-			}
-			}
-			leastBestFaces.push_back(std::make_pair(best, i));
-		 }
-}
-
 
 
 static void connect_neurites_with_soma
@@ -1158,145 +1045,44 @@ static void connect_neurites_with_soma
 	   size_t si,
 	   SubsetHandler& sh
 ) {
+	UG_LOGN("1.");
 	// 1. the initial 4 vertices closest to the soma for each neurite
-	std::vector<std::vector<ug::vector4> > quads;
-	size_t numQuads = outVerts.size()/4;
+	std::vector<std::vector<ug::vector3> > quads;
+	size_t numVerts = 4;
+	size_t numQuads = outVerts.size()/numVerts;
 	quads.reserve(numQuads);
 
 	for (size_t i = 0; i < numQuads; i++) {
-		for (size_t j = 0; j < 4; j++) {
-			ug::vector3 temp = aaPos[outVerts[(i*4)+j]];
-			quads[i].push_back(ug::vector4(temp.x(), temp.y(), temp.z(), 1));
+		UG_LOGN("quad!");
+		for (size_t j = 0; j < numVerts-1; j++) {
+			quads[i].push_back(aaPos[outVerts[(i*4)+j]]);
 		}
 	}
 
-	// 2. Find closest and best orientated face of icosahedron to connect a neurite to
-	std::vector<std::pair<Face*, size_t> > bestFaces;
-	Selector sel(g);
-	SelectSubsetElements<Face>(sel, sh, si, true);
+	UG_LOGN("Pushed all quads!")
+
+	// 2. calculate center of each quad then find closest point on icosphere
+	ug::vector3 centerOut;
 	for (size_t i = 0; i < numQuads; i++) {
-		MathMatrix<4, 4> quad;
-		for (size_t j = 0; j < 3; j++) {
-			quad.assign(quads[i][j], j);
-		}
-		number det = Determinant(quad);
-		///UG_COND_THROW(det != 0, "Quad point does not lie in a common plane.");
-		ug::vector3 normalDir;
-		VecCross(normalDir, aaPos[outVerts[(i*4)]], aaPos[outVerts[(i*4)+1]]);
-
-		Selector::traits<Face>::iterator fit = sel.faces_begin();
-		Selector::traits<Face>::iterator fit_end = sel.faces_end();
-		number bestDist = -1;
-		Selector sel2(g);
-		Face* best = NULL; // best face
-		/// calculate minimal distance between center of triangle and the quad's vertices -> best face is closest
-		for (; fit != fit_end; ++fit) {
-			for (size_t j = 0; j < 3; j++) {
-				/// plane and point
-				ug::vector3 v0;
-				sel2.clear();
-				sel2.select(*fit);
-
-				/// center of triangle
-				CalculateCenter(v0, sel2, aaPos);
-				sel2.deselect(*fit);
-				ug::vector3 v1 = aaPos[outVerts[(i*4)+j]];
-				number dist = VecDistance(v1, v0);
-
-				if (bestDist == -1) {
-					best = *fit;
-					bestDist = dist;
-				}
-
-				if (dist < bestDist) {
-					best = *fit;
-					bestDist = dist;
-				}
-			}
-		}
-		bestFaces.push_back(std::make_pair(best, i));
-	 }
-
-
-	/// 3. debug: save best faces
-	sel.clear();
-
-	size_t numBestFaces = bestFaces.size();
-	UG_COND_THROW(numBestFaces != numQuads, "Could not find a face for some quad.")
-	UG_LOGN("Faces found: " << numBestFaces);
-	std::vector<std::pair<Face*, size_t> >::const_iterator it = bestFaces.begin();
-	std::vector<std::pair<Face*, size_t> >::const_iterator it_end = bestFaces.end();
-
-	size_t l_si = si;
-	for (; it != it_end; ++it) {
-		std::vector<Vertex*> vertices;
-		sel.select(it->first);
-		l_si++;
-		for (size_t i = 0; i < 4; i++) {
-			sel.select(outVerts[(it->second*4)+i]);
-		}
-		AssignSelectionToSubset(sel, sh, l_si);
-		sel.deselect(it->first);
-		for (size_t i = 0; i < 4; i++) {
-			sel.deselect(outVerts[(it->second*4)+i]);
-		}
+		const ug::vector3* pointSet = &(quads[i][0]);
+		CalculateCenter(centerOut, pointSet, numVerts);
+		/// TODO: find closest point on sphere to centerOut
 	}
-	AssignDefaultSubsetColors(sh);
-	SaveGridToFile(g, sh, "testNeuriteProjectors_bestFaces.ugx");
 
-	std::vector<std::vector<Vertex*> > vFaceVertices;
-	vFaceVertices.reserve(numQuads);
+	// 3. Für jeden Vertex v führe AdaptSurfaceGridToCylinder mit Radius entsprechend
+	//    dem anzuschließenden Dendritenende aus. Dadurch entsteht auf der Icosphere
+	//    um jedes v ein trianguliertes 6- bzw. 5-Eck.
 
-	// 4. pre-refine whole icosahedron, at least once is necessary (TODO: check diameters of cylinders and see if really necessary, at least once is necessary for connecting to quads later...!)
-	//   this can be done by refining each subset specifically if necessary for connecting to the neurites: check for each quad and refine if necessary!
-	sel.clear();
-	SelectSubsetElements<Face>(sel, sh, si, true);
-	SelectSubsetElements<Edge>(sel, sh, si, true);
-	SelectSubsetElements<Vertex>(sel, sh, si, true);
-	Refine(g, sel, NULL, false);
-	SaveGridToFile(g, sh, "testNeuriteProjectors_bestFaces_refined.ugx");
-	AssignSelectionToSubset(sel, sh, 1);
-	sel.clear();
-	UG_LOGN("refinment done")
+	// 4. Lösche jedes v, sodass im Soma Anschlusslöcher für die Dendriten entstehen.
 
-	// 5. find two best faces for each quad and assign: TODO second best face is a adjacent face
-	std::vector<std::pair<Face*, size_t> > bestFacesNew;
-	std::vector<std::pair<Face*, size_t> > leastBestFacesNew;
-	find_best_faces(g, sh, 1, numQuads, quads, outVerts, aaPos, bestFacesNew, leastBestFacesNew);
+	// 5. Wandle die stückweise linearen Ringe um die Anschlusslöcher per
+	//    MergeVertices zu Vierecken um.
 
-	numBestFaces = bestFacesNew.size();
-	UG_LOGN("Faces found: " << numBestFaces);
-	UG_COND_THROW(numBestFaces != numQuads, "Could not find a best face for some quad.")
-	it = bestFacesNew.begin();
-	it_end = bestFacesNew.end();
-	size_t count = 1;
-	for (; it != it_end; ++it) {
-		sel.select(it->first);
-		AssignSelectionToSubset(sel, sh, si+count);
-		sel.deselect(it->first);
-		count++;
-	}
-	UG_LOGN("assigned best faces")
-	SaveGridToFile(g, sh, "testNeuriteProjectors_faces_found.ugx");
+	// 6. Extrudiere die Ringe entlang ihrer Normalen mit Höhe 0 (Extrude mit
+	//    aktivierter create faces Option).
 
-	numBestFaces = leastBestFacesNew.size();
-	UG_LOGN("Faces found: " << numBestFaces);
-	UG_COND_THROW(numBestFaces != numQuads, "Could not find a least best face for some quad.")
-	it = leastBestFacesNew.begin();
-	it_end = leastBestFacesNew.end();
-	count = 1;
-	for (; it != it_end; ++it) {
-		sel.select(it->first);
-		AssignSelectionToSubset(sel, sh, si+count);
-		sel.deselect(it->first);
-		count++;
-	}
-	UG_LOGN("assigend least best faces")
-	SaveGridToFile(g, sh, "testNeuriteProjectors_all_faces_found.ugx");
-
-	/// TODO: 6. find closest vertices, then erase triangle faces
-
-	/// TODO: 7. connect vertices of merged faces (triangles) now a quad to quad of neurite
+	// 7. Vereine per MergeVertices die Vertices der in 7. extrudierten Ringe jeweils
+	//    mit den zu ihnen nächstgelegenen Vertices des entsprechenden Dendritenendes.
 }
 
 
