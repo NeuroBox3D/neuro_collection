@@ -1032,8 +1032,9 @@ static void create_soma
 		Grid::VertexAttachmentAccessor<APosition>& aaPos
 )
 {
+	/// 0. Replace GenerateIcosahedron by GenerateIcosphere (segfaults however)
 	UG_COND_THROW(somaPts.size() != 1, "Currently only one soma point is allowed by this implementation");
-	GenerateIcosphere(g, somaPts.front().coords, somaPts.front().radius, 1, aPosition);
+	GenerateIcosahedron(g, somaPts.front().coords, somaPts.front().radius, aPosition);
 }
 
 
@@ -1053,34 +1054,37 @@ static void connect_neurites_with_soma
 	quads.reserve(numQuads);
 
 	for (size_t i = 0; i < numQuads; i++) {
-		UG_LOGN("quad!");
-		for (size_t j = 0; j < numVerts-1; j++) {
+		for (size_t j = 0; j < numVerts; j++) {
 			quads[i].push_back(aaPos[outVerts[(i*4)+j]]);
 		}
 	}
 
-	UG_LOGN("Pushed all quads!")
-
+	UG_LOGN("2.")
 	// 2. calculate center of each quad then find closest point on icosphere
 	ug::vector3 centerOut;
 	for (size_t i = 0; i < numQuads; i++) {
 		const ug::vector3* pointSet = &(quads[i][0]);
 		CalculateCenter(centerOut, pointSet, numVerts);
-		/// TODO: find closest point on sphere to centerOut
+		/// TODO: find closest point on sphere to centerOut: ProjectPointToSurface?!
 	}
 
+	UG_LOGN("3.")
 	// 3. Für jeden Vertex v führe AdaptSurfaceGridToCylinder mit Radius entsprechend
 	//    dem anzuschließenden Dendritenende aus. Dadurch entsteht auf der Icosphere
 	//    um jedes v ein trianguliertes 6- bzw. 5-Eck.
 
+	UG_LOGN("4.")
 	// 4. Lösche jedes v, sodass im Soma Anschlusslöcher für die Dendriten entstehen.
 
+	UG_LOGN("5.")
 	// 5. Wandle die stückweise linearen Ringe um die Anschlusslöcher per
 	//    MergeVertices zu Vierecken um.
 
+	UG_LOGN("6.")
 	// 6. Extrudiere die Ringe entlang ihrer Normalen mit Höhe 0 (Extrude mit
 	//    aktivierter create faces Option).
 
+	UG_LOGN("7.")
 	// 7. Vereine per MergeVertices die Vertices der in 7. extrudierten Ringe jeweils
 	//    mit den zu ihnen nächstgelegenen Vertices des entsprechenden Dendritenendes.
 }
@@ -1856,6 +1860,22 @@ void test_import_swc(const std::string& fileName, bool correct)
     create_soma(vSomaPoints, g, aaPos);
     sh.set_default_subset_index(0);
     UG_LOGN("Done with soma!");
+    /*
+    for (std::vector<Vertex*>::const_iterator it = outVerts.begin(); it != outVerts.end(); ++it) {
+    	UG_LOGN("Vertex: " << aaPos[*it]);
+    }
+
+    std::vector<std::vector<ug::vector3> > quads;
+   	size_t numVerts = 4;
+   	size_t numQuads = outVerts.size()/numVerts;
+   	quads.reserve(numQuads);
+
+   	for (size_t i = 0; i < numQuads; i++) {
+   		for (size_t j = 0; j < numVerts; j++) {
+   			UG_LOGN("index: " << (i*4)+j);
+   			quads[i].push_back(aaPos[outVerts[(i*4)+j]]);
+   		}
+   	}*/
 
     // connect soma with neurites
     connect_neurites_with_soma(g, aaPos, outVerts, 1, sh);
