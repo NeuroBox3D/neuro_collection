@@ -27,6 +27,8 @@
 #include "lib_grid/algorithms/grid_generation/icosahedron.h" // icosahedron
 #include "common/math/ugmath_types.h"
 #include "lib_grid/algorithms/subset_color_util.h"
+#include "lib_grid/algorithms/remeshing/grid_adaption.h" // AdaptSurfaceGridToCylinder
+#include "../../ugcore/ugbase/bridge/domain_bridges/selection_bridge.cpp"
 
 #include <boost/lexical_cast.hpp>
 
@@ -1029,26 +1031,30 @@ static void create_soma
 (
 		const std::vector<SWCPoint>& somaPts,
 		Grid& g,
-		Grid::VertexAttachmentAccessor<APosition>& aaPos
+		Grid::VertexAttachmentAccessor<APosition>& aaPos,
+		SubsetHandler& sh
 )
 {
-	/// 0. Replace GenerateIcosahedron by GenerateIcosphere (segfaults however)
+	/// 0. TODO: Replace GenerateIcosahedron by GenerateIcosphere (segfaults somwhow)
 	UG_COND_THROW(somaPts.size() != 1, "Currently only one soma point is allowed by this implementation");
 	GenerateIcosahedron(g, somaPts.front().coords, somaPts.front().radius, aPosition);
 }
 
 
+/// TODO: need to use neurite ids etc to push new sections in front of the neurite list maybe
 static void connect_neurites_with_soma
 (
 	   Grid& g,
 	   Grid::VertexAttachmentAccessor<APosition>& aaPos,
 	   std::vector<Vertex*> outVerts,
+	   std::vector<number> outRads,
 	   size_t si,
 	   SubsetHandler& sh
 ) {
 	UG_LOGN("1.");
-	// 1. the initial 4 vertices closest to the soma for each neurite
+	/// 1. Finde die 4 Vertices die den Dendritenanschluss darstellen zum Soma
 	std::vector<std::vector<ug::vector3> > quads;
+	std::vector<number> quadsRadii;
 	size_t numVerts = 4;
 	size_t numQuads = outVerts.size()/numVerts;
 	quads.reserve(numQuads);
@@ -1060,33 +1066,96 @@ static void connect_neurites_with_soma
 	}
 
 	UG_LOGN("2.")
-	// 2. calculate center of each quad then find closest point on icosphere
-	ug::vector3 centerOut;
+	/// 2. Berechne den Schwerpunkt jedes Quads und finde den nächstgelegenen
+	///    Vertex des Oberflächengitters vom Soma
+	std::vector<Vertex*> bestVertices;
 	for (size_t i = 0; i < numQuads; i++) {
 		const ug::vector3* pointSet = &(quads[i][0]);
+		ug::vector3 centerOut;
 		CalculateCenter(centerOut, pointSet, numVerts);
-		/// TODO: find closest point on sphere to centerOut: ProjectPointToSurface?!
+		Selector sel(g);
+		SelectSubsetElements<Vertex>(sel, sh, 1, true);
+		Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
+		Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
+		number best = -1;
+		ug::Vertex* best_vertex = NULL;
+		for (; vit != vit_end; ++vit) {
+			number dist = VecDistance(aaPos[*vit], centerOut);
+			if (best == -1) {
+				best = dist;
+				best_vertex = *vit;
+			} else if (dist < best) {
+				best = dist;
+				best_vertex = *vit;
+			}
+		}
+		UG_COND_THROW(!best_vertex, "No best vertex found for quad >>" << i << "<<.");
+		bestVertices.push_back(best_vertex);
 	}
 
 	UG_LOGN("3.")
-	// 3. Für jeden Vertex v führe AdaptSurfaceGridToCylinder mit Radius entsprechend
-	//    dem anzuschließenden Dendritenende aus. Dadurch entsteht auf der Icosphere
-	//    um jedes v ein trianguliertes 6- bzw. 5-Eck.
+	/// 3. Für jeden Vertex v führe AdaptSurfaceGridToCylinder mit Radius entsprechend
+	///    dem anzuschließenden Dendritenende aus. Dadurch entsteht auf der Icosphere
+	///    um jedes v ein trianguliertes 6- bzw. 5-Eck.
+	Selector sel(g);
+	for (size_t i = 0; i < bestVertices.size(); i++) {
+		sel.clear();
+		ug::vector3 normal;
+		CalculateVertexNormal(normal, g, bestVertices[i], aaPos);
+		number radius = outRads[i];
+		AdaptSurfaceGridToCylinder(sel, g, bestVertices[i], normal, radius, 1, aPosition);
+	}
+
+	AssignSubsetColors(sh);
+	SaveGridToFile(g, sh, "testNeurite_Projectors_before_deleting_center_vertices.ugx");
+	UG_LOGN("5.")
+	/// 5. Wandle die stückweise linearen Ringe um die Anschlusslöcher per
+	///    MergeVertices zu Vierecken um.
+	sel.clear();
+	for (std::vector<Vertex*>::const_iterator it = bestVertices.begin(); it != bestVertices.end(); ++it) {
+		sel.select(*it);
+		ExtendSelection(sel, 1, true);
+		CloseSelection(sel);
+		Grid::traits<Vertex>::secure_container vertexContainer;
+		sel.deselect(*it);
+
+		Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
+		Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
+		for (; vit != vit_end; ++vit) {
+			vertexContainer.push_back(*vit);
+		}
+
+		UG_LOGN("vertexContainer has " << vertexContainer.size() << " elements")
+		if (vertexContainer.size() > 4) {
+			for (size_t i = 0; i < vertexContainer.size()-4; i++) {
+				/// TODO: MergeVertices(g, vertexContainer[i], vertexContainer[i+1]) segfaults!
+			}
+		}
+		sel.clear();
+		vertexContainer.clear();
+	}
 
 	UG_LOGN("4.")
-	// 4. Lösche jedes v, sodass im Soma Anschlusslöcher für die Dendriten entstehen.
+	/// 4. Lösche jedes v, sodass im Soma Anschlusslöcher für die Dendriten entstehen.
+	sel.clear();
+	for (std::vector<Vertex*>::const_iterator it = bestVertices.begin(); it != bestVertices.end(); ++it) {
+		sel.select(*it);
+	}
 
-	UG_LOGN("5.")
-	// 5. Wandle die stückweise linearen Ringe um die Anschlusslöcher per
-	//    MergeVertices zu Vierecken um.
+	size_t numSubsets = sh.num_subsets();
+	AssignSelectionToSubset(sel, sh, numSubsets);
+	EraseElements<Vertex>(g, sh.begin<Vertex>(numSubsets), sh.end<Vertex>(numSubsets));
+	EraseEmptySubsets(sh);
+	AssignSubsetColors(sh);
+	SaveGridToFile(g, sh, "testNeurite_Projectors_after_deleting_center_vertices.ugx");
 
 	UG_LOGN("6.")
-	// 6. Extrudiere die Ringe entlang ihrer Normalen mit Höhe 0 (Extrude mit
-	//    aktivierter create faces Option).
+	/// 6. TODO: Extrudiere die Ringe entlang ihrer Normalen mit Höhe 0 (Extrude mit
+	///    aktivierter create faces Option).
 
 	UG_LOGN("7.")
-	// 7. Vereine per MergeVertices die Vertices der in 7. extrudierten Ringe jeweils
-	//    mit den zu ihnen nächstgelegenen Vertices des entsprechenden Dendritenendes.
+	/// 7. TODO: Vereine per MergeVertices die Vertices der in 6. extrudierten Ringe jeweils
+	///    mit den zu ihnen nächstgelegenen Vertices des entsprechenden Dendritenendes.
 }
 
 
@@ -1101,7 +1170,8 @@ static void create_neurite
     Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
     std::vector<Vertex*>* connectingVrts = NULL,
     std::vector<Edge*>* connectingEdges = NULL,
-    std::vector<Vertex*>* outVerts = NULL
+    std::vector<Vertex*>* outVerts = NULL,
+    std::vector<number>* outRads = NULL
 )
 {
     const NeuriteProjector::Neurite& neurite = vNeurites[nid];
@@ -1185,6 +1255,7 @@ static void create_neurite
             aaSurfParams[v].axial = 0.0;
             aaSurfParams[v].angular = angle;
             outVerts->push_back(v);
+            outRads->push_back(r[0]);
 
         }
         for (size_t i = 0; i < 4; ++i)
@@ -1785,6 +1856,7 @@ void test_import_swc(const std::string& fileName, bool correct)
 
     convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
     std::vector<Vertex*> outVerts;
+    std::vector<number> outRads;
 
 /* debug
     std::cout << "BPInfo:" << std::endl;
@@ -1840,7 +1912,7 @@ void test_import_swc(const std::string& fileName, bool correct)
         neuriteProj->add_neurite(vNeurites[i]);
 
     for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i)
-        create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts);
+        create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads);
 
     // at branching points, we have not computed the correct positions yet,
     // so project the complete geometry using the projector
@@ -1857,28 +1929,12 @@ void test_import_swc(const std::string& fileName, bool correct)
     // create soma
     sel.clear();
     sh.set_default_subset_index(1);
-    create_soma(vSomaPoints, g, aaPos);
+    create_soma(vSomaPoints, g, aaPos, sh);
     sh.set_default_subset_index(0);
     UG_LOGN("Done with soma!");
-    /*
-    for (std::vector<Vertex*>::const_iterator it = outVerts.begin(); it != outVerts.end(); ++it) {
-    	UG_LOGN("Vertex: " << aaPos[*it]);
-    }
-
-    std::vector<std::vector<ug::vector3> > quads;
-   	size_t numVerts = 4;
-   	size_t numQuads = outVerts.size()/numVerts;
-   	quads.reserve(numQuads);
-
-   	for (size_t i = 0; i < numQuads; i++) {
-   		for (size_t j = 0; j < numVerts; j++) {
-   			UG_LOGN("index: " << (i*4)+j);
-   			quads[i].push_back(aaPos[outVerts[(i*4)+j]]);
-   		}
-   	}*/
 
     // connect soma with neurites
-    connect_neurites_with_soma(g, aaPos, outVerts, 1, sh);
+    connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh);
     UG_LOGN("Done with connecting neurites!");
 
     // refinement
