@@ -1116,6 +1116,8 @@ static void connect_neurites_with_soma
 		sel.select(*it);
 		ExtendSelection(sel, 1, true);
 		CloseSelection(sel);
+		/// TODO: assign each cylinder to different subset, then can use this to
+		/// identify the neurites starting point (quads) needed in step 7 to merge the
 		Grid::traits<Vertex>::secure_container vertexContainer;
 		sel.deselect(*it);
 
