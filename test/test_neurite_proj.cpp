@@ -1035,9 +1035,8 @@ static void create_soma
 		SubsetHandler& sh
 )
 {
-	/// 0. TODO: Replace GenerateIcosahedron by GenerateIcosphere (segfaults somwhow)
 	UG_COND_THROW(somaPts.size() != 1, "Currently only one soma point is allowed by this implementation");
-	GenerateIcosahedron(g, somaPts.front().coords, somaPts.front().radius, aPosition);
+	GenerateIcosphere(g, somaPts.front().coords, somaPts.front().radius, 1, aPosition);
 }
 
 
@@ -1057,12 +1056,13 @@ static void connect_neurites_with_soma
 	std::vector<number> quadsRadii;
 	size_t numVerts = 4;
 	size_t numQuads = outVerts.size()/numVerts;
-	quads.reserve(numQuads);
 
 	for (size_t i = 0; i < numQuads; i++) {
+		std::vector<ug::vector3> temp;
 		for (size_t j = 0; j < numVerts; j++) {
-			quads[i].push_back(aaPos[outVerts[(i*4)+j]]);
+			temp.push_back(aaPos[outVerts[(i*4)+j]]);
 		}
+		quads.push_back(temp);
 	}
 
 	UG_LOGN("2.")
@@ -1112,6 +1112,7 @@ static void connect_neurites_with_soma
 	/// 5. Wandle die stückweise linearen Ringe um die Anschlusslöcher per
 	///    MergeVertices zu Vierecken um.
 	sel.clear();
+	std::vector<Grid::traits<Vertex>::secure_container> vertexContainers;
 	for (std::vector<Vertex*>::const_iterator it = bestVertices.begin(); it != bestVertices.end(); ++it) {
 		sel.select(*it);
 		ExtendSelection(sel, 1, true);
@@ -1126,15 +1127,8 @@ static void connect_neurites_with_soma
 		for (; vit != vit_end; ++vit) {
 			vertexContainer.push_back(*vit);
 		}
-
-		UG_LOGN("vertexContainer has " << vertexContainer.size() << " elements")
-		if (vertexContainer.size() > 4) {
-			for (size_t i = 0; i < vertexContainer.size()-4; i++) {
-				/// TODO: MergeVertices(g, vertexContainer[i], vertexContainer[i+1]) segfaults!
-			}
-		}
+		vertexContainers.push_back(vertexContainer);
 		sel.clear();
-		vertexContainer.clear();
 	}
 
 	UG_LOGN("4.")
@@ -1150,6 +1144,19 @@ static void connect_neurites_with_soma
 	EraseEmptySubsets(sh);
 	AssignSubsetColors(sh);
 	SaveGridToFile(g, sh, "testNeurite_Projectors_after_deleting_center_vertices.ugx");
+
+	/// Merge now
+	std::vector<Grid::traits<Vertex>::secure_container>::const_iterator it = vertexContainers.begin();
+	for (; it != vertexContainers.end(); ++it) {
+		if (it->size() > numVerts) {
+			for (size_t i = 0; i < it->size()-numVerts; i++) {
+				 UG_LOGN("Merge!");
+				 MergeVertices(g, (*it)[0], (*it)[i+1]);
+			}
+		}
+	}
+	SaveGridToFile(g, sh, "testNeurite_Projectors_after_merging_cylidner_vertices.ugx");
+
 
 	UG_LOGN("6.")
 	/// 6. TODO: Extrudiere die Ringe entlang ihrer Normalen mit Höhe 0 (Extrude mit
