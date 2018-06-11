@@ -1112,27 +1112,11 @@ static void connect_neurites_with_soma
 	/// 5. Wandle die stückweise linearen Ringe um die Anschlusslöcher per
 	///    MergeVertices zu Vierecken um.
 	sel.clear();
-	std::vector<Grid::traits<Edge>::secure_container> edgeContainers;
 	for (std::vector<Vertex*>::iterator it = bestVertices.begin(); it != bestVertices.end(); ++it) {
 		sel.select(*it);
 		ExtendSelection(sel, 1, true);
 		CloseSelection(sel);
 		AssignSelectionToSubset(sel, sh, sh.num_subsets()+1);
-		/// TODO: assign each cylinder to different subset, then can use this to
-		/// identify the neurites starting point (quads) needed in step 7 to merge the
-		Grid::traits<Edge>::secure_container edgeContainer;
-		sel.deselect(*it);
-
-		Selector::traits<Edge>::iterator eit = sel.edges_begin();
-		Selector::traits<Edge>::iterator eit_end = sel.edges_end();
-		for (; eit != eit_end; ++eit) {
-			Edge* e = *eit;
-			if ((e->vertex(0) != *it) && (e->vertex(1) != *it)) {
-				edgeContainer.push_back(*eit);
-			}
-		}
-		edgeContainers.push_back(edgeContainer);
-		edgeContainer.clear();
 		sel.clear();
 	}
 
@@ -1154,15 +1138,13 @@ static void connect_neurites_with_soma
 	SaveGridToFile(g, sh, "testNeurite_Projectors_after_deleting_center_vertices.ugx");
 
 	/// Collapse now
-	std::vector<Grid::traits<Edge>::secure_container>::iterator it = edgeContainers.begin();
-	size_t numEdges = 4;
-	for (; it != edgeContainers.end(); ++it) {
-		UG_LOGN("edges contained in container: " << it->size());
-		if (it->size() > numEdges) {
-			for (size_t i = 0; i < it->size()-numEdges; i++) {
-				 UG_LOGN("Collapse " << i);
-				 CollapseEdge(g, (*it)[0], (*it)[0]->vertex(0));
-			}
+	size_t beginningOfQuads = 2;
+	for (size_t i = 0; i < numQuads; i++) {
+		size_t numEdges = sh.num<Edge>(beginningOfQuads+i);
+		while (numEdges > 4) {
+			Edge* e = *sh.begin<Edge>(beginningOfQuads+i);
+			CollapseEdge(g, e, e->vertex(0));
+			numEdges--;
 		}
 	}
 	SaveGridToFile(g, sh, "testNeurite_Projectors_after_merging_cylinder_vertices.ugx");
@@ -1170,6 +1152,8 @@ static void connect_neurites_with_soma
 	UG_LOGN("6.")
 	/// 6. TODO: Extrudiere die Ringe entlang ihrer Normalen mit Höhe 0 (Extrude mit
 	///    aktivierter create faces Option).
+	for (size_t i = 0; i < numQuads; i++) {
+	}
 
 	UG_LOGN("7.")
 	/// 7. TODO: Vereine per MergeVertices die Vertices der in 6. extrudierten Ringe jeweils
