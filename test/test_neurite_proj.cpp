@@ -1112,29 +1112,37 @@ static void connect_neurites_with_soma
 	/// 5. Wandle die stückweise linearen Ringe um die Anschlusslöcher per
 	///    MergeVertices zu Vierecken um.
 	sel.clear();
-	std::vector<Grid::traits<Vertex>::secure_container> vertexContainers;
-	for (std::vector<Vertex*>::const_iterator it = bestVertices.begin(); it != bestVertices.end(); ++it) {
+	std::vector<Grid::traits<Edge>::secure_container> edgeContainers;
+	for (std::vector<Vertex*>::iterator it = bestVertices.begin(); it != bestVertices.end(); ++it) {
 		sel.select(*it);
 		ExtendSelection(sel, 1, true);
 		CloseSelection(sel);
+		AssignSelectionToSubset(sel, sh, sh.num_subsets()+1);
 		/// TODO: assign each cylinder to different subset, then can use this to
 		/// identify the neurites starting point (quads) needed in step 7 to merge the
-		Grid::traits<Vertex>::secure_container vertexContainer;
+		Grid::traits<Edge>::secure_container edgeContainer;
 		sel.deselect(*it);
 
-		Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
-		Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
-		for (; vit != vit_end; ++vit) {
-			vertexContainer.push_back(*vit);
+		Selector::traits<Edge>::iterator eit = sel.edges_begin();
+		Selector::traits<Edge>::iterator eit_end = sel.edges_end();
+		for (; eit != eit_end; ++eit) {
+			Edge* e = *eit;
+			if ((e->vertex(0) != *it) && (e->vertex(1) != *it)) {
+				edgeContainer.push_back(*eit);
+			}
 		}
-		vertexContainers.push_back(vertexContainer);
+		edgeContainers.push_back(edgeContainer);
+		edgeContainer.clear();
 		sel.clear();
 	}
+
+	AssignSubsetColors(sh);
+	SaveGridToFile(g, sh, "testNeurite_Projectors_before_neighborhoods.ugx");
 
 	UG_LOGN("4.")
 	/// 4. Lösche jedes v, sodass im Soma Anschlusslöcher für die Dendriten entstehen.
 	sel.clear();
-	for (std::vector<Vertex*>::const_iterator it = bestVertices.begin(); it != bestVertices.end(); ++it) {
+	for (std::vector<Vertex*>::iterator it = bestVertices.begin(); it != bestVertices.end(); ++it) {
 		sel.select(*it);
 	}
 
@@ -1145,18 +1153,19 @@ static void connect_neurites_with_soma
 	AssignSubsetColors(sh);
 	SaveGridToFile(g, sh, "testNeurite_Projectors_after_deleting_center_vertices.ugx");
 
-	/// Merge now
-	std::vector<Grid::traits<Vertex>::secure_container>::const_iterator it = vertexContainers.begin();
-	for (; it != vertexContainers.end(); ++it) {
-		if (it->size() > numVerts) {
-			for (size_t i = 0; i < it->size()-numVerts; i++) {
-				 UG_LOGN("Merge!");
-				 MergeVertices(g, (*it)[0], (*it)[i+1]);
+	/// Collapse now
+	std::vector<Grid::traits<Edge>::secure_container>::iterator it = edgeContainers.begin();
+	size_t numEdges = 4;
+	for (; it != edgeContainers.end(); ++it) {
+		UG_LOGN("edges contained in container: " << it->size());
+		if (it->size() > numEdges) {
+			for (size_t i = 0; i < it->size()-numEdges; i++) {
+				 UG_LOGN("Collapse " << i);
+				 CollapseEdge(g, (*it)[0], (*it)[0]->vertex(0));
 			}
 		}
 	}
-	SaveGridToFile(g, sh, "testNeurite_Projectors_after_merging_cylidner_vertices.ugx");
-
+	SaveGridToFile(g, sh, "testNeurite_Projectors_after_merging_cylinder_vertices.ugx");
 
 	UG_LOGN("6.")
 	/// 6. TODO: Extrudiere die Ringe entlang ihrer Normalen mit Höhe 0 (Extrude mit
