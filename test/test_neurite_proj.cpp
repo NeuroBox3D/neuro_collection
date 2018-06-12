@@ -1138,13 +1138,12 @@ static void connect_neurites_with_soma
 	SaveGridToFile(g, sh, "testNeurite_Projectors_after_deleting_center_vertices.ugx");
 
 	/// Collapse now edges and take smallest edges first
-	size_t beginningOfQuads = 2;
+	size_t beginningOfQuads = 2; // subset index where quads are stored in
 	for (size_t i = 0; i < numQuads; i++) {
 		size_t si = beginningOfQuads+i;
 		size_t numEdges = sh.num<Edge>(si);
 		size_t j = 0;
 		while (numEdges > numVerts) {
-			Edge* e = *sh.begin<Edge>(si);
 			SubsetHandler::traits<Edge>::iterator eit = sh.begin<Edge>(si);
 			SubsetHandler::traits<Edge>::iterator end = sh.end<Edge>(si);
 			number bestLength = -1;
@@ -1173,15 +1172,72 @@ static void connect_neurites_with_soma
 	}
 	SaveGridToFile(g, sh, "testNeurite_Projectors_after_merging_cylinder_vertices.ugx");
 
+	/// TODO: TangentialSmooth + Retriangulate
+	UG_LOGN("8.")
+
 	UG_LOGN("6.")
-	/// 6. TODO: Extrudiere die Ringe entlang ihrer Normalen mit Höhe 0 (Extrude mit
+	/// 6. Extrudiere die Ringe entlang ihrer Normalen mit Höhe 0 (Extrude mit
 	///    aktivierter create faces Option).
+	sel.clear();
+	std::vector<std::vector<Vertex*> > somaVerts;
+	std::vector<std::vector<Vertex*> > allVerts;
 	for (size_t i = 0; i < numQuads; i++) {
+		size_t si = beginningOfQuads+i;
+		ug::vector3 normal;
+		CalculateVertexNormal(normal, g, *sh.begin<Vertex>(si), aaPos);
+		std::vector<Edge*> edges;
+		edges.assign(sh.begin<Edge>(si), sh.end<Edge>(si));
+		SelectSubsetElements<Vertex>(sel, sh, si, true);
+		std::vector<Vertex*> temp;
+		temp.assign(sel.vertices_begin(), sel.vertices_end());
+		somaVerts.push_back(temp);
+		Extrude(g, NULL, &edges, NULL, normal, aaPos, EO_CREATE_FACES, NULL);
+		sel.clear();
+		SelectSubsetElements<Vertex>(sel, sh, si, true);
+		std::vector<Vertex*> temp2;
+		temp2.assign(sel.vertices_begin(), sel.vertices_end());
+		allVerts.push_back(temp2);
+		sel.clear();
+	}
+
+	/// delete common vertices, thus keep only newly extruded vertices (useed in next step 7.)
+	for (size_t i = 0; i < numQuads; i++) {
+		size_t numSomaVerts = somaVerts[i].size();
+		for (size_t j = 0; j < numSomaVerts; j++) {
+			allVerts[i].erase(std::remove(allVerts[i].begin(), allVerts[i].end(), somaVerts[i][j]), allVerts[i].end());
+		}
 	}
 
 	UG_LOGN("7.")
-	/// 7. TODO: Vereine per MergeVertices die Vertices der in 6. extrudierten Ringe jeweils
+	SaveGridToFile(g, sh, "testNeurite_Projectors_after_extruding_cylinders.ugx");
+	std::vector<std::pair<Vertex*, Vertex*> > mergeIndices;
+	/// 7. Vereine per MergeVertices die Vertices der in 6. extrudierten Ringe jeweils
 	///    mit den zu ihnen nächstgelegenen Vertices des entsprechenden Dendritenendes.
+	for (size_t i = 0; i < numQuads; i++) {
+		UG_LOGN("i " << i)
+		for (size_t j = 0; j < numVerts; j++) {
+			UG_LOGN("j " << j)
+			number closest = -1;
+			Vertex* v2 = NULL;
+			for (size_t k = 0; k < allVerts[i].size(); k++) {
+				UG_LOGN("k " << k)
+				if (closest == -1) {
+					v2 = allVerts[i][k];
+					closest = VecDistance(aaPos[allVerts[i][k]], aaPos[outVerts[(i*4)+j]]);
+				} else {
+					number dist = VecDistance(aaPos[allVerts[i][k]], aaPos[outVerts[(i*4)+j]]);
+					if (dist < closest) {
+						closest = dist;
+						v2 = allVerts[i][k];
+					}
+				}
+			}
+			mergeIndices.push_back(std::make_pair(outVerts[(i*4)+j], v2));
+		}
+	}
+	/// TODO: iterate over mergeIndices -> merge vertices
+	UG_COND_THROW(mergeIndices.size() != numQuads*numVerts, "Did not find enough pairs!");
+	SaveGridToFile(g, sh, "testNeurite_Projectors_after_extruding_cylinders.ugx");
 }
 
 
