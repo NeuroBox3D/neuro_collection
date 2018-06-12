@@ -1137,14 +1137,38 @@ static void connect_neurites_with_soma
 	AssignSubsetColors(sh);
 	SaveGridToFile(g, sh, "testNeurite_Projectors_after_deleting_center_vertices.ugx");
 
-	/// Collapse now
+	/// Collapse now edges and take smallest edges first
 	size_t beginningOfQuads = 2;
 	for (size_t i = 0; i < numQuads; i++) {
-		size_t numEdges = sh.num<Edge>(beginningOfQuads+i);
-		while (numEdges > 4) {
-			Edge* e = *sh.begin<Edge>(beginningOfQuads+i);
-			CollapseEdge(g, e, e->vertex(0));
+		size_t si = beginningOfQuads+i;
+		size_t numEdges = sh.num<Edge>(si);
+		size_t j = 0;
+		while (numEdges > numVerts) {
+			Edge* e = *sh.begin<Edge>(si);
+			SubsetHandler::traits<Edge>::iterator eit = sh.begin<Edge>(si);
+			SubsetHandler::traits<Edge>::iterator end = sh.end<Edge>(si);
+			number bestLength = -1;
+			Edge* eBest = NULL;
+			for (; eit != end; ++eit) {
+				const Edge* ee = *eit;
+				Vertex* const* verts = ee->vertices();
+				if (bestLength == -1) {
+					bestLength = VecDistance(aaPos[verts[0]], aaPos[verts[1]]);
+					eBest = *eit;
+				} else {
+					number length = VecDistance(aaPos[verts[0]], aaPos[verts[1]]);
+					if (length < bestLength) {
+						eBest = *eit;
+						bestLength = length;
+					}
+				}
+			}
+			CollapseEdge(g, eBest, eBest->vertex(0));
 			numEdges--;
+			j++;
+			std::stringstream ss;
+			ss << "testNeurite_Projectors_after_collapse_number_" << j << "_for_quad_" << i << ".ugx";
+			SaveGridToFile(g, sh, ss.str().c_str());
 		}
 	}
 	SaveGridToFile(g, sh, "testNeurite_Projectors_after_merging_cylinder_vertices.ugx");
