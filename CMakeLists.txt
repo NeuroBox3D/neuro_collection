@@ -43,7 +43,7 @@ if (NOT buildForVRL)
 endif (NOT buildForVRL)
 
 # use QHULL if available
-option(QHULL "Provide installation path to qhull implementation." OFF)
+option(QHULL "Provide installation path to qhull implementation (build has to exist in given path)." OFF)
 find_library(QHULL_LIB_CPP NAMES qhullcpp PATHS ${QHULL}/build/)
 find_library(QHULL_LIB_STATIC NAMES qhullstatic PATHS ${QHULL}/build/)
 
@@ -109,7 +109,7 @@ else(buildEmbeddedPlugins)
 	
 	if (MembranePotentialMapping)
 		# make plugin link against MPM
-		set(linkLibraries MembranePotentialMapping ${linkLibraries} ${QHULL_LIB_CPP} ${QHULL_LIB_STATIC}) # /Users/stephan/Code/git/qhull/build/libqhullstatic.a)
+		set(linkLibraries MembranePotentialMapping ${linkLibraries} ${QHULL_LIB_CPP} ${QHULL_LIB_STATIC}) 
 	endif (MembranePotentialMapping)
 	
 	## temporarily commented out until split synapse handler replaces synapse handler
@@ -118,6 +118,6 @@ else(buildEmbeddedPlugins)
 		set(linkLibraries cable_neuron ${linkLibraries})
 	endif (cable_neuron)
 	
-	target_link_libraries (${pluginName} ug4 ${linkLibraries} ${QHULL_LIB_CPP} ${QHULL_LIB_STATIC}) # /Users/stephan/Code/git/qhull/build/libqhullstatic.a)
+	target_link_libraries (${pluginName} ug4 ${linkLibraries} ${QHULL_LIB_CPP} ${QHULL_LIB_STATIC}) 
 endif(buildEmbeddedPlugins)
 
