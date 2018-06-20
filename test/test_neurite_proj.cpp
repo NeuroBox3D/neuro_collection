@@ -29,6 +29,7 @@
 #include "lib_grid/algorithms/subset_color_util.h"
 #include "lib_grid/algorithms/remeshing/grid_adaption.h" // AdaptSurfaceGridToCylinder
 #include "../../ugcore/ugbase/bridge/domain_bridges/selection_bridge.cpp"
+#include <boost/geometry.hpp>
 
 #include <boost/lexical_cast.hpp>
 
@@ -38,11 +39,20 @@
 #include <vector>
 #include <queue>
 #include <stack>
+#include <vector>
+
+// configuration file for compile options
+#include "config.h"
+
+/// use our implementation quickhull but prefer qhull.org if available
+#ifdef NC_WITH_QHULL
+	#include "qhull.cpp"
+#else
+	#include "quickhull.cpp"
+#endif
 
 namespace ug {
 namespace neuro_collection {
-
-
 
 void import_swc
 (
@@ -1039,7 +1049,6 @@ static void create_soma
 	GenerateIcosphere(g, somaPts.front().coords, somaPts.front().radius, 1, aPosition);
 }
 
-
 /// TODO: need to use neurite ids etc to push new sections in front of the neurite list maybe
 static void connect_neurites_with_soma
 (
@@ -1207,38 +1216,44 @@ static void connect_neurites_with_soma
 			allVerts[i].erase(std::remove(allVerts[i].begin(), allVerts[i].end(), somaVerts[i][j]), allVerts[i].end());
 		}
 	}
+	SaveGridToFile(g, sh, "testNeurite_Projectors_after_extruding_cylinders.ugx");
 
 	UG_LOGN("7.")
-	SaveGridToFile(g, sh, "testNeurite_Projectors_after_extruding_cylinders.ugx");
-	std::vector<std::pair<Vertex*, Vertex*> > mergeIndices;
 	/// 7. Vereine per MergeVertices die Vertices der in 6. extrudierten Ringe jeweils
 	///    mit den zu ihnen nächstgelegenen Vertices des entsprechenden Dendritenendes.
+	si = beginningOfQuads;
+	sel.clear();
 	for (size_t i = 0; i < numQuads; i++) {
-		UG_LOGN("i " << i)
+		std::vector<ug::vector3> temp;
+		std::vector<Vertex*> temp2;
 		for (size_t j = 0; j < numVerts; j++) {
-			UG_LOGN("j " << j)
-			number closest = -1;
-			Vertex* v2 = NULL;
-			for (size_t k = 0; k < allVerts[i].size(); k++) {
-				UG_LOGN("k " << k)
-				if (closest == -1) {
-					v2 = allVerts[i][k];
-					closest = VecDistance(aaPos[allVerts[i][k]], aaPos[outVerts[(i*4)+j]]);
-				} else {
-					number dist = VecDistance(aaPos[allVerts[i][k]], aaPos[outVerts[(i*4)+j]]);
-					if (dist < closest) {
-						closest = dist;
-						v2 = allVerts[i][k];
-					}
-				}
-			}
-			mergeIndices.push_back(std::make_pair(outVerts[(i*4)+j], v2));
+			temp.push_back(aaPos[outVerts[i*4+j]]);
+			std::cout << "<<<verts>>>" << aaPos[outVerts[i*4+j]] << std::endl;
+			temp2.push_back(outVerts[i*4+j]);
 		}
+		for (size_t j = 0; j < numVerts; j++) {
+			temp.push_back(aaPos[allVerts[i][j]]);
+			std::cout << "<<<verts>>>" << aaPos[allVerts[i][j]] << std::endl;
+			temp2.push_back(allVerts[i][j]);
+		}
+
+		UG_COND_THROW(temp.size() != 8, "Need 8 vertices for calculating all faces.");
+		#ifdef NC_WITH_QHULL
+			using ug::neuro_collection::convexhull::gen_face;
+			gen_face(temp, g, sh, si+i, aaPos);
+		#else
+			using ug::neuro_collection::quickhull::gen_face;
+			gen_face(temp, temp2, g, sh, si+i, aaPos);
+		#endif
 	}
-	/// TODO: iterate over mergeIndices -> merge vertices
-	UG_COND_THROW(mergeIndices.size() != numQuads*numVerts, "Did not find enough pairs!");
-	SaveGridToFile(g, sh, "testNeurite_Projectors_after_extruding_cylinders.ugx");
+	EraseEmptySubsets(sh);
+	AssignSubsetColors(sh);
+	SaveGridToFile(g, sh, "testNeurite_Projectors_after_extruding_cylinders_and_merging.ugx");
 }
+
+
+
+
 
 
 static void create_neurite
