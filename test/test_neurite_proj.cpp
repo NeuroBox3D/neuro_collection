@@ -1049,7 +1049,6 @@ static void create_soma
 	GenerateIcosphere(g, somaPts.front().coords, somaPts.front().radius, 1, aPosition);
 }
 
-/// TODO: need to use neurite ids etc to push new sections in front of the neurite list maybe
 static void connect_neurites_with_soma
 (
 	   Grid& g,
@@ -1059,7 +1058,7 @@ static void connect_neurites_with_soma
 	   size_t si,
 	   SubsetHandler& sh
 ) {
-	UG_LOGN("1.");
+	UG_LOGN("1. Find the vertices representing dendrite connection to soma.");
 	/// 1. Finde die 4 Vertices die den Dendritenanschluss darstellen zum Soma
 	std::vector<std::vector<ug::vector3> > quads;
 	std::vector<number> quadsRadii;
@@ -1074,7 +1073,7 @@ static void connect_neurites_with_soma
 		quads.push_back(temp);
 	}
 
-	UG_LOGN("2.")
+	UG_LOGN("2. Calculate center of each quad, find next surface vertex on soma.")
 	/// 2. Berechne den Schwerpunkt jedes Quads und finde den nächstgelegenen
 	///    Vertex des Oberflächengitters vom Soma
 	std::vector<Vertex*> bestVertices;
@@ -1102,7 +1101,7 @@ static void connect_neurites_with_soma
 		bestVertices.push_back(best_vertex);
 	}
 
-	UG_LOGN("3.")
+	UG_LOGN("3. AdaptSurfaceGridToCylinder")
 	/// 3. Für jeden Vertex v führe AdaptSurfaceGridToCylinder mit Radius entsprechend
 	///    dem anzuschließenden Dendritenende aus. Dadurch entsteht auf der Icosphere
 	///    um jedes v ein trianguliertes 6- bzw. 5-Eck.
@@ -1117,7 +1116,7 @@ static void connect_neurites_with_soma
 
 	AssignSubsetColors(sh);
 	SaveGridToFile(g, sh, "testNeurite_Projectors_before_deleting_center_vertices.ugx");
-	UG_LOGN("5.")
+	UG_LOGN("5. MergeVertices")
 	/// 5. Wandle die stückweise linearen Ringe um die Anschlusslöcher per
 	///    MergeVertices zu Vierecken um.
 	sel.clear();
@@ -1132,7 +1131,7 @@ static void connect_neurites_with_soma
 	AssignSubsetColors(sh);
 	SaveGridToFile(g, sh, "testNeurite_Projectors_before_neighborhoods.ugx");
 
-	UG_LOGN("4.")
+	UG_LOGN("4. Remove each vertex. Creates holes in soma")
 	/// 4. Lösche jedes v, sodass im Soma Anschlusslöcher für die Dendriten entstehen.
 	sel.clear();
 	for (std::vector<Vertex*>::iterator it = bestVertices.begin(); it != bestVertices.end(); ++it) {
@@ -1182,9 +1181,9 @@ static void connect_neurites_with_soma
 	SaveGridToFile(g, sh, "testNeurite_Projectors_after_merging_cylinder_vertices.ugx");
 
 	/// TODO: TangentialSmooth + Retriangulate
-	UG_LOGN("8.")
+	UG_LOGN("8. TangentialSmooth and Retriangulate")
 
-	UG_LOGN("6.")
+	UG_LOGN("6. Extrude rings along normal")
 	/// 6. Extrudiere die Ringe entlang ihrer Normalen mit Höhe 0 (Extrude mit
 	///    aktivierter create faces Option).
 	sel.clear();
@@ -1218,7 +1217,7 @@ static void connect_neurites_with_soma
 	}
 	SaveGridToFile(g, sh, "testNeurite_Projectors_after_extruding_cylinders.ugx");
 
-	UG_LOGN("7.")
+	UG_LOGN("7. Calculate convex hull and connect")
 	/// 7. Vereine per MergeVertices die Vertices der in 6. extrudierten Ringe jeweils
 	///    mit den zu ihnen nächstgelegenen Vertices des entsprechenden Dendritenendes.
 	si = beginningOfQuads;
@@ -1245,6 +1244,8 @@ static void connect_neurites_with_soma
 	EraseEmptySubsets(sh);
 	AssignSubsetColors(sh);
 	SaveGridToFile(g, sh, "testNeurite_Projectors_after_extruding_cylinders_and_merging.ugx");
+	/// 9. TODO: need to use neurite ids etc to push new sections in front of the neurite list maybe
+	/// 10. TODO: volume element generation
 }
 
 

@@ -515,9 +515,12 @@ void qh_user_memsizes(void) {
   /* qh_memsize(size); */
 } /* user_memsizes */
 
-void gen_face(const std::vector<ug::vector3>& points, Grid& g, SubsetHandler& sh, size_t si,  Grid::VertexAttachmentAccessor<APosition>& aaPos) {
-
-
+void gen_face
+(
+	const std::vector<ug::vector3>& points, Grid& g, SubsetHandler& sh,
+  size_t si,  Grid::VertexAttachmentAccessor<APosition>& aaPos
+)
+{
 	int numPoints= points.size();
 	int dim = 3;
 	coordT ps[numPoints*dim];
@@ -528,99 +531,43 @@ void gen_face(const std::vector<ug::vector3>& points, Grid& g, SubsetHandler& sh
 	}
 
 	char flags[25];
-   sprintf (flags, "qhull s FA Qt");
+    sprintf (flags, "qhull s FA Qt");
     qh_new_qhull(dim, numPoints, ps, 0, flags, NULL, NULL);
-
-		    facetT* facet;
-		    for (facet=qh facet_list;facet && facet->next;facet=facet->next) {
-		        setT *vertices = facet->vertices;
-		        vertexT *vertex, **vertexp;
-		        int count = qh_setsize(vertices);
-		        std::vector<ug::vector3> verts;
-		           FOREACHvertex_(facet->vertices) {
-		        	   ug::vector3 temp;
-		              pointT *point = vertex->point;
-		              int i;
-		              printf("(");
-		              for (i = 0; i < dim; i++) {
-		                double coord = vertex->point[i];
-		                temp[i] = coord;
-		                if (i < dim-1) {
-		                 printf("%f ", coord);
-		                } else {
-		                   printf("%f)   ", coord);
-		                }
-		              }
-		              verts.push_back(temp);
-		              printf("\n");
-		           }
-
-              		Vertex* v1 = *g.create<RegularVertex>();
-              		Vertex* v2 = *g.create<RegularVertex>();
-              		Vertex* v3 = *g.create<RegularVertex>();
-              		aaPos[v1] = verts[0];
-              		aaPos[v2] = verts[1];
-              		aaPos[v3] = verts[2];
-              		Triangle* t2 = *g.create<Triangle>(
-              				TriangleDescriptor(v1, v2, v3));
-              		Selector sel(g);
-              		sel.select(t2);
-	              	sel.select(v1);
-	              	sel.select(v2);
-	              	sel.select(v3);
-	              	CloseSelection(sel);
-	              	AssignSelectionToSubset(sel, sh, si + 1000);
-              		sel.clear();
-		    }
-		    qh_freeqhull(!qh_ALL);
-
-}
-
-
-
-/*int main(int argc, char** argv) {
- //  int numpoints = 4;
- //   coordT points[] = {0,0,0, 1,0,0, 0,1,0, 0,0,1};
-
-    int numpoints = 8;
-      coordT points[] = {
-      14.2718, -9.26838, -5.68422,
-      14.4787, -10.0995, -6.54068,
-      14.2588, -9.27174, -7.39714,
-      14.0519, -8.44059, -6.54068,
-      9.93543, -10.5268, -13.3799,
-      10.1176, -9.34946, -12.9777,
-      8.15989, -9.42951, -11.8634,
-      8.83809, -11.205, -12.9608
-      };
-    int dim = 3;
-    char flags[25];
-    sprintf (flags, "qhull s FA QT");
-    qh_new_qhull(dim, numpoints, points, 0, flags, NULL, NULL);
-
-    facetT* facet; 
+    facetT* facet;
     for (facet=qh facet_list;facet && facet->next;facet=facet->next) {
         setT *vertices = facet->vertices;
         vertexT *vertex, **vertexp;
         int count = qh_setsize(vertices);
-           FOREACHvertex_(facet->vertices) {
-              pointT *point = vertex->point; 
-              int i;
-              printf("(");
-              for (i = 0; i < dim; i++) {
-                double coord = vertex->point[i];
-                if (i < dim-1) {
-                 printf("%f ", coord);
-                } else {
-                   printf("%f)   ", coord);
-                }
-              }
-        }
-        printf("\n");
+        std::vector<ug::vector3> verts;
+        FOREACHvertex_(facet->vertices) {
+      	  ug::vector3 temp;
+          pointT *point = vertex->point;
+          int i;
+          for (i = 0; i < dim; i++) {
+        	  double coord = vertex->point[i];
+		      temp[i] = coord;
+          }
+          verts.push_back(temp);
+		}
+
+        Vertex* v1 = *g.create<RegularVertex>();
+        Vertex* v2 = *g.create<RegularVertex>();
+        Vertex* v3 = *g.create<RegularVertex>();
+        aaPos[v1] = verts[0];
+        aaPos[v2] = verts[1];
+        aaPos[v3] = verts[2];
+        Triangle* t2 = *g.create<Triangle>(TriangleDescriptor(v1, v2, v3));
+        Selector sel(g);
+        sel.select(t2);
+        sel.select(v1);
+        sel.select(v2);
+        sel.select(v3);
+        CloseSelection(sel);
+        AssignSelectionToSubset(sel, sh, si + 1000);
+        sel.clear();
     }
     qh_freeqhull(!qh_ALL);
-}
-*/
+	}
 }
 }
 }
