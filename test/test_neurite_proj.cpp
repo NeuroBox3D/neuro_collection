@@ -1228,13 +1228,9 @@ static void connect_neurites_with_soma
 		std::vector<Vertex*> temp2;
 		for (size_t j = 0; j < numVerts; j++) {
 			temp.push_back(aaPos[outVerts[i*4+j]]);
-			std::cout << "<<<verts>>>" << aaPos[outVerts[i*4+j]] << std::endl;
-			temp2.push_back(outVerts[i*4+j]);
 		}
 		for (size_t j = 0; j < numVerts; j++) {
 			temp.push_back(aaPos[allVerts[i][j]]);
-			std::cout << "<<<verts>>>" << aaPos[allVerts[i][j]] << std::endl;
-			temp2.push_back(allVerts[i][j]);
 		}
 
 		UG_COND_THROW(temp.size() != 8, "Need 8 vertices for calculating all faces.");

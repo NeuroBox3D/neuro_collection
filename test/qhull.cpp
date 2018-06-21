@@ -536,20 +536,41 @@ void gen_face(const std::vector<ug::vector3>& points, Grid& g, SubsetHandler& sh
 		        setT *vertices = facet->vertices;
 		        vertexT *vertex, **vertexp;
 		        int count = qh_setsize(vertices);
+		        std::vector<ug::vector3> verts;
 		           FOREACHvertex_(facet->vertices) {
+		        	   ug::vector3 temp;
 		              pointT *point = vertex->point;
 		              int i;
 		              printf("(");
 		              for (i = 0; i < dim; i++) {
 		                double coord = vertex->point[i];
+		                temp[i] = coord;
 		                if (i < dim-1) {
 		                 printf("%f ", coord);
 		                } else {
 		                   printf("%f)   ", coord);
 		                }
 		              }
-		        }
-		        printf("\n");
+		              verts.push_back(temp);
+		              printf("\n");
+		           }
+
+              		Vertex* v1 = *g.create<RegularVertex>();
+              		Vertex* v2 = *g.create<RegularVertex>();
+              		Vertex* v3 = *g.create<RegularVertex>();
+              		aaPos[v1] = verts[0];
+              		aaPos[v2] = verts[1];
+              		aaPos[v3] = verts[2];
+              		Triangle* t2 = *g.create<Triangle>(
+              				TriangleDescriptor(v1, v2, v3));
+              		Selector sel(g);
+              		sel.select(t2);
+	              	sel.select(v1);
+	              	sel.select(v2);
+	              	sel.select(v3);
+	              	CloseSelection(sel);
+	              	AssignSelectionToSubset(sel, sh, si + 1000);
+              		sel.clear();
 		    }
 		    qh_freeqhull(!qh_ALL);
 
