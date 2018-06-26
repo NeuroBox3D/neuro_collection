@@ -29,6 +29,7 @@
 #include "lib_grid/algorithms/subset_color_util.h"
 #include "lib_grid/algorithms/remeshing/grid_adaption.h" // AdaptSurfaceGridToCylinder
 #include "../../ugcore/ugbase/bridge/domain_bridges/selection_bridge.cpp"
+#include "lib_grid/algorithms/smoothing/manifold_smoothing.h" // TangentialSmoothing
 #include <boost/geometry.hpp>
 
 #include <boost/lexical_cast.hpp>
@@ -155,7 +156,6 @@ void import_swc
        				ug::vector3& p2 = vPointsOut[vPointsOut[parentId].conns[1]].coords;
        				vPointsOut[parentId].coords = ug::vector3(p1[0]/2+p2[0]/2, p2[1]/2+p1[1]/2, p1[2]/2+p2[2]/2);
        			} else {
-       				/// TODO: Generalize to n-branches and debug
        				UG_THROW("More than two branches detected. Current implementation does not support this.")
        			}
        		}
@@ -1056,7 +1056,8 @@ static void connect_neurites_with_soma
 	   std::vector<Vertex*> outVerts,
 	   std::vector<number> outRads,
 	   size_t si,
-	   SubsetHandler& sh
+	   SubsetHandler& sh,
+	   const std::string& fileName
 ) {
 	UG_LOGN("1. Find the vertices representing dendrite connection to soma.");
 	/// 1. Finde die 4 Vertices die den Dendritenanschluss darstellen zum Soma
@@ -1180,8 +1181,8 @@ static void connect_neurites_with_soma
 	}
 	SaveGridToFile(g, sh, "testNeurite_Projectors_after_merging_cylinder_vertices.ugx");
 
-	/// TODO: TangentialSmooth + Retriangulate
-	UG_LOGN("8. TangentialSmooth and Retriangulate")
+	UG_LOGN("8. TangentialSmooth");
+	TangentialSmooth(g, g.vertices_begin(), g.vertices_end(), aaPos, 0.01, 10);
 
 	UG_LOGN("6. Extrude rings along normal")
 	/// 6. Extrudiere die Ringe entlang ihrer Normalen mit Höhe 0 (Extrude mit
@@ -1246,6 +1247,9 @@ static void connect_neurites_with_soma
 	SaveGridToFile(g, sh, "testNeurite_Projectors_after_extruding_cylinders_and_merging.ugx");
 	/// 9. TODO: need to use neurite ids etc to push new sections in front of the neurite list maybe
 	/// 10. TODO: volume element generation
+	std::stringstream ss;
+	ss << fileName << "_final.ugx";
+	SaveGridToFile(g, sh, ss.str().c_str());
 }
 
 
@@ -1288,6 +1292,7 @@ static void create_neurite
     vEdge.resize(4);
 
     vector3 vel;
+    UG_COND_THROW(nSec == 0, "nsec > 0 required!")
     const NeuriteProjector::Section& sec = neurite.vSec[0];
     number h = sec.endParam;
     vel[0] = -3.0*sec.splineParamsX[0]*h*h - 2.0*sec.splineParamsX[1]*h - sec.splineParamsX[2];
@@ -1456,11 +1461,17 @@ static void create_neurite
 
     	// calculate total length in units of radius
     	// = integral from t_start to t_end over: ||v(t)|| / r(t) dt
+    	UG_LOGN("t_start: " << t_start)
+    	UG_LOGN("t_end: " << t_end)
+
     	number lengthOverRadius = calculate_length_over_radius(t_start, t_end, neurite, curSec);
+    	UG_LOGN("lengthOverRadius : " << lengthOverRadius);
 
     	size_t nSeg = (size_t) floor(lengthOverRadius / 8);
+    	UG_LOGN("nSeg: " << nSeg);
     	number segLength = lengthOverRadius / nSeg;	// segments are between 8 and 16 radii long
     	std::vector<number> vSegAxPos(nSeg);
+    	UG_COND_THROW(nSeg == 0, "nseg > 0 required!");
     	calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
 
     	// add the branching point to segment list (if present)
@@ -1552,6 +1563,7 @@ static void create_neurite
 				aaSurfParams[v].neuriteID = nid;
 				aaSurfParams[v].axial = segAxPos;
 				aaSurfParams[v].angular = angle;
+				UG_LOGN("angle: " << angle);
 
 				Grid::traits<Face>::secure_container faceCont;
 				g.associated_elements(faceCont, vEdge[j]);  // faceCont must contain exactly one face
@@ -1649,6 +1661,7 @@ static void create_neurite
 
 			g.erase(best);
 
+			UG_LOG("Creating child")
 			// TODO: create prism to connect to in case the branching angle is small or big
 			create_neurite(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges);
     	}
@@ -1969,8 +1982,10 @@ void test_import_swc(const std::string& fileName, bool correct)
 */
 
     // create spline data
+    UG_LOGN("Create spline data")
     std::vector<NeuriteProjector::Neurite> vNeurites;
     create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
+    UG_LOGN("done!")
 
     // create coarse grid
     Grid g;
@@ -1992,9 +2007,11 @@ void test_import_swc(const std::string& fileName, bool correct)
     aaSurfParams.access(g, aSP);
 
 
+    UG_LOGN("do projection handling and generate geom3d")
     ProjectionHandler projHandler(&sh);
     SmartPtr<IGeometry<3> > geom3d = MakeGeometry3d(g, aPosition);
     projHandler.set_geometry(geom3d);
+    UG_LOGN("done!")
 
     SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
     projHandler.set_projector(0, neuriteProj);
@@ -2002,11 +2019,15 @@ void test_import_swc(const std::string& fileName, bool correct)
     // FIXME: This has to be improved: When neurites are copied,
     //        pointers inside still point to our vNeurites array.
     //        If we destroy it, we're in for some pretty EXC_BAD_ACCESSes.
+    UG_LOGN("add neurites")
     for (size_t i = 0; i < vNeurites.size(); ++i)
         neuriteProj->add_neurite(vNeurites[i]);
+    UG_LOGN("done");
 
+    UG_LOGN("generating neurites")
     for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i)
         create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads);
+    UG_LOGN("done!")
 
     // at branching points, we have not computed the correct positions yet,
     // so project the complete geometry using the projector
@@ -2022,13 +2043,14 @@ void test_import_swc(const std::string& fileName, bool correct)
 
     // create soma
     sel.clear();
+    UG_LOGN("Creating soma!")
     sh.set_default_subset_index(1);
     create_soma(vSomaPoints, g, aaPos, sh);
     sh.set_default_subset_index(0);
     UG_LOGN("Done with soma!");
 
     // connect soma with neurites
-    connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh);
+    connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
     UG_LOGN("Done with connecting neurites!");
 
     // refinement

@@ -1,6 +1,6 @@
 /*
- * incremental convex hull algorithm
- * Computational Geometry in C by O'Rourke
+ * Implementation: Incremental convex hull algorithm
+ * Reference: Computational Geometry in C by O'Rourke
  */
 #include <iostream>
 #include <vector>
@@ -161,8 +161,7 @@ namespace ug {
                 std::cout << "number of faces found: " << faces.size() << std::endl;
                 for (int i = 0; i < faces.size(); i++) {
                         int I[3] = { faces[i].I[0], faces[i].I[1], faces[i].I[2] };
-                        std::cout << "Face: " << A[I[0]] << ", " << A[I[1]] << ", " << A[I[2]]
-                        << std::endl;
+                        std::cout << "Face: " << A[I[0]] << ", " << A[I[1]] << ", " << A[I[2]] << std::endl;
                         Vertex* v1 = verts[I[0]];
                         Vertex* v2 = verts[I[1]];
                         Vertex* v3 = verts[I[2]];
