@@ -16,6 +16,8 @@
 #include "bridge/util_domain_algebra_dependent.h"
 #include "bridge/util_domain_dependent.h"
 
+#include "lib_grid/global_attachments.h"  // for GlobalAttachments::declare_attachment
+
 // configuration file for compile options
 #include "config.h"
 

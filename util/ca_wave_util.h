@@ -10,6 +10,8 @@
 
 #include "common/types.h"  // number
 #include "common/util/smart_pointer.h"
+#include "lib_disc/function_spaces/grid_function.h"
+
 #include "../membrane_transporters/ryr_implicit.h"
 
 
