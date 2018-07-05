@@ -38,11 +38,21 @@ void HH<TDomain>::set_reference_time(number refTime)
 
 
 template <typename TDomain>
+void HH<TDomain>::use_exact_gating_mode(number timeStep)
+{
+	m_bVoltageExplicitDiscMode = true;
+	m_VEDMdt = timeStep;
+}
+
+
+template <typename TDomain>
 HH<TDomain>::HH(const std::vector<std::string>& fcts, const std::vector<std::string>& subsets)
 : IMembraneTransporter(fcts), IElemDisc<TDomain>(fcts, subsets),
   m_gK(2e-11), m_gNa(2e-11),
   m_eK(-0.077), m_eNa(0.05),
   m_refTime(1.0),
+  m_bVoltageExplicitDiscMode(false),
+  m_VEDMdt(1e-5),
   m_bNonRegularGrid(false),
   m_bCurrElemIsHSlave(false)
 {
@@ -56,6 +66,8 @@ HH<TDomain>::HH(const char* fcts, const char* subsets)
   m_gK(2e-11), m_gNa(2e-11),
   m_eK(-0.077), m_eNa(0.05),
   m_refTime(1.0),
+  m_bVoltageExplicitDiscMode(false),
+  m_VEDMdt(1e-5),
   m_bNonRegularGrid(false),
   m_bCurrElemIsHSlave(false)
 {
@@ -464,9 +476,18 @@ void HH<TDomain>::add_def_A_elem
 		const number m = u(_M_, co);
 		const number h = u(_H_, co);
 
-		d(_N_, co) -= (n_infty(vm) - n) / tau_n(vm) * m_refTime * bf.volume();
-		d(_M_, co) -= (m_infty(vm) - m) / tau_m(vm) * m_refTime * bf.volume();
-		d(_H_, co) -= (h_infty(vm) - h) / tau_h(vm) * m_refTime * bf.volume();
+		if (!m_bVoltageExplicitDiscMode)
+		{
+			d(_N_, co) -= (n_infty(vm) - n) / tau_n(vm) * m_refTime * bf.volume();
+			d(_M_, co) -= (m_infty(vm) - m) / tau_m(vm) * m_refTime * bf.volume();
+			d(_H_, co) -= (h_infty(vm) - h) / tau_h(vm) * m_refTime * bf.volume();
+		}
+		else
+		{
+			d(_N_, co) -= (n_infty(vm) - n) * (1.0 - exp(-m_VEDMdt*m_refTime/tau_n(vm))) * bf.volume() / m_VEDMdt;
+			d(_M_, co) -= (m_infty(vm) - m) * (1.0 - exp(-m_VEDMdt*m_refTime/tau_m(vm))) * bf.volume() / m_VEDMdt;
+			d(_H_, co) -= (h_infty(vm) - h) * (1.0 - exp(-m_VEDMdt*m_refTime/tau_h(vm))) * bf.volume() / m_VEDMdt;
+		}
 	}
 }
 

@@ -77,6 +77,25 @@ class HH
 		 */
 		void set_reference_time(number refTime);
 
+		/**
+		 * @brief Set voltage-explicit exact discretization mode for gates
+		 *
+		 * The gating parameters m, n and h are governed by a linear
+		 * ordinary differential equation
+		 *     u' = \frac{u_\infty - u}{\tau_u}
+		 * the parameters of which (u_/infty and \tau_u) depend on the
+		 * (time-dependent) membrane voltage V_m.
+		 * When this dependency is discretized in an explicit manner,
+		 * the solution of the ODE can be given in exact terms:
+		 *     u(t+\Delta t) = u_\infty - (u_\infty - u(t)) * \exp{(-\frac{\Delta t}{\tau_u})}.
+		 * This can be assembled with only changes to the stiffness terms as
+		 *     0 = u(t+\Delta t) - u(t) - (u_\infty - u(t)) * (1 - \exp{(-\frac{\Delta t}{\tau_u})}).
+		 * Note that it is necessary to scale the new stiffness term with {\Delta t}^{-1},
+		 * because of the stiffness scale factor in the instationary case.
+		 * This time step size has to be supplied by the user!
+		 */
+		void use_exact_gating_mode(number timeStep);
+
 	// inheritances from IMembraneTransporter
 	public:
 		/// @copydoc IMembraneTransporter::calc_flux()
@@ -171,6 +190,9 @@ class HH
 		number m_eNa;   ///< sodium reversal potential [V]
 
 		number m_refTime;
+
+		bool m_bVoltageExplicitDiscMode;
+		number m_VEDMdt;
 
 	protected:
 		bool m_bNonRegularGrid;
