@@ -1,4 +1,5 @@
 /*
+ *
  * test_neurite_proj.cpp
  *
  *  Created on: 27.12.2016
@@ -30,6 +31,7 @@
 #include "lib_grid/algorithms/remeshing/grid_adaption.h" // AdaptSurfaceGridToCylinder
 #include "../../ugcore/ugbase/bridge/domain_bridges/selection_bridge.cpp"
 #include "lib_grid/algorithms/smoothing/manifold_smoothing.h" // TangentialSmoothing
+#include "lib_grid/algorithms/remeshing/resolve_intersections.h" // ResolveTriangleIntersection
 #include <boost/geometry.hpp>
 
 #include <boost/lexical_cast.hpp>
@@ -59,8 +61,7 @@ void import_swc
 (
     const std::string& fileName,
     std::vector<SWCPoint>& vPointsOut,
-    bool correct
-)
+    bool correct)
 {
     vPointsOut.clear();
 
@@ -351,6 +352,8 @@ void collapse_short_edges(Grid& g, SubsetHandler& sh)
 		if (nAssV1 > 2 && nAssV2 > 2)
 			continue;
 
+
+
 		// otherwise, collapse edge
 
 		// (a) calculate position (and radius) for new vertex --
@@ -432,6 +435,10 @@ void collapse_short_edges(Grid& g, SubsetHandler& sh)
 		aaPos[newVrt] = newPos;
 		aaDiam[newVrt] = newDiam;
 	}
+
+	// Soma (Default subset index 0) should be collapsed into one single point
+   	UG_COND_THROW(sh.num_elements<ug::Edge>(0) != 0,
+   	"Soma not properly collapsed into one single point. #Edges > 0.");
 }
 
 
@@ -632,7 +639,7 @@ void convert_pointlist_to_neuritelist
     size_t numSomaPoints = vSomaPoints.size();
     UG_LOGN("Number of soma points: " << numSomaPoints);
     for (size_t i = 0; i < numSomaPoints; i++) {
-    	UG_LOGN("Coords for soma: " << vSomaPoints[i].coords);
+    	UG_LOGN("Coordinates for soma point " << i << ": " << vSomaPoints[i].coords);
     }
 
 }
@@ -1046,7 +1053,7 @@ static void create_soma
 )
 {
 	UG_COND_THROW(somaPts.size() != 1, "Currently only one soma point is allowed by this implementation");
-	GenerateIcosphere(g, somaPts.front().coords, somaPts.front().radius, 1, aPosition);
+	GenerateIcosphere(g, somaPts.front().coords, somaPts.front().radius, 2, aPosition);
 }
 
 static void connect_neurites_with_soma
@@ -1116,7 +1123,11 @@ static void connect_neurites_with_soma
 	}
 
 	AssignSubsetColors(sh);
-	SaveGridToFile(g, sh, "testNeurite_Projectors_before_deleting_center_vertices.ugx");
+	std::stringstream ss;
+	ss << fileName << "_before_deleting_center_vertices.ugx";
+	SaveGridToFile(g, sh, ss.str().c_str());
+	ss.str(""); ss.clear();
+
 	UG_LOGN("5. MergeVertices")
 	/// 5. Wandle die stückweise linearen Ringe um die Anschlusslöcher per
 	///    MergeVertices zu Vierecken um.
@@ -1130,7 +1141,9 @@ static void connect_neurites_with_soma
 	}
 
 	AssignSubsetColors(sh);
-	SaveGridToFile(g, sh, "testNeurite_Projectors_before_neighborhoods.ugx");
+	ss << fileName << "_before_getting_neighborhoods.ugx";
+	SaveGridToFile(g, sh, ss.str().c_str());
+	ss.str(""); ss.clear();
 
 	UG_LOGN("4. Remove each vertex. Creates holes in soma")
 	/// 4. Lösche jedes v, sodass im Soma Anschlusslöcher für die Dendriten entstehen.
@@ -1144,7 +1157,9 @@ static void connect_neurites_with_soma
 	EraseElements<Vertex>(g, sh.begin<Vertex>(numSubsets), sh.end<Vertex>(numSubsets));
 	EraseEmptySubsets(sh);
 	AssignSubsetColors(sh);
-	SaveGridToFile(g, sh, "testNeurite_Projectors_after_deleting_center_vertices.ugx");
+	ss << fileName << "_after_deleting_center_vertices.ugx";
+	SaveGridToFile(g, sh, ss.str().c_str());
+	ss.str(""); ss.clear();
 
 	/// Collapse now edges and take smallest edges first
 	size_t beginningOfQuads = 2; // subset index where quads are stored in
@@ -1175,12 +1190,15 @@ static void connect_neurites_with_soma
 			numEdges--;
 			j++;
 			std::stringstream ss;
-			ss << "testNeurite_Projectors_after_collapse_number_" << j << "_for_quad_" << i << ".ugx";
+			ss << fileName << "_after_collapse_number_" << j << "_for_quad_" << i << ".ugx";
 			SaveGridToFile(g, sh, ss.str().c_str());
 		}
 	}
-	SaveGridToFile(g, sh, "testNeurite_Projectors_after_merging_cylinder_vertices.ugx");
+	ss << fileName << "_after_merging_cylinder_vertices.ugx";
+	SaveGridToFile(g, sh, ss.str().c_str());
+	ss.str(""); ss.clear();
 
+	/// TODO: parameterize
 	UG_LOGN("8. TangentialSmooth");
 	TangentialSmooth(g, g.vertices_begin(), g.vertices_end(), aaPos, 0.01, 10);
 
@@ -1216,7 +1234,11 @@ static void connect_neurites_with_soma
 			allVerts[i].erase(std::remove(allVerts[i].begin(), allVerts[i].end(), somaVerts[i][j]), allVerts[i].end());
 		}
 	}
-	SaveGridToFile(g, sh, "testNeurite_Projectors_after_extruding_cylinders.ugx");
+
+	ss << fileName << "_after_extruding_cylinders.ugx";
+	SaveGridToFile(g, sh, ss.str().c_str());
+	ss.str(""); ss.clear();
+
 
 	UG_LOGN("7. Calculate convex hull and connect")
 	/// 7. Vereine per MergeVertices die Vertices der in 6. extrudierten Ringe jeweils
@@ -1244,10 +1266,14 @@ static void connect_neurites_with_soma
 	}
 	EraseEmptySubsets(sh);
 	AssignSubsetColors(sh);
-	SaveGridToFile(g, sh, "testNeurite_Projectors_after_extruding_cylinders_and_merging.ugx");
-	/// 9. TODO: need to use neurite ids etc to push new sections in front of the neurite list maybe
-	/// 10. TODO: volume element generation
-	std::stringstream ss;
+	ss << fileName << "_after_extruding_cylinders_and_merging.ugx";
+	SaveGridToFile(g, sh, ss.str().c_str());
+	ss.str(""); ss.clear();
+
+	/// TODO: parameterize
+	UG_LOGN("9. Resolve intersections")
+	ResolveTriangleIntersections(g, g.begin<ug::Triangle>(), g.end<ug::Triangle>(), 0.00001, aPosition);
+
 	ss << fileName << "_final.ugx";
 	SaveGridToFile(g, sh, ss.str().c_str());
 }
@@ -1292,7 +1318,7 @@ static void create_neurite
     vEdge.resize(4);
 
     vector3 vel;
-    UG_COND_THROW(nSec == 0, "nsec > 0 required!")
+    UG_COND_THROW(nSec == 0, "Number of sections > 0 required. FIX: Don't collapse root edges of neurites.");
     const NeuriteProjector::Section& sec = neurite.vSec[0];
     number h = sec.endParam;
     vel[0] = -3.0*sec.splineParamsX[0]*h*h - 2.0*sec.splineParamsX[1]*h - sec.splineParamsX[2];
@@ -1461,17 +1487,13 @@ static void create_neurite
 
     	// calculate total length in units of radius
     	// = integral from t_start to t_end over: ||v(t)|| / r(t) dt
-    	UG_LOGN("t_start: " << t_start)
-    	UG_LOGN("t_end: " << t_end)
-
     	number lengthOverRadius = calculate_length_over_radius(t_start, t_end, neurite, curSec);
-    	UG_LOGN("lengthOverRadius : " << lengthOverRadius);
-
     	size_t nSeg = (size_t) floor(lengthOverRadius / 8);
-    	UG_LOGN("nSeg: " << nSeg);
+    	// at least one segment is required to create a neurite
+    	if (nSeg == 0) { nSeg = 1; }
+    	UG_COND_THROW(nSeg == 0, "Number of segments > 0 required.");
     	number segLength = lengthOverRadius / nSeg;	// segments are between 8 and 16 radii long
     	std::vector<number> vSegAxPos(nSeg);
-    	UG_COND_THROW(nSeg == 0, "nseg > 0 required!");
     	calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
 
     	// add the branching point to segment list (if present)
@@ -1563,7 +1585,6 @@ static void create_neurite
 				aaSurfParams[v].neuriteID = nid;
 				aaSurfParams[v].axial = segAxPos;
 				aaSurfParams[v].angular = angle;
-				UG_LOGN("angle: " << angle);
 
 				Grid::traits<Face>::secure_container faceCont;
 				g.associated_elements(faceCont, vEdge[j]);  // faceCont must contain exactly one face
@@ -1661,7 +1682,7 @@ static void create_neurite
 
 			g.erase(best);
 
-			UG_LOG("Creating child")
+			UG_LOGN("Creating child")
 			// TODO: create prism to connect to in case the branching angle is small or big
 			create_neurite(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges);
     	}
@@ -1982,10 +2003,8 @@ void test_import_swc(const std::string& fileName, bool correct)
 */
 
     // create spline data
-    UG_LOGN("Create spline data")
     std::vector<NeuriteProjector::Neurite> vNeurites;
     create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
-    UG_LOGN("done!")
 
     // create coarse grid
     Grid g;
