@@ -61,7 +61,8 @@ void import_swc
 (
     const std::string& fileName,
     std::vector<SWCPoint>& vPointsOut,
-    bool correct)
+    bool correct,
+    number scaleDiameter)
 {
     vPointsOut.clear();
 
@@ -127,7 +128,7 @@ void import_swc
         pt.coords.z() = boost::lexical_cast<number>(strs[4]);
 
         // radius
-        pt.radius = boost::lexical_cast<number>(strs[5]);
+        pt.radius = boost::lexical_cast<number>(strs[5]) * scaleDiameter;
 
         // connections
         int conn = boost::lexical_cast<int>(strs[6]);
@@ -155,7 +156,7 @@ void import_swc
        				std::cout << "Correcting branch no: " << conn << std::endl;
        				ug::vector3& p1 = vPointsOut[vPointsOut[parentId].conns[0]].coords;
        				ug::vector3& p2 = vPointsOut[vPointsOut[parentId].conns[1]].coords;
-       				vPointsOut[parentId].coords = ug::vector3(p1[0]/2+p2[0]/2, p2[1]/2+p1[1]/2, p1[2]/2+p2[2]/2);
+       				vPointsOut[parentId].coords = ug::vector3(p1[0]+p2[0], p2[1]+p1[1], p1[2]+p2[2]);
        			} else {
        				UG_THROW("More than two branches detected. Current implementation does not support this.")
        			}
@@ -437,8 +438,9 @@ void collapse_short_edges(Grid& g, SubsetHandler& sh)
 	}
 
 	// Soma (Default subset index 0) should be collapsed into one single point
-   	UG_COND_THROW(sh.num_elements<ug::Edge>(0) != 0,
-   	"Soma not properly collapsed into one single point. #Edges > 0.");
+	if (sh.num_elements<ug::Edge>(0) != 0) {
+		UG_WARNING("Soma not properly collapsed into one single point. #Edges > 0.");
+	}
 }
 
 
@@ -730,7 +732,7 @@ static void create_spline_data_for_neurites
         for (size_t i = 1; i < nVrt-1; ++i)
             rhs[i] = 6.0 / (tSuppPos[i+1] - tSuppPos[i-1]) *
                      ((r[i+1] - r[i]) / dt[i+1]
-                     - (r[i] - r[i-1]) / dt[i]) ;
+                     - (r[i] - r[i-1]) / dt[i]);
         xr = mat*rhs;
 
         // FIXME: find suitable permissible render vector
@@ -1318,7 +1320,7 @@ static void create_neurite
     vEdge.resize(4);
 
     vector3 vel;
-    UG_COND_THROW(nSec == 0, "Number of sections > 0 required. FIX: Don't collapse root edges of neurites.");
+    UG_COND_THROW(nSec == 0, "Number of sections > 0 required. FIXME: Don't collapse root edges of neurites.");
     const NeuriteProjector::Section& sec = neurite.vSec[0];
     number h = sec.endParam;
     vel[0] = -3.0*sec.splineParamsX[0]*h*h - 2.0*sec.splineParamsX[1]*h - sec.splineParamsX[2];
@@ -1930,10 +1932,10 @@ void swc_points_to_grid
 }
 
 
-void test_smoothing(const std::string& fileName, size_t n, number h, number gamma)
+void test_smoothing(const std::string& fileName, size_t n, number h, number gamma, number scaleDiameter)
 {
 	std::vector<SWCPoint> vPoints;
-	import_swc(fileName, vPoints, false);
+	import_swc(fileName, vPoints, false, scaleDiameter);
 
 	// export original cell to ugx
 	Grid g;
@@ -1964,17 +1966,17 @@ void test_smoothing(const std::string& fileName, size_t n, number h, number gamm
 }
 
 
-void test_import_swc(const std::string& fileName, bool correct)
+void test_import_swc(const std::string& fileName, bool correct, number scaleDiameter)
 {
 	// preconditioning
-    test_smoothing(fileName, 5, 1.0, 1.0);
+    test_smoothing(fileName, 5, 1.0, 1.0, scaleDiameter);
 
 	// read in file to intermediate structure
     std::vector<SWCPoint> vPoints;
     std::vector<SWCPoint> vSomaPoints;
     std::string fn_noext = FilenameWithoutExtension(fileName);
     std::string fn_precond = fn_noext + "_precond.swc";
-    import_swc(fn_precond, vPoints, correct);
+    import_swc(fn_precond, vPoints, correct, 1.0);
 
     // convert intermediate structure to neurite data
     std::vector<std::vector<vector3> > vPos;

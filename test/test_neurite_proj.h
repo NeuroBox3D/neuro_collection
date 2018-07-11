@@ -42,7 +42,8 @@ void import_swc
 (
     const std::string& fileName,
     std::vector<SWCPoint>& vPointsOut,
-    bool correct
+    bool correct,
+    number scaleDiameter
 );
 
 // TODO: both need debugging!
@@ -58,8 +59,8 @@ void convert_pointlist_to_neuritelist
     std::vector<size_t>& vRootNeuriteIndsOut
 );
 
-void test_smoothing(const std::string& fileName, size_t n, number h, number gamma);
-void test_import_swc(const std::string& fileName, bool correct);
+void test_smoothing(const std::string& fileName, size_t n, number h, number gamma, number scaleDiameter);
+void test_import_swc(const std::string& fileName, bool correct, number scaleDiameter);
 void test_neurite_projector_with_four_section_tube();
 void test_neurite_projector_with_four_section_tube_and_branch_point();
 
