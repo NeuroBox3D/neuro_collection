@@ -10,13 +10,6 @@
 
 #include "../membrane_transporter_interface.h"
 
-//#include "common/common.h"
-//#include "lib_disc/domain.h"
-//#include "lib_grid/lg_base.h"
-
-//#include "../../plugins/MembranePotentialMapping/vm2ug_rework.h"
-//#include "../../plugins/MembranePotentialMapping/transformator.h"
-
 namespace ug{
 namespace neuro_collection{
 
