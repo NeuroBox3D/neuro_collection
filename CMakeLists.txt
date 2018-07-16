@@ -11,27 +11,28 @@
 
 # name of plugin, path to plugin (relative to ug's root path) and sources
 set(pluginName	neuro_collection)
-set(SOURCES    neuro_collection_plugin.cpp
-			   buffer_fv1.cpp
-			   membrane_transport_fv1.cpp
-			   membrane_transporters/membrane_transporter_interface.cpp
-			   membrane_transporters/hh.cpp
-			   membrane_transporters/leakage_ohmic.cpp
-			   membrane_transporters/ip3r.cpp
-			   membrane_transporters/ryr.cpp
-			   membrane_transporters/ryr2.cpp
-			   membrane_transporters/ryr_implicit.cpp
-			   membrane_transporters/serca.cpp
-			   membrane_transporters/leak.cpp
-			   membrane_transporters/pmca.cpp
-			   membrane_transporters/ncx.cpp
-			   membrane_transporters/vdcc_bg/vdcc_bg.cpp
-			   membrane_transporters/vdcc_bg/vdcc_bg_userdata.cpp
-			   membrane_transporters/mcu.cpp
-			   membrane_transporters/mncx.cpp
-			   membrane_transporters/nmdar.cpp
-			   stimulation/action_potential_train.cpp
-			   grid_generation/bouton_generator/bouton_generator.cpp
+set(SOURCES neuro_collection_plugin.cpp
+            buffer_fv1.cpp
+            surface_marking.cpp
+            membrane_transport_fv1.cpp
+            membrane_transporters/membrane_transporter_interface.cpp
+            membrane_transporters/hh.cpp
+            membrane_transporters/leakage_ohmic.cpp
+            membrane_transporters/ip3r.cpp
+            membrane_transporters/ryr.cpp
+            membrane_transporters/ryr2.cpp
+            membrane_transporters/ryr_implicit.cpp
+            membrane_transporters/serca.cpp
+            membrane_transporters/leak.cpp
+            membrane_transporters/pmca.cpp
+            membrane_transporters/ncx.cpp
+            membrane_transporters/vdcc_bg/vdcc_bg.cpp
+            membrane_transporters/vdcc_bg/vdcc_bg_userdata.cpp
+            membrane_transporters/mcu.cpp
+            membrane_transporters/mncx.cpp
+            membrane_transporters/nmdar.cpp
+            stimulation/action_potential_train.cpp
+            grid_generation/bouton_generator/bouton_generator.cpp
    )
 
 ## add experimental neurite projector impl (but not in VRL)   

@@ -12,9 +12,15 @@
 
 #include "common/types.h"               // for number
 #include "common/util/smart_pointer.h"  // for SmartPtr, ConstSmartPtr
+#include "lib_grid/refinement/refiner_interface.h"  // for IRefiner (ptr only), Refinement...
 
 
 namespace ug {
+
+// forward declarations
+class IRefiner;
+template <typename TDomain> class ApproximationSpace;
+
 namespace neuro_collection {
 
 ///@addtogroup plugin_neuro_collection
@@ -28,6 +34,11 @@ void scale_dimless_vector
 	ConstSmartPtr<TGridFunction> dimlessVecIn,
 	const std::vector<number>& scalingFactors
 );
+
+
+
+template <typename TDomain>
+void mark_global(SmartPtr<IRefiner> refiner, SmartPtr<ApproximationSpace<TDomain> > approx);
 
 
 ///@}

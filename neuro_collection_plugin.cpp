@@ -22,6 +22,7 @@
 #include "config.h"
 
 #include "buffer_fv1.h"
+#include "surface_marking.h"                                 // for SurfaceMarking
 #include "membrane_transport_fv1.h"
 #include "user_flux_bnd_fv1.h"
 #include "membrane_transporters/membrane_transporter_interface.h"
@@ -281,6 +282,25 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "BufferFV1", tag);
 	}
 
+	// SurfaceMarking
+	{
+		typedef SurfaceMarking<TDomain> T;
+		typedef IElementMarkingStrategy<TDomain> TBase;
+		string name = string("SurfaceMarking").append(suffix);
+		reg.add_class_<T, TBase>(name, grp)
+			.template add_constructor<void (*)(number, size_t)>("tolerance#maximal level of refinement")
+			.add_method("set_tolerance", &T::set_tolerance, "", "tolerance", "", "")
+			.add_method("set_max_level", &T::set_max_level, "", "maximal refinement level", "", "")
+			.add_method("add_surface", &T::add_surface, "", "surface subset index"
+						"# adjacent element subset index to be refined", "", "")
+			.add_method("remove_surface", &T::remove_surface, "", "surface subset index"
+						"# adjacent element subset index to be refined", "", "")
+			//.add_method("add_interface", &T::add_interface, "", "interfaces to take into account", "")
+			.add_method("mark_without_error", &T::mark_without_error, "", "refiner#approximation space", "", "")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "SurfaceMarking", tag);
+	}
+
 	// implementation of two-sided membrane transport systems
 	{
 		typedef MembraneTransportFV1<TDomain> T;
@@ -533,6 +553,11 @@ static void Domain(Registry& reg, string grp)
 #endif // NC_WITH_NEURON
 #endif // NC_WITH_VM2UG
 
+
+	// mark_global
+	{
+		reg.add_function("mark_global", &mark_global<TDomain>, grp.c_str(), "", "refiner#approx space", "");
+	}
 
 	// extra commands for this plugin
 	reg.add_function("compute_volume", static_cast<void (*) (ConstSmartPtr<ApproximationSpace<TDomain> >, const char*)>(&computeVolume<TDomain>), grp.c_str(),
