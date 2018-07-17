@@ -356,7 +356,7 @@ struct MyCompare
 		const std::vector<number>& v;
 };
 
-static void writeParallelFile(const std::string& data, const std::string& fileName, number minX)
+static void writeParallelFile(char* data, size_t dataSize, char* fileName, number minX)
 {
 	pcl::ProcessCommunicator pc;
 
@@ -365,7 +365,7 @@ static void writeParallelFile(const std::string& data, const std::string& fileNa
 	MPI_File fh;
 
 	// open file
-	if (MPI_File_open(m_mpiComm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh))
+	if (MPI_File_open(m_mpiComm, fileName, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh))
 		UG_THROW("Unable to open "<< fileName << ".");
 
 
@@ -382,7 +382,7 @@ static void writeParallelFile(const std::string& data, const std::string& fileNa
 
 
 	// calculate offsets for each proc
-	unsigned long mySize = data.size();
+	unsigned long mySize = dataSize;
 	std::vector<unsigned long> allSizes(np);
 	pc.allgather(&mySize, 1, PCL_DT_UNSIGNED_LONG, &allSizes[0], 1, PCL_DT_UNSIGNED_LONG);
 
@@ -399,7 +399,7 @@ static void writeParallelFile(const std::string& data, const std::string& fileNa
 
 	// write data at correct offset
 	MPI_File_seek(fh, offset, MPI_SEEK_SET);
-	MPI_File_write(fh, data.c_str(), mySize, MPI_BYTE, &status);
+	MPI_File_write(fh, data, mySize, MPI_BYTE, &status);
 
 
 	// close file
@@ -442,7 +442,11 @@ exportWaveProfileX(ConstSmartPtr<gf_type> u, number time)
 
 #ifdef UG_PARALLEL
 			if (pcl::NumProcs() > 1)
-				writeParallelFile(ossVal.str(), ossFn.str(), nVrt ? m_vvXPos[s][0] : 0.0);
+				// some old MPI implementations need non-const char* for MPI_File_open
+				// and MPI_File_write, so we do a dirty const_cast here
+				// (which is of no consequence if the MPI implementation uses const char*)
+				writeParallelFile(const_cast<char*>(ossVal.str().c_str()), ossVal.str().size(),
+					const_cast<char*>(ossFn.str().c_str()), nVrt ? m_vvXPos[s][0] : 0.0);
 			else
 #endif
 			writeSerialFile(ossVal.str(), ossFn.str());
