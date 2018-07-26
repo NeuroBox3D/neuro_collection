@@ -130,6 +130,7 @@ void import_swc
         // radius
         pt.radius = boost::lexical_cast<number>(strs[5]) * scaleDiameter;
 
+
         // connections
         int conn = boost::lexical_cast<int>(strs[6]);
         if (conn >= 0)
@@ -653,7 +654,9 @@ static void create_spline_data_for_neurites
     std::vector<NeuriteProjector::Neurite>& vNeuritesOut,
     const std::vector<std::vector<vector3> >& vPos,
     const std::vector<std::vector<number> >& vR,
-    std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > >* vBPInfo = NULL
+    std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > >* vBPInfo = NULL,
+    bool createER = false,
+    number scaleER = 1.0
 )
 {
     size_t nNeurites = vPos.size();
@@ -668,6 +671,8 @@ static void create_spline_data_for_neurites
     for (size_t n = 0; n < nNeurites; ++n)
     {
         NeuriteProjector::Neurite& neuriteOut = vNeuritesOut[n];
+        neuriteOut.bHasER = createER;
+        neuriteOut.scaleER = scaleER;
         const std::vector<vector3>& pos = vPos[n];
         std::vector<number> r = vR[n];
         std::vector<std::pair<size_t, std::vector<size_t> > >* bpInfo = NULL;
@@ -1384,9 +1389,26 @@ static void create_neurite
             outVerts->push_back(v);
             outRads->push_back(r[0]);
 
+            for (size_t i = 0; i < 4; ++i) {
+            	vEdge[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i], vVrt[(i+1)%4]));
+            }
+
+            UG_LOGN("Here?")
+            if (neurite.bHasER) {
+            	// TODO: handle ER
+            	  Vertex* v = *g.create<RegularVertex>();
+                  vVrt[i] = v;
+                  number angle = 0.5*PI*i;
+                  number radius = r[0] * neurite.scaleER;
+                  VecScaleAdd(aaPos[v], 1.0, pos[0], radius*cos(angle), projRefDir, radius*sin(angle), thirdDir);
+                  for (size_t i = 0; i < 4; ++i) {
+                	  vEdge[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i], vVrt[(i+1)%4]));
+                  }
+                  // outRads->push_back(radius);
+            }
+            UG_LOGN("There?")
+            /// TODO outRads should store in a vector or struct the data, as we might need nested levels
         }
-        for (size_t i = 0; i < 4; ++i)
-            vEdge[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i], vVrt[(i+1)%4]));
     }
 
     // Now create dendrite to the next branching point and iterate this process.
@@ -2007,6 +2029,141 @@ void test_import_swc(const std::string& fileName, bool correct, number scaleDiam
     // create spline data
     std::vector<NeuriteProjector::Neurite> vNeurites;
     create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
+
+    // create coarse grid
+    Grid g;
+    SubsetHandler sh(g);
+    sh.set_default_subset_index(0);
+    g.attach_to_vertices(aPosition);
+    Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+    Selector sel(g);
+
+
+    typedef NeuriteProjector::SurfaceParams NPSP;
+    UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
+            "GlobalAttachment 'npSurfParams' not declared.");
+    Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
+    if (!g.has_vertex_attachment(aSP))
+        g.attach_to_vertices(aSP);
+
+    Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
+    aaSurfParams.access(g, aSP);
+
+
+    UG_LOGN("do projection handling and generate geom3d")
+    ProjectionHandler projHandler(&sh);
+    SmartPtr<IGeometry<3> > geom3d = MakeGeometry3d(g, aPosition);
+    projHandler.set_geometry(geom3d);
+    UG_LOGN("done!")
+
+    SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
+    projHandler.set_projector(0, neuriteProj);
+
+    // FIXME: This has to be improved: When neurites are copied,
+    //        pointers inside still point to our vNeurites array.
+    //        If we destroy it, we're in for some pretty EXC_BAD_ACCESSes.
+    UG_LOGN("add neurites")
+    for (size_t i = 0; i < vNeurites.size(); ++i)
+        neuriteProj->add_neurite(vNeurites[i]);
+    UG_LOGN("done");
+
+    UG_LOGN("generating neurites")
+    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i)
+        create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads);
+    UG_LOGN("done!")
+
+    // at branching points, we have not computed the correct positions yet,
+    // so project the complete geometry using the projector
+    // TODO: little bit dirty; provide proper method in NeuriteProjector to do this
+    VertexIterator vit = g.begin<Vertex>();
+    VertexIterator vit_end = g.end<Vertex>();
+    for (; vit != vit_end; ++vit)
+    {
+        Edge* tmp = *g.create<RegularEdge>(EdgeDescriptor(*vit,*vit));
+        neuriteProj->new_vertex(*vit, tmp);
+        g.erase(tmp);
+    }
+
+    // create soma
+    sel.clear();
+    UG_LOGN("Creating soma!")
+    sh.set_default_subset_index(1);
+    create_soma(vSomaPoints, g, aaPos, sh);
+    sh.set_default_subset_index(0);
+    UG_LOGN("Done with soma!");
+
+    // connect soma with neurites
+    connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
+    UG_LOGN("Done with connecting neurites!");
+
+    // refinement
+    AssignSubsetColors(sh);
+    sh.set_subset_name("neurites", 0);
+    sh.set_subset_name("soma", 1);
+
+    std::string outFileName = FilenameWithoutPath(std::string("testNeuriteProjector.ugx"));
+    GridWriterUGX ugxWriter;
+    ugxWriter.add_grid(g, "defGrid", aPosition);
+    ugxWriter.add_subset_handler(sh, "defSH", 0);
+    ugxWriter.add_projection_handler(projHandler, "defPH", 0);
+    if (!ugxWriter.write_to_file(outFileName.c_str()))
+        UG_THROW("Grid could not be written to file '" << outFileName << "'.");
+
+    Domain3d dom;
+    try {LoadDomain(dom, outFileName.c_str());}
+    UG_CATCH_THROW("Failed loading domain from '" << outFileName << "'.");
+
+    std::string curFileName("testNeuriteProjector.ugx");
+    number offset=10;
+    try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
+    UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
+
+    GlobalMultiGridRefiner ref(*dom.grid(), dom.refinement_projector());
+    for (size_t i = 0; i < 4; ++i)
+    {
+        ref.refine();
+        std::ostringstream oss;
+        oss << "_refined_" << i+1 << ".ugx";
+        curFileName = outFileName.substr(0, outFileName.size()-4) + oss.str();
+        try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
+        UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
+    }
+}
+
+void test_import_swc2(const std::string& fileName, bool correct, number scaleDiameter)
+{
+	// preconditioning
+    test_smoothing(fileName, 5, 1.0, 1.0, 1.0);
+
+	// read in file to intermediate structure
+    std::vector<SWCPoint> vPoints;
+    std::vector<SWCPoint> vSomaPoints;
+    std::string fn_noext = FilenameWithoutExtension(fileName);
+    std::string fn_precond = fn_noext + "_precond.swc";
+    import_swc(fn_precond, vPoints, correct, 1.0);
+
+    // convert intermediate structure to neurite data
+    std::vector<std::vector<vector3> > vPos;
+    std::vector<std::vector<number> > vRad;
+    std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
+    std::vector<size_t> vRootNeuriteIndsOut;
+
+    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+    // scale diameter (don't not this here!)
+   /*	for (std::vector<std::vector<number> >::iterator vIt = vRad.begin(); vIt != vRad.end(); ++vIt) {
+   		for (std::vector<number>::iterator radIt = vIt->begin(); radIt != vIt->end(); ++radIt) {
+   			*radIt = *radIt * scaleDiameter;
+   		}
+   	}*/
+
+    std::vector<Vertex*> outVerts;
+    std::vector<number> outRads;
+
+    // create spline data
+    std::vector<NeuriteProjector::Neurite> vNeurites;
+    bool createER = true;
+    bool scaleER = scaleDiameter;
+    create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo, createER, scaleER);
 
     // create coarse grid
     Grid g;
