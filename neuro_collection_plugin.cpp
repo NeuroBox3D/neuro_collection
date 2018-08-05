@@ -382,7 +382,6 @@ static void Domain(Registry& reg, string grp)
 			.add_method("set_reversal_potentials", &T::set_reversal_potentials, "", "E_K#E_Na", "")
 			.add_method("set_reference_time", &T::set_reference_time, "", "reference time (in units of s)", "")
 			.add_method("use_exact_gating_mode", &T::use_exact_gating_mode, "", "time step size", "")
-			.add_method("use_gating_explicit_current_mode", &T::use_gating_explicit_current_mode, "", "time step size", "")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "HH", tag);
 	}
