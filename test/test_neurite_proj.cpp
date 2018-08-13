@@ -61,8 +61,7 @@ void import_swc
 (
     const std::string& fileName,
     std::vector<SWCPoint>& vPointsOut,
-    bool correct,
-    number scaleDiameter)
+    bool correct)
 {
     vPointsOut.clear();
 
@@ -128,8 +127,7 @@ void import_swc
         pt.coords.z() = boost::lexical_cast<number>(strs[4]);
 
         // radius
-        pt.radius = boost::lexical_cast<number>(strs[5]) * scaleDiameter;
-
+        pt.radius = boost::lexical_cast<number>(strs[5]);
 
         // connections
         int conn = boost::lexical_cast<int>(strs[6]);
@@ -157,7 +155,7 @@ void import_swc
        				std::cout << "Correcting branch no: " << conn << std::endl;
        				ug::vector3& p1 = vPointsOut[vPointsOut[parentId].conns[0]].coords;
        				ug::vector3& p2 = vPointsOut[vPointsOut[parentId].conns[1]].coords;
-       				vPointsOut[parentId].coords = ug::vector3(p1[0]+p2[0], p2[1]+p1[1], p1[2]+p2[2]);
+       				vPointsOut[parentId].coords = ug::vector3(p1[0]/2+p2[0]/2, p2[1]/2+p1[1]/2, p1[2]/2+p2[2]/2);
        			} else {
        				UG_THROW("More than two branches detected. Current implementation does not support this.")
        			}
@@ -439,9 +437,9 @@ void collapse_short_edges(Grid& g, SubsetHandler& sh)
 	}
 
 	// Soma (Default subset index 0) should be collapsed into one single point
-	if (sh.num_elements<ug::Edge>(0) != 0) {
-		UG_WARNING("Soma not properly collapsed into one single point. #Edges > 0.");
-	}
+   	if (sh.num_elements<ug::Edge>(0) != 0) {
+   		UG_WARNING("Soma not properly collapsed into one single point. #Edges > 0.");
+   	}
 }
 
 
@@ -654,9 +652,7 @@ static void create_spline_data_for_neurites
     std::vector<NeuriteProjector::Neurite>& vNeuritesOut,
     const std::vector<std::vector<vector3> >& vPos,
     const std::vector<std::vector<number> >& vR,
-    std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > >* vBPInfo = NULL,
-    bool createER = false,
-    number scaleER = 1.0
+    std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > >* vBPInfo = NULL
 )
 {
     size_t nNeurites = vPos.size();
@@ -671,8 +667,6 @@ static void create_spline_data_for_neurites
     for (size_t n = 0; n < nNeurites; ++n)
     {
         NeuriteProjector::Neurite& neuriteOut = vNeuritesOut[n];
-        neuriteOut.bHasER = createER;
-        neuriteOut.scaleER = scaleER;
         const std::vector<vector3>& pos = vPos[n];
         std::vector<number> r = vR[n];
         std::vector<std::pair<size_t, std::vector<size_t> > >* bpInfo = NULL;
@@ -737,7 +731,7 @@ static void create_spline_data_for_neurites
         for (size_t i = 1; i < nVrt-1; ++i)
             rhs[i] = 6.0 / (tSuppPos[i+1] - tSuppPos[i-1]) *
                      ((r[i+1] - r[i]) / dt[i+1]
-                     - (r[i] - r[i-1]) / dt[i]);
+                     - (r[i] - r[i-1]) / dt[i]) ;
         xr = mat*rhs;
 
         // FIXME: find suitable permissible render vector
@@ -1288,7 +1282,22 @@ static void connect_neurites_with_soma
 
 
 
+/// Could just copy these method 2 times:
+/// TODO: save segment lengths (calculate_length_over_radius) with unique index (or pointer to neurite)
+/// then use create_neurite 2 times, and in the ER call (cell-within-cell) rely on the segment length
+/// which we can get from the index map with the unique index or pointer of the neurite
 
+/// create two times the spline data -> then call this (create_neurite) method 2 times:
+/// once regularly, secondly, with the the vCellwithinCell and vNeurites, but we will
+/// use the segment length from vNeurites not from vCellWithinCells! (this should work) -> same number of segments!
+/// make sure that vCellWithinCell and vNeurites have the same number of sections!, if not, this idea won't work
+/// before creating second spline data we have to scale the radii..
+
+/// if it does not work, we can try to, create spline data once, and modify the radius in the create_neurite method!
+/// and essentially duplicate the create_neurite code to call 2 times -> could refactor in another method and call from create_neurite,
+/// e.g. a create_neurite_helper method.
+
+/// if this does not work, use own strategy: iterate over cuboids and scale them
 
 static void create_neurite
 (
@@ -1305,6 +1314,9 @@ static void create_neurite
     std::vector<number>* outRads = NULL
 )
 {
+	/// TODO: use vNeurites, vNeuritesER... (scale before vR) -> then assure length_over_radius is the same
+	/// TODO: split up in two parts: neurite + er + etc -> refactor this into a general method which get's called 3 times, for neurite, er and etc
+	/// If this is not working then use own strategy -> scale coarse grid of membrane to ER
     const NeuriteProjector::Neurite& neurite = vNeurites[nid];
     const std::vector<vector3>& pos = vPos[nid];
     const std::vector<number>& r = vR[nid];
@@ -1325,7 +1337,7 @@ static void create_neurite
     vEdge.resize(4);
 
     vector3 vel;
-    UG_COND_THROW(nSec == 0, "Number of sections > 0 required. FIXME: Don't collapse root edges of neurites.");
+    UG_COND_THROW(nSec == 0, "Number of sections > 0 required. FIX: Don't collapse root edges of neurites.");
     const NeuriteProjector::Section& sec = neurite.vSec[0];
     number h = sec.endParam;
     vel[0] = -3.0*sec.splineParamsX[0]*h*h - 2.0*sec.splineParamsX[1]*h - sec.splineParamsX[2];
@@ -1375,7 +1387,34 @@ static void create_neurite
     }
     else
     {
-        // create first layer of vertices/edges
+     if (neurite.bHasER) {
+         	UG_LOGN("Has ER and scales with: " << neurite.scaleER);
+            	// create first layer of vertices/edges for ER
+                for (size_t i = 0; i < 4; ++i) {
+                        Vertex* v = *g.create<RegularVertex>();
+                        ///vVrt[i] = v;
+                        number angle = 0.5*PI*i;
+                        number radius = r[0] * neurite.scaleER * 100;
+                        UG_LOGN("scaleEr: " << neurite.scaleER);
+                        VecScaleAdd(aaPos[v], 1.0, pos[0], radius*cos(angle), projRefDir, radius*sin(angle), thirdDir);
+                        UG_LOGN("aaPos[v]: " << aaPos[v]);
+
+
+                       aaSurfParams[v].neuriteID = nid;
+                        aaSurfParams[v].axial = 0.0;
+                        aaSurfParams[v].angular = angle;
+
+                        /// TODO: need better structure here
+                       // outVerts->push_back(v);
+                        //outRads->push_back(r[0]);
+               }
+             /* for (size_t i = 0; i < 4; ++i) {
+                   vEdge[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i], vVrt[(i+1)%4]));
+              }
+              */
+           }
+
+        // create first layer of vertices/edges for membrane
         for (size_t i = 0; i < 4; ++i)
         {
             Vertex* v = *g.create<RegularVertex>();
@@ -1387,28 +1426,16 @@ static void create_neurite
             aaSurfParams[v].axial = 0.0;
             aaSurfParams[v].angular = angle;
             outVerts->push_back(v);
-            outRads->push_back(r[0]);
-
-            for (size_t i = 0; i < 4; ++i) {
-            	vEdge[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i], vVrt[(i+1)%4]));
-            }
-
-            UG_LOGN("Here?")
-            if (neurite.bHasER) {
-            	// TODO: handle ER
-            	  Vertex* v = *g.create<RegularVertex>();
-                  vVrt[i] = v;
-                  number angle = 0.5*PI*i;
-                  number radius = r[0] * neurite.scaleER;
-                  VecScaleAdd(aaPos[v], 1.0, pos[0], radius*cos(angle), projRefDir, radius*sin(angle), thirdDir);
-                  for (size_t i = 0; i < 4; ++i) {
-                	  vEdge[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i], vVrt[(i+1)%4]));
-                  }
-                  // outRads->push_back(radius);
-            }
-            UG_LOGN("There?")
-            /// TODO outRads should store in a vector or struct the data, as we might need nested levels
+            UG_LOGN("aaPos[v]: " << aaPos[v]);
+            /// TODO saving 4 times is wrong...
+            ///outRads->push_back(r[0]);
         }
+        outRads->push_back(r[0]);
+        for (size_t i = 0; i < 4; ++i) {
+            vEdge[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i], vVrt[(i+1)%4]));
+        }
+
+
     }
 
     // Now create dendrite to the next branching point and iterate this process.
@@ -1449,7 +1476,7 @@ static void create_neurite
     			size_t brInd = vBranchInd[br];
 
     			// get position and radius of first point of branch
-    			const number brRadSeg1 = vR[brInd][0];
+    			const number brRadSeg1 = vR[brInd][0] * neurite.scaleER;
 
     			// get position and radius of branching point
     			const number bpTPos = 0.5 * (brit->tend + brit->tstart);
@@ -1462,7 +1489,7 @@ static void create_neurite
     			}
     			UG_COND_THROW(brSec == nSec, "Could not find section containing branching point "
     				"at t = " << bpTPos << ".");
-    			const number bpRad = vR[nid][brSec+1];
+    			const number bpRad = vR[nid][brSec+1] * neurite.scaleER;
 
     			// calculate branch and neurite directions
 				vector3 branchDir;
@@ -1517,6 +1544,8 @@ static void create_neurite
     	if (nSeg == 0) { nSeg = 1; }
     	UG_COND_THROW(nSeg == 0, "Number of segments > 0 required.");
     	number segLength = lengthOverRadius / nSeg;	// segments are between 8 and 16 radii long
+    	UG_LOGN("segLength: " << segLength);
+    	UG_LOGN("nSeg: " << nSeg);
     	std::vector<number> vSegAxPos(nSeg);
     	calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
 
@@ -1607,7 +1636,7 @@ static void create_neurite
 				VecAdd(aaPos[v], curPos, radialVec);
 
 				aaSurfParams[v].neuriteID = nid;
-				aaSurfParams[v].axial = segAxPos;
+				aaSurfParams[v].axial = segAxPos * 2;
 				aaSurfParams[v].angular = angle;
 
 				Grid::traits<Face>::secure_container faceCont;
@@ -1954,10 +1983,11 @@ void swc_points_to_grid
 }
 
 
-void test_smoothing(const std::string& fileName, size_t n, number h, number gamma, number scaleDiameter)
+void test_smoothing(const std::string& fileName, size_t n, number h, number gamma)
 {
 	std::vector<SWCPoint> vPoints;
-	import_swc(fileName, vPoints, false, scaleDiameter);
+	import_swc(fileName, vPoints, false);
+
 
 	// export original cell to ugx
 	Grid g;
@@ -1988,17 +2018,17 @@ void test_smoothing(const std::string& fileName, size_t n, number h, number gamm
 }
 
 
-void test_import_swc(const std::string& fileName, bool correct, number scaleDiameter)
+void test_import_swc(const std::string& fileName, bool correct, number scaleER)
 {
 	// preconditioning
-    test_smoothing(fileName, 5, 1.0, 1.0, scaleDiameter);
+    test_smoothing(fileName, 5, 1.0, 1.0);
 
 	// read in file to intermediate structure
     std::vector<SWCPoint> vPoints;
     std::vector<SWCPoint> vSomaPoints;
     std::string fn_noext = FilenameWithoutExtension(fileName);
     std::string fn_precond = fn_noext + "_precond.swc";
-    import_swc(fn_precond, vPoints, correct, 1.0);
+    import_swc(fn_precond, vPoints, correct);
 
     // convert intermediate structure to neurite data
     std::vector<std::vector<vector3> > vPos;
@@ -2026,9 +2056,23 @@ void test_import_swc(const std::string& fileName, bool correct, number scaleDiam
     }
 */
 
+    /*std::vector<std::vector<number> >::iterator it = vRad.begin();
+    for (; it != vRad.end(); ++it) {
+    	for (std::vector<number>::iterator it2 = it->begin(); it2 != it->end(); ++it2) {
+    		(*it2) = *it2 * 2;
+    		UG_LOGN("it2: " << *it2);
+    	}
+    }*/
+
+
     // create spline data
     std::vector<NeuriteProjector::Neurite> vNeurites;
     create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
+    for (std::vector<NeuriteProjector::Neurite>::iterator it = vNeurites.begin();
+    	it != vNeurites.end(); ++it) {
+    		it->bHasER = true;
+    		it->scaleER = scaleER;
+    }
 
     // create coarse grid
     Grid g;
@@ -2072,140 +2116,6 @@ void test_import_swc(const std::string& fileName, bool correct, number scaleDiam
         create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads);
     UG_LOGN("done!")
 
-    // at branching points, we have not computed the correct positions yet,
-    // so project the complete geometry using the projector
-    // TODO: little bit dirty; provide proper method in NeuriteProjector to do this
-    VertexIterator vit = g.begin<Vertex>();
-    VertexIterator vit_end = g.end<Vertex>();
-    for (; vit != vit_end; ++vit)
-    {
-        Edge* tmp = *g.create<RegularEdge>(EdgeDescriptor(*vit,*vit));
-        neuriteProj->new_vertex(*vit, tmp);
-        g.erase(tmp);
-    }
-
-    // create soma
-    sel.clear();
-    UG_LOGN("Creating soma!")
-    sh.set_default_subset_index(1);
-    create_soma(vSomaPoints, g, aaPos, sh);
-    sh.set_default_subset_index(0);
-    UG_LOGN("Done with soma!");
-
-    // connect soma with neurites
-    connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
-    UG_LOGN("Done with connecting neurites!");
-
-    // refinement
-    AssignSubsetColors(sh);
-    sh.set_subset_name("neurites", 0);
-    sh.set_subset_name("soma", 1);
-
-    std::string outFileName = FilenameWithoutPath(std::string("testNeuriteProjector.ugx"));
-    GridWriterUGX ugxWriter;
-    ugxWriter.add_grid(g, "defGrid", aPosition);
-    ugxWriter.add_subset_handler(sh, "defSH", 0);
-    ugxWriter.add_projection_handler(projHandler, "defPH", 0);
-    if (!ugxWriter.write_to_file(outFileName.c_str()))
-        UG_THROW("Grid could not be written to file '" << outFileName << "'.");
-
-    Domain3d dom;
-    try {LoadDomain(dom, outFileName.c_str());}
-    UG_CATCH_THROW("Failed loading domain from '" << outFileName << "'.");
-
-    std::string curFileName("testNeuriteProjector.ugx");
-    number offset=10;
-    try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
-    UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
-
-    GlobalMultiGridRefiner ref(*dom.grid(), dom.refinement_projector());
-    for (size_t i = 0; i < 4; ++i)
-    {
-        ref.refine();
-        std::ostringstream oss;
-        oss << "_refined_" << i+1 << ".ugx";
-        curFileName = outFileName.substr(0, outFileName.size()-4) + oss.str();
-        try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
-        UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
-    }
-}
-
-void test_import_swc2(const std::string& fileName, bool correct, number scaleDiameter)
-{
-	// preconditioning
-    test_smoothing(fileName, 5, 1.0, 1.0, 1.0);
-
-	// read in file to intermediate structure
-    std::vector<SWCPoint> vPoints;
-    std::vector<SWCPoint> vSomaPoints;
-    std::string fn_noext = FilenameWithoutExtension(fileName);
-    std::string fn_precond = fn_noext + "_precond.swc";
-    import_swc(fn_precond, vPoints, correct, 1.0);
-
-    // convert intermediate structure to neurite data
-    std::vector<std::vector<vector3> > vPos;
-    std::vector<std::vector<number> > vRad;
-    std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
-    std::vector<size_t> vRootNeuriteIndsOut;
-
-    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
-    // scale diameter (don't not this here!)
-   /*	for (std::vector<std::vector<number> >::iterator vIt = vRad.begin(); vIt != vRad.end(); ++vIt) {
-   		for (std::vector<number>::iterator radIt = vIt->begin(); radIt != vIt->end(); ++radIt) {
-   			*radIt = *radIt * scaleDiameter;
-   		}
-   	}*/
-
-    std::vector<Vertex*> outVerts;
-    std::vector<number> outRads;
-
-    // create spline data
-    std::vector<NeuriteProjector::Neurite> vNeurites;
-    bool createER = true;
-    bool scaleER = scaleDiameter;
-    create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo, createER, scaleER);
-
-    // create coarse grid
-    Grid g;
-    SubsetHandler sh(g);
-    sh.set_default_subset_index(0);
-    g.attach_to_vertices(aPosition);
-    Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
-    Selector sel(g);
-
-
-    typedef NeuriteProjector::SurfaceParams NPSP;
-    UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
-            "GlobalAttachment 'npSurfParams' not declared.");
-    Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
-    if (!g.has_vertex_attachment(aSP))
-        g.attach_to_vertices(aSP);
-
-    Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
-    aaSurfParams.access(g, aSP);
-
-
-    UG_LOGN("do projection handling and generate geom3d")
-    ProjectionHandler projHandler(&sh);
-    SmartPtr<IGeometry<3> > geom3d = MakeGeometry3d(g, aPosition);
-    projHandler.set_geometry(geom3d);
-    UG_LOGN("done!")
-
-    SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
-    projHandler.set_projector(0, neuriteProj);
-
-    // FIXME: This has to be improved: When neurites are copied,
-    //        pointers inside still point to our vNeurites array.
-    //        If we destroy it, we're in for some pretty EXC_BAD_ACCESSes.
-    UG_LOGN("add neurites")
-    for (size_t i = 0; i < vNeurites.size(); ++i)
-        neuriteProj->add_neurite(vNeurites[i]);
-    UG_LOGN("done");
-
-    UG_LOGN("generating neurites")
-    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i)
-        create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads);
-    UG_LOGN("done!")
 
     // at branching points, we have not computed the correct positions yet,
     // so project the complete geometry using the projector
@@ -2219,7 +2129,10 @@ void test_import_swc2(const std::string& fileName, bool correct, number scaleDia
         g.erase(tmp);
     }
 
+
+
     // create soma
+    /*
     sel.clear();
     UG_LOGN("Creating soma!")
     sh.set_default_subset_index(1);
@@ -2230,6 +2143,7 @@ void test_import_swc2(const std::string& fileName, bool correct, number scaleDia
     // connect soma with neurites
     connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
     UG_LOGN("Done with connecting neurites!");
+    */
 
     // refinement
     AssignSubsetColors(sh);
