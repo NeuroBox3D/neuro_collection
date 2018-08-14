@@ -1387,33 +1387,6 @@ static void create_neurite
     }
     else
     {
-     if (neurite.bHasER) {
-         	UG_LOGN("Has ER and scales with: " << neurite.scaleER);
-            	// create first layer of vertices/edges for ER
-                for (size_t i = 0; i < 4; ++i) {
-                        Vertex* v = *g.create<RegularVertex>();
-                        ///vVrt[i] = v;
-                        number angle = 0.5*PI*i;
-                        number radius = r[0] * neurite.scaleER * 100;
-                        UG_LOGN("scaleEr: " << neurite.scaleER);
-                        VecScaleAdd(aaPos[v], 1.0, pos[0], radius*cos(angle), projRefDir, radius*sin(angle), thirdDir);
-                        UG_LOGN("aaPos[v]: " << aaPos[v]);
-
-
-                       aaSurfParams[v].neuriteID = nid;
-                        aaSurfParams[v].axial = 0.0;
-                        aaSurfParams[v].angular = angle;
-
-                        /// TODO: need better structure here
-                       // outVerts->push_back(v);
-                        //outRads->push_back(r[0]);
-               }
-             /* for (size_t i = 0; i < 4; ++i) {
-                   vEdge[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i], vVrt[(i+1)%4]));
-              }
-              */
-           }
-
         // create first layer of vertices/edges for membrane
         for (size_t i = 0; i < 4; ++i)
         {
@@ -1427,15 +1400,12 @@ static void create_neurite
             aaSurfParams[v].angular = angle;
             outVerts->push_back(v);
             UG_LOGN("aaPos[v]: " << aaPos[v]);
-            /// TODO saving 4 times is wrong...
-            ///outRads->push_back(r[0]);
         }
         outRads->push_back(r[0]);
+
         for (size_t i = 0; i < 4; ++i) {
             vEdge[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i], vVrt[(i+1)%4]));
         }
-
-
     }
 
     // Now create dendrite to the next branching point and iterate this process.
@@ -1476,7 +1446,7 @@ static void create_neurite
     			size_t brInd = vBranchInd[br];
 
     			// get position and radius of first point of branch
-    			const number brRadSeg1 = vR[brInd][0] * neurite.scaleER;
+    			const number brRadSeg1 = vR[brInd][0];
 
     			// get position and radius of branching point
     			const number bpTPos = 0.5 * (brit->tend + brit->tstart);
@@ -1489,7 +1459,7 @@ static void create_neurite
     			}
     			UG_COND_THROW(brSec == nSec, "Could not find section containing branching point "
     				"at t = " << bpTPos << ".");
-    			const number bpRad = vR[nid][brSec+1] * neurite.scaleER;
+    			const number bpRad = vR[nid][brSec+1];
 
     			// calculate branch and neurite directions
 				vector3 branchDir;
@@ -1538,7 +1508,15 @@ static void create_neurite
 
     	// calculate total length in units of radius
     	// = integral from t_start to t_end over: ||v(t)|| / r(t) dt
-    	number lengthOverRadius = calculate_length_over_radius(t_start, t_end, neurite, curSec);
+    	number lengthOverRadius;
+    /*	if (vNeuritesInner != NULL) {
+    		const NeuriteProjector::Neurite& neuriteInner= (*vNeuritesInner)[nid];
+    		calculate_length_over_radius(t_start, t_end, neuriteInner, curSec);
+    	} else {
+    		calculate_length_over_radius(t_start, t_end, neurite, curSec);
+    	}*/
+   		lengthOverRadius = calculate_length_over_radius(t_start, t_end, neurite, curSec);
+
     	size_t nSeg = (size_t) floor(lengthOverRadius / 8);
     	// at least one segment is required to create a neurite
     	if (nSeg == 0) { nSeg = 1; }
@@ -1547,7 +1525,14 @@ static void create_neurite
     	UG_LOGN("segLength: " << segLength);
     	UG_LOGN("nSeg: " << nSeg);
     	std::vector<number> vSegAxPos(nSeg);
-    	calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
+    	/*
+    	if (vNeuritesInner != NULL) {
+    		const NeuriteProjector::Neurite& neuriteInner= (*vNeuritesInner)[nid];
+    		calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neuriteInner, curSec, segLength);
+    	} else {
+    		calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
+    	}*/
+   		calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
 
     	// add the branching point to segment list (if present)
     	if (brit != brit_end)
@@ -2056,23 +2041,14 @@ void test_import_swc(const std::string& fileName, bool correct, number scaleER)
     }
 */
 
-    /*std::vector<std::vector<number> >::iterator it = vRad.begin();
-    for (; it != vRad.end(); ++it) {
-    	for (std::vector<number>::iterator it2 = it->begin(); it2 != it->end(); ++it2) {
-    		(*it2) = *it2 * 2;
-    		UG_LOGN("it2: " << *it2);
-    	}
-    }*/
-
-
     // create spline data
     std::vector<NeuriteProjector::Neurite> vNeurites;
     create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
-    for (std::vector<NeuriteProjector::Neurite>::iterator it = vNeurites.begin();
-    	it != vNeurites.end(); ++it) {
-    		it->bHasER = true;
-    		it->scaleER = scaleER;
-    }
+
+    std::vector<NeuriteProjector::Neurite> vNeuritesWithin;
+    std::vector<std::vector<number> > vRadInner = vRad;
+    /// TODO: scale vRad! -> and fix previously introduced bug...
+    /// create_spline_data_for_neurites(vNeuritesWithin, vPos, vRadInner, &vBPInfo);
 
     // create coarse grid
     Grid g;
@@ -2103,6 +2079,12 @@ void test_import_swc(const std::string& fileName, bool correct, number scaleER)
     SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
     projHandler.set_projector(0, neuriteProj);
 
+    /// indicate scale and if ER is present
+    for (std::vector<NeuriteProjector::Neurite>::iterator it = vNeurites.begin(); it != vNeurites.end(); ++it) {
+    	it->bHasER = true;
+    	it->scaleER = scaleER;
+    }
+
     // FIXME: This has to be improved: When neurites are copied,
     //        pointers inside still point to our vNeurites array.
     //        If we destroy it, we're in for some pretty EXC_BAD_ACCESSes.
@@ -2112,8 +2094,14 @@ void test_import_swc(const std::string& fileName, bool correct, number scaleER)
     UG_LOGN("done");
 
     UG_LOGN("generating neurites")
-    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i)
-        create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads);
+    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
+    	create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads);
+    }
+
+    UG_LOGN("generating ER structures")
+    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
+    	///create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads, &vNeuritesWithin);
+    }
     UG_LOGN("done!")
 
 
