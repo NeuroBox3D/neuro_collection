@@ -1621,7 +1621,7 @@ static void create_neurite
 				VecAdd(aaPos[v], curPos, radialVec);
 
 				aaSurfParams[v].neuriteID = nid;
-				aaSurfParams[v].axial = segAxPos * 2;
+				aaSurfParams[v].axial = segAxPos;
 				aaSurfParams[v].angular = angle;
 
 				Grid::traits<Face>::secure_container faceCont;
