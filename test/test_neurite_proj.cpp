@@ -1311,15 +1311,20 @@ static void create_neurite
     std::vector<Vertex*>* connectingVrts = NULL,
     std::vector<Edge*>* connectingEdges = NULL,
     std::vector<Vertex*>* outVerts = NULL,
-    std::vector<number>* outRads = NULL
+    std::vector<number>* outRads = NULL,
+    bool bWithER = false
 )
 {
-	/// TODO: use vNeurites, vNeuritesER... (scale before vR) -> then assure length_over_radius is the same
-	/// TODO: split up in two parts: neurite + er + etc -> refactor this into a general method which get's called 3 times, for neurite, er and etc
-	/// If this is not working then use own strategy -> scale coarse grid of membrane to ER
     const NeuriteProjector::Neurite& neurite = vNeurites[nid];
     const std::vector<vector3>& pos = vPos[nid];
-    const std::vector<number>& r = vR[nid];
+    std::vector<number> r = vR[nid];
+
+    /// scale radius if ER is to be embedded
+    if (bWithER) {
+    	for (std::vector<number>::iterator it = r.begin(); it != r.end(); ++it) {
+    		*it = *it * neurite.scaleER;
+    	}
+    }
 
     number neurite_length = 0.0;
     for (size_t i = 1; i < pos.size(); ++i)
@@ -1508,15 +1513,7 @@ static void create_neurite
 
     	// calculate total length in units of radius
     	// = integral from t_start to t_end over: ||v(t)|| / r(t) dt
-    	number lengthOverRadius;
-    /*	if (vNeuritesInner != NULL) {
-    		const NeuriteProjector::Neurite& neuriteInner= (*vNeuritesInner)[nid];
-    		calculate_length_over_radius(t_start, t_end, neuriteInner, curSec);
-    	} else {
-    		calculate_length_over_radius(t_start, t_end, neurite, curSec);
-    	}*/
-   		lengthOverRadius = calculate_length_over_radius(t_start, t_end, neurite, curSec);
-
+    	number lengthOverRadius = calculate_length_over_radius(t_start, t_end, neurite, curSec);
     	size_t nSeg = (size_t) floor(lengthOverRadius / 8);
     	// at least one segment is required to create a neurite
     	if (nSeg == 0) { nSeg = 1; }
@@ -1525,14 +1522,7 @@ static void create_neurite
     	UG_LOGN("segLength: " << segLength);
     	UG_LOGN("nSeg: " << nSeg);
     	std::vector<number> vSegAxPos(nSeg);
-    	/*
-    	if (vNeuritesInner != NULL) {
-    		const NeuriteProjector::Neurite& neuriteInner= (*vNeuritesInner)[nid];
-    		calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neuriteInner, curSec, segLength);
-    	} else {
-    		calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
-    	}*/
-   		calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
+    	calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
 
     	// add the branching point to segment list (if present)
     	if (brit != brit_end)
@@ -2044,11 +2034,16 @@ void test_import_swc(const std::string& fileName, bool correct, number scaleER)
     // create spline data
     std::vector<NeuriteProjector::Neurite> vNeurites;
     create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
-
+    /*
     std::vector<NeuriteProjector::Neurite> vNeuritesWithin;
     std::vector<std::vector<number> > vRadInner = vRad;
-    /// TODO: scale vRad! -> and fix previously introduced bug...
-    /// create_spline_data_for_neurites(vNeuritesWithin, vPos, vRadInner, &vBPInfo);
+    for (std::vector<std::vector<number> >::iterator it = vRadInner.begin(); it != vRadInner.end(); ++it) {
+    	for (std::vector<number>::iterator itRad = it->begin(); itRad != it->end(); ++itRad) {
+    		*itRad = *itRad * scaleER;
+    	}
+    }
+    create_spline_data_for_neurites(vNeuritesWithin, vPos, vRadInner, &vBPInfo);
+    */
 
     // create coarse grid
     Grid g;
@@ -2095,12 +2090,12 @@ void test_import_swc(const std::string& fileName, bool correct, number scaleER)
 
     UG_LOGN("generating neurites")
     for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
-    	create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads);
+    	create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads, false);
     }
 
     UG_LOGN("generating ER structures")
     for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
-    	///create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads, &vNeuritesWithin);
+    	create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads, true);
     }
     UG_LOGN("done!")
 
