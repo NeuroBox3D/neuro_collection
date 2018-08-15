@@ -2088,17 +2088,12 @@ void test_import_swc(const std::string& fileName, bool correct, number scaleER)
     create_spline_data_for_neurites(vNeuritesWithin, vPos, vRadInner, &vBPInfo2);
 
     UG_LOGN("generating ER structures")
-    /*
-    // TODO: in case of scale=1.0 the structures should be exactly the same... verify this...
     for (size_t i = 0; i < vRootNeuriteIndsOut2.size(); ++i) {
-    	/// TODO: make sure number of sections is the same as for the neurites -> add another member to make this happen, segments number should be same, sections  is always same if same number of points used!
-    	create_neurite(vNeuritesWithin, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads, true);
+    	/// TODO: make sure number of sections is the same as for the neurites -> add another member to make this happen
+    	//  Segments number should be same!, sections should always be same if same number of points used! (Verify this)
+    	create_neurite(vNeuritesWithin, vPos, vRad, vRootNeuriteIndsOut2[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads, true);
     }
     UG_LOGN("done!")
-    */
-
-    /// TODO: add a second method test_import_swc_scaled which allows to create the geometry just scaled -> which will not work but can demonstrate the problem and progress
-
 
 
     // at branching points, we have not computed the correct positions yet,
