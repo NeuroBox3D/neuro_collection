@@ -61,7 +61,8 @@ void import_swc
 (
     const std::string& fileName,
     std::vector<SWCPoint>& vPointsOut,
-    bool correct)
+    bool correct,
+    number scale)
 {
     vPointsOut.clear();
 
@@ -127,7 +128,7 @@ void import_swc
         pt.coords.z() = boost::lexical_cast<number>(strs[4]);
 
         // radius
-        pt.radius = boost::lexical_cast<number>(strs[5]);
+        pt.radius = boost::lexical_cast<number>(strs[5]) * scale;
 
         // connections
         int conn = boost::lexical_cast<int>(strs[6]);
@@ -163,8 +164,6 @@ void import_swc
        	}
     }
 }
-
-
 
 void smoothing(std::vector<SWCPoint>& vPointsInOut, size_t n, number h, number gamma)
 {
@@ -279,14 +278,11 @@ void smoothing(std::vector<SWCPoint>& vPointsInOut, size_t n, number h, number g
 
 }
 
-
-
 struct EdgeLengthCompare
 {
 	bool operator()(const std::pair<Edge*, number> e1, const std::pair<Edge*, number> e2)
 	{return e1.second > e2.second;}
 };
-
 
 void collapse_short_edges(Grid& g, SubsetHandler& sh)
 {
@@ -441,7 +437,6 @@ void collapse_short_edges(Grid& g, SubsetHandler& sh)
    		UG_WARNING("Soma not properly collapsed into one single point. #Edges > 0.");
    	}
 }
-
 
 void convert_pointlist_to_neuritelist
 (
@@ -644,8 +639,6 @@ void convert_pointlist_to_neuritelist
     }
 
 }
-
-
 
 static void create_spline_data_for_neurites
 (
@@ -893,7 +886,6 @@ static void create_spline_data_for_neurites
 */
 }
 
-
 number calculate_length_over_radius
 (
 	number t_start,
@@ -963,7 +955,6 @@ number calculate_length_over_radius
 
 	return integral;
 }
-
 
 void calculate_segment_axial_positions
 (
@@ -1278,9 +1269,6 @@ static void connect_neurites_with_soma
 	ss << fileName << "_final.ugx";
 	SaveGridToFile(g, sh, ss.str().c_str());
 }
-
-
-
 
 /// Could just copy these method 2 times:
 /// TODO: save segment lengths (calculate_length_over_radius) with unique index (or pointer to neurite)
@@ -1712,7 +1700,7 @@ static void create_neurite
 
 			UG_LOGN("Creating child")
 			// TODO: create prism to connect to in case the branching angle is small or big
-			create_neurite(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges);
+			create_neurite(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, NULL, NULL, bWithER);
     	}
 
     	// update t_end and curSec
@@ -1958,10 +1946,10 @@ void swc_points_to_grid
 }
 
 
-void test_smoothing(const std::string& fileName, size_t n, number h, number gamma)
+void test_smoothing(const std::string& fileName, size_t n, number h, number gamma, number scale=1.0)
 {
 	std::vector<SWCPoint> vPoints;
-	import_swc(fileName, vPoints, false);
+	import_swc(fileName, vPoints, false, scale);
 
 
 	// export original cell to ugx
@@ -2003,7 +1991,7 @@ void test_import_swc(const std::string& fileName, bool correct, number scaleER)
     std::vector<SWCPoint> vSomaPoints;
     std::string fn_noext = FilenameWithoutExtension(fileName);
     std::string fn_precond = fn_noext + "_precond.swc";
-    import_swc(fn_precond, vPoints, correct);
+    import_swc(fn_precond, vPoints, correct, 1.0);
 
     // convert intermediate structure to neurite data
     std::vector<std::vector<vector3> > vPos;
@@ -2034,16 +2022,8 @@ void test_import_swc(const std::string& fileName, bool correct, number scaleER)
     // create spline data
     std::vector<NeuriteProjector::Neurite> vNeurites;
     create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
-    /*
-    std::vector<NeuriteProjector::Neurite> vNeuritesWithin;
-    std::vector<std::vector<number> > vRadInner = vRad;
-    for (std::vector<std::vector<number> >::iterator it = vRadInner.begin(); it != vRadInner.end(); ++it) {
-    	for (std::vector<number>::iterator itRad = it->begin(); itRad != it->end(); ++itRad) {
-    		*itRad = *itRad * scaleER;
-    	}
-    }
-    create_spline_data_for_neurites(vNeuritesWithin, vPos, vRadInner, &vBPInfo);
-    */
+
+
 
     // create coarse grid
     Grid g;
@@ -2093,11 +2073,32 @@ void test_import_swc(const std::string& fileName, bool correct, number scaleER)
     	create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads, false);
     }
 
+    UG_LOGN("scale down data...")
+    std::vector<NeuriteProjector::Neurite> vNeuritesWithin;
+    std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo2;
+    std::vector<size_t> vRootNeuriteIndsOut2;
+    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo2, vRootNeuriteIndsOut2);
+    std::vector<std::vector<number> > vRadInner = vRad;
+    for (std::vector<std::vector<number> >::iterator it = vRadInner.begin(); it != vRadInner.end(); ++it) {
+      	for (std::vector<number>::iterator itRad = it->begin(); itRad != it->end(); ++itRad) {
+       		*itRad = *itRad * scaleER;
+      	}
+    }
+
+    create_spline_data_for_neurites(vNeuritesWithin, vPos, vRadInner, &vBPInfo2);
+
     UG_LOGN("generating ER structures")
-    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
-    	create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads, true);
+    /*
+    // TODO: in case of scale=1.0 the structures should be exactly the same... verify this...
+    for (size_t i = 0; i < vRootNeuriteIndsOut2.size(); ++i) {
+    	/// TODO: make sure number of sections is the same as for the neurites -> add another member to make this happen, segments number should be same, sections  is always same if same number of points used!
+    	create_neurite(vNeuritesWithin, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads, true);
     }
     UG_LOGN("done!")
+    */
+
+    /// TODO: add a second method test_import_swc_scaled which allows to create the geometry just scaled -> which will not work but can demonstrate the problem and progress
+
 
 
     // at branching points, we have not computed the correct positions yet,
@@ -2113,20 +2114,20 @@ void test_import_swc(const std::string& fileName, bool correct, number scaleER)
     }
 
 
-
+    /// TODO: make sure to create also soma for other soma points above from ER (vSOmaPoints iterate over this)
     // create soma
-    /*
     sel.clear();
     UG_LOGN("Creating soma!")
     sh.set_default_subset_index(1);
-    create_soma(vSomaPoints, g, aaPos, sh);
+    std::vector<SWCPoint> somaPoint;
+    somaPoint.push_back(vSomaPoints[0]);
+    create_soma(somaPoint, g, aaPos, sh);
     sh.set_default_subset_index(0);
     UG_LOGN("Done with soma!");
 
     // connect soma with neurites
     connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
     UG_LOGN("Done with connecting neurites!");
-    */
 
     // refinement
     AssignSubsetColors(sh);
@@ -2162,6 +2163,150 @@ void test_import_swc(const std::string& fileName, bool correct, number scaleER)
     }
 }
 
+void test_import_swc_scale(const std::string& fileName, bool correct, number scale)
+{
+	// preconditioning
+    test_smoothing(fileName, 5, 1.0, 1.0, scale);
+
+	// read in file to intermediate structure
+    std::vector<SWCPoint> vPoints;
+    std::vector<SWCPoint> vSomaPoints;
+    std::string fn_noext = FilenameWithoutExtension(fileName);
+    std::string fn_precond = fn_noext + "_precond.swc";
+    import_swc(fn_precond, vPoints, correct, scale);
+
+    // convert intermediate structure to neurite data
+    std::vector<std::vector<vector3> > vPos;
+    std::vector<std::vector<number> > vRad;
+    std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
+    std::vector<size_t> vRootNeuriteIndsOut;
+
+    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+    std::vector<Vertex*> outVerts;
+    std::vector<number> outRads;
+
+/* debug
+    std::cout << "BPInfo:" << std::endl;
+    for (size_t i = 0; i < vBPInfo.size(); ++i)
+    {
+        std::cout << "nid " << i << ":  " << "#vrts = " << vPos[i].size() << std::endl;
+        for (size_t j = 0; j < vBPInfo[i].size(); ++j)
+        {
+            std::cout << "  " << vBPInfo[i][j].first << ": ";
+            for (size_t k = 0; k < vBPInfo[i][j].second.size(); ++k)
+            	std::cout << vBPInfo[i][j].second[k] << " ";
+            std::cout << std::endl;
+        }
+        std::cout << std::endl;
+    }
+*/
+
+    // create spline data
+    std::vector<NeuriteProjector::Neurite> vNeurites;
+    create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
+
+
+
+    // create coarse grid
+    Grid g;
+    SubsetHandler sh(g);
+    sh.set_default_subset_index(0);
+    g.attach_to_vertices(aPosition);
+    Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+    Selector sel(g);
+
+
+    typedef NeuriteProjector::SurfaceParams NPSP;
+    UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
+            "GlobalAttachment 'npSurfParams' not declared.");
+    Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
+    if (!g.has_vertex_attachment(aSP))
+        g.attach_to_vertices(aSP);
+
+    Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
+    aaSurfParams.access(g, aSP);
+
+
+    UG_LOGN("do projection handling and generate geom3d")
+    ProjectionHandler projHandler(&sh);
+    SmartPtr<IGeometry<3> > geom3d = MakeGeometry3d(g, aPosition);
+    projHandler.set_geometry(geom3d);
+    UG_LOGN("done!")
+
+    SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
+    projHandler.set_projector(0, neuriteProj);
+
+    // FIXME: This has to be improved: When neurites are copied,
+    //        pointers inside still point to our vNeurites array.
+    //        If we destroy it, we're in for some pretty EXC_BAD_ACCESSes.
+    UG_LOGN("add neurites")
+    for (size_t i = 0; i < vNeurites.size(); ++i)
+        neuriteProj->add_neurite(vNeurites[i]);
+    UG_LOGN("done");
+
+    UG_LOGN("generating neurites")
+    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
+    	create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads, false);
+    }
+
+    // at branching points, we have not computed the correct positions yet,
+    // so project the complete geometry using the projector
+    // TODO: little bit dirty; provide proper method in NeuriteProjector to do this
+    VertexIterator vit = g.begin<Vertex>();
+    VertexIterator vit_end = g.end<Vertex>();
+    for (; vit != vit_end; ++vit)
+    {
+        Edge* tmp = *g.create<RegularEdge>(EdgeDescriptor(*vit,*vit));
+        neuriteProj->new_vertex(*vit, tmp);
+        g.erase(tmp);
+    }
+
+
+    // create soma
+    sel.clear();
+    UG_LOGN("Creating soma!")
+    sh.set_default_subset_index(1);
+    create_soma(vSomaPoints, g, aaPos, sh);
+    sh.set_default_subset_index(0);
+    UG_LOGN("Done with soma!");
+
+    // connect soma with neurites
+    connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
+    UG_LOGN("Done with connecting neurites!");
+
+    // refinement
+    AssignSubsetColors(sh);
+    sh.set_subset_name("neurites", 0);
+    sh.set_subset_name("soma", 1);
+
+    std::string outFileName = FilenameWithoutPath(std::string("testNeuriteProjector.ugx"));
+    GridWriterUGX ugxWriter;
+    ugxWriter.add_grid(g, "defGrid", aPosition);
+    ugxWriter.add_subset_handler(sh, "defSH", 0);
+    ugxWriter.add_projection_handler(projHandler, "defPH", 0);
+    if (!ugxWriter.write_to_file(outFileName.c_str()))
+        UG_THROW("Grid could not be written to file '" << outFileName << "'.");
+
+    Domain3d dom;
+    try {LoadDomain(dom, outFileName.c_str());}
+    UG_CATCH_THROW("Failed loading domain from '" << outFileName << "'.");
+
+    std::string curFileName("testNeuriteProjector.ugx");
+    number offset=10;
+    try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
+    UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
+
+    GlobalMultiGridRefiner ref(*dom.grid(), dom.refinement_projector());
+    for (size_t i = 0; i < 4; ++i)
+    {
+        ref.refine();
+        std::ostringstream oss;
+        oss << "_refined_" << i+1 << ".ugx";
+        curFileName = outFileName.substr(0, outFileName.size()-4) + oss.str();
+        try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
+        UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
+    }
+}
 
 
 void test_neurite_projector_with_four_section_tube()

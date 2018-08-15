@@ -794,7 +794,8 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("test_smoothing", &test_smoothing, "", "", "");
 		reg.add_function("test_neurite_projector", &test_neurite_projector_with_four_section_tube, "", "", "");
 		reg.add_function("test_neurite_projector_with_bp", &test_neurite_projector_with_four_section_tube_and_branch_point, "", "", "");
-		reg.add_function("test_import_swc", &test_import_swc, "", "file name#correction#scale", "");
+		reg.add_function("test_import_swc", &test_import_swc, "", "file name#correction#scaleER", "");
+		reg.add_function("test_import_swc_scale", &test_import_swc_scale, "", "file name#correction#scaleTotal", "");
 		//reg.add_function("apply_neurite_projector", &apply_neurite_projector, "", "multigrid, neurite projector", "");
 		reg.add_function("test_cylinder_volume_projector", &test_cylinder_volume_projector, "", "", "");
 	}
