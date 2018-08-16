@@ -1331,6 +1331,7 @@ static void create_neurite
 
     vector3 vel;
     UG_COND_THROW(nSec == 0, "Number of sections > 0 required. FIX: Don't collapse root edges of neurites.");
+    UG_LOGN("nSec: " << nSec);
     const NeuriteProjector::Section& sec = neurite.vSec[0];
     number h = sec.endParam;
     vel[0] = -3.0*sec.splineParamsX[0]*h*h - 2.0*sec.splineParamsX[1]*h - sec.splineParamsX[2];
@@ -1983,6 +1984,8 @@ void test_smoothing(const std::string& fileName, size_t n, number h, number gamm
 
 void test_import_swc(const std::string& fileName, bool correct, number scaleER)
 {
+	UG_LOGN("scaleER: " << scaleER);
+	UG_COND_THROW(scaleER == 1.0, "scaling to the same size is NOT allowed.");
 	// preconditioning
     test_smoothing(fileName, 5, 1.0, 1.0);
 
@@ -2110,6 +2113,7 @@ void test_import_swc(const std::string& fileName, bool correct, number scaleER)
 
 
     /// TODO: make sure to create also soma for other soma points above from ER (vSOmaPoints iterate over this)
+    /// TODO: might fail if duplicated elements, e.g. scale=1.0 -
     // create soma
     sel.clear();
     UG_LOGN("Creating soma!")
@@ -2120,9 +2124,11 @@ void test_import_swc(const std::string& fileName, bool correct, number scaleER)
     sh.set_default_subset_index(0);
     UG_LOGN("Done with soma!");
 
-    // connect soma with neurites
+    /*
+    // connect soma with neurites TODO: outVerts and outRads must be different, e.g. outVerts2 and outRads2 to not fail! -> or use a vector and iterate over these outRads and outVerts
     connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
     UG_LOGN("Done with connecting neurites!");
+    */
 
     // refinement
     AssignSubsetColors(sh);
