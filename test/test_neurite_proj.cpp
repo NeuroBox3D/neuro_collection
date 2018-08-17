@@ -1006,7 +1006,7 @@ void calculate_segment_axial_positions
 		integral += dt * sec_integral;
 
 		// calculate exact position by linear interpolation, whenever integral has surpassed it
-		if (integral >= (seg+1)*segLength)
+		while (integral >= (seg+1)*segLength)
 		{
 			number lastIntegral = integral - dt * sec_integral;
 			segAxPosOut[seg] = t_start + ((seg+1)*segLength - lastIntegral) / sec_integral;
@@ -1018,6 +1018,8 @@ void calculate_segment_axial_positions
 		if (t_start >= t_end) break;
 		++sec_it;
 	}
+
+	UG_ASSERT(seg == nSeg, "seg = " << seg << " != " << nSeg << " = nSeg");
 
 	// maybe write last position (should not happen, but you never know)
 	segAxPosOut[nSeg-1] = t_end;
