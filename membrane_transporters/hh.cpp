@@ -46,12 +46,20 @@ void HH<TDomain>::use_exact_gating_mode(number timeStep)
 
 
 template <typename TDomain>
+void HH<TDomain>::use_gating_explicit_current_mode()
+{
+	m_bGatingExplicitCurrentMode = true;
+}
+
+
+template <typename TDomain>
 HH<TDomain>::HH(const std::vector<std::string>& fcts, const std::vector<std::string>& subsets)
 : IMembraneTransporter(fcts), IElemDisc<TDomain>(fcts, subsets),
   m_gK(2e-11), m_gNa(2e-11),
   m_eK(-0.077), m_eNa(0.05),
   m_refTime(1.0),
   m_bVoltageExplicitDiscMode(false),
+  m_bGatingExplicitCurrentMode(false),
   m_VEDMdt(1e-5),
   m_bNonRegularGrid(false),
   m_bCurrElemIsHSlave(false)
@@ -67,6 +75,7 @@ HH<TDomain>::HH(const char* fcts, const char* subsets)
   m_eK(-0.077), m_eNa(0.05),
   m_refTime(1.0),
   m_bVoltageExplicitDiscMode(false),
+  m_bGatingExplicitCurrentMode(false),
   m_VEDMdt(1e-5),
   m_bNonRegularGrid(false),
   m_bCurrElemIsHSlave(false)
@@ -119,16 +128,32 @@ void HH<TDomain>::calc_flux_deriv(const std::vector<number>& u, GridObject* e, s
 		++i;
 	}
 
-	flux_derivs[0][i].first = local_fct_index(_N_);
-	flux_derivs[0][i].second = m_gK * 4.0*n*n*n * (vm - m_eK);
-	++i;
+	if (!m_bGatingExplicitCurrentMode)
+	{
+		flux_derivs[0][i].first = local_fct_index(_N_);
+		flux_derivs[0][i].second = m_gK * 4.0*n*n*n * (vm - m_eK);
+		++i;
 
-	flux_derivs[0][i].first = local_fct_index(_M_);
-	flux_derivs[0][i].second = m_gNa * 3.0*m*m*h * (vm - m_eNa);
-	++i;
+		flux_derivs[0][i].first = local_fct_index(_M_);
+		flux_derivs[0][i].second = m_gNa * 3.0*m*m*h * (vm - m_eNa);
+		++i;
 
-	flux_derivs[0][i].first = local_fct_index(_H_);
-	flux_derivs[0][i].second = m_gNa * m*m*m * (vm - m_eNa);
+		flux_derivs[0][i].first = local_fct_index(_H_);
+		flux_derivs[0][i].second = m_gNa * m*m*m * (vm - m_eNa);
+	}
+	else
+	{
+		flux_derivs[0][i].first = local_fct_index(_N_);
+		flux_derivs[0][i].second = 0.0;
+		++i;
+
+		flux_derivs[0][i].first = local_fct_index(_M_);
+		flux_derivs[0][i].second = 0.0;
+		++i;
+
+		flux_derivs[0][i].first = local_fct_index(_H_);
+		flux_derivs[0][i].second = 0.0;
+	}
 }
 
 

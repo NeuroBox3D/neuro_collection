@@ -96,6 +96,8 @@ class HH
 		 */
 		void use_exact_gating_mode(number timeStep);
 
+		void use_gating_explicit_current_mode();
+
 	// inheritances from IMembraneTransporter
 	public:
 		/// @copydoc IMembraneTransporter::calc_flux()
@@ -192,6 +194,7 @@ class HH
 		number m_refTime;
 
 		bool m_bVoltageExplicitDiscMode;
+		bool m_bGatingExplicitCurrentMode;
 		number m_VEDMdt;
 
 	protected:
