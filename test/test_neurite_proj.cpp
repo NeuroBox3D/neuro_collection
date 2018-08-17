@@ -1246,6 +1246,8 @@ static void create_neurite
     	number lengthOverRadius = calculate_length_over_radius(t_start, t_end, neurite, curSec);
 
     	size_t nSeg = (size_t) floor(lengthOverRadius / 8);
+    	if (!nSeg)
+    		nSeg = 1;
     	number segLength = lengthOverRadius / nSeg;	// segments are between 8 and 16 radii long
     	std::vector<number> vSegAxPos(nSeg);
     	calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
