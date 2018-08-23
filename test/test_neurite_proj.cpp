@@ -1732,7 +1732,7 @@ static void create_neurite
     aaSurfParams[v].angular = 0.0;
 }
 
-
+/// TODO: scale in percentage not to a fixed length...
 void shrink_quadrilateral
 (
 	std::vector<Vertex*> vVrt,
@@ -1757,11 +1757,17 @@ void shrink_quadrilateral
        VecNormalize(dir, dir);
        VecScale(dir, dir, -0.5);
        VecAdd(aaPos[vVrt[i]], aaPos[vVrt[i]], dir);
+       if (VecLength(dir) > VecDistance(center, aaPos[vVrt[i]])) {
+          UG_WARNING("Moving vertex beyond center. Will create degenerated elements." << std::endl);
+       }
     }
 }
 
-void test_shrink_geom2() {
-
+void test_shrink_geom2
+(
+		number length=0.5
+)
+{
 	Grid g;
 	SubsetHandler sh(g);
     sh.set_default_subset_index(0);
@@ -1800,14 +1806,18 @@ void test_shrink_geom2() {
        ug::vector3 dir;
        VecSubtract(dir, aaPos[vVrt[i]], center);
        VecNormalize(dir, dir);
-       VecScale(dir, dir, -0.5);
+       VecScale(dir, dir, -length);
        VecAdd(aaPos[vVrt[i]], aaPos[vVrt[i]], dir);
+       if (VecLength(dir) > VecDistance(center, aaPos[vVrt[i]])) {
+    	   UG_WARNING("Moving vertex beyond center. Will create degenerated elements." << std::endl);
+       }
     }
 
     SaveGridToFile(g, sh, "test_shrunk_geom_after.ugx");
 
 }
 
+/// TODO: aaSurf parameters have to be corrected for projector (inner / ER)
 static void create_neurite_general
 (
     const std::vector<NeuriteProjector::Neurite>& vNeurites,
@@ -1926,30 +1936,29 @@ static void create_neurite_general
         }
 
         // create first layer of vertices and edges for inner layer
-        if (neurite.bHasER) {
-        	for (size_t i = 0; i < 4; ++i)
+        if (neurite.bHasER)
         {
-            Vertex* v = *g.create<RegularVertex>();
-            vVrtInner[i] = v;
-            number angle = 0.5*PI*i;
-            VecScaleAdd(aaPos[v], 1.0, pos[0], r[0]*neurite.scaleER*cos(angle), projRefDir, r[0]*neurite.scaleER*sin(angle), thirdDir);
-            VecScale(aaPos[v], aaPos[v], neurite.scaleER);
-            /// TODO: move along normal and dont't scale point! -> see now changes. Have to modify the aaSurfParams for the neurite projector!
-            /// shrink_quadrilateral(vVrtInner, g, aaPos);
+        	for (size_t i = 0; i < 4; ++i)
+        	{
+        		Vertex* v = *g.create<RegularVertex>();
+        		vVrtInner[i] = v;
+        		number angle = 0.5*PI*i;
+        		VecScaleAdd(aaPos[v], 1.0, pos[0], r[0]*neurite.scaleER*cos(angle), projRefDir, r[0]*neurite.scaleER*sin(angle), thirdDir);
+        		/// VecScale(aaPos[v], aaPos[v], neurite.scaleER);
+        		UG_LOGN("scale with: " << neurite.scaleER)
+        		aaSurfParams[v].neuriteID = nid;
+        		aaSurfParams[v].axial = 0.0;
+        		aaSurfParams[v].angular = angle;
+        		outVertsInner->push_back(v);
+        		UG_LOGN("aaPos[v]: " << aaPos[v]);
+        	}
+        	shrink_quadrilateral(vVrtInner, g, aaPos);
+        	outRadsInner->push_back(r[0]*neurite.scaleER);
 
-            UG_LOGN("scale with: " << neurite.scaleER)
-            aaSurfParams[v].neuriteID = nid;
-            aaSurfParams[v].axial = 0.0;
-            aaSurfParams[v].angular = angle;
-            outVertsInner->push_back(v);
-            UG_LOGN("aaPos[v]: " << aaPos[v]);
+        	for (size_t i = 0; i < 4; ++i) {
+        		vEdgeInner[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrtInner[i], vVrtInner[(i+1)%4]));
+        	}
         }
-        outRadsInner->push_back(r[0]*neurite.scaleER);
-
-        for (size_t i = 0; i < 4; ++i) {
-            vEdgeInner[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrtInner[i], vVrtInner[(i+1)%4]));
-        }
-    }
     }
 
     // Now create dendrite to the next branching point and iterate this process.
@@ -2172,7 +2181,7 @@ static void create_neurite_general
 					vector3 radialVec;
 					VecScaleAdd(radialVec, radius*neurite.scaleER*cos(angle), projRefDir, radius*neurite.scaleER*sin(angle), thirdDir);
 					VecAdd(aaPos[v], curPos, radialVec);
-					VecScale(aaPos[v], aaPos[v], neurite.scaleER);
+					/// VecScale(aaPos[v], aaPos[v], neurite.scaleER);
 					UG_LOGN("aaPos[v] (after extrude (inner)): " << aaPos[v])
 
 					aaSurfParams[v].neuriteID = nid;
@@ -2185,11 +2194,13 @@ static void create_neurite_general
 					CalculateNormal(normal, faceCont[0], aaPos);
 					if (VecProd(normal, radialVec) < 0)
 						g.flip_orientation(faceCont[0]);
-				}
+			}
+			shrink_quadrilateral(vVrtInner, g, aaPos);
 			lastPos = curPos;
     	}
 
 
+    	/// TODO: erase also best face for inner: currently only found one best face for outer...
     	// connect branching neurites if present
     	if (brit != brit_end)
     	{
@@ -2276,6 +2287,7 @@ static void create_neurite_general
 
 			UG_LOGN("Creating child")
 			// TODO: create prism to connect to in case the branching angle is small or big
+			/// TODO: implement the recursion call correctly...
 			///create_neurite(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, NULL, NULL, bWithER);
     	}
 
@@ -3308,8 +3320,8 @@ void test_import_swc_general(const std::string& fileName, bool correct, number s
 
 
     /// TODO: make sure to create also soma for other soma points above from ER (vSOmaPoints iterate over this)
-    /// TODO: might fail if duplicated elements, e.g. scale=1.0 -
-    // create soma
+    /// might fail if duplicated elements, e.g. scale=1.0 -
+    // create soma for both scaled and undscaled
     sel.clear();
     UG_LOGN("Creating soma!")
     sh.set_default_subset_index(1);
