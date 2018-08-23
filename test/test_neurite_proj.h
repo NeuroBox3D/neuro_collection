@@ -62,10 +62,10 @@ void convert_pointlist_to_neuritelist
 void test_smoothing(const std::string& fileName, size_t n, number h, number gamma, number scale);
 void test_import_swc(const std::string& fileName, bool correct, number scaleER, bool withER);
 void test_import_swc_scale(const std::string& fileName, bool correct, number scale);
-void test_import_swc_general(const std::string& fileName, bool correct, number scale, bool withER);
+void test_import_swc_general(const std::string& fileName, bool correct, number shrinkPercentage, bool withER);
 void test_neurite_projector_with_four_section_tube();
 void test_neurite_projector_with_four_section_tube_and_branch_point();
-void test_shrink_geom2(number length);
+void test_shrink_geom(number percentage);
 
 void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuriteProj);
 
