@@ -1732,12 +1732,12 @@ static void create_neurite
     aaSurfParams[v].angular = 0.0;
 }
 
-/// TODO: scale in percentage not to a fixed length...
 void shrink_quadrilateral
 (
 	std::vector<Vertex*> vVrt,
     Grid& g,
-	Grid::VertexAttachmentAccessor<APosition>& aaPos
+	Grid::VertexAttachmentAccessor<APosition>& aaPos,
+	number percentage
 )
 {
 	Selector sel(g);
@@ -1754,10 +1754,13 @@ void shrink_quadrilateral
     {
        ug::vector3 dir;
        VecSubtract(dir, aaPos[vVrt[i]], center);
-       VecNormalize(dir, dir);
-       VecScale(dir, dir, -0.5);
-       VecAdd(aaPos[vVrt[i]], aaPos[vVrt[i]], dir);
-       if (VecLength(dir) > VecDistance(center, aaPos[vVrt[i]])) {
+       /// TODO: vector should not be normalized. Move percentage of direction!
+       //VecNormalize(dir, dir);
+       //VecScale(dir, dir, -percentage);
+       UG_LOGN("dir:" << dir)
+       VecScaleAdd(aaPos[vVrt[i]], 1.0, aaPos[vVrt[i]], percentage, dir);
+       ///VecAdd(aaPos[vVrt[i]], aaPos[vVrt[i]], dir);
+       if (percentage > 1) {
           UG_WARNING("Moving vertex beyond center. Will create degenerated elements." << std::endl);
        }
     }
@@ -1765,7 +1768,7 @@ void shrink_quadrilateral
 
 void test_shrink_geom2
 (
-		number length=0.5
+		number length=0.01
 )
 {
 	Grid g;
@@ -1805,9 +1808,10 @@ void test_shrink_geom2
     {
        ug::vector3 dir;
        VecSubtract(dir, aaPos[vVrt[i]], center);
-       VecNormalize(dir, dir);
-       VecScale(dir, dir, -length);
-       VecAdd(aaPos[vVrt[i]], aaPos[vVrt[i]], dir);
+     //  VecNormalize(dir, dir);
+       ///VecScale(dir, dir, -length);
+       UG_LOGN("dir:" << dir)
+       VecScaleAdd(aaPos[vVrt[i]], 1.0, aaPos[vVrt[i]], length, dir);
        if (VecLength(dir) > VecDistance(center, aaPos[vVrt[i]])) {
     	   UG_WARNING("Moving vertex beyond center. Will create degenerated elements." << std::endl);
        }
@@ -1952,7 +1956,7 @@ static void create_neurite_general
         		outVertsInner->push_back(v);
         		UG_LOGN("aaPos[v]: " << aaPos[v]);
         	}
-        	shrink_quadrilateral(vVrtInner, g, aaPos);
+        	shrink_quadrilateral(vVrtInner, g, aaPos, neurite.scaleER);
         	outRadsInner->push_back(r[0]*neurite.scaleER);
 
         	for (size_t i = 0; i < 4; ++i) {
@@ -2195,7 +2199,7 @@ static void create_neurite_general
 					if (VecProd(normal, radialVec) < 0)
 						g.flip_orientation(faceCont[0]);
 			}
-			shrink_quadrilateral(vVrtInner, g, aaPos);
+			shrink_quadrilateral(vVrtInner, g, aaPos, neurite.scaleER);
 			lastPos = curPos;
     	}
 
