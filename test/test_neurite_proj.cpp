@@ -1715,6 +1715,9 @@ namespace neuro_collection {
     aaSurfParams[v].angular = 0.0;
 }
 
+	/// Note: Could also use this strategy: Get two edges emerging from a vertex
+	///       and then calculate normals in vertex for each vertex -> then move
+	///       along this combined normals n1, n2 into interior of quadrilateral.
 	void shrink_quadrilateral
 (
 	std::vector<Vertex*> vVrt,
@@ -1730,6 +1733,8 @@ namespace neuro_collection {
 	}
 
     ug::vector3 center;
+    /// Note: Using barycenter, could also use vertex or area centroid for this:
+    /// https://en.wikipedia.org/wiki/Quadrilateral#Remarkable_points_and_lines_in_a_convex_quadrilateral
     center = CalculateBarycenter(sel.vertices_begin(), sel.vertices_end(), aaPos);
     sel.clear();
 
@@ -1799,6 +1804,7 @@ namespace neuro_collection {
 }
 
 	/// TODO: aaSurf parameters have to be corrected for projector (inner / ER)
+	/// TODO/Note: Could make this general, e.g. introduce vector of layers or so
 	static void create_neurite_general
 (
     const std::vector<NeuriteProjector::Neurite>& vNeurites,
@@ -1864,6 +1870,7 @@ namespace neuro_collection {
 
     number angleOffset = 0.0;
 
+    /// TODO: implement this if stmt body for the inner vertices and edges -> will resolve aaSurfParam issue!
     if (connectingVrts && connectingEdges)
     {
         vVrt = *connectingVrts;
