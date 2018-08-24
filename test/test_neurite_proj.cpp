@@ -1803,7 +1803,7 @@ namespace neuro_collection {
 
 }
 
-	/// TODO: aaSurf parameters have to be corrected for projector (inner / ER)
+	/// TODO: aaSurf parameters have to be corrected for projector probably still (inner / ER)
 	/// TODO/Note: Could make this general, e.g. introduce vector of layers or so
 	static void create_neurite_general
 (
@@ -2188,7 +2188,10 @@ namespace neuro_collection {
     	}
 
 
-    	/// TODO: erase also best face for inner: currently only found one best face for outer...
+    	/// TODO: erase also best face for inner: currently only found one best face for outer...:
+    	/// How to do this: 1) move code below for connect branchning neurites below up then extrude outer,
+    	/// then connect branching neurites, then extrude inner, then connect inner branching neurites, then
+    	/// use if (brit != brit_end) create_neurite_general() to init recursion call: done!
     	// connect branching neurites if present
     	if (brit != brit_end)
     	{
@@ -2278,7 +2281,7 @@ namespace neuro_collection {
 			UG_LOGN("Creating child")
 			// TODO: create prism to connect to in case the branching angle is small or big
 			/// TODO: implement the recursion call correctly... respectively verify this works...
-			/// create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
+			///create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
     	}
 
     	// update t_end and curSec
@@ -2857,11 +2860,15 @@ namespace neuro_collection {
     std::vector<SWCPoint> somaPoint;
     somaPoint.push_back(vSomaPoints[0]);
     create_soma(somaPoint, g, aaPos, sh);
+    somaPoint.front().radius = somaPoint.front().radius * scaleER;
+    create_soma(somaPoint, g, aaPos, sh);
     sh.set_default_subset_index(0);
     UG_LOGN("Done with soma!");
 
+    /// connect soma with neurites TODO: outVerts and outRads must be different,
+    ///  e.g. outVerts2 and outRads2 to not fail! -> or use a vector and iterate
+    ///  over these outRads and outVerts
     /*
-    // connect soma with neurites TODO: outVerts and outRads must be different, e.g. outVerts2 and outRads2 to not fail! -> or use a vector and iterate over these outRads and outVerts
     connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
     UG_LOGN("Done with connecting neurites!");
     */
