@@ -2244,10 +2244,12 @@ namespace neuro_collection {
 
 			// remove face and call creation of child neurite (recursion)
 			std::vector<Vertex*> vrts(4);
+			std::vector<Vertex*> vrtsInner(4);
 			UG_COND_THROW(best->num_vertices() != 4, "Hexaeder face does not have 4 vertices!");
 			for (size_t j = 0; j < 4; ++j)
 				vrts[j] = best->vertex(j);
 			std::vector<Edge*> edges(4);
+			std::vector<Edge*> edgesInner(4);
 
 			Grid::traits<Edge>::secure_container edgeCont;
 			g.associated_elements(edgeCont, best);
@@ -2276,7 +2278,7 @@ namespace neuro_collection {
 			UG_LOGN("Creating child")
 			// TODO: create prism to connect to in case the branching angle is small or big
 			/// TODO: implement the recursion call correctly... respectively verify this works...
-			///create_neurite(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, NULL, NULL, bWithER);
+			/// create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
     	}
 
     	// update t_end and curSec
