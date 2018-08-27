@@ -2070,6 +2070,7 @@ namespace neuro_collection {
 
     	// create mesh for segments
     	Selector sel(g);
+    	Selector sel2(g);
     	for (size_t s = 0; s < nSeg; ++s)
     	{
     		// get exact position, velocity and radius of segment end
@@ -2127,8 +2128,10 @@ namespace neuro_collection {
 			VecCross(thirdDir, vel, projRefDir);
 
 			// extrude from last pos to new pos
-			if (s == nSeg-1 && brit != brit_end)
+			if (s == nSeg-1 && brit != brit_end) {
 				sel.enable_autoselection(true); // for last segment (BP), select new elems
+				sel2.enable_autoselection(true);
+			}
 
 			vector3 extrudeDir;
 			VecScaleAdd(extrudeDir, 1.0, curPos, -1.0, lastPos);
@@ -2136,6 +2139,7 @@ namespace neuro_collection {
 			Extrude(g, &vVrtInner, &vEdgeInner, NULL, extrudeDir, aaPos, EO_CREATE_FACES, NULL);
 
 			sel.enable_autoselection(false);
+			sel2.enable_autoselection(false);
 
 			// set new positions and param attachments; also ensure correct face orientation
 			for (size_t j = 0; j < 4; ++j)
@@ -2226,7 +2230,7 @@ namespace neuro_collection {
 			v2 = -3.0*s[0]*te - 2.0*s[1];
 			v2 = v2*te - s[2];
 
-			// now choose best side of hexahedron to connect to
+			// now choose best side of hexahedron to connect to (outer)
 			vector3 normal;
 			Face* best = NULL;
 			number bestProd = 0.0;
@@ -2242,17 +2246,15 @@ namespace neuro_collection {
 					bestProd = prod;
 				}
 			}
-			UG_COND_THROW(!best, "None of the branching point faces pointed in a suitable direction.")
+			UG_COND_THROW(!best, "None of the branching point faces pointed in a suitable direction (outer).")
 			sel.deselect(sel.faces_begin(), sel.faces_end());
 
 			// remove face and call creation of child neurite (recursion)
 			std::vector<Vertex*> vrts(4);
-			std::vector<Vertex*> vrtsInner(4);
 			UG_COND_THROW(best->num_vertices() != 4, "Hexaeder face does not have 4 vertices!");
 			for (size_t j = 0; j < 4; ++j)
 				vrts[j] = best->vertex(j);
 			std::vector<Edge*> edges(4);
-			std::vector<Edge*> edgesInner(4);
 
 			Grid::traits<Edge>::secure_container edgeCont;
 			g.associated_elements(edgeCont, best);
@@ -2278,10 +2280,60 @@ namespace neuro_collection {
 
 			g.erase(best);
 
-			UG_LOGN("Creating child")
-			// TODO: create prism to connect to in case the branching angle is small or big
+			// now choose best side of hexahedron to connect to (inner)
+			best = NULL;
+			bestProd = 0.0;
+			fit = sel2.faces_begin();
+			fit_end = sel2.faces_end();
+			for (; fit != fit_end; ++fit)
+			{
+				CalculateNormal(normal, *fit, aaPos);
+				number prod = VecProd(normal, childDir);
+				if (prod > bestProd)
+				{
+					best = *fit;
+					bestProd = prod;
+				}
+			}
+			UG_COND_THROW(!best, "None of the branching point faces pointed in a suitable direction (inner).")
+			sel2.deselect(sel2.faces_begin(), sel2.faces_end());
+
+			// remove face and call creation of child neurite (recursion)
+			std::vector<Vertex*> vrtsInner(4);
+			UG_COND_THROW(best->num_vertices() != 4, "Hexaeder face does not have 4 vertices!");
+			for (size_t j = 0; j < 4; ++j)
+				vrtsInner[j] = best->vertex(j);
+			std::vector<Edge*> edgesInner(4);
+
+			edgeCont.clear();
+			g.associated_elements(edgeCont, best);
+			esz = edgeCont.size();
+
+			for (size_t j = 0; j < 4; ++j)
+			{
+				Vertex* first = vrtsInner[j];
+				Vertex* second = vrtsInner[(j+1) % 4];
+
+				size_t k = 0;
+				for (; k < esz; ++k)
+				{
+					if ((edgeCont[k]->vertex(0) == first && edgeCont[k]->vertex(1) == second)
+						|| (edgeCont[k]->vertex(0) == second && edgeCont[k]->vertex(1) == first))
+					{
+						edges[j] = edgeCont[k];
+						break;
+					}
+				}
+				UG_COND_THROW(k == esz, "Connecting edges for child neurite could not be determined.");
+			}
+
+			/// TODO: shrink this face potentially
+			g.erase(best);
+
+			/// TODO: create prism to connect to in case the branching angle is small or big
 			/// TODO: implement the recursion call correctly... respectively verify this works... will work if vvertsInner and edgesInner set correctly!
-			///create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
+			UG_LOGN("Creating child")
+			/// create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
     	}
 
     	// update t_end and curSec
@@ -2302,7 +2354,7 @@ namespace neuro_collection {
 			++brit;
     }
 
-    // close the tip of the neurite
+    // close the tip of the neurite (potentially have to close inner neurite too: TODO)
     const NeuriteProjector::Section& lastSec = neurite.vSec[nSec-1];
     vel = vector3(-lastSec.splineParamsX[2], -lastSec.splineParamsY[2], -lastSec.splineParamsZ[2]);
     number radius = lastSec.splineParamsR[3];
