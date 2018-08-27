@@ -2191,13 +2191,9 @@ namespace neuro_collection {
 			lastPos = curPos;
     	}
 
-
-    	/// TODO: erase also best face for inner: currently only found one best face for outer...:
-    	/// How to do this: 1) move code below for connect branchning neurites below up then extrude outer,
-    	/// then connect branching neurites, then extrude inner, then connect inner branching neurites, then
-    	/// use if (brit != brit_end) create_neurite_general() to init recursion call: done!
-    	// connect branching neurites if present
+    	/// connect branching neurites if present
     	if (brit != brit_end)
+		/// TODO: create prism to connect to in case the branching angle is small or big
     	{
     		// find branching child neurite
 			SmartPtr<NeuriteProjector::BranchingPoint> bp = brit->bp;
@@ -2327,12 +2323,10 @@ namespace neuro_collection {
 				UG_COND_THROW(k == esz, "Connecting edges for child neurite could not be determined.");
 			}
 
-			/// TODO: shrink this face potentially
 			g.erase(best);
 
-			/// TODO: create prism to connect to in case the branching angle is small or big
-			/// TODO: implement the recursion call correctly... respectively verify this works... will work if vvertsInner and edgesInner set correctly!
 			UG_LOGN("Creating child")
+			/// TODO: implement the recursion call correctly... respectively verify this works... will work if vvertsInner and edgesInner set correctly!
 			/// create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
     	}
 
