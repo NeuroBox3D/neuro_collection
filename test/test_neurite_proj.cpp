@@ -2919,9 +2919,9 @@ namespace neuro_collection {
     }
 
 
-    /// TODO: make sure to create also soma for other soma points above from ER (vSOmaPoints iterate over this)
-    /// might fail if duplicated elements, e.g. scale=1.0 -
-    // create soma for both scaled and undscaled
+    // create soma for both scaled and scaled geometry (inner/outer)
+    // TODO: soma is scaled correctly, but connect_neurites_with_soma depends on explicit subset index (1) which is the small and large soma -> correct this!
+    /*
     sel.clear();
     UG_LOGN("Creating soma!")
     sh.set_default_subset_index(1);
@@ -2932,12 +2932,8 @@ namespace neuro_collection {
     create_soma(somaPoint, g, aaPos, sh);
     sh.set_default_subset_index(0);
     UG_LOGN("Done with soma!");
-
-    /// connect soma with neurites TODO: outVerts and outRads must be different,
-    ///  e.g. outVerts2 and outRads2 to not fail! -> or use a vector and iterate
-    ///  over these outRads and outVerts
-    /*
     connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
+    connect_neurites_with_soma(g, aaPos, outVertsInner, outRadsInner, 1, sh, fileName);
     UG_LOGN("Done with connecting neurites!");
     */
 
