@@ -1817,7 +1817,7 @@ namespace neuro_collection {
     std::vector<Vertex*>* connectingVrts = NULL,
     std::vector<Edge*>* connectingEdges = NULL,
     std::vector<Vertex*>* connectingVrtsInner = NULL,
-    std::vector<Edge*>* connectingEdgesOuter = NULL,
+    std::vector<Edge*>* connectingEdgesInner = NULL,
     std::vector<Vertex*>* outVerts = NULL,
     std::vector<Vertex*>* outVertsInner = NULL,
     std::vector<number>* outRads = NULL,
@@ -1869,21 +1869,30 @@ namespace neuro_collection {
     VecCross(thirdDir, vel, projRefDir);
 
     number angleOffset = 0.0;
+    number angleOffsetInner = 0.0;
 
     /// TODO: implement this if stmt body for the inner vertices and edges -> will resolve aaSurfParam issue!
-    if (connectingVrts && connectingEdges)
+    if (connectingVrts && connectingEdges && connectingVrtsInner && connectingEdgesInner)
     {
         vVrt = *connectingVrts;
         vEdge = *connectingEdges;
+        vVrtInner = *connectingVrtsInner;
+        vEdgeInner = *connectingEdgesInner;
 
         // calculate start angle offset
         vector3 center(0.0);
+        vector3 center2(0.0);
         for (size_t i = 0; i < 4; ++i)
             VecAdd(center, center, aaPos[(*connectingVrts)[i]]);
         center /= 4;
+        for (size_t i = 0; i < 4; ++i)
+            VecAdd(center2, center2, aaPos[(*connectingVrtsInner)[i]]);
+        center2 /= 4;
 
         vector3 centerToFirst;
+        vector3 centerToFirst2;
         VecSubtract(centerToFirst, aaPos[(*connectingVrts)[0]], center);
+        VecSubtract(centerToFirst2, aaPos[(*connectingVrtsInner)[0]], center2);
 
         vector2 relCoord;
         VecScaleAdd(centerToFirst, 1.0, centerToFirst, -VecProd(centerToFirst, vel), vel);
@@ -1892,11 +1901,24 @@ namespace neuro_collection {
         relCoord[1] = VecProd(centerToFirst, thirdDir);
         VecNormalize(relCoord, relCoord);
 
+        vector2 relCoord2;
+        VecScaleAdd(centerToFirst2, 1.0, centerToFirst2, -VecProd(centerToFirst2, vel), vel);
+        relCoord[0] = VecProd(centerToFirst2, projRefDir);
+        VecScaleAdd(centerToFirst2, 1.0, centerToFirst2, -relCoord[0], projRefDir);
+        relCoord[1] = VecProd(centerToFirst2, thirdDir);
+        VecNormalize(relCoord2, relCoord2);
+
         if (fabs(relCoord[0]) < 1e-8)
             angleOffset = relCoord[1] < 0 ? 1.5*PI : 0.5*PI;
         else
             angleOffset = relCoord[0] < 0 ? PI - atan(-relCoord[1]/relCoord[0]) : atan(relCoord[1]/relCoord[0]);
         if (angleOffset < 0) angleOffset += 2.0*PI;
+
+        if (fabs(relCoord2[0]) < 1e-8)
+            angleOffsetInner = relCoord2[1] < 0 ? 1.5*PI : 0.5*PI;
+        else
+            angleOffsetInner = relCoord2[0] < 0 ? PI - atan(-relCoord2[1]/relCoord2[0]) : atan(relCoord2[1]/relCoord2[0]);
+        if (angleOffsetInner < 0) angleOffsetInner += 2.0*PI;
 
         // ignore first branching region (the connecting region)
         ++brit;
@@ -2167,7 +2189,7 @@ namespace neuro_collection {
 			// set new positions and param attachments; also ensure correct face orientation
 			for (size_t j = 0; j < 4; ++j)
 			{
-				number angle = 0.5*PI*j + angleOffset;
+				number angle = 0.5*PI*j + angleOffsetInner;
 				if (angle > 2*PI) angle -= 2*PI;
 					Vertex* v = vVrtInner[j];
 					vector3 radialVec;
@@ -2327,7 +2349,7 @@ namespace neuro_collection {
 
 			UG_LOGN("Creating child")
 			/// TODO: implement the recursion call correctly... respectively verify this works... will work if vvertsInner and edgesInner set correctly!
-			/// create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
+			create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
     	}
 
     	// update t_end and curSec
