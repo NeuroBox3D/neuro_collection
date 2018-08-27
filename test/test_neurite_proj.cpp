@@ -2280,7 +2280,7 @@ namespace neuro_collection {
 
 			UG_LOGN("Creating child")
 			// TODO: create prism to connect to in case the branching angle is small or big
-			/// TODO: implement the recursion call correctly... respectively verify this works...
+			/// TODO: implement the recursion call correctly... respectively verify this works... will work if vvertsInner and edgesInner set correctly!
 			///create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
     	}
 
