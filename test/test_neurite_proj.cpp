@@ -1803,8 +1803,8 @@ namespace neuro_collection {
 
 }
 
-	/// TODO: aaSurf parameters have to be corrected for projector probably still (inner / ER)
-	/// TODO/Note: Could make this general, e.g. introduce vector of layers or so
+	/// TODO: aaSurf parameters have to be corrected for projector still (inner/outer)
+	/// TODO/Note: Could make this general, e.g. introduce vector of layers or so!
 	static void create_neurite_general
 (
     const std::vector<NeuriteProjector::Neurite>& vNeurites,
@@ -1871,7 +1871,7 @@ namespace neuro_collection {
     number angleOffset = 0.0;
     number angleOffsetInner = 0.0;
 
-    /// TODO: implement this if stmt body for the inner vertices and edges -> will resolve aaSurfParam issue!
+    /// TODO: cleanup code here
     if (connectingVrts && connectingEdges && connectingVrtsInner && connectingEdgesInner)
     {
         vVrt = *connectingVrts;
@@ -1903,9 +1903,9 @@ namespace neuro_collection {
 
         vector2 relCoord2;
         VecScaleAdd(centerToFirst2, 1.0, centerToFirst2, -VecProd(centerToFirst2, vel), vel);
-        relCoord[0] = VecProd(centerToFirst2, projRefDir);
-        VecScaleAdd(centerToFirst2, 1.0, centerToFirst2, -relCoord[0], projRefDir);
-        relCoord[1] = VecProd(centerToFirst2, thirdDir);
+        relCoord2[0] = VecProd(centerToFirst2, projRefDir);
+        VecScaleAdd(centerToFirst2, 1.0, centerToFirst2, -relCoord2[0], projRefDir);
+        relCoord2[1] = VecProd(centerToFirst2, thirdDir);
         VecNormalize(relCoord2, relCoord2);
 
         if (fabs(relCoord[0]) < 1e-8)
@@ -2338,17 +2338,17 @@ namespace neuro_collection {
 					if ((edgeCont[k]->vertex(0) == first && edgeCont[k]->vertex(1) == second)
 						|| (edgeCont[k]->vertex(0) == second && edgeCont[k]->vertex(1) == first))
 					{
-						edges[j] = edgeCont[k];
+						edgesInner[j] = edgeCont[k];
 						break;
 					}
 				}
 				UG_COND_THROW(k == esz, "Connecting edges for child neurite could not be determined.");
 			}
 
+			/// TODO: best faces has to be shrunken also... otherwise getting intersecting faces! that's it!
 			g.erase(best);
 
-			UG_LOGN("Creating child")
-			/// TODO: implement the recursion call correctly... respectively verify this works... will work if vvertsInner and edgesInner set correctly!
+			UG_LOGN("Creating child(s) for inner and outer...")
 			create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
     	}
 
