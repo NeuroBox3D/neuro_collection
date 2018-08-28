@@ -1715,6 +1715,101 @@ namespace neuro_collection {
     aaSurfParams[v].angular = 0.0;
 }
 
+	void split_quadrilateral_along_edges
+	(
+		std::vector<Vertex*> vVrt,
+		Grid& g,
+		Grid::VertexAttachmentAccessor<APosition>& aaPos,
+		number percentage,
+		ug::vector3 vecDir,
+		std::vector<ug::Vertex*>& vertices,
+		std::vector<ug::Edge*>& edges
+	)
+	{
+		/// "middle edges"
+		std::vector<ug::Vertex*> from;
+		std::vector<ug::Vertex*> to;
+		Selector sel(g);
+		vVrt.resize(4);
+		size_t numPar = 0;
+		for (size_t i = 0; i < 4; ++i) {
+			ug::vector3 diffVec;
+			VecSubtract(diffVec, aaPos[vVrt[i]], aaPos[vVrt[(i+1)%4]]);
+			VecNormalize(diffVec, diffVec);
+			VecNormalize(vecDir, vecDir);
+			UG_LOGN("Parallel? " << VecDot(vecDir, diffVec));
+			if (abs(VecDot(vecDir, diffVec)) > (1-0.1)) {
+				numPar++;
+				UG_LOGN("Parallel:" << VecDot(vecDir, diffVec));
+				Edge* e = g.get_edge(vVrt[i], vVrt[(i+1)%4]);
+				ug::RegularVertex* newVertex = SplitEdge<ug::RegularVertex>(g, e, false);
+				ug::vector3 dir;
+				VecSubtract(dir, aaPos[vVrt[i]], aaPos[vVrt[(i+1)%4]]);
+				VecScaleAdd(aaPos[newVertex], 1.0, aaPos[vVrt[i]], percentage, dir);
+				e = g.get_edge(newVertex, vVrt[(i+1)%4]);
+				ug::RegularVertex* newVertex2 = SplitEdge<ug::RegularVertex>(g, e, false);
+				VecScaleAdd(aaPos[newVertex2], 1.0, aaPos[vVrt[(i+1)%4]], -percentage, dir);
+				from.push_back(newVertex);
+				to.push_back(newVertex2);
+			}
+		 }
+
+
+		/// TODO: this seems wrong still
+		edges.push_back(g.get_edge(to[0], from[0]));
+		ug::RegularEdge* e1 = *g.create<RegularEdge>(EdgeDescriptor(to[0], from[1]));
+		edges.push_back(e1);
+
+		edges.push_back(g.get_edge(to[1], from[1]));
+		ug::RegularEdge* e2 = *g.create<RegularEdge>(EdgeDescriptor(to[1], from[0]));
+		edges.push_back(e2);
+
+		vertices.push_back(from[0]);
+		vertices.push_back(to[0]);
+		vertices.push_back(from[1]);
+		vertices.push_back(to[1]);
+
+		UG_COND_THROW(numPar != 2, "Shrinking of connecting quadrilateral failed!");
+	}
+
+	void test_split_geom(number percentage) {
+		Grid g;
+			SubsetHandler sh(g);
+		    sh.set_default_subset_index(0);
+		    g.attach_to_vertices(aPosition);
+		    Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+		    Selector sel(g);
+
+		    std::vector<ug::vector3> vCoords;
+		    vCoords.push_back(ug::vector3(0,0,0));
+		    vCoords.push_back(ug::vector3(0,1,0));
+		    vCoords.push_back(ug::vector3(1,1,0));
+		    vCoords.push_back(ug::vector3(1,0,0));
+		    std::vector<Vertex*> vVrt;
+		    std::vector<Edge*> vEdge;
+		    vVrt.resize(4);
+		    vEdge.resize(4);
+		    for (size_t i = 0; i < 4; ++i)
+		    {
+		         Vertex* v = *g.create<RegularVertex>();
+		         vVrt[i] = v;
+		         aaPos[v] = vCoords[i];
+		         sel.select(v);
+		    }
+
+		    for (size_t i = 0; i < 4; ++i) {
+		        vEdge[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i], vVrt[(i+1)%4]));
+		    }
+
+		    SaveGridToFile(g, sh, "test_shrunk_geom2_before.ugx");
+		    ug::vector3 diffVec;
+		    VecSubtract(diffVec, aaPos[vVrt[0]], aaPos[vVrt[(1)%4]]);
+		    std::vector<ug::Vertex*> vertices;
+		    std::vector<ug::Edge*> edges;
+		    split_quadrilateral_along_edges(vVrt, g, aaPos, percentage, diffVec, vertices, edges);
+		    SaveGridToFile(g, sh, "test_shrunk_geom2_after.ugx");
+	}
+
 	/// Note: Could also use this strategy: Get two edges emerging from a vertex
 	///       and then calculate normals in vertex for each vertex -> then move
 	///       along this combined normals n1, n2 into interior of quadrilateral.
@@ -2093,6 +2188,7 @@ namespace neuro_collection {
     	// create mesh for segments
     	Selector sel(g);
     	Selector sel2(g);
+		vector3 extrudeDir;
     	for (size_t s = 0; s < nSeg; ++s)
     	{
     		// get exact position, velocity and radius of segment end
@@ -2152,15 +2248,16 @@ namespace neuro_collection {
 			// extrude from last pos to new pos
 			if (s == nSeg-1 && brit != brit_end) {
 				sel.enable_autoselection(true); // for last segment (BP), select new elems
-				sel2.enable_autoselection(true);
 			}
 
-			vector3 extrudeDir;
 			VecScaleAdd(extrudeDir, 1.0, curPos, -1.0, lastPos);
 			Extrude(g, &vVrt, &vEdge, NULL, extrudeDir, aaPos, EO_CREATE_FACES, NULL);
+			sel.enable_autoselection(false);
+			if (s == nSeg-1 && brit != brit_end) {
+				sel2.enable_autoselection(true); // for last segment (BP), select new elems
+			}
 			Extrude(g, &vVrtInner, &vEdgeInner, NULL, extrudeDir, aaPos, EO_CREATE_FACES, NULL);
 
-			sel.enable_autoselection(false);
 			sel2.enable_autoselection(false);
 
 			// set new positions and param attachments; also ensure correct face orientation
@@ -2345,9 +2442,16 @@ namespace neuro_collection {
 				UG_COND_THROW(k == esz, "Connecting edges for child neurite could not be determined.");
 			}
 
-			/// TODO: best faces has to be shrunken also... otherwise getting intersecting faces! that's it!
+			/// best inner faces has to be shrunken also... otherwise getting intersecting faces.
+			std::vector<ug::Vertex*> myVrts = vrtsInner;
 			g.erase(best);
-
+			/*
+		    std::vector<ug::Vertex*> myVertices;
+		    std::vector<ug::Edge*> myEdges;
+			split_quadrilateral_along_edges(myVrts, g, aaPos, -neurite.scaleER/2, extrudeDir, myVertices, myEdges);
+			vrtsInner = myVertices;
+			edgesInner = myEdges;*/
+			/// TODO: verify this works: will work if split_quad is corrected above...
 			UG_LOGN("Creating child(s) for inner and outer...")
 			create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
     	}
