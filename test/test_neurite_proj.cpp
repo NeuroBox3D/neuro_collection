@@ -1723,7 +1723,8 @@ namespace neuro_collection {
 		number percentage,
 		ug::vector3 vecDir,
 		std::vector<ug::Vertex*>& vertices,
-		std::vector<ug::Edge*>& edges
+		std::vector<ug::Edge*>& edges,
+		bool conservative = true
 	)
 	{
 		/// "middle edges"
@@ -1742,12 +1743,12 @@ namespace neuro_collection {
 				numPar++;
 				UG_LOGN("Parallel:" << VecDot(vecDir, diffVec));
 				Edge* e = g.get_edge(vVrt[i], vVrt[(i+1)%4]);
-				ug::RegularVertex* newVertex = SplitEdge<ug::RegularVertex>(g, e, false);
+				ug::RegularVertex* newVertex = SplitEdge<ug::RegularVertex>(g, e, conservative);
 				ug::vector3 dir;
 				VecSubtract(dir, aaPos[vVrt[i]], aaPos[vVrt[(i+1)%4]]);
 				VecScaleAdd(aaPos[newVertex], 1.0, aaPos[vVrt[i]], percentage, dir);
 				e = g.get_edge(newVertex, vVrt[(i+1)%4]);
-				ug::RegularVertex* newVertex2 = SplitEdge<ug::RegularVertex>(g, e, false);
+				ug::RegularVertex* newVertex2 = SplitEdge<ug::RegularVertex>(g, e, conservative);
 				VecScaleAdd(aaPos[newVertex2], 1.0, aaPos[vVrt[(i+1)%4]], -percentage, dir);
 				from.push_back(newVertex);
 				to.push_back(newVertex2);
@@ -2442,16 +2443,21 @@ namespace neuro_collection {
 				UG_COND_THROW(k == esz, "Connecting edges for child neurite could not be determined.");
 			}
 
+			/// Idee: lösche das kleine best face (inner)
+			/// (Aber behalte die Vertices dieses Faces - speichere diese als oldFaceVertices)
+			/// Gehe vom großen best face aus, schrumpfe dieses beste face, hole die vertices des geschrumpften faces
+			/// und speichere sie als oldLargeFaceVertices, verbinde diese mit den alten Vertices vom kleinen Face oldFaceVertices
+			/// Dann recursion call mit den geschrumpften oldLargeFacesVertices als connectingVertsInner...
+
 			/// best inner faces has to be shrunken also... otherwise getting intersecting faces.
 			std::vector<ug::Vertex*> myVrts = vrtsInner;
 			g.erase(best);
-			/*
 		    std::vector<ug::Vertex*> myVertices;
 		    std::vector<ug::Edge*> myEdges;
-			split_quadrilateral_along_edges(myVrts, g, aaPos, -neurite.scaleER/2, extrudeDir, myVertices, myEdges);
-			vrtsInner = myVertices;
-			edgesInner = myEdges;*/
-			/// TODO: verify this works: will work if split_quad is corrected above...
+			///split_quadrilateral_along_edges(myVrts, g, aaPos, -neurite.scaleER/2, extrudeDir, myVertices, myEdges);
+			//vrtsInner = myVertices;
+			//edgesInner = myEdges;
+			/// TODO: merge the vertices from split_quadrilateral output with vVrtsInner!
 			UG_LOGN("Creating child(s) for inner and outer...")
 			create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
     	}
