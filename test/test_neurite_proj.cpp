@@ -2583,7 +2583,7 @@ namespace neuro_collection {
 			++brit;
     }
 
-    // close the tip of the neurite (potentially have to close inner neurite too: TODO)
+    // close the tip of the neurite
     const NeuriteProjector::Section& lastSec = neurite.vSec[nSec-1];
     vel = vector3(-lastSec.splineParamsX[2], -lastSec.splineParamsY[2], -lastSec.splineParamsZ[2]);
     number radius = lastSec.splineParamsR[3];
@@ -2598,6 +2598,22 @@ namespace neuro_collection {
     aaSurfParams[v].neuriteID = nid;
     aaSurfParams[v].axial = 2.0;
     aaSurfParams[v].angular = 0.0;
+
+    // close the tip of the inner neurite
+    vel = vector3(-lastSec.splineParamsX[2], -lastSec.splineParamsY[2], -lastSec.splineParamsZ[2]);
+    radius = lastSec.splineParamsR[3];
+    VecScale(vel, vel, radius/sqrt(VecProd(vel, vel)));
+    VecScale(vel, vel, neurite.scaleER);
+    Extrude(g, &vVrtInner, &vEdgeInner, NULL, vel, aaPos, EO_CREATE_FACES, NULL);
+    center = CalculateBarycenter(vVrtInner.begin(), vVrtInner.end(), aaPos);
+    MergeMultipleVertices(g, vVrtInner.begin(), vVrtInner.end());
+
+    Vertex* vInner = *vVrtInner.begin();
+    aaPos[vInner] = center;
+
+    aaSurfParams[vInner].neuriteID = nid;
+    aaSurfParams[vInner].axial = 2.0;
+    aaSurfParams[vInner].angular = 0.0;
 }
 
 	void export_to_ugx
