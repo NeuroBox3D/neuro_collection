@@ -66,6 +66,7 @@ void test_import_swc_general(const std::string& fileName, bool correct, number s
 void test_neurite_projector_with_four_section_tube();
 void test_neurite_projector_with_four_section_tube_and_branch_point();
 void test_shrink_geom(number percentage);
+void test_shrink_geom_copy(number percentage);
 void test_split_geom(number percentage);
 
 void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuriteProj);

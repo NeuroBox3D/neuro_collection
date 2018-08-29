@@ -798,6 +798,7 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("test_import_swc_scale", &test_import_swc_scale, "", "file name#correction#scaleTotal", "");
 		reg.add_function("test_import_swc_general", &test_import_swc_general, "", "file name#correction#shrink [%]#withER", "");
 		reg.add_function("test_shrink_geom", &test_shrink_geom, "", "shrink [%]", "");
+		reg.add_function("test_shrink_geom_copy", &test_shrink_geom_copy, "", "shrink [%]", "");
 		reg.add_function("test_split_geom", &test_split_geom, "", "shrink [%]", "");
 		//reg.add_function("apply_neurite_projector", &apply_neurite_projector, "", "multigrid, neurite projector", "");
 		reg.add_function("test_cylinder_volume_projector", &test_cylinder_volume_projector, "", "", "");

@@ -1036,6 +1036,9 @@ namespace neuro_collection {
 	segAxPosOut[nSeg-1] = t_end;
 }
 
+	/**
+	 * @brief creates soma
+	 */
 	static void create_soma
 (
 		const std::vector<SWCPoint>& somaPts,
@@ -1048,6 +1051,9 @@ namespace neuro_collection {
 	GenerateIcosphere(g, somaPts.front().coords, somaPts.front().radius, 2, aPosition);
 }
 
+	/**
+	 * @brief connects neurites to soma
+	 */
 	static void connect_neurites_with_soma
 (
 	   Grid& g,
@@ -1715,6 +1721,9 @@ namespace neuro_collection {
     aaSurfParams[v].angular = 0.0;
 }
 
+	/**
+	 * \brief splits quadrilateral along edge (parallel)
+	 */
 	void split_quadrilateral_along_edges
 	(
 		std::vector<Vertex*> vVrt,
@@ -1756,7 +1765,7 @@ namespace neuro_collection {
 		 }
 
 
-		/// TODO: this seems wrong still
+		/// Note: Verify this is correct - seems okay.
 		edges.push_back(g.get_edge(to[0], from[0]));
 		ug::RegularEdge* e1 = *g.create<RegularEdge>(EdgeDescriptor(to[0], from[1]));
 		edges.push_back(e1);
@@ -1773,8 +1782,11 @@ namespace neuro_collection {
 		UG_COND_THROW(numPar != 2, "Shrinking of connecting quadrilateral failed!");
 	}
 
+	/**
+	 * \brief callback method to test split quadrilateral with ugshell
+	 */
 	void test_split_geom(number percentage) {
-		Grid g;
+		    Grid g;
 			SubsetHandler sh(g);
 		    sh.set_default_subset_index(0);
 		    g.attach_to_vertices(aPosition);
@@ -1811,9 +1823,62 @@ namespace neuro_collection {
 		    SaveGridToFile(g, sh, "test_shrunk_geom2_after.ugx");
 	}
 
+	/**
+	 * @brief shrinks a quadrilateral and creates a copy of the smaller
+	 */
+	void shrink_quadrilateral_copy
+	(
+			const std::vector<Vertex*>& vVrt,
+			std::vector<Vertex*>& outvVrt,
+			const std::vector<Vertex*>& oldVertices,
+			std::vector<Edge*>& outvEdge,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			number percentage
+	)
+	{
+		Selector sel(g);
+	    for (size_t i = 0; i < 4; ++i) {
+	    	sel.select(vVrt[i]);
+		}
+
+	    ug::vector3 center;
+	    center = CalculateBarycenter(sel.vertices_begin(), sel.vertices_end(), aaPos);
+	    sel.clear();
+	    for (size_t i = 0; i < 4; ++i)
+	    {
+	       ug::Vertex* v = *g.create<RegularVertex>();
+	       aaPos[v] = aaPos[vVrt[i]];
+	       ug::vector3 dir;
+	       VecSubtract(dir, aaPos[vVrt[i]], center);
+	       UG_LOGN("dir:" << dir)
+	       VecScaleAdd(aaPos[v], 1.0, aaPos[v], percentage, dir);
+	       if (percentage > 1) {
+	          UG_WARNING("Moving vertex beyond center. Will create degenerated elements." << std::endl);
+	       }
+	       outvVrt.push_back(v);
+	    }
+
+	    /// create new edges in new (small) quad
+	    for (size_t i = 0; i < 4; ++i) {
+	       ug::Edge* e = *g.create<RegularEdge>(EdgeDescriptor(outvVrt[i], outvVrt[(i+1)%4]));
+	       outvEdge.push_back(e);
+	    }
+
+	    /// create new faces
+	    for (size_t i = 0; i < 4; ++i) {
+	    	ug::Face* f = *g.create<Quadrilateral>(QuadrilateralDescriptor(outvVrt[i], outvVrt[(i+1)%4], oldVertices[(i+1)%4], oldVertices[i]));
+	    	/// Note: Do we need to flip faces here to wrt radial vector?
+	    }
+	}
+
+	/**
+	 * @brief shrinks quadrilateral and overwrites old quadrilateral's vertices
+	 */
 	/// Note: Could also use this strategy: Get two edges emerging from a vertex
 	///       and then calculate normals in vertex for each vertex -> then move
 	///       along this combined normals n1, n2 into interior of quadrilateral.
+	///       Can use function pointer or template to allow usage of different strategies
 	void shrink_quadrilateral
 (
 	std::vector<Vertex*> vVrt,
@@ -1846,6 +1911,48 @@ namespace neuro_collection {
     }
 }
 
+	/**
+	 * @brief callback method to test shrink geometry copy with ugshell
+	 */
+	void test_shrink_geom_copy(number length=0.1) {
+		Grid g;
+		SubsetHandler sh(g);
+	    sh.set_default_subset_index(0);
+	    g.attach_to_vertices(aPosition);
+	    Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+	    Selector sel(g);
+
+	    std::vector<ug::vector3> vCoords;
+	    vCoords.push_back(ug::vector3(0,0,0));
+	    vCoords.push_back(ug::vector3(0,1,0));
+	    vCoords.push_back(ug::vector3(1,1,0));
+	    vCoords.push_back(ug::vector3(1,0,0));
+	    std::vector<Vertex*> vVrt;
+	    std::vector<Edge*> vEdge;
+	    vVrt.resize(4);
+	    vEdge.resize(4);
+	    for (size_t i = 0; i < 4; ++i)
+	    {
+	         Vertex* v = *g.create<RegularVertex>();
+	         vVrt[i] = v;
+	         aaPos[v] = vCoords[i];
+	         sel.select(v);
+	    }
+
+	    for (size_t i = 0; i < 4; ++i) {
+	        vEdge[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i], vVrt[(i+1)%4]));
+	    }
+
+	    SaveGridToFile(g, sh, "test_shrunk_geom_copy_before.ugx");
+	    std::vector<ug::Vertex*> vVrtOut;
+	    std::vector<ug::Edge*> vEdgeOut;
+	    shrink_quadrilateral_copy(vVrt, vVrtOut, vVrtOut, vEdgeOut, g, aaPos, length);
+	    SaveGridToFile(g, sh, "test_shrunk_geom_copy_after.ugx");
+	}
+
+	/**
+	 * @brief callback method to test shrink geometry with ugshell
+	 */
 	void test_shrink_geom
 (
 		number length=0.01
@@ -1901,6 +2008,9 @@ namespace neuro_collection {
 
 	/// TODO: aaSurf parameters have to be corrected for projector still (inner/outer)
 	/// TODO/Note: Could make this general, e.g. introduce vector of layers or so!
+	/**
+	 * @brief creates neurites with inner layer
+	 */
 	static void create_neurite_general
 (
     const std::vector<NeuriteProjector::Neurite>& vNeurites,
@@ -1967,7 +2077,7 @@ namespace neuro_collection {
     number angleOffset = 0.0;
     number angleOffsetInner = 0.0;
 
-    /// TODO: cleanup code here
+    /// TODO: cleanup code here and refactor
     if (connectingVrts && connectingEdges && connectingVrtsInner && connectingEdgesInner)
     {
         vVrt = *connectingVrts;
@@ -2443,21 +2553,14 @@ namespace neuro_collection {
 				UG_COND_THROW(k == esz, "Connecting edges for child neurite could not be determined.");
 			}
 
-			/// Idee: lösche das kleine best face (inner)
-			/// (Aber behalte die Vertices dieses Faces - speichere diese als oldFaceVertices)
-			/// Gehe vom großen best face aus, schrumpfe dieses beste face, hole die vertices des geschrumpften faces
-			/// und speichere sie als oldLargeFaceVertices, verbinde diese mit den alten Vertices vom kleinen Face oldFaceVertices
-			/// Dann recursion call mit den geschrumpften oldLargeFacesVertices als connectingVertsInner...
-
-			/// best inner faces has to be shrunken also... otherwise getting intersecting faces.
-			std::vector<ug::Vertex*> myVrts = vrtsInner;
 			g.erase(best);
-		    std::vector<ug::Vertex*> myVertices;
-		    std::vector<ug::Edge*> myEdges;
-			///split_quadrilateral_along_edges(myVrts, g, aaPos, -neurite.scaleER/2, extrudeDir, myVertices, myEdges);
-			//vrtsInner = myVertices;
-			//edgesInner = myEdges;
-			/// TODO: merge the vertices from split_quadrilateral output with vVrtsInner!
+			/// shrink large outer quad and create a smaller copy, then extrude starting from this inner now correct quad
+			/// note that that faces are created from the new quad's (smaller inner quad) vertices to the vertices of best inner face in line above
+			std::vector<ug::Vertex*> vrtsOut;
+			std::vector<ug::Edge*> edgesOut;
+			shrink_quadrilateral_copy(vrts, vrtsOut, vrtsInner, edgesOut, g, aaPos, -neurite.scaleER);
+			edgesInner = edgesOut;
+			vrtsInner = vrtsOut;
 			UG_LOGN("Creating child(s) for inner and outer...")
 			create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
     	}
@@ -2875,6 +2978,7 @@ namespace neuro_collection {
     // at branching points, we have not computed the correct positions yet,
     // so project the complete geometry using the projector
     // TODO: little bit dirty; provide proper method in NeuriteProjector to do this
+    /// Note: This has to be implemented also for soma potentially...?!
     VertexIterator vit = g.begin<Vertex>();
     VertexIterator vit_end = g.end<Vertex>();
     for (; vit != vit_end; ++vit)
@@ -2886,8 +2990,9 @@ namespace neuro_collection {
 
 
     /// TODO: make sure to create also soma for other soma points above from ER (vSOmaPoints iterate over this)
-    /// TODO: might fail if duplicated elements, e.g. scale=1.0 -
+    /// TODO: might fail if duplicated elements, e.g. scale=1.0 -> Problem here is subset based create_soma and connect_neurite method -> fix there!
     // create soma
+    /*
     sel.clear();
     UG_LOGN("Creating soma!")
     sh.set_default_subset_index(1);
@@ -2896,8 +3001,6 @@ namespace neuro_collection {
     create_soma(somaPoint, g, aaPos, sh);
     sh.set_default_subset_index(0);
     UG_LOGN("Done with soma!");
-
-    /*
     // connect soma with neurites TODO: outVerts and outRads must be different, e.g. outVerts2 and outRads2 to not fail! -> or use a vector and iterate over these outRads and outVerts
     connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
     UG_LOGN("Done with connecting neurites!");
@@ -3038,13 +3141,16 @@ namespace neuro_collection {
     std::vector<SWCPoint> somaPoint;
     somaPoint.push_back(vSomaPoints[0]);
     create_soma(somaPoint, g, aaPos, sh);
+    UG_LOGN("Done with soma!");
+    connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
+    UG_LOGN("Done with connecting neurites!");
+    */
+    /*
     somaPoint.front().radius = somaPoint.front().radius * scaleER;
     create_soma(somaPoint, g, aaPos, sh);
     sh.set_default_subset_index(0);
-    UG_LOGN("Done with soma!");
     connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
     connect_neurites_with_soma(g, aaPos, outVertsInner, outRadsInner, 1, sh, fileName);
-    UG_LOGN("Done with connecting neurites!");
     */
 
     // refinement
