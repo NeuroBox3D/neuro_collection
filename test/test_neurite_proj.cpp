@@ -2854,10 +2854,11 @@ namespace neuro_collection {
 	export_to_swc(g, sh, fn);
 }
 
-	void test_import_swc(const std::string& fileName, bool correct, number scaleER, bool withER)
+	/**
+	 * @brief the grid generation test method without scaling and only correcting for small angles at branches (main test method)
+	 */
+	void test_import_swc(const std::string& fileName, bool correct)
 {
-	UG_LOGN("scaleER: " << scaleER);
-	UG_COND_THROW(scaleER == 1.0, "scaling to the same size is NOT allowed.");
 	// preconditioning
     test_smoothing(fileName, 5, 1.0, 1.0);
 
@@ -2878,27 +2879,9 @@ namespace neuro_collection {
     std::vector<Vertex*> outVerts;
     std::vector<number> outRads;
 
-/* debug
-    std::cout << "BPInfo:" << std::endl;
-    for (size_t i = 0; i < vBPInfo.size(); ++i)
-    {
-        std::cout << "nid " << i << ":  " << "#vrts = " << vPos[i].size() << std::endl;
-        for (size_t j = 0; j < vBPInfo[i].size(); ++j)
-        {
-            std::cout << "  " << vBPInfo[i][j].first << ": ";
-            for (size_t k = 0; k < vBPInfo[i][j].second.size(); ++k)
-            	std::cout << vBPInfo[i][j].second[k] << " ";
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-    }
-*/
-
     // create spline data
     std::vector<NeuriteProjector::Neurite> vNeurites;
     create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
-
-
 
     // create coarse grid
     Grid g;
@@ -2907,7 +2890,6 @@ namespace neuro_collection {
     g.attach_to_vertices(aPosition);
     Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
     Selector sel(g);
-
 
     typedef NeuriteProjector::SurfaceParams NPSP;
     UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
@@ -2929,12 +2911,6 @@ namespace neuro_collection {
     SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
     projHandler.set_projector(0, neuriteProj);
 
-    /// indicate scale and if ER is present
-    for (std::vector<NeuriteProjector::Neurite>::iterator it = vNeurites.begin(); it != vNeurites.end(); ++it) {
-    	it->bHasER = true;
-    	it->scaleER = scaleER;
-    }
-
     // FIXME: This has to be improved: When neurites are copied,
     //        pointers inside still point to our vNeurites array.
     //        If we destroy it, we're in for some pretty EXC_BAD_ACCESSes.
@@ -2943,53 +2919,9 @@ namespace neuro_collection {
         neuriteProj->add_neurite(vNeurites[i]);
     UG_LOGN("done");
 
-    if (!withER) {
-    UG_LOGN("generating neurites")
     for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
     	create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads, false);
     }
-    }
-
-    UG_LOGN("scale down data...")
-    std::vector<NeuriteProjector::Neurite> vNeuritesWithin;
-    std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo2;
-    std::vector<size_t> vRootNeuriteIndsOut2;
-    std::vector<std::vector<number> > vRadInner;
-
-    vSomaPoints.clear();
-    vPos.clear();
-    vRadInner.clear();
-    for (std::vector<SWCPoint>::iterator it = vPoints.begin(); it != vPoints.end(); ++it) {
-    	it->radius = it->radius * scaleER;
-    }
-    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRadInner, vBPInfo2, vRootNeuriteIndsOut2);
-
-   /* for (std::vector<std::vector<number> >::iterator it = vRadInner.begin(); it != vRadInner.end(); ++it) {
-      	for (std::vector<number>::iterator itRad = it->begin(); itRad != it->end(); ++itRad) {
-      		std::cout << "old radius: " << *itRad << std::endl;
-       		*itRad = *itRad * scaleER;
-      	}
-    }
-
-    for (std::vector<std::vector<number> >::iterator it = vRadInner.begin(); it != vRadInner.end(); ++it) {
-      	for (std::vector<number>::iterator itRad = it->begin(); itRad != it->end(); ++itRad) {
-      		std::cout << "new radius: " << *itRad << std::endl;
-      	}
-    }
-    */
-    /// TODO/Note: create_spline_data with vRadInner modified. but then call create_er with vNeuritesWithin and vNeurites, use number of segments from vNeurites from before... sections should be the same, thus only seg ax pos and length over radius need to use old (outer dendrites) data vNeurites, other code should rely on vNeuritesWithin for sections etc!
-    create_spline_data_for_neurites(vNeuritesWithin, vPos, vRadInner, &vBPInfo2);
-
-    /// TODO: when using spline data with from scaled radius, then will be only shifted... not smaller radii?
-    if (withER) {
-    	UG_LOGN("generating ER structures")
-    		for (size_t i = 0; i < vRootNeuriteIndsOut2.size(); ++i) {
-    			create_neurite(vNeuritesWithin, vPos, vRadInner, vRootNeuriteIndsOut2[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads, false);
-    			///create_er(vNeuritesWithin, vNeurites, vPos, vRadInner, vRootNeuriteIndsOut2[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads, true);
-    		}
-    	UG_LOGN("done!")
-    }
-
 
     // at branching points, we have not computed the correct positions yet,
     // so project the complete geometry using the projector
@@ -3004,11 +2936,7 @@ namespace neuro_collection {
         g.erase(tmp);
     }
 
-
-    /// TODO: make sure to create also soma for other soma points above from ER (vSOmaPoints iterate over this)
-    /// TODO: might fail if duplicated elements, e.g. scale=1.0 -> Problem here is subset based create_soma and connect_neurite method -> fix there!
     // create soma
-    /*
     sel.clear();
     UG_LOGN("Creating soma!")
     sh.set_default_subset_index(1);
@@ -3017,10 +2945,8 @@ namespace neuro_collection {
     create_soma(somaPoint, g, aaPos, sh);
     sh.set_default_subset_index(0);
     UG_LOGN("Done with soma!");
-    // connect soma with neurites TODO: outVerts and outRads must be different, e.g. outVerts2 and outRads2 to not fail! -> or use a vector and iterate over these outRads and outVerts
     connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
     UG_LOGN("Done with connecting neurites!");
-    */
 
     // refinement
     AssignSubsetColors(sh);
@@ -3056,6 +2982,9 @@ namespace neuro_collection {
     }
 }
 
+	/**
+	 * @brief the grid generation test method with scaling and ER generation as well as correcting angle
+	 */
 	void test_import_swc_general(const std::string& fileName, bool correct, number scaleER, bool withER)
 {
 	UG_LOGN("scaling ER (inner layer) to: " << scaleER);
@@ -3148,7 +3077,7 @@ namespace neuro_collection {
     }
 
 
-    // create soma for both scaled and scaled geometry (inner/outer)
+    // create soma for both scaled and scaled geometry (inner/outer) -> problem is that the methods below are based on subsets -> easy fix (ER and outer is in same subsets thus problems)
     // TODO: soma is scaled correctly, but connect_neurites_with_soma depends on explicit subset index (1) which is the small and large soma -> correct this!
     /*
     sel.clear();
@@ -3203,6 +3132,9 @@ namespace neuro_collection {
     }
 }
 
+	/**
+	 * @brief the grid generation test method with scaling only and correcting angles
+	 */
 	void test_import_swc_scale(const std::string& fileName, bool correct, number scale)
 {
 	/// TODO: Previously this broke down if scale is too small, merge in Markus fix soon
