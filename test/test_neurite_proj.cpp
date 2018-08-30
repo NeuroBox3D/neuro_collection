@@ -1044,15 +1044,19 @@ namespace neuro_collection {
 		const std::vector<SWCPoint>& somaPts,
 		Grid& g,
 		Grid::VertexAttachmentAccessor<APosition>& aaPos,
-		SubsetHandler& sh
+		SubsetHandler& sh,
+		size_t si
 )
 {
 	UG_COND_THROW(somaPts.size() != 1, "Currently only one soma point is allowed by this implementation");
-	GenerateIcosphere(g, somaPts.front().coords, somaPts.front().radius, 2, aPosition);
+	Selector sel(g);
+	GenerateIcosphere(g, somaPts.front().coords, somaPts.front().radius, 2, aPosition, &sel);
+	AssignSelectionToSubset(sel, sh, si);
 }
 
 	/**
 	 * @brief connects neurites to soma
+	 * TODO: find suitable parameters for tangential smooth and resolve intersections
 	 */
 	static void connect_neurites_with_soma
 (
@@ -1062,7 +1066,10 @@ namespace neuro_collection {
 	   std::vector<number> outRads,
 	   size_t si,
 	   SubsetHandler& sh,
-	   const std::string& fileName
+	   const std::string& fileName,
+	   number alpha=0.01,
+	   int numIterations=10,
+	   number resolveThreshold=0.00001
 ) {
 	UG_LOGN("1. Find the vertices representing dendrite connection to soma.");
 	/// 1. Finde die 4 Vertices die den Dendritenanschluss darstellen zum Soma
@@ -1088,7 +1095,7 @@ namespace neuro_collection {
 		ug::vector3 centerOut;
 		CalculateCenter(centerOut, pointSet, numVerts);
 		Selector sel(g);
-		SelectSubsetElements<Vertex>(sel, sh, 1, true);
+		SelectSubsetElements<Vertex>(sel, sh, si, true);
 		Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
 		Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
 		number best = -1;
@@ -1160,7 +1167,7 @@ namespace neuro_collection {
 	ss.str(""); ss.clear();
 
 	/// Collapse now edges and take smallest edges first
-	size_t beginningOfQuads = 2; // subset index where quads are stored in
+	size_t beginningOfQuads = si+1; // subset index where quads are stored in
 	for (size_t i = 0; i < numQuads; i++) {
 		size_t si = beginningOfQuads+i;
 		size_t numEdges = sh.num<Edge>(si);
@@ -1196,9 +1203,8 @@ namespace neuro_collection {
 	SaveGridToFile(g, sh, ss.str().c_str());
 	ss.str(""); ss.clear();
 
-	/// TODO: parameterize
 	UG_LOGN("8. TangentialSmooth");
-	TangentialSmooth(g, g.vertices_begin(), g.vertices_end(), aaPos, 0.01, 10);
+	TangentialSmooth(g, g.vertices_begin(), g.vertices_end(), aaPos, alpha, numIterations);
 
 	UG_LOGN("6. Extrude rings along normal")
 	/// 6. Extrudiere die Ringe entlang ihrer Normalen mit Höhe 0 (Extrude mit
@@ -1268,9 +1274,8 @@ namespace neuro_collection {
 	SaveGridToFile(g, sh, ss.str().c_str());
 	ss.str(""); ss.clear();
 
-	/// TODO: parameterize
 	UG_LOGN("9. Resolve intersections")
-	ResolveTriangleIntersections(g, g.begin<ug::Triangle>(), g.end<ug::Triangle>(), 0.00001, aPosition);
+	ResolveTriangleIntersections(g, g.begin<ug::Triangle>(), g.end<ug::Triangle>(), resolveThreshold, aPosition);
 
 	ss << fileName << "_final.ugx";
 	SaveGridToFile(g, sh, ss.str().c_str());
@@ -2006,8 +2011,8 @@ namespace neuro_collection {
 
 }
 
-	/// TODO: aaSurf parameters have to be corrected for projector still (inner/outer)
-	/// TODO/Note: Could make this general, e.g. introduce vector of layers or so!
+	/// TODO: aaSurf parameters have to be corrected for projector still (inner and outer)
+	/// TODO: Note, that could make this general, e.g. introduce vector of layers
 	/**
 	 * @brief creates neurites with inner layer
 	 */
@@ -2926,7 +2931,7 @@ namespace neuro_collection {
     // at branching points, we have not computed the correct positions yet,
     // so project the complete geometry using the projector
     // TODO: little bit dirty; provide proper method in NeuriteProjector to do this
-    /// Note: This has to be implemented also for soma potentially...?!
+    // Note: This has to be implemented also for soma potentially...?!
     VertexIterator vit = g.begin<Vertex>();
     VertexIterator vit_end = g.end<Vertex>();
     for (; vit != vit_end; ++vit)
@@ -2942,7 +2947,7 @@ namespace neuro_collection {
     sh.set_default_subset_index(1);
     std::vector<SWCPoint> somaPoint;
     somaPoint.push_back(vSomaPoints[0]);
-    create_soma(somaPoint, g, aaPos, sh);
+    create_soma(somaPoint, g, aaPos, sh, 1);
     sh.set_default_subset_index(0);
     UG_LOGN("Done with soma!");
     connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
@@ -3064,6 +3069,29 @@ namespace neuro_collection {
 
     SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
 
+    /// TODO: refactor this into one method! -> connect_neurites_with_soma still no correct...!
+    sel.clear();
+    UG_LOGN("Creating soma!")
+    sh.set_default_subset_index(1);
+    std::vector<SWCPoint> somaPoint = vSomaPoints;
+    create_soma(somaPoint, g, aaPos, sh, 1);
+    UG_LOGN("Done with soma!");
+    connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
+    UG_LOGN("Done with connecting neurites!");
+    /*
+    UG_LOGN("Creating soma inner!")
+    somaPoint.front().radius = somaPoint.front().radius * scaleER;
+    size_t newSomaIndex = sh.num_subsets();
+    create_soma(somaPoint, g, aaPos, sh, newSomaIndex);
+    UG_LOGN("Done with soma inner!");
+    sh.set_default_subset_index(newSomaIndex);
+    connect_neurites_with_soma(g, aaPos, outVertsInner, outRadsInner, newSomaIndex, sh, fileName);
+    UG_LOGN("Done with connecting neurites inner!");
+    */
+
+
+    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting.ugx");
+
     // at branching points, we have not computed the correct positions yet,
     // so project the complete geometry using the projector
     // TODO: little bit dirty; provide proper method in NeuriteProjector to do this
@@ -3076,32 +3104,11 @@ namespace neuro_collection {
         g.erase(tmp);
     }
 
-
-    // create soma for both scaled and scaled geometry (inner/outer) -> problem is that the methods below are based on subsets -> easy fix (ER and outer is in same subsets thus problems)
-    // TODO: soma is scaled correctly, but connect_neurites_with_soma depends on explicit subset index (1) which is the small and large soma -> correct this!
-    /*
-    sel.clear();
-    UG_LOGN("Creating soma!")
-    sh.set_default_subset_index(1);
-    std::vector<SWCPoint> somaPoint;
-    somaPoint.push_back(vSomaPoints[0]);
-    create_soma(somaPoint, g, aaPos, sh);
-    UG_LOGN("Done with soma!");
-    connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
-    UG_LOGN("Done with connecting neurites!");
-    */
-    /*
-    somaPoint.front().radius = somaPoint.front().radius * scaleER;
-    create_soma(somaPoint, g, aaPos, sh);
-    sh.set_default_subset_index(0);
-    connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
-    connect_neurites_with_soma(g, aaPos, outVertsInner, outRadsInner, 1, sh, fileName);
-    */
-
     // refinement
     AssignSubsetColors(sh);
     sh.set_subset_name("neurites", 0);
     sh.set_subset_name("soma", 1);
+    //sh.set_subset_name("somaInner", newSomaIndex);
 
     std::string outFileName = FilenameWithoutPath(std::string("testNeuriteProjector.ugx"));
     GridWriterUGX ugxWriter;
@@ -3217,7 +3224,7 @@ namespace neuro_collection {
     sel.clear();
     UG_LOGN("Creating soma!")
     sh.set_default_subset_index(1);
-    create_soma(vSomaPoints, g, aaPos, sh);
+    create_soma(vSomaPoints, g, aaPos, sh, 1);
     sh.set_default_subset_index(0);
     UG_LOGN("Done with soma!");
 
