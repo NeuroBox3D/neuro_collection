@@ -1208,42 +1208,54 @@ namespace neuro_collection {
 
 		SelectSubsetElements<Vertex>(sel, sh, si, true);
 		std::vector<Vertex*> vrts;
-		vrts.assign(sel.vertices_begin(), sel.vertices_end());
+		///vrts.assign(sel.vertices_begin(), sel.vertices_end());
 		sel.clear();
+		UG_LOGN("verts size: " << vrts.size());
 
 		std::vector<Edge*> edges;
 		SelectSubsetElements<Edge>(sel, sh, si, true);
 		edges.assign(sel.edges_begin(), sel.edges_end());
 		sel.clear();
 
+		UG_LOGN("edges size: " << edges.size());
+
 		vrts.push_back(edges[0]->vertex(0));
 		vrts.push_back(edges[0]->vertex(1));
 
 		Vertex* prevVertex = edges[0]->vertex(1);
 		size_t numIterations = edges.size()-1;
-		edges.erase(edges.begin());
 		std::vector<size_t> indices;
- 		for (size_t j = 0; j < numIterations; j++) {
-			for (size_t i = 0; i < edges.size(); i++) {
-				Edge* nextEdge = edges[i];
-				if (nextEdge->vertex(0) == prevVertex) {
-					vrts.push_back(nextEdge->vertex(1));
-					prevVertex = nextEdge->vertex(1);
-					indices.push_back(i);
-					break;
-				}
-				if (nextEdge->vertex(1) == prevVertex) {
-					vrts.push_back(nextEdge->vertex(0));
-					prevVertex = nextEdge->vertex(0);
-					indices.push_back(i);
-					break;
-			}
+		edges.erase(edges.begin());
+		UG_LOGN("number of edges: " << edges.size());
+		while (!edges.empty()) {
+			UG_LOGN("Still running: edges.size(): " << edges.size());
+		    for (size_t i = 0; i < edges.size(); i++) {
+		        Edge* nextEdge = edges[i];
+		        if (nextEdge->vertex(0) == prevVertex) {
+		        	UG_LOGN("push first if");
+		            vrts.push_back(nextEdge->vertex(1));
+		            prevVertex = nextEdge->vertex(1);
+		            edges.erase(edges.begin()+i);
+		            break;
+		        }
+		        UG_LOGN("in between");
+		        if (nextEdge->vertex(1) == prevVertex) {
+		        	UG_LOGN("push second if")
+		            vrts.push_back(nextEdge->vertex(0));
+		            prevVertex = nextEdge->vertex(0);
+		            edges.erase(edges.begin()+i);
+		            break;
+		        }
+		    }
 		}
+		vrts.erase(vrts.end()-1);
 
 	    std::vector<ug::Edge*> vEdgeOut;
 	    std::vector<ug::Vertex*> vVrtOut;
+
 	    Selector selToAssign(g);
-		shrink_quadrilateral_copy(vrts, vVrtOut, vVrtOut, vEdgeOut, g, aaPos, -0.5, false, &selToAssign);
+	    UG_COND_THROW(vrts.size() != 4, "Non-quadrilateral encountered. Cannot shrink a non-quadrilateral!");
+	    shrink_quadrilateral_copy(vrts, vVrtOut, vVrtOut, vEdgeOut, g, aaPos, -0.5, false, &selToAssign);
 		AssignSelectionToSubset(selToAssign, sh, 1000+i);
 		sel.clear();
 		selToAssign.clear();
