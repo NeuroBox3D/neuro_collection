@@ -59,6 +59,19 @@ void convert_pointlist_to_neuritelist
     std::vector<size_t>& vRootNeuriteIndsOut
 );
 
+void shrink_quadrilateral_copy
+(
+		const std::vector<Vertex*>& vVrt,
+		std::vector<Vertex*>& outvVrt,
+		const std::vector<Vertex*>& oldVertices,
+		std::vector<Edge*>& outvEdge,
+		Grid& g,
+		Grid::VertexAttachmentAccessor<APosition>& aaPos,
+		number percentage,
+		bool createFaces,
+		ISelector* outSel
+);
+
 void test_smoothing(const std::string& fileName, size_t n, number h, number gamma, number scale);
 void test_import_swc(const std::string& fileName, bool correct);
 void test_import_swc_scale(const std::string& fileName, bool correct, number scale);

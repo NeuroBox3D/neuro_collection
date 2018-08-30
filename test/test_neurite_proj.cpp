@@ -1199,6 +1199,59 @@ namespace neuro_collection {
 			SaveGridToFile(g, sh, ss.str().c_str());
 		}
 	}
+
+
+	/// Shrink each quad on the outer soma surface...
+	for (size_t i = 0; i < numQuads; i++) {
+		sel.clear();
+		size_t si = beginningOfQuads+i;
+
+		SelectSubsetElements<Vertex>(sel, sh, si, true);
+		std::vector<Vertex*> vrts;
+		vrts.assign(sel.vertices_begin(), sel.vertices_end());
+		sel.clear();
+
+		std::vector<Edge*> edges;
+		SelectSubsetElements<Edge>(sel, sh, si, true);
+		edges.assign(sel.edges_begin(), sel.edges_end());
+		sel.clear();
+
+		vrts.push_back(edges[0]->vertex(0));
+		vrts.push_back(edges[0]->vertex(1));
+
+		Vertex* prevVertex = edges[0]->vertex(1);
+		size_t numIterations = edges.size()-1;
+		edges.erase(edges.begin());
+		std::vector<size_t> indices;
+ 		for (size_t j = 0; j < numIterations; j++) {
+			for (size_t i = 0; i < edges.size(); i++) {
+				Edge* nextEdge = edges[i];
+				if (nextEdge->vertex(0) == prevVertex) {
+					vrts.push_back(nextEdge->vertex(1));
+					prevVertex = nextEdge->vertex(1);
+					indices.push_back(i);
+					break;
+				}
+				if (nextEdge->vertex(1) == prevVertex) {
+					vrts.push_back(nextEdge->vertex(0));
+					prevVertex = nextEdge->vertex(0);
+					indices.push_back(i);
+					break;
+			}
+		}
+
+	    std::vector<ug::Edge*> vEdgeOut;
+	    std::vector<ug::Vertex*> vVrtOut;
+	    Selector selToAssign(g);
+		shrink_quadrilateral_copy(vrts, vVrtOut, vVrtOut, vEdgeOut, g, aaPos, -0.5, false, &selToAssign);
+		AssignSelectionToSubset(selToAssign, sh, 1000+i);
+		sel.clear();
+		selToAssign.clear();
+	}
+
+	EraseEmptySubsets(sh);
+	AssignSubsetColors(sh);
+
 	ss << fileName << "_after_merging_cylinder_vertices.ugx";
 	SaveGridToFile(g, sh, ss.str().c_str());
 	ss.str(""); ss.clear();
@@ -1839,7 +1892,9 @@ namespace neuro_collection {
 			std::vector<Edge*>& outvEdge,
 			Grid& g,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
-			number percentage
+			number percentage,
+			bool createFaces=true,
+			ISelector* outSel = NULL
 	)
 	{
 		Selector sel(g);
@@ -1862,18 +1917,22 @@ namespace neuro_collection {
 	          UG_WARNING("Moving vertex beyond center. Will create degenerated elements." << std::endl);
 	       }
 	       outvVrt.push_back(v);
+	       if (outSel) outSel->select<ug::Vertex>(v);
 	    }
 
 	    /// create new edges in new (small) quad
 	    for (size_t i = 0; i < 4; ++i) {
 	       ug::Edge* e = *g.create<RegularEdge>(EdgeDescriptor(outvVrt[i], outvVrt[(i+1)%4]));
 	       outvEdge.push_back(e);
+	       if (outSel) outSel->select<ug::Edge>(e);
 	    }
 
-	    /// create new faces
-	    for (size_t i = 0; i < 4; ++i) {
-	    	ug::Face* f = *g.create<Quadrilateral>(QuadrilateralDescriptor(outvVrt[i], outvVrt[(i+1)%4], oldVertices[(i+1)%4], oldVertices[i]));
-	    	/// Note: Do we need to flip faces here to wrt radial vector?
+	    if (createFaces) {
+	    	/// create new faces
+	    	for (size_t i = 0; i < 4; ++i) {
+	    		ug::Face* f = *g.create<Quadrilateral>(QuadrilateralDescriptor(outvVrt[i], outvVrt[(i+1)%4], oldVertices[(i+1)%4], oldVertices[i]));
+	    		/// Note: Do we need to flip faces here to wrt radial vector?
+	    	}
 	    }
 	}
 
