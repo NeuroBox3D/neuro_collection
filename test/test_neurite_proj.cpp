@@ -1056,22 +1056,25 @@ namespace neuro_collection {
 
 	/**
 	 * @brief connects neurites to soma
-	 * TODO: find suitable parameters for tangential smooth and resolve intersections
-	 * TODO: introduce parameter which indicates if inner structure should be generated or not,
-	 * because first inner structure needs to be generated, then we need to reuse code to connect inner smaller soma!
+	 * TODO: find suitable parameters for tangential smooth and resolve intersections: And try something linear to connect soma/neurites
+	 * TODO: return smallerQuadVerts -> these are the quads we have shrunken in the steps below.
+	 * Then can call *this* method with correct subset in the test_import_swc_general method -> first coarse grid!
 	 */
 	static void connect_neurites_with_soma
 (
 	   Grid& g,
 	   Grid::VertexAttachmentAccessor<APosition>& aaPos,
 	   std::vector<Vertex*> outVerts,
+	   std::vector<Vertex*> outVertsInner,
 	   std::vector<number> outRads,
 	   size_t si,
 	   SubsetHandler& sh,
 	   const std::string& fileName,
 	   number alpha=0.01,
 	   int numIterations=10,
-	   number resolveThreshold=0.00001
+	   number resolveThreshold=0.00001,
+	   bool createInner=true,
+	   std::vector<Vertex*>* smallerQuadVerts = NULL
 ) {
 	UG_LOGN("1. Find the vertices representing dendrite connection to soma.");
 	/// 1. Finde die 4 Vertices die den Dendritenanschluss darstellen zum Soma
@@ -1203,64 +1206,66 @@ namespace neuro_collection {
 	}
 
 
-	/// Shrink each quad on the outer soma surface...
-	for (size_t i = 0; i < numQuads; i++) {
-		sel.clear();
-		size_t si = beginningOfQuads+i;
+	if (createInner) {
+		/// Shrink each quad on the outer soma surface
+		for (size_t i = 0; i < numQuads; i++) {
+			sel.clear();
+			size_t si = beginningOfQuads+i;
 
-		SelectSubsetElements<Vertex>(sel, sh, si, true);
-		std::vector<Vertex*> vrts;
-		///vrts.assign(sel.vertices_begin(), sel.vertices_end());
-		sel.clear();
-		UG_LOGN("verts size: " << vrts.size());
+			SelectSubsetElements<Vertex>(sel, sh, si, true);
+			std::vector<Vertex*> vrts;
+			sel.clear();
+			UG_LOGN("verts size: " << vrts.size());
 
-		std::vector<Edge*> edges;
-		SelectSubsetElements<Edge>(sel, sh, si, true);
-		edges.assign(sel.edges_begin(), sel.edges_end());
-		sel.clear();
+			std::vector<Edge*> edges;
+			SelectSubsetElements<Edge>(sel, sh, si, true);
+			edges.assign(sel.edges_begin(), sel.edges_end());
+			sel.clear();
 
-		UG_LOGN("edges size: " << edges.size());
+			UG_LOGN("edges size: " << edges.size());
 
-		vrts.push_back(edges[0]->vertex(0));
-		vrts.push_back(edges[0]->vertex(1));
+			vrts.push_back(edges[0]->vertex(0));
+			vrts.push_back(edges[0]->vertex(1));
 
-		Vertex* prevVertex = edges[0]->vertex(1);
-		size_t numIterations = edges.size()-1;
-		std::vector<size_t> indices;
-		edges.erase(edges.begin());
-		UG_LOGN("number of edges: " << edges.size());
-		while (!edges.empty()) {
-			UG_LOGN("Still running: edges.size(): " << edges.size());
-		    for (size_t i = 0; i < edges.size(); i++) {
-		        Edge* nextEdge = edges[i];
-		        if (nextEdge->vertex(0) == prevVertex) {
-		        	UG_LOGN("push first if");
-		            vrts.push_back(nextEdge->vertex(1));
-		            prevVertex = nextEdge->vertex(1);
-		            edges.erase(edges.begin()+i);
-		            break;
-		        }
-		        UG_LOGN("in between");
-		        if (nextEdge->vertex(1) == prevVertex) {
-		        	UG_LOGN("push second if")
-		            vrts.push_back(nextEdge->vertex(0));
-		            prevVertex = nextEdge->vertex(0);
-		            edges.erase(edges.begin()+i);
-		            break;
-		        }
-		    }
+			Vertex* prevVertex = edges[0]->vertex(1);
+			size_t numIterations = edges.size()-1;
+			std::vector<size_t> indices;
+			edges.erase(edges.begin());
+			UG_LOGN("number of edges: " << edges.size());
+			while (!edges.empty()) {
+				UG_LOGN("Still running: edges.size(): " << edges.size());
+				for (size_t i = 0; i < edges.size(); i++) {
+					Edge* nextEdge = edges[i];
+					if (nextEdge->vertex(0) == prevVertex) {
+						UG_LOGN("push first if");
+						vrts.push_back(nextEdge->vertex(1));
+						prevVertex = nextEdge->vertex(1);
+						edges.erase(edges.begin()+i);
+						break;
+					}
+					UG_LOGN("in between");
+					if (nextEdge->vertex(1) == prevVertex) {
+						UG_LOGN("push second if")
+		            		vrts.push_back(nextEdge->vertex(0));
+						prevVertex = nextEdge->vertex(0);
+						edges.erase(edges.begin()+i);
+						break;
+					}
+				}
+			}
+
+			vrts.erase(vrts.end()-1);
+
+			std::vector<ug::Edge*> vEdgeOut;
+			std::vector<ug::Vertex*> vVrtOut;
+
+			Selector selToAssign(g);
+			UG_COND_THROW(vrts.size() != 4, "Non-quadrilateral encountered. Cannot shrink a non-quadrilateral!");
+			shrink_quadrilateral_copy(vrts, vVrtOut, vVrtOut, vEdgeOut, g, aaPos, -0.5, false, &selToAssign);
+			AssignSelectionToSubset(selToAssign, sh, si+numQuads);
+			sel.clear();
+			selToAssign.clear();
 		}
-		vrts.erase(vrts.end()-1);
-
-	    std::vector<ug::Edge*> vEdgeOut;
-	    std::vector<ug::Vertex*> vVrtOut;
-
-	    Selector selToAssign(g);
-	    UG_COND_THROW(vrts.size() != 4, "Non-quadrilateral encountered. Cannot shrink a non-quadrilateral!");
-	    shrink_quadrilateral_copy(vrts, vVrtOut, vVrtOut, vEdgeOut, g, aaPos, -0.5, false, &selToAssign);
-		AssignSelectionToSubset(selToAssign, sh, si+numQuads);
-		sel.clear();
-		selToAssign.clear();
 	}
 
 	EraseEmptySubsets(sh);
@@ -1279,6 +1284,9 @@ namespace neuro_collection {
 	sel.clear();
 	std::vector<std::vector<Vertex*> > somaVerts;
 	std::vector<std::vector<Vertex*> > allVerts;
+
+	std::vector<std::vector<Vertex*> > somaVertsInner;
+	std::vector<std::vector<Vertex*> > allVertsInner;
 	for (size_t i = 0; i < numQuads; i++) {
 		size_t si = beginningOfQuads+i;
 		ug::vector3 normal;
@@ -1294,20 +1302,42 @@ namespace neuro_collection {
 			edges.push_back(*it);
 		}
 
-		/// TODO: assign to corresponding allVerts vector the inner quad vertices and to soma the extruded vertices
 		SelectSubsetElements<Vertex>(sel, sh, si, true);
-		SelectSubsetElements<Vertex>(sel, sh, si+numQuads, true);
 		std::vector<Vertex*> temp;
 		temp.assign(sel.vertices_begin(), sel.vertices_end());
 		somaVerts.push_back(temp);
+		sel.clear();
+		temp.clear();
+
+		if (createInner) {
+			SelectSubsetElements<Vertex>(sel, sh, si+numQuads, true);
+			temp.assign(sel.vertices_begin(), sel.vertices_end());
+			somaVertsInner.push_back(temp);
+			sel.clear();
+			temp.clear();
+		}
+
+		SelectSubsetElements<Vertex>(sel, sh, si, true);
+		if (createInner) {
+			SelectSubsetElements<Vertex>(sel, sh, si+numQuads, true);
+		}
 		Extrude(g, NULL, &edges, NULL, normal, aaPos, EO_CREATE_FACES, NULL);
 		sel.clear();
+
 		SelectSubsetElements<Vertex>(sel, sh, si, true);
-		SelectSubsetElements<Vertex>(sel, sh, si+numQuads, true);
 		std::vector<Vertex*> temp2;
 		temp2.assign(sel.vertices_begin(), sel.vertices_end());
 		allVerts.push_back(temp2);
 		sel.clear();
+		temp2.clear();
+
+		if (createInner) {
+			SelectSubsetElements<Vertex>(sel, sh, si+numQuads, true);
+			temp2.assign(sel.vertices_begin(), sel.vertices_end());
+			allVertsInner.push_back(temp2);
+			sel.clear();
+			temp2.clear();
+		}
 	}
 
 	/// delete common vertices, thus keep only newly extruded vertices (useed in next step 7.)
@@ -1318,13 +1348,21 @@ namespace neuro_collection {
 		}
 	}
 
+	if (createInner) {
+		/// delete common vertices, thus keep only newly extruded vertices (useed in next step 7.)
+		for (size_t i = 0; i < numQuads; i++) {
+			size_t numSomaVerts = somaVertsInner[i].size();
+			for (size_t j = 0; j < numSomaVerts; j++) {
+				allVertsInner[i].erase(std::remove(allVertsInner[i].begin(), allVertsInner[i].end(), somaVertsInner[i][j]), allVertsInner[i].end());
+			}
+		}
+	}
+
 	ss << fileName << "_after_extruding_cylinders.ugx";
 	SaveGridToFile(g, sh, ss.str().c_str());
 	ss.str(""); ss.clear();
 
 
-	/// TODO: 1) calculate also convex hull for smaller inner (add outVertsInner as argument above) -> then directly can connect here.
-	/// TODO: 2) create inner soma -> 3) before refactor this method to use again then: 4) same procedure as before for large soma: connect inner soma with cylinders
 	UG_LOGN("7. Calculate convex hull and connect")
 	/// 7. Vereine per MergeVertices die Vertices der in 6. extrudierten Ringe jeweils
 	///    mit den zu ihnen nächstgelegenen Vertices des entsprechenden Dendritenendes.
@@ -1349,13 +1387,37 @@ namespace neuro_collection {
 			gen_face(temp, temp2, g, sh, si+i, aaPos);
 		#endif
 	}
+
+	if (createInner) {
+		si = beginningOfQuads+numQuads;
+		sel.clear();
+		for (size_t i = 0; i < numQuads; i++) {
+			std::vector<ug::vector3> temp;
+			std::vector<Vertex*> temp2;
+			for (size_t j = 0; j < numVerts; j++) {
+				temp.push_back(aaPos[outVertsInner[i*4+j]]);
+			}
+			for (size_t j = 0; j < numVerts; j++) {
+				temp.push_back(aaPos[allVertsInner[i][j]]);
+			}
+
+			UG_COND_THROW(temp.size() != 8, "Need 8 vertices for calculating all faces.");
+			#ifdef NC_WITH_QHULL
+				using ug::neuro_collection::convexhull::gen_face;
+				gen_face(temp, g, sh, si+i, aaPos);
+			#else
+				using ug::neuro_collection::quickhull::gen_face;
+				gen_face(temp, temp2, g, sh, si+i, aaPos);
+			#endif
+		}
+	}
 	EraseEmptySubsets(sh);
 	AssignSubsetColors(sh);
 	ss << fileName << "_after_extruding_cylinders_and_merging.ugx";
 	SaveGridToFile(g, sh, ss.str().c_str());
 	ss.str(""); ss.clear();
 
-	UG_LOGN("9. Resolve intersections")
+	UG_LOGN("9. Resolve potentially generated intersection(s)")
 	ResolveTriangleIntersections(g, g.begin<ug::Triangle>(), g.end<ug::Triangle>(), resolveThreshold, aPosition);
 
 	ss << fileName << "_final.ugx";
@@ -2099,7 +2161,7 @@ namespace neuro_collection {
 }
 
 	/// TODO: aaSurf parameters have to be corrected for projector still (inner and outer)
-	/// TODO: Note, that could make this general, e.g. introduce vector of layers
+	/// TODO: Note, that could make this general, e.g. introduce vector of layers: refactor and refactor test_import_swc_general method!
 	/**
 	 * @brief creates neurites with inner layer
 	 */
@@ -3018,7 +3080,7 @@ namespace neuro_collection {
     // at branching points, we have not computed the correct positions yet,
     // so project the complete geometry using the projector
     // TODO: little bit dirty; provide proper method in NeuriteProjector to do this
-    // Note: This has to be implemented also for soma potentially...?!
+    // This has to be implemented also for soma potentially...?!
     VertexIterator vit = g.begin<Vertex>();
     VertexIterator vit_end = g.end<Vertex>();
     for (; vit != vit_end; ++vit)
@@ -3037,7 +3099,7 @@ namespace neuro_collection {
     create_soma(somaPoint, g, aaPos, sh, 1);
     sh.set_default_subset_index(0);
     UG_LOGN("Done with soma!");
-    connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
+    connect_neurites_with_soma(g, aaPos, outVerts, outVerts, outRads, 1, sh, fileName, false);
     UG_LOGN("Done with connecting neurites!");
 
     // refinement
@@ -3156,28 +3218,22 @@ namespace neuro_collection {
 
     SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
 
-    /// TODO: refactor this into one method!
     sel.clear();
     UG_LOGN("Creating soma!")
     sh.set_default_subset_index(1);
     std::vector<SWCPoint> somaPoint = vSomaPoints;
     create_soma(somaPoint, g, aaPos, sh, 1);
     UG_LOGN("Done with soma!");
-    connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
+    connect_neurites_with_soma(g, aaPos, outVerts, outVertsInner, outRads, 1, sh, fileName);
     UG_LOGN("Done with connecting neurites!");
     UG_LOGN("Creating soma inner!")
     somaPoint.front().radius = somaPoint.front().radius * scaleER;
     size_t newSomaIndex = sh.num_subsets();
     create_soma(somaPoint, g, aaPos, sh, newSomaIndex);
     UG_LOGN("Done with soma inner!");
-    /// TODO: need new method here -> connect_neurites_with_soma has to be generalized as we need for second inner soma again
-    /*
-    sh.set_default_subset_index(newSomaIndex);
-    connect_neurites_with_soma(g, aaPos, outVertsInner, outRadsInner, newSomaIndex, sh, fileName);
-    UG_LOGN("Done with connecting neurites inner!");
-    */
 
-
+    EraseEmptySubsets(sh);
+    AssignSubsetColors(sh);
     SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting.ugx");
 
     // at branching points, we have not computed the correct positions yet,
@@ -3317,7 +3373,7 @@ namespace neuro_collection {
     UG_LOGN("Done with soma!");
 
     // connect soma with neurites
-    connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
+    connect_neurites_with_soma(g, aaPos, outVerts, outVerts, outRads, 1, sh, fileName, false);
     UG_LOGN("Done with connecting neurites!");
 
     // refinement
