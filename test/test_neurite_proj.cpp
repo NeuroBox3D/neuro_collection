@@ -1057,6 +1057,8 @@ namespace neuro_collection {
 	/**
 	 * @brief connects neurites to soma
 	 * TODO: find suitable parameters for tangential smooth and resolve intersections
+	 * TODO: introduce parameter which indicates if inner structure should be generated or not,
+	 * because first inner structure needs to be generated, then we need to reuse code to connect inner smaller soma!
 	 */
 	static void connect_neurites_with_soma
 (
@@ -1256,7 +1258,7 @@ namespace neuro_collection {
 	    Selector selToAssign(g);
 	    UG_COND_THROW(vrts.size() != 4, "Non-quadrilateral encountered. Cannot shrink a non-quadrilateral!");
 	    shrink_quadrilateral_copy(vrts, vVrtOut, vVrtOut, vEdgeOut, g, aaPos, -0.5, false, &selToAssign);
-		AssignSelectionToSubset(selToAssign, sh, 1000+i);
+		AssignSelectionToSubset(selToAssign, sh, si+numQuads);
 		sel.clear();
 		selToAssign.clear();
 	}
@@ -1281,15 +1283,27 @@ namespace neuro_collection {
 		size_t si = beginningOfQuads+i;
 		ug::vector3 normal;
 		CalculateVertexNormal(normal, g, *sh.begin<Vertex>(si), aaPos);
+		UG_LOGN("normal (outer): " << normal);
 		std::vector<Edge*> edges;
-		edges.assign(sh.begin<Edge>(si), sh.end<Edge>(si));
+
+		for (SubsetHandler::traits<Edge>::const_iterator it = sh.begin<Edge>(si); it != sh.end<Edge>(si); ++it) {
+			edges.push_back(*it);
+		}
+
+		for (SubsetHandler::traits<Edge>::const_iterator it = sh.begin<Edge>(si+numQuads); it != sh.end<Edge>(si+numQuads); ++it) {
+			edges.push_back(*it);
+		}
+
+		/// TODO: assign to corresponding allVerts vector the inner quad vertices and to soma the extruded vertices
 		SelectSubsetElements<Vertex>(sel, sh, si, true);
+		SelectSubsetElements<Vertex>(sel, sh, si+numQuads, true);
 		std::vector<Vertex*> temp;
 		temp.assign(sel.vertices_begin(), sel.vertices_end());
 		somaVerts.push_back(temp);
 		Extrude(g, NULL, &edges, NULL, normal, aaPos, EO_CREATE_FACES, NULL);
 		sel.clear();
 		SelectSubsetElements<Vertex>(sel, sh, si, true);
+		SelectSubsetElements<Vertex>(sel, sh, si+numQuads, true);
 		std::vector<Vertex*> temp2;
 		temp2.assign(sel.vertices_begin(), sel.vertices_end());
 		allVerts.push_back(temp2);
@@ -1309,6 +1323,8 @@ namespace neuro_collection {
 	ss.str(""); ss.clear();
 
 
+	/// TODO: 1) calculate also convex hull for smaller inner (add outVertsInner as argument above) -> then directly can connect here.
+	/// TODO: 2) create inner soma -> 3) before refactor this method to use again then: 4) same procedure as before for large soma: connect inner soma with cylinders
 	UG_LOGN("7. Calculate convex hull and connect")
 	/// 7. Vereine per MergeVertices die Vertices der in 6. extrudierten Ringe jeweils
 	///    mit den zu ihnen nächstgelegenen Vertices des entsprechenden Dendritenendes.
@@ -3140,7 +3156,7 @@ namespace neuro_collection {
 
     SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
 
-    /// TODO: refactor this into one method! -> connect_neurites_with_soma still no correct...!
+    /// TODO: refactor this into one method!
     sel.clear();
     UG_LOGN("Creating soma!")
     sh.set_default_subset_index(1);
@@ -3149,12 +3165,13 @@ namespace neuro_collection {
     UG_LOGN("Done with soma!");
     connect_neurites_with_soma(g, aaPos, outVerts, outRads, 1, sh, fileName);
     UG_LOGN("Done with connecting neurites!");
-    /*
     UG_LOGN("Creating soma inner!")
     somaPoint.front().radius = somaPoint.front().radius * scaleER;
     size_t newSomaIndex = sh.num_subsets();
     create_soma(somaPoint, g, aaPos, sh, newSomaIndex);
     UG_LOGN("Done with soma inner!");
+    /// TODO: need new method here -> connect_neurites_with_soma has to be generalized as we need for second inner soma again
+    /*
     sh.set_default_subset_index(newSomaIndex);
     connect_neurites_with_soma(g, aaPos, outVertsInner, outRadsInner, newSomaIndex, sh, fileName);
     UG_LOGN("Done with connecting neurites inner!");
