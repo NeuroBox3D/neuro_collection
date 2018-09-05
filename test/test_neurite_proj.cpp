@@ -1057,8 +1057,8 @@ namespace neuro_collection {
 
 	/**
 	 * @brief connects neurites to soma
-	 * TODO: find suitable parameters for tangential smooth, resolve intersections and snapThreshold
-	 * Note: try something linear to connect soma/neurites
+	 * TODO: Find suitable parameters for tangential smooth and resolve intersection
+	 * Note: Try something better than linear to connect somata with neurites -> spline data?
 	 *
 	 */
 	static void connect_neurites_with_soma
@@ -1072,6 +1072,7 @@ namespace neuro_collection {
 	   size_t si,
 	   SubsetHandler& sh,
 	   const std::string& fileName,
+	   number rimSnapThresholdFactor,
 	   bool createInner=true,
 	   number alpha=0.01,
 	   int numIterations=10,
@@ -1131,8 +1132,7 @@ namespace neuro_collection {
 		ug::vector3 normal;
 		CalculateVertexNormal(normal, g, bestVertices[i], aaPos);
 		number radius = outRads[i];
-		/// TODO: rimSnapThreshold (1) has to be changed for smaller inner soma
-		AdaptSurfaceGridToCylinder(sel, g, bestVertices[i], normal, radius, 1*0.5, aPosition);
+		AdaptSurfaceGridToCylinder(sel, g, bestVertices[i], normal, radius, 1.0*rimSnapThresholdFactor, aPosition);
 	}
 
 	AssignSubsetColors(sh);
@@ -1282,8 +1282,8 @@ namespace neuro_collection {
 	ss.str(""); ss.clear();
 
 	UG_LOGN("8. TangentialSmooth");
-	/// TODO: tangentialsmooth kills it! -> introduces weird -> see how to use this function...
-	///TangentialSmooth(g, g.vertices_begin(), g.vertices_end(), aaPos, alpha, numIterations);
+	/// Note: TangentialSmooth -> alpha has to be corrected for different geometries.
+	/// TangentialSmooth(g, g.vertices_begin(), g.vertices_end(), aaPos, alpha, numIterations);
 
 	ss << fileName << "_after_merging_cylinder_vertices_and_tangential_smooth.ugx";
 	SaveGridToFile(g, sh, ss.str().c_str());
@@ -2177,10 +2177,8 @@ namespace neuro_collection {
     SaveGridToFile(g, sh, "test_shrunk_geom_after.ugx");
 
 }
-
-	/// TODO: aaSurf parameters have to be corrected for projector still (inner and outer)
-	/// TODO: Note, that could make this general, e.g. introduce vector of layers: refactor and refactor test_import_swc_general method!
-	/// TODO: subset assignment!
+	/// TODO: Assign inner / outer to different subsets? assign connections to soma to neurite inner / outer subset?
+	/// TODO: Make this more general: Provide std::vector<Layer> instead of hard-coded one additional layer
 	/**
 	 * @brief creates neurites with inner layer
 	 */
@@ -3099,7 +3097,6 @@ namespace neuro_collection {
     // at branching points, we have not computed the correct positions yet,
     // so project the complete geometry using the projector
     // TODO: little bit dirty; provide proper method in NeuriteProjector to do this
-    // This has to be implemented also for soma potentially...?!
     VertexIterator vit = g.begin<Vertex>();
     VertexIterator vit_end = g.end<Vertex>();
     for (; vit != vit_end; ++vit)
@@ -3119,7 +3116,7 @@ namespace neuro_collection {
     sh.set_default_subset_index(0);
     UG_LOGN("Done with soma!");
     std::vector<Vertex*> outQuads;
-    connect_neurites_with_soma(g, aaPos, outVerts, outVerts, outRads, outQuads, 1, sh, fileName);
+    connect_neurites_with_soma(g, aaPos, outVerts, outVerts, outRads, outQuads, 1, sh, fileName, 1.0);
     UG_LOGN("Done with connecting neurites!");
 
     // refinement
@@ -3245,7 +3242,7 @@ namespace neuro_collection {
     create_soma(somaPoint, g, aaPos, sh, 1);
     UG_LOGN("Done with soma!");
     std::vector<Vertex*> outQuadsInner;
-    connect_neurites_with_soma(g, aaPos, outVerts, outVertsInner, outRads, outQuadsInner, 1, sh, fileName, true);
+    connect_neurites_with_soma(g, aaPos, outVerts, outVertsInner, outRads, outQuadsInner, 1, sh, fileName, 1.0, true);
     UG_LOGN("Done with connecting neurites!");
     UG_LOGN("Creating soma inner!")
     somaPoint.front().radius = somaPoint.front().radius * scaleER;
@@ -3254,17 +3251,31 @@ namespace neuro_collection {
     UG_LOGN("Done with soma inner!");
     std::vector<Vertex*> outQuadsInner2;
     UG_LOGN("Size of outQuadsInner: " << outQuadsInner.size())
-    connect_neurites_with_soma(g, aaPos, outQuadsInner, outVertsInner, outRadsInner, outQuadsInner2, newSomaIndex, sh, fileName, false);
+    connect_neurites_with_soma(g, aaPos, outQuadsInner, outVertsInner, outRadsInner, outQuadsInner2, newSomaIndex, sh, fileName, scaleER, false);
 
+    // save after connecting and assign subsets
     EraseEmptySubsets(sh);
     AssignSubsetColors(sh);
+    sh.set_subset_name("neurites (all)", 0);
+    sh.set_subset_name("soma (outer)", 1);
+    for (size_t i = 2; i < newSomaIndex; i++) {
+    	std::stringstream ss;
+     	ss << "outer-connex #" << i;
+     	sh.set_subset_name(ss.str().c_str(), i);
+    }
+    sh.set_subset_name("soma (inner)", newSomaIndex);
+    for (size_t i = newSomaIndex; i < sh.num_subsets(); i++) {
+    	std::stringstream ss;
+     	ss << "inner-connex #" << i;
+     	sh.set_subset_name(ss.str().c_str(), i);
+    }
     SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting.ugx");
 
     // at branching points, we have not computed the correct positions yet,
-    // so project the complete geometry using the projector
+    // so project the complete geometry using the projector -> for inner neurite this fails at some points -> needs to be addressed.
     // TODO: little bit dirty; provide proper method in NeuriteProjector to do this
-    VertexIterator vit = g.begin<Vertex>();
-    VertexIterator vit_end = g.end<Vertex>();
+    VertexIterator vit = sh.begin<Vertex>(0);
+    VertexIterator vit_end = sh.end<Vertex>(0);
     for (; vit != vit_end; ++vit)
     {
         Edge* tmp = *g.create<RegularEdge>(EdgeDescriptor(*vit,*vit));
@@ -3273,11 +3284,6 @@ namespace neuro_collection {
     }
 
     // refinement
-    AssignSubsetColors(sh);
-    sh.set_subset_name("neurites", 0);
-    sh.set_subset_name("soma", 1);
-    //sh.set_subset_name("somaInner", newSomaIndex);
-
     std::string outFileName = FilenameWithoutPath(std::string("testNeuriteProjector.ugx"));
     GridWriterUGX ugxWriter;
     ugxWriter.add_grid(g, "defGrid", aPosition);
@@ -3398,7 +3404,7 @@ namespace neuro_collection {
 
     // connect soma with neurites
     std::vector<Vertex*> outQuads;
-    connect_neurites_with_soma(g, aaPos, outVerts, outVerts, outRads, outQuads, 1, sh, fileName, false);
+    connect_neurites_with_soma(g, aaPos, outVerts, outVerts, outRads, outQuads, 1, sh, fileName, 1.0, false);
     UG_LOGN("Done with connecting neurites!");
 
     // refinement
@@ -3723,7 +3729,7 @@ namespace neuro_collection {
 			neuriteProj->new_vertex(*vrtIter, par);
 		}
 
-		// TODO: treat the volume case!
+		/// TODO: treat the volume case!
 	}
 }
 
