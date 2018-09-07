@@ -22,6 +22,7 @@ IMembraneTransporter::IMembraneTransporter(const std::vector<std::string>& vFct)
 		if (vFct[i] != "")
 		{
 			m_mfInd[i] = m_vFct.size();
+			m_vfIndInv.resize(m_vfIndInv.size()+1, i);
 			m_vFct.push_back(vFct[i]);
 		}
 		// else: nothing
@@ -108,8 +109,14 @@ void IMembraneTransporter::flux_deriv(const std::vector<number>& u, GridObject* 
 
 	// scale each flux deriv
 	for (size_t i = 0; i < flux_derivs.size(); ++i)
+	{
 		for (size_t j = 0; j < flux_derivs[i].size(); ++j)
-			flux_derivs[i][j].second *= m_vScaleFluxes[i] * m_vScaleInputs[flux_derivs[i][j].first];
+		{
+			UG_COND_THROW(flux_derivs[i][j].first >= m_vfIndInv.size(),
+				"Supplied function index " << flux_derivs[i][j].first << " does not exist.");
+			flux_derivs[i][j].second *= m_vScaleFluxes[i] * m_vScaleInputs[m_vfIndInv[flux_derivs[i][j].first]];
+		}
+	}
 }
 
 

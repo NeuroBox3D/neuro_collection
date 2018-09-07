@@ -437,6 +437,9 @@ class IMembraneTransporter
 		/// indices of unknowns in local vector (of supplied functions), if existent
 		std::map<size_t, size_t> m_mfInd;
 
+		/// indices of supplied functions in list of all participating unknowns (as in constructor)
+		std::vector<size_t> m_vfIndInv;
+
 		/// constant values map
 		std::map<size_t, number> m_mConstVal;
 
