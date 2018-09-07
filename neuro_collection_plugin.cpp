@@ -27,6 +27,7 @@
 #include "user_flux_bnd_fv1.h"
 #include "membrane_transporters/membrane_transporter_interface.h"
 #include "membrane_transporters/hh.h"
+#include "membrane_transporters/hh_species.h"
 #include "membrane_transporters/leakage_ohmic.h"
 #include "membrane_transporters/ip3r.h"
 #include "membrane_transporters/ryr.h"
@@ -384,6 +385,30 @@ static void Domain(Registry& reg, string grp)
 			.add_method("use_exact_gating_mode", &T::use_exact_gating_mode, "", "time step size", "")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "HH", tag);
+	}
+
+	// Hodgkin-Huxley channels with Na and K unknowns
+	{
+		typedef HHSpecies<TDomain> T;
+		typedef IMembraneTransporter TBase;
+		std::string name = std::string("HHSpecies").append(suffix);
+		reg.add_class_<T, TBase>(name, grp)
+			.template add_constructor<void (*)(const char*, const char*, ConstSmartPtr<ISubsetHandler>)>
+				("Functions as comma-separated string with the following order: "
+				 "\"inner [K+] \", \"outer [K+]\", \"inner [Na+] \", \"outer [Na+]\", "
+				 "\"inner potential\", \"outer potential\" # "
+				 "subsets as comma-separated string # SubsetHandler")
+			.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&, ConstSmartPtr<ISubsetHandler>)>
+				("Function vector with the following order: "
+				 "\"inner charge density\", \"outer charge density\", \"inner potential\", \"outer potential\","
+				 "\"gating param n\", \"gating param m\", \"gating param h\" # "
+				 "subsets vector # SubsetHandler")
+			.add_method("set_conductances", &T::set_conductances, "", "g_K#g_Na", "")
+			.add_method("set_reversal_potentials", &T::set_reversal_potentials, "", "E_K#E_Na", "")
+			.add_method("set_reference_time", &T::set_reference_time, "", "reference time (in units of s)", "")
+			.add_method("use_exact_gating_mode", &T::use_exact_gating_mode, "", "time step size", "")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "HHSpecies", tag);
 	}
 
 	// RyR2 (time-dep. RyR implementation)
