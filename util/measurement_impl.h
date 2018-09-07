@@ -237,6 +237,9 @@ number takeMeasurement
 			if (time == 0.0) outFile.open(ofnss.str().c_str(), std::ios_base::out);
 			else outFile.open(ofnss.str().c_str(), std::ios_base::app);
 
+			// set precision
+			outFile << std::setprecision(std::numeric_limits<number>::digits10 + 1);
+
 			// write measurement
 			try {outFile << time << "\t" << value/vol << "\n";}
 			UG_CATCH_THROW("Output file " << ofnss.str() << " could not be written to.");
