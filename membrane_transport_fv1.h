@@ -214,6 +214,7 @@ class MembraneTransport1d
 		virtual bool use_hanging() const;
 
 		/// @copydoc IElemDisc<TDomain>::prepare_timestep()
+		//template <typename TAlgebra>
 		void prep_timestep(number future_time, number time, VectorProxyBase* upb);
 
 		///	prepares the loop over all elements
@@ -271,6 +272,9 @@ class MembraneTransport1d
 					typedef typename boost::mpl::pop_front<List>::type NextList;
 
 					size_t aid = bridge::AlgebraTypeIDProvider::instance().id<AlgebraType>();
+
+					// TODO: should be (with a TAlgebra-templated version of this method):
+					// p->set_prep_timestep_fct(aid, &MembraneTransport1d::prep_timestep<AlgebraType>);
 					p->set_prep_timestep_fct(aid, &MembraneTransport1d::prep_timestep);
 
 					(RegisterPrepTimestepFct<NextList> (p));

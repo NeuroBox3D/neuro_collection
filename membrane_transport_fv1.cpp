@@ -21,8 +21,8 @@ MembraneTransportFV1<TDomain>::MembraneTransportFV1(const char* subsets, SmartPt
 	mt->check_and_lock();
 
 	// elem discs (subsets and) functions need only be set after the previous check
-	static_cast<IElemDisc<TDomain>*>(this)->set_subsets(subsets);
-	static_cast<IElemDisc<TDomain>*>(this)->set_functions(mt->symb_fcts());
+	this->IElemDisc<TDomain>::set_subsets(subsets);
+	this->IElemDisc<TDomain>::set_functions(mt->symb_fcts());
 }
 
 template<typename TDomain>
@@ -34,8 +34,8 @@ MembraneTransportFV1<TDomain>::MembraneTransportFV1(const std::vector<std::strin
 	mt->check_and_lock();
 
 	// elem discs (subsets and) functions need only be set after the previous check
-	static_cast<IElemDisc<TDomain>*>(this)->set_subsets(subsets);
-	static_cast<IElemDisc<TDomain>*>(this)->set_functions(mt->symb_fcts());
+	this->IElemDisc<TDomain>::set_subsets(subsets);
+	this->IElemDisc<TDomain>::set_functions(mt->symb_fcts());
 }
 
 template<typename TDomain>
@@ -208,8 +208,8 @@ MembraneTransport1d<TDomain>::MembraneTransport1d(const char* subsets, SmartPtr<
 	// check validity of transporter setup and then lock
 	mt->check_and_lock();
 
-	static_cast<IElemDisc<TDomain>*>(this)->set_subsets(subsets);
-	static_cast<IElemDisc<TDomain>*>(this)->set_functions(mt->symb_fcts());
+	this->IElemDisc<TDomain>::set_subsets(subsets);
+	this->IElemDisc<TDomain>::set_functions(mt->symb_fcts());
 }
 
 template<typename TDomain>
@@ -219,8 +219,8 @@ MembraneTransport1d<TDomain>::MembraneTransport1d(const std::vector<std::string>
 	// check validity of transporter setup and then lock
 	mt->check_and_lock();
 
-	static_cast<IElemDisc<TDomain>*>(this)->set_subsets(subsets);
-	static_cast<IElemDisc<TDomain>*>(this)->set_functions(mt->symb_fcts());
+	this->IElemDisc<TDomain>::set_subsets(subsets);
+	this->IElemDisc<TDomain>::set_functions(mt->symb_fcts());
 }
 
 
@@ -274,11 +274,12 @@ bool MembraneTransport1d<TDomain>::fluxDensityFct
 {
 	size_t n_flux = m_spMembraneTransporter->n_fluxes();
 
-	// calculate single-channel flux
+	// resize flux structure
 	fc.flux.resize(n_flux);
 	fc.from.resize(n_flux);
 	fc.to.resize(n_flux);
 
+	// calculate single-channel flux
 	m_spMembraneTransporter->flux(u, e, fc.flux);
 
 	// get density in membrane
@@ -290,7 +291,8 @@ bool MembraneTransport1d<TDomain>::fluxDensityFct
 	number density;
 	(*this->m_spDensityFct)(density, coords, this->time(), si);
 
-	for (size_t i = 0; i < n_flux; i++)
+	// save currents
+	for (size_t i = 0; i < n_flux; ++i)
 	{
 		fc.flux[i] *= density * 2.0*PI*m_radius;
 		fc.from[i] = m_spMembraneTransporter->flux_from_to(i).first;
@@ -311,30 +313,32 @@ bool MembraneTransport1d<TDomain>::fluxDensityDerivFct
 	FluxDerivCond& fdc
 )
 {
-	size_t n_dep = m_spMembraneTransporter->n_dependencies();
-	size_t n_flux = m_spMembraneTransporter->n_fluxes();
+	const size_t n_dep = m_spMembraneTransporter->n_dependencies();
+	const size_t n_flux = m_spMembraneTransporter->n_fluxes();
 
-	// calculate single-channel flux
+	// resize flux derivs structure
 	fdc.fluxDeriv.resize(n_flux);
 	fdc.from.resize(n_flux);
 	fdc.to.resize(n_flux);
-	for (size_t i = 0; i < n_flux; i++)
+	for (size_t i = 0; i < n_flux; ++i)
 		fdc.fluxDeriv[i].resize(n_dep);
 
+	// calculate single-channel flux derivs
 	m_spMembraneTransporter->flux_deriv(u, e, fdc.fluxDeriv);
 
-	number density;
-	if (this->m_spDensityFct.valid())
-		(*this->m_spDensityFct)(density, coords, this->time(), si);
-	else
+	// get density in membrane
+	if (!this->m_spDensityFct.valid())
 	{
 		UG_THROW("No density information available for " << m_spMembraneTransporter->name()
-				<< " membrane transport mechanism. Please set using set_density_function().");
+				 << " membrane transport mechanism. Please set using set_density_function().");
 	}
+	number density;
+	(*this->m_spDensityFct)(density, coords, this->time(), si);
 
-	for (size_t i = 0; i < n_flux; i++)
+	// save current derivs
+	for (size_t i = 0; i < n_flux; ++i)
 	{
-		for (size_t j = 0; j < n_dep; j++)
+		for (size_t j = 0; j < n_dep; ++j)
 			fdc.fluxDeriv[i][j].second *= density * 2.0*PI*m_radius;
 		fdc.from[i] = m_spMembraneTransporter->flux_from_to(i).first;
 		fdc.to[i] = m_spMembraneTransporter->flux_from_to(i).second;
@@ -363,7 +367,9 @@ use_hanging() const
 	return false;
 }
 
+
 template<typename TDomain>
+//template <typename TAlgebra>
 void MembraneTransport1d<TDomain>::prep_timestep
 (
     number future_time,
@@ -371,6 +377,15 @@ void MembraneTransport1d<TDomain>::prep_timestep
     VectorProxyBase* upb
 )
 {
+	/*
+	// TODO: should be (with a TAlgebra-templated version of this method):
+	typedef typename TAlgebra::vector_type v_type;
+	typedef VectorProxy<v_type> vp_type;
+	vp_type* up = dynamic_cast<vp_type*>(upb);
+	UG_COND_THROW(!up, "Wrong algebra type!");
+	const v_type& u = up->m_v;
+	m_spMembraneTransporter->prep_timestep(future_time, time, u);
+	*/
 	m_spMembraneTransporter->prep_timestep(future_time, time, upb);
 }
 
@@ -399,7 +414,7 @@ prep_elem(const LocalVector& u, GridObject* elem, const ReferenceObjectID roid, 
 	// update geometry for this element
 	static TFVGeom& geo = GeomProvider<TFVGeom>::get();
 	try {geo.update(elem, vCornerCoords, &(this->subset_handler()));}
-	UG_CATCH_THROW("FV1InnerBoundaryElemDisc::prep_elem: "
+	UG_CATCH_THROW("MembraneTransport1d::prep_elem: "
 						"Cannot update Finite Volume Geometry.");
 }
 
@@ -421,34 +436,31 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u, GridObject* elem, const Mat
 		const int co = scv.node_id();
 
 		// get solution at the corner of the scv
-		size_t nFct = u.num_fct();
+		const size_t nFct = u.num_fct();
 		std::vector<LocalVector::value_type> uAtCorner(nFct);
-		for (size_t fct = 0; fct < nFct; fct++)
-			uAtCorner[fct] = u(fct,co);
+		for (size_t fct = 0; fct < nFct; ++fct)
+			uAtCorner[fct] = u(fct, co);
 
 		// get corner coordinates
 		const MathVector<dim>& cc = scv.global_corner(0);
 
 		FluxDerivCond fdc;
 		if (!fluxDensityDerivFct(uAtCorner, elem, cc, m_currSI, fdc))
-			UG_THROW("FV1InnerBoundaryElemDisc::add_jac_A_elem:"
+			UG_THROW("MembraneTransport1d::add_jac_A_elem:"
 							" Call to fluxDensityDerivFct resulted did not succeed.");
 
 		// scale with volume of SCV
-		number scale = scv.volume();
-		for (size_t j=0; j<fdc.fluxDeriv.size(); j++)
-			for (size_t k=0; k<fdc.fluxDeriv[j].size(); k++)
-				fdc.fluxDeriv[j][k].second *= scale;
+		const number scale = scv.volume();
 
 		// add to Jacobian
-		for (size_t j=0; j<fdc.fluxDeriv.size(); j++)
+		for (size_t j = 0; j < fdc.fluxDeriv.size(); ++j)
 		{
-			for (size_t k=0; k<fdc.fluxDeriv[j].size(); k++)
+			for (size_t k = 0; k < fdc.fluxDeriv[j].size(); ++k)
 			{
 				if (fdc.from[j] != InnerBoundaryConstants::_IGNORE_)
-					J(fdc.from[j], co, fdc.fluxDeriv[j][k].first, co) += fdc.fluxDeriv[j][k].second;
+					J(fdc.from[j], co, fdc.fluxDeriv[j][k].first, co) += fdc.fluxDeriv[j][k].second * scale;
 				if (fdc.to[j] != InnerBoundaryConstants::_IGNORE_)
-					J(fdc.to[j], co, fdc.fluxDeriv[j][k].first, co)	-= fdc.fluxDeriv[j][k].second;
+					J(fdc.to[j], co, fdc.fluxDeriv[j][k].first, co)	-= fdc.fluxDeriv[j][k].second * scale;
 			}
 		}
 	}
@@ -469,7 +481,7 @@ add_def_A_elem(LocalVector& d, const LocalVector& u, GridObject* elem, const Mat
 	// get finite volume geometry
 	static TFVGeom& fvgeom = GeomProvider<TFVGeom>::get();
 
-	// loop Boundary Faces
+	// loop boundary Faces
 	for (size_t i = 0; i < fvgeom.num_scv(); ++i)
 	{
 		// get current SCV
@@ -479,10 +491,10 @@ add_def_A_elem(LocalVector& d, const LocalVector& u, GridObject* elem, const Mat
 		const int co = scv.node_id();
 
 		// get solution at the corner of the scv
-		size_t nFct = u.num_fct();
+		const size_t nFct = u.num_fct();
 		std::vector<LocalVector::value_type> uAtCorner(nFct);
-		for (size_t fct = 0; fct < nFct; fct++)
-			uAtCorner[fct] = u(fct,co);
+		for (size_t fct = 0; fct < nFct; ++fct)
+			uAtCorner[fct] = u(fct, co);
 
 		// get corner coordinates
 		const MathVector<dim>& cc = scv.global_corner(0);
@@ -491,21 +503,20 @@ add_def_A_elem(LocalVector& d, const LocalVector& u, GridObject* elem, const Mat
 		FluxCond fc;
 		if (!fluxDensityFct(uAtCorner, elem, cc, m_currSI, fc))
 		{
-			UG_THROW("FV1InnerBoundaryElemDisc::add_def_A_elem:"
+			UG_THROW("MembraneTransport1d::add_def_A_elem:"
 						" Call to fluxDensityFct did not succeed.");
 		}
 
 		// scale with volume of SCV
-		number scale = scv.volume();
-
-		for (size_t j=0; j<fc.flux.size(); j++)
-			fc.flux[j] *= scale;
+		const number scale = scv.volume();
 
 		// add to defect
-		for (size_t j=0; j<fc.flux.size(); j++)
+		for (size_t j = 0; j < fc.flux.size(); ++j)
 		{
-			if (fc.from[j] != InnerBoundaryConstants::_IGNORE_) d(fc.from[j], co) += fc.flux[j];
-			if (fc.to[j] != InnerBoundaryConstants::_IGNORE_) d(fc.to[j], co) -= fc.flux[j];
+			if (fc.from[j] != InnerBoundaryConstants::_IGNORE_)
+				d(fc.from[j], co) += fc.flux[j] * scale;
+			if (fc.to[j] != InnerBoundaryConstants::_IGNORE_)
+				d(fc.to[j], co) -= fc.flux[j] * scale;
 		}
 	}
 }
@@ -533,7 +544,7 @@ void MembraneTransport1d<TDomain>::register_assembling_funcs()
 
 	// register assembling functionality
 	typedef RegularEdge TElem;
-	typedef FV1Geometry<RegularEdge, dim> TFVGeom;
+	typedef FV1Geometry<TElem, dim> TFVGeom;
 	typedef MembraneTransport1d<TDomain> T;
 	const ReferenceObjectID id = geometry_traits<TElem>::REFERENCE_OBJECT_ID;
 

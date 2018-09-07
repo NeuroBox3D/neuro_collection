@@ -44,9 +44,8 @@ void OhmicLeakage::set_reversal_potential(number el)
 
 void OhmicLeakage::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
 {
-	const number vm = u[_PHII_] - u[_PHIO_];	// membrane potential
+	const number vm = u[_PHII_] - u[_PHIO_];
 
-	// the actual flux density is flux[0] * density_fct
 	flux[0] = m_g * (vm - m_eL);
 }
 

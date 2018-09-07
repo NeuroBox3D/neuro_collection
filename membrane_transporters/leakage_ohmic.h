@@ -81,8 +81,8 @@ class OhmicLeakage : public IMembraneTransporter
 		virtual void print_units() const;
 
 	protected:
-		number m_g; ///< conductance
-		number m_eL;   ///< reversal potential
+		number m_g;  ///< conductance
+		number m_eL; ///< reversal potential
 };
 
 ///@}

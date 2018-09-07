@@ -78,17 +78,17 @@ void IMembraneTransporter::flux(const std::vector<number>& u, GridObject* e, std
 {
 	// construct input vector for flux calculation with constant values
 	std::vector<number> u_with_consts(n_fct);
-	create_local_vector_with_constants(u,u_with_consts);
+	create_local_vector_with_constants(u, u_with_consts);
 
 	// scale each entry
-	for (size_t i = 0; i < n_fct; i++)
+	for (size_t i = 0; i < n_fct; ++i)
 		u_with_consts[i] *= m_vScaleInputs[i];
 
 	// calculate fluxes
 	calc_flux(u_with_consts, e, flux);
 
 	// scale each flux
-	for (size_t i = 0; i < flux.size(); i++)
+	for (size_t i = 0; i < flux.size(); ++i)
 		flux[i] *= m_vScaleFluxes[i];
 }
 
@@ -97,18 +97,18 @@ void IMembraneTransporter::flux_deriv(const std::vector<number>& u, GridObject* 
 {
 	// construct input vector for flux derivative calculation with constant values
 	std::vector<number> u_with_consts(n_fct);
-	create_local_vector_with_constants(u,u_with_consts);
+	create_local_vector_with_constants(u, u_with_consts);
 
 	// scale each entry
-	for (size_t i = 0; i < n_fct; i++)
+	for (size_t i = 0; i < n_fct; ++i)
 		u_with_consts[i] *= m_vScaleInputs[i];
 
 	// calculate flux derivatives
 	calc_flux_deriv(u_with_consts, e, flux_derivs);
 
 	// scale each flux deriv
-	for (size_t i = 0; i < flux_derivs.size(); i++)
-		for (size_t j = 0; j < flux_derivs[i].size(); j++)
+	for (size_t i = 0; i < flux_derivs.size(); ++i)
+		for (size_t j = 0; j < flux_derivs[i].size(); ++j)
 			flux_derivs[i][j].second *= m_vScaleFluxes[i] * m_vScaleInputs[flux_derivs[i][j].first];
 }
 
@@ -118,7 +118,7 @@ void IMembraneTransporter::create_local_vector_with_constants(const std::vector<
 	for (size_t i = 0; i < n_fct; i++)
 	{
 		// check if not constant
-		if (!has_constant_value(i,u_wc[i]))
+		if (!has_constant_value(i, u_wc[i]))
 		{
 			UG_ASSERT(m_mfInd.find(i) != m_mfInd.end(), "Neither function supplied nor constant. "
 					  "This is not supposed to happen! Check implementation!");
