@@ -1019,7 +1019,7 @@ namespace neuro_collection {
 		integral += dt * sec_integral;
 
 		// calculate exact position by linear interpolation, whenever integral has surpassed it
-		if (integral >= (seg+1)*segLength)
+		while (integral >= (seg+1)*segLength)
 		{
 			number lastIntegral = integral - dt * sec_integral;
 			segAxPosOut[seg] = t_start + ((seg+1)*segLength - lastIntegral) / sec_integral;
@@ -3343,7 +3343,6 @@ namespace neuro_collection {
 	 */
 	void test_import_swc_scale(const std::string& fileName, bool correct, number scale)
 {
-	/// TODO: Previously this broke down if scale is too small, merge in Markus fix soon
 	// preconditioning
     test_smoothing(fileName, 5, 1.0, 1.0, 1.0);
 
