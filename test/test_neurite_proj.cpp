@@ -1388,22 +1388,30 @@ namespace neuro_collection {
 	sel.clear();
 	for (size_t i = 0; i < numQuads; i++) {
 		std::vector<ug::vector3> temp;
+		std::vector<ug::vector3> foo;
+		std::vector<ug::vector3> foo2;
 		std::vector<Vertex*> temp2;
 		for (size_t j = 0; j < numVerts; j++) {
 			temp.push_back(aaPos[outVerts[i*4+j]]);
+			foo.push_back(aaPos[outVerts[i*4+j]]);
 		}
 		for (size_t j = 0; j < numVerts; j++) {
 			temp.push_back(aaPos[allVerts[i][j]]);
+			foo2.push_back(aaPos[allVerts[i][j]]);
 		}
 
 		UG_COND_THROW(temp.size() != 8, "Need 8 vertices for calculating all faces.");
 		#ifdef NC_WITH_QHULL
 			using ug::neuro_collection::convexhull::gen_face;
+			using ug::neuro_collection::convexhull::erase_face;
 			gen_face(temp, g, sh, si+i, aaPos);
+			erase_face(g, sh, si+i, aaPos, foo);
+			erase_face(g, sh, si+i, aaPos, foo2);
 		#else
 			using ug::neuro_collection::quickhull::gen_face;
 			gen_face(temp, temp2, g, sh, si+i, aaPos);
 		#endif
+
 	}
 
 	if (createInner) {
@@ -1412,23 +1420,31 @@ namespace neuro_collection {
 		for (size_t i = 0; i < numQuads; i++) {
 			std::vector<ug::vector3> temp;
 			std::vector<Vertex*> temp2;
+			std::vector<ug::vector3> foo;
+			std::vector<ug::vector3> foo2;
 			for (size_t j = 0; j < numVerts; j++) {
 				temp.push_back(aaPos[outVertsInner[i*4+j]]);
+				foo.push_back(aaPos[outVertsInner[i*4+j]]);
 			}
 			for (size_t j = 0; j < numVerts; j++) {
 				temp.push_back(aaPos[allVertsInner[i][j]]);
+				foo2.push_back(aaPos[allVertsInner[i][j]]);
 			}
 
 			UG_COND_THROW(temp.size() != 8, "Need 8 vertices for calculating all faces.");
 			#ifdef NC_WITH_QHULL
 				using ug::neuro_collection::convexhull::gen_face;
+				using ug::neuro_collection::convexhull::erase_face;
 				gen_face(temp, g, sh, si+i, aaPos);
+				erase_face(g, sh, si+i, aaPos, foo);
+				erase_face(g, sh, si+i, aaPos, foo2);
 			#else
 				using ug::neuro_collection::quickhull::gen_face;
 				gen_face(temp, temp2, g, sh, si+i, aaPos);
 			#endif
 		}
 	}
+
 	EraseEmptySubsets(sh);
 	AssignSubsetColors(sh);
 	ss << fileName << "_after_extruding_cylinders_and_merging.ugx";
@@ -2729,7 +2745,13 @@ namespace neuro_collection {
 			/// note that that faces are created from the new quad's (smaller inner quad) vertices to the vertices of best inner face in line above
 			std::vector<ug::Vertex*> vrtsOut;
 			std::vector<ug::Edge*> edgesOut;
+			/// TODO: actually don't need to shrink in the direction orthogonal to the extrudeDir... this shrinks in all directions which is too much
+			/// Can use code from above (brit != brit_end) fragment and get dontinuing section of neurite's direction (and get direction)
+			/// Another idea: Create first segment after branching point, then cast a ray back from each extruded inner vertex parallel
+			/// to outer vertex and take intersection with best face inner, these will be the new vertices to which the vertices of the
+			/// best face inner needed to be connected with shrink_auqdrilateral_copy function
 			shrink_quadrilateral_copy(vrts, vrtsOut, vrtsInner, edgesOut, g, aaPos, -neurite.scaleER);
+			/// TODO: vertices are generated here. we need to associate the correct information for aaSurfParam here...
 			edgesInner = edgesOut;
 			vrtsInner = vrtsOut;
 			UG_LOGN("Creating child(s) for inner and outer...")
@@ -3107,6 +3129,7 @@ namespace neuro_collection {
     }
 
     // create soma
+    /*
     sel.clear();
     UG_LOGN("Creating soma!")
     sh.set_default_subset_index(1);
@@ -3118,6 +3141,7 @@ namespace neuro_collection {
     std::vector<Vertex*> outQuads;
     connect_neurites_with_soma(g, aaPos, outVerts, outVerts, outRads, outQuads, 1, sh, fileName, 1.0);
     UG_LOGN("Done with connecting neurites!");
+    */
 
     // refinement
     AssignSubsetColors(sh);
@@ -3263,8 +3287,9 @@ namespace neuro_collection {
      	ss << "outer-connex #" << i;
      	sh.set_subset_name(ss.str().c_str(), i);
     }
+
     sh.set_subset_name("soma (inner)", newSomaIndex);
-    for (size_t i = newSomaIndex; i < sh.num_subsets(); i++) {
+    for (size_t i = newSomaIndex+1; i < sh.num_subsets(); i++) {
     	std::stringstream ss;
      	ss << "inner-connex #" << i;
      	sh.set_subset_name(ss.str().c_str(), i);

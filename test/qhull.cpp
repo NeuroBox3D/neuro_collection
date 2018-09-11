@@ -364,6 +364,34 @@ namespace ug {
                   }
                 }
 
+                void erase_face
+                (
+                	Grid& g,
+                    SubsetHandler& sh,
+                    size_t si,
+                    Grid::VertexAttachmentAccessor<APosition>& aaPos,
+                    std::vector<ug::vector3>& verts
+                )
+                {
+                	Selector sel(g);
+                	for (TriangleIterator iter = sh.begin<ug::Triangle>(si+1000); iter != sh.end<ug::Triangle>(si+1000); ++iter) {
+                		UG_LOGN("triangle!");
+                		bool atEnd = true;
+                		for (size_t i = 0; i < (*iter)->num_vertices(); i++) {
+                			bool current = std::find(verts.begin(), verts.end(), aaPos[(*iter)->vertex(i)]) != verts.end();
+                			atEnd = atEnd && current;
+                			UG_LOGN("current: " << current);
+                		}
+
+                		if (atEnd) {
+                			UG_LOGN("Erasing face!");
+                			sel.select(*iter);
+                		}
+                	}
+                	SelectAssociatedEdges(sel, sel.begin<ug::Triangle>(), sel.end<ug::Triangle>(), true);
+                	EraseSelectedObjects(sel);
+                }
+
                 void gen_face
                 (
                         const std::vector<ug::vector3>& points,
