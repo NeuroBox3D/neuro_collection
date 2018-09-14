@@ -69,7 +69,8 @@ void shrink_quadrilateral_copy
 		Grid::VertexAttachmentAccessor<APosition>& aaPos,
 		number percentage,
 		bool createFaces,
-		ISelector* outSel
+		ISelector* outSel,
+		ug::vector3* currentDir
 );
 
 void test_smoothing(const std::string& fileName, size_t n, number h, number gamma, number scale);

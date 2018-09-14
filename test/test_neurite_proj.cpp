@@ -1264,7 +1264,7 @@ namespace neuro_collection {
 
 			Selector selToAssign(g);
 			UG_COND_THROW(vrts.size() != 4, "Non-quadrilateral encountered. Cannot shrink a non-quadrilateral!");
-			shrink_quadrilateral_copy(vrts, vVrtOut, vVrtOut, vEdgeOut, g, aaPos, -0.5, false, &selToAssign);
+			shrink_quadrilateral_copy(vrts, vVrtOut, vVrtOut, vEdgeOut, g, aaPos, -0.5, false, &selToAssign, NULL);
 			for (std::vector<Vertex*>::const_iterator it = vVrtOut.begin(); it != vVrtOut.end(); ++it) {
 				smallerQuadVerts.push_back(*it);
 			}
@@ -2018,13 +2018,15 @@ namespace neuro_collection {
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			number percentage,
 			bool createFaces=true,
-			ISelector* outSel = NULL
+			ISelector* outSel = NULL,
+			ug::vector3* currentDir = NULL
 	)
 	{
 		Selector sel(g);
 	    for (size_t i = 0; i < 4; ++i) {
 	    	sel.select(vVrt[i]);
 		}
+
 
 	    ug::vector3 center;
 	    center = CalculateBarycenter(sel.vertices_begin(), sel.vertices_end(), aaPos);
@@ -2035,8 +2037,20 @@ namespace neuro_collection {
 	       aaPos[v] = aaPos[vVrt[i]];
 	       ug::vector3 dir;
 	       VecSubtract(dir, aaPos[vVrt[i]], center);
+
+   	       /// subtract component parallel to old extrudeDir (neurite direction)
+	       if (currentDir) {
+	    	   number projection = VecDot(*currentDir, dir) / VecLengthSq(dir);
+	    	   vector3 v;
+	    	   VecScale(v, v, projection);
+	    	   vector3 w;
+	    	   VecSubtract(w, *currentDir, v);
+	    	   dir = w;
+	       }
+
 	       UG_LOGN("dir:" << dir)
 	       VecScaleAdd(aaPos[v], 1.0, aaPos[v], percentage, dir);
+
 	       if (percentage > 1) {
 	          UG_WARNING("Moving vertex beyond center. Will create degenerated elements." << std::endl);
 	       }
@@ -2610,6 +2624,7 @@ namespace neuro_collection {
 			lastPos = curPos;
     	}
 
+		vector3 currentDir;
     	/// connect branching neurites if present
     	if (brit != brit_end)
 		/// TODO: create prism to connect to in case the branching angle is small or big
@@ -2624,6 +2639,12 @@ namespace neuro_collection {
 				child_nid = bp->vNid[0];
 			else
 				child_nid = bp->vNid[1];
+
+			size_t current_nid;
+			if (bp->vNid[0] != nid)
+				current_nid = bp->vNid[1];
+			else
+				current_nid = bp->vNid[0];
 
 			// find out branching child neurite initial direction
 			vector3 childDir;
@@ -2642,6 +2663,25 @@ namespace neuro_collection {
 
 			s = &childSec.splineParamsZ[0];
 			number& v2 = childDir[2];
+			v2 = -3.0*s[0]*te - 2.0*s[1];
+			v2 = v2*te - s[2];
+
+			// find out current neurite direction
+			const NeuriteProjector::Section& currentSec = vNeurites[current_nid].vSec[0];
+			te = currentSec.endParam;
+
+			s = &currentSec.splineParamsX[0];
+			v0 = currentDir[0];
+			v0 = -3.0*s[0]*te - 2.0*s[1];
+			v0 = v0*te - s[2];
+
+			s = &currentSec.splineParamsY[0];
+			v1 = currentDir[1];
+			v1 = -3.0*s[0]*te - 2.0*s[1];
+			v1 = v1*te - s[2];
+
+			s = &currentSec.splineParamsZ[0];
+			v2 = currentDir[2];
 			v2 = -3.0*s[0]*te - 2.0*s[1];
 			v2 = v2*te - s[2];
 
@@ -2759,7 +2799,7 @@ namespace neuro_collection {
 			///                 additional cuboid as the interconnecting piece
 			///    TODO: Add this connecting piece as a new Section/Segment to the
 			///          current neurite then?
-			shrink_quadrilateral_copy(vrts, vrtsOut, vrtsInner, edgesOut, g, aaPos, -neurite.scaleER);
+			shrink_quadrilateral_copy(vrts, vrtsOut, vrtsInner, edgesOut, g, aaPos, -neurite.scaleER, true, NULL, &currentDir);
 			edgesInner = edgesOut;
 			vrtsInner = vrtsOut;
 			/// TODO: The vertices which are created here need to be populated
