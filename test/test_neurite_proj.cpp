@@ -2038,14 +2038,15 @@ namespace neuro_collection {
 	       ug::vector3 dir;
 	       VecSubtract(dir, aaPos[vVrt[i]], center);
 
-   	       /// subtract component parallel to old extrudeDir (neurite direction)
+	       /// TODO: correct shrinkage into a direction (implement)
 	       if (currentDir) {
-	    	   number projection = VecDot(*currentDir, dir) / VecLengthSq(dir);
-	    	   vector3 v;
-	    	   VecScale(v, v, projection);
-	    	   vector3 w;
-	    	   VecSubtract(w, *currentDir, v);
-	    	   dir = w;
+	    	   /// 1. get Edge e starting from i % 4 to i+1 % 4
+	    	   /// 2. Check if e is parallel or anti-parallel to currentDir
+	    	   /// 3. If true then calculate dir1, dir2 from vertex i, i+1 to center
+	    	   /// 4. Project dir1 to edge e if e was parallel to currentDir
+	    	   ///    otherwise project dir1 to edge -e if e was antiparallel to currentDir
+	    	   /// 5. Project dir2 to edge -e if e was parallel to currentDir
+	    	   ///    otherwise project dir2 to edge e if e was antiparallel to currentDir
 	       }
 
 	       UG_LOGN("dir:" << dir)
