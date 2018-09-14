@@ -2193,11 +2193,13 @@ namespace neuro_collection {
     SaveGridToFile(g, sh, "test_shrunk_geom_after.ugx");
 
 }
-	/// TODO: Assign inner / outer to different subsets? assign connections to soma to neurite inner / outer subset?
-	/// TODO: Make this more general: Provide std::vector<Layer> instead of hard-coded one additional layer
+
+
 	/**
 	 * @brief creates neurites with inner layer
 	 */
+	/// TODO: Assign inner / outer to different subsets? assign connections to soma to neurite inner / outer subset?
+	/// TODO: Make this more general: Provide std::vector<Layer> instead of hard-coded one additional layer
 	static void create_neurite_general
 (
     const std::vector<NeuriteProjector::Neurite>& vNeurites,
@@ -2741,19 +2743,33 @@ namespace neuro_collection {
 			}
 
 			g.erase(best);
-			/// shrink large outer quad and create a smaller copy, then extrude starting from this inner now correct quad
-			/// note that that faces are created from the new quad's (smaller inner quad) vertices to the vertices of best inner face in line above
 			std::vector<ug::Vertex*> vrtsOut;
 			std::vector<ug::Edge*> edgesOut;
-			/// TODO: actually don't need to shrink in the direction orthogonal to the extrudeDir... this shrinks in all directions which is too much
-			/// Can use code from above (brit != brit_end) fragment and get dontinuing section of neurite's direction (and get direction)
-			/// Another idea: Create first segment after branching point, then cast a ray back from each extruded inner vertex parallel
-			/// to outer vertex and take intersection with best face inner, these will be the new vertices to which the vertices of the
-			/// best face inner needed to be connected with shrink_auqdrilateral_copy function
+			/// TODO: Improve shrinkage at branching point:
+			/// 1) First idea: Create first segment after branching point, then cast
+			///                a ray back from each extruded inner vertex parallel
+			///                to outer vertex and take intersection with best face
+			///                inner, these will be the new vertices to which the
+			///                vertices of the best face inner needed to be connected
+			///                with shrink_auqdrilateral_copy function -> note that
+			///  			   this generate hanging nodes and the cylinders are not
+			///                shrunken 100% to the same size as specified.
+			/// 2) Better idea: Shrink not in the direction orthogonal to extrudeDir:
+			///					This will be more correct, still we need to add an
+			///                 additional cuboid as the interconnecting piece
+			///    TODO: Add this connecting piece as a new Section/Segment to the
+			///          current neurite then?
 			shrink_quadrilateral_copy(vrts, vrtsOut, vrtsInner, edgesOut, g, aaPos, -neurite.scaleER);
-			/// TODO: vertices are generated here. we need to associate the correct information for aaSurfParam here...
 			edgesInner = edgesOut;
 			vrtsInner = vrtsOut;
+			/// TODO: The vertices which are created here need to be populated
+			///       with correct values for the aaSurfParams: neuriteId, axial
+			///       and angular values have to be calculated correctly
+			for (std::vector<ug::Vertex*>::const_iterator it = vrtsOut.begin(); it != vrtsOut.end(); ++it) {
+				aaSurfParams[*it].neuriteID = nid;
+				aaSurfParams[*it].axial = 3;
+				aaSurfParams[*it].angular = 0;
+			}
 			UG_LOGN("Creating child(s) for inner and outer...")
 			create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
     	}
