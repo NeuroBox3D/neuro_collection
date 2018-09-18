@@ -204,7 +204,7 @@ number takeMeasurement
 			else
 			{
 				SmartPtr<IIntegrand<number, TGridFunction::dim> > spIntegrand
-					= make_sp(new StdFuncIntegrand<TGridFunction>(solution, fctGrp[fi]));
+					= make_sp(new StdFuncIntegrand<TGridFunction>(solution.get(), fctGrp[fi]));
 
 				if (dim == worldDim)
 					value = IntegrateSubset<TGridFunction, worldDim>(*spIntegrand, *solution, ssGrp[si], 1, "best");
