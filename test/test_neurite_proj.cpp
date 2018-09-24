@@ -2332,6 +2332,12 @@ namespace neuro_collection {
 
         // ignore first branching region (the connecting region)
         ++brit;
+
+        /// TODO: in case we have connecting vertices from an branching point (where we shrink quadrilateral copy)
+        /// then we have to set aaSurfParam as below in the else branch!!!! -> this is always the case, thus just set it for inner only!
+        /// See the TODO note below, where we assign axial by default the value 3
+        /// We need to handle this, because this is not correct, but first step is to fully project the coarse grid geometry,
+        /// then address this issue! (fully project means scale vertices accordingly if they belong to inner or outer (can use bool flag in aaSurfParams for instance)
     }
     else
     {
@@ -2571,9 +2577,22 @@ namespace neuro_collection {
 			if (s == nSeg-1 && brit != brit_end) {
 				sel2.enable_autoselection(true); // for last segment (BP), select new elems
 			}
+
+
 			Extrude(g, &vVrtInner, &vEdgeInner, NULL, extrudeDir, aaPos, EO_CREATE_FACES, NULL);
 
 			sel2.enable_autoselection(false);
+
+			/// extrude backwards too
+			/*
+			if (s == 0 && connectingVrts) {
+				std::vector<ug::Vertex*> vVrtInnerCopy = vVrtInner;
+				std::vector<ug::Edge*> vEdgeInnerCopy = vEdgeInner;
+				ug::vector3 extrudeDirNeg;
+				VecScale(extrudeDirNeg, extrudeDir, -1.0);
+				Extrude(g, &vVrtInnerCopy, &vEdgeInnerCopy, NULL, extrudeDirNeg, aaPos, EO_CREATE_FACES, NULL);
+			}
+			*/
 
 			// set new positions and param attachments; also ensure correct face orientation
 			for (size_t j = 0; j < 4; ++j)
