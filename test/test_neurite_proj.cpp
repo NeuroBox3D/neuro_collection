@@ -2338,6 +2338,8 @@ namespace neuro_collection {
         /// See the TODO note below, where we assign axial by default the value 3
         /// We need to handle this, because this is not correct, but first step is to fully project the coarse grid geometry,
         /// then address this issue! (fully project means scale vertices accordingly if they belong to inner or outer (can use bool flag in aaSurfParams for instance)
+        /// axial should be 0 and angle the angle we defined before -> i.e. just pretend the connectingvertices would be similiar then the first layer of vertices!
+        /// -> there is pos[0] used. we have to use pos[-1] (which we can get from the connecting vertices) -> then calculate axialOffset from pos[-1] to pos[0])
     }
     else
     {
@@ -2583,17 +2585,6 @@ namespace neuro_collection {
 
 			sel2.enable_autoselection(false);
 
-			/// extrude backwards too
-			/*
-			if (s == 0 && connectingVrts) {
-				std::vector<ug::Vertex*> vVrtInnerCopy = vVrtInner;
-				std::vector<ug::Edge*> vEdgeInnerCopy = vEdgeInner;
-				ug::vector3 extrudeDirNeg;
-				VecScale(extrudeDirNeg, extrudeDir, -1.0);
-				Extrude(g, &vVrtInnerCopy, &vEdgeInnerCopy, NULL, extrudeDirNeg, aaPos, EO_CREATE_FACES, NULL);
-			}
-			*/
-
 			// set new positions and param attachments; also ensure correct face orientation
 			for (size_t j = 0; j < 4; ++j)
 			{
@@ -2683,25 +2674,6 @@ namespace neuro_collection {
 
 			s = &childSec.splineParamsZ[0];
 			number& v2 = childDir[2];
-			v2 = -3.0*s[0]*te - 2.0*s[1];
-			v2 = v2*te - s[2];
-
-			// find out current neurite direction
-			const NeuriteProjector::Section& currentSec = vNeurites[current_nid].vSec[0];
-			te = currentSec.endParam;
-
-			s = &currentSec.splineParamsX[0];
-			v0 = currentDir[0];
-			v0 = -3.0*s[0]*te - 2.0*s[1];
-			v0 = v0*te - s[2];
-
-			s = &currentSec.splineParamsY[0];
-			v1 = currentDir[1];
-			v1 = -3.0*s[0]*te - 2.0*s[1];
-			v1 = v1*te - s[2];
-
-			s = &currentSec.splineParamsZ[0];
-			v2 = currentDir[2];
 			v2 = -3.0*s[0]*te - 2.0*s[1];
 			v2 = v2*te - s[2];
 
@@ -2825,6 +2797,8 @@ namespace neuro_collection {
 			/// TODO: The vertices which are created here need to be populated
 			///       with correct values for the aaSurfParams: neuriteId, axial
 			///       and angular values have to be calculated correctly
+			/// MARK this as inner branching point, so we can handle it accordignly -> for now done by axial=3...
+			/// -> This can be set by the code above if  (connectingVerts) then set it
 			for (std::vector<ug::Vertex*>::const_iterator it = vrtsOut.begin(); it != vrtsOut.end(); ++it) {
 				aaSurfParams[*it].neuriteID = nid;
 				aaSurfParams[*it].axial = 3;
