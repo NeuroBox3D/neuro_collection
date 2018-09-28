@@ -3234,7 +3234,7 @@ namespace neuro_collection {
 
 	    size_t lineCnt;
 	    std::string line;
-	    size_t somaIndex;
+	    int somaIndex;
 	    std::vector<SWCPoint> swcPoints;
 	    while (std::getline(inFile, line)) {
 	    	lineCnt++;
@@ -3284,7 +3284,7 @@ namespace neuro_collection {
 	void get_closest_points_on_soma(const std::vector<ug::vector3>& vPos, std::vector<ug::vector3> vPointsSomaSurface, Grid& g,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos, SubsetHandler& sh, size_t si) {
 		for (size_t i = 0; i < vPos.size(); i++) {
-				const ug::vector3* pointSet = vPos[i];
+				const ug::vector3* pointSet = &vPos[i];
 				ug::vector3 centerOut;
 				CalculateCenter(centerOut, pointSet, 1);
 				Selector sel(g);
@@ -3310,7 +3310,6 @@ namespace neuro_collection {
 
 
 	void add_soma_surface_to_swc(const size_t& lines, const std::string& fn_precond, const std::string& fn_precond_with_soma, const std::vector<ug::vector3>& vPointsSomaSurface) {
-		size_t newPointIndex = lines+1;
 		std::ifstream inFile(fn_precond.c_str());
 	    UG_COND_THROW(!inFile, "SWC input file '" << fn_precond << "' could not be opened for reading.");
 		std::ofstream outFile(fn_precond_with_soma.c_str());
@@ -3318,9 +3317,10 @@ namespace neuro_collection {
 
 	    size_t lineCnt;
 	    std::string line;
-	    size_t somaIndex;
+	    int somaIndex;
 	    std::vector<SWCPoint> swcPoints;
         std::vector<number> rads;
+        size_t j = 0;
 	    while (std::getline(inFile, line)) {
 	       lineCnt++;
 	       // trim whitespace
@@ -3351,14 +3351,14 @@ namespace neuro_collection {
 
 			 // type
 			   int type = boost::lexical_cast<int>(strs[1]);
-			   if (type == SWC_SOMA && strs[6] == -1) {
+			   if (type == SWC_SOMA && boost::lexical_cast<int>(strs[6]) == -1) {
 				   somaIndex = lineCnt;
 			   } else {
 			        if (boost::lexical_cast<int>(strs[6]) == somaIndex) {
 			        	number rad = boost::lexical_cast<number>(strs[5]);
 			        	rads.push_back(rad);
-			        	strs[6] = lines;
-			        	lines++;
+			        	strs[6] = lines+j;
+			        	j++;
 			        }
 
 			        outFile << strs[0] << " " << strs[1] << " " << strs[2] << " "
@@ -3366,10 +3366,10 @@ namespace neuro_collection {
 			        		<< strs[6] << std::endl;
 			   }
 	    	}
-	    for (size_t i = 0; i < vPointsSomaSurface.size(); i++) {
-	        outFile << lines << " " << vPointsSomaSurface[i].x() << " "
-	        		<< vPointsSomaSurface[i].y() << " " << vPointsSomaSurface[i].z()
-	        		<< " " << rads[i] << " " << -1 << std::endl;
+	    for (size_t j = 0; j < vPointsSomaSurface.size(); j++) {
+	        outFile << lines+j << " " << vPointsSomaSurface[j].x() << " "
+	        		<< vPointsSomaSurface[j].y() << " " << vPointsSomaSurface[j].z()
+	        		<< " " << rads[j] << " " << -1 << std::endl;
 	    }
 	}
 
