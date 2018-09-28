@@ -449,6 +449,7 @@ namespace neuro_collection {
 )
 {
     // clear out vectors
+	vSomaPoints.clear();
     vPosOut.clear();
     vRadOut.clear();
     vBPInfoOut.clear();
@@ -3232,7 +3233,7 @@ namespace neuro_collection {
 		std::ifstream inFile(fn_precond.c_str());
 	    UG_COND_THROW(!inFile, "SWC input file '" << fn_precond << "' could not be opened for reading.");
 
-	    size_t lineCnt;
+	    size_t lineCnt = 0;
 	    std::string line;
 	    int somaIndex;
 	    std::vector<SWCPoint> swcPoints;
@@ -3265,9 +3266,8 @@ namespace neuro_collection {
 		           << "': Line " << lineCnt << " does not contain exactly 7 values.");
 
 		   // type
-		   int type = boost::lexical_cast<int>(strs[1]);
-		   if (type == SWC_SOMA && boost::lexical_cast<int>(strs[6]) == -1) {
-			   somaIndex = lineCnt;
+		   if (boost::lexical_cast<int>(strs[6]) == -1) {
+			   somaIndex = boost::lexical_cast<int>(strs[0]);
 		   } else {
 		        if (boost::lexical_cast<int>(strs[6]) == somaIndex) {
 		        	number x = boost::lexical_cast<number>(strs[2]);
@@ -3281,31 +3281,33 @@ namespace neuro_collection {
 	}
 
 	/// get the closest surface point on soma based on triangulation
-	void get_closest_points_on_soma(const std::vector<ug::vector3>& vPos, std::vector<ug::vector3> vPointsSomaSurface, Grid& g,
+	void get_closest_points_on_soma(const std::vector<ug::vector3>& vPos, std::vector<ug::vector3>& vPointsSomaSurface, Grid& g,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos, SubsetHandler& sh, size_t si) {
+		UG_LOGN("finding now: " << vPos.size());
 		for (size_t i = 0; i < vPos.size(); i++) {
-				const ug::vector3* pointSet = &vPos[i];
-				ug::vector3 centerOut;
-				CalculateCenter(centerOut, pointSet, 1);
-				Selector sel(g);
-				SelectSubsetElements<Vertex>(sel, sh, si, true);
-				Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
-				Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
-				number best = -1;
-				ug::Vertex* best_vertex = NULL;
-				for (; vit != vit_end; ++vit) {
-					number dist = VecDistance(aaPos[*vit], centerOut);
-					if (best == -1) {
-						best = dist;
-						best_vertex = *vit;
-					} else if (dist < best) {
-						best = dist;
-						best_vertex = *vit;
-					}
+			const ug::vector3* pointSet = &vPos[i];
+			ug::vector3 centerOut;
+			CalculateCenter(centerOut, pointSet, 1);
+			Selector sel(g);
+			SelectSubsetElements<Vertex>(sel, sh, si, true);
+			UG_LOGN("selected vertices: " << sel.num<Vertex>());
+			Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
+			Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
+			number best = -1;
+			ug::Vertex* best_vertex = NULL;
+			for (; vit != vit_end; ++vit) {
+				number dist = VecDistance(aaPos[*vit], centerOut);
+				if (best == -1) {
+					best = dist;
+					best_vertex = *vit;
+				} else if (dist < best) {
+					best = dist;
+					best_vertex = *vit;
 				}
-				UG_COND_THROW(!best_vertex, "No best vertex found for quad >>" << i << "<<.");
-				vPointsSomaSurface.push_back(aaPos[best_vertex]);
 			}
+			UG_COND_THROW(!best_vertex, "No best vertex found for root neurite >>" << i << "<<.");
+			vPointsSomaSurface.push_back(aaPos[best_vertex]);
+		}
 	}
 
 
@@ -3313,16 +3315,15 @@ namespace neuro_collection {
 		std::ifstream inFile(fn_precond.c_str());
 	    UG_COND_THROW(!inFile, "SWC input file '" << fn_precond << "' could not be opened for reading.");
 		std::ofstream outFile(fn_precond_with_soma.c_str());
-	    UG_COND_THROW(!inFile, "SWC output file '" << fn_precond_with_soma << "' could not be opened for reading.");
+	    UG_COND_THROW(!outFile, "SWC output file '" << fn_precond_with_soma << "' could not be opened for reading.");
 
-	    size_t lineCnt;
+	    size_t lineCnt = 1;
 	    std::string line;
 	    int somaIndex;
 	    std::vector<SWCPoint> swcPoints;
         std::vector<number> rads;
         size_t j = 0;
 	    while (std::getline(inFile, line)) {
-	       lineCnt++;
 	       // trim whitespace
 		   line = TrimString(line);
 
@@ -3350,26 +3351,31 @@ namespace neuro_collection {
 			          << "': Line " << lineCnt << " does not contain exactly 7 values.");
 
 			 // type
-			   int type = boost::lexical_cast<int>(strs[1]);
-			   if (type == SWC_SOMA && boost::lexical_cast<int>(strs[6]) == -1) {
-				   somaIndex = lineCnt;
-			   } else {
-			        if (boost::lexical_cast<int>(strs[6]) == somaIndex) {
+			 if (boost::lexical_cast<int>(strs[6]) == -1) {
+				   somaIndex = boost::lexical_cast<int>(strs[0]);
+				    outFile << strs[0] << " " << strs[1] << " " << strs[2] << " "
+				        		<< strs[3] << " " << strs[4] << " " << strs[5] << " "
+				        		<< strs[6] << std::endl;
+			 } else {
+				 int index = boost::lexical_cast<int>(strs[6]);
+			     if (index == somaIndex) {
 			        	number rad = boost::lexical_cast<number>(strs[5]);
-			        	rads.push_back(rad);
-			        	strs[6] = lines+j;
+			        	outFile << lineCnt << " 3 " << vPointsSomaSurface[j].x() << " "
+			        			<< vPointsSomaSurface[j].y() << " " << vPointsSomaSurface[j].z()
+			        			<< " " << rad << " " << somaIndex << std::endl;
+			        	outFile << lineCnt+1 << " " << strs[1] << " " << strs[2] << " "
+					   		<< strs[3] << " " << strs[4] << " " << strs[5] << " "
+					   		<< lineCnt << std::endl;
+			        	lineCnt++;
 			        	j++;
-			        }
-
-			        outFile << strs[0] << " " << strs[1] << " " << strs[2] << " "
-			        		<< strs[3] << " " << strs[4] << " " << strs[5] << " "
-			        		<< strs[6] << std::endl;
+			     } else {
+			    	 int newIndex = boost::lexical_cast<int>(strs[6])+j;
+			    	 outFile << lineCnt << " " << strs[1] << " " << strs[2] << " "
+ 	 					   		<< strs[3] << " " << strs[4] << " " << strs[5] << " "
+   	 					   		<< newIndex << std::endl;
+			     }
 			   }
-	    	}
-	    for (size_t j = 0; j < vPointsSomaSurface.size(); j++) {
-	        outFile << lines+j << " " << vPointsSomaSurface[j].x() << " "
-	        		<< vPointsSomaSurface[j].y() << " " << vPointsSomaSurface[j].z()
-	        		<< " " << rads[j] << " " << -1 << std::endl;
+			 lineCnt++;
 	    }
 	}
 
@@ -3393,6 +3399,7 @@ namespace neuro_collection {
     std::vector<ug::vector3> vPosSomaClosest;
     size_t lines;
     get_closest_points_to_soma(fn_precond, vPosSomaClosest, lines);
+    UG_LOGN("got closest points: " << vPosSomaClosest.size());
 
     // create coarse grid
      Grid g;
@@ -3412,10 +3419,6 @@ namespace neuro_collection {
      Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
      aaSurfParams.access(g, aSP);
 
-    std::vector<ug::vector3> vPointSomaSurface;
-    get_closest_points_on_soma(vPosSomaClosest, vPointSomaSurface, g, aaPos, sh, 1);
-    add_soma_surface_to_swc(lines, fn_precond, fn_precond_with_soma, vPointSomaSurface);
-    import_swc(fn_precond, vPoints, correct, 1.0);
 
     // convert intermediate structure to neurite data
     std::vector<std::vector<vector3> > vPos;
@@ -3423,7 +3426,25 @@ namespace neuro_collection {
     std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
     std::vector<size_t> vRootNeuriteIndsOut;
 
+    import_swc(fn_precond, vPoints, correct, 1.0);
     convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+    UG_LOGN("converted to neuritelist 1!")
+
+    std::vector<ug::vector3> vPointSomaSurface;
+    std::vector<SWCPoint> somaPoint = vSomaPoints;
+    somaPoint[0].radius *= 1.50;
+    create_soma(somaPoint, g, aaPos, sh, 1);
+    UG_LOGN("created soma!")
+    get_closest_points_on_soma(vPosSomaClosest, vPointSomaSurface, g, aaPos, sh, 1);
+    UG_LOGN("got closest points on soma: " << vPointSomaSurface.size());
+    add_soma_surface_to_swc(lines, fn_precond, fn_precond_with_soma, vPointSomaSurface);
+    UG_LOGN("added soma points to swc")
+    g.clear_geometry();
+    import_swc(fn_precond_with_soma, vPoints, correct, 1.0);
+
+    UG_LOGN("converted to neuritelist 2!")
+    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+
     std::vector<Vertex*> outVerts;
     std::vector<number> outRads;
     std::vector<Vertex*> outVertsInner;
@@ -3469,7 +3490,7 @@ namespace neuro_collection {
     sel.clear();
     UG_LOGN("Creating soma!")
     sh.set_default_subset_index(1);
-    std::vector<SWCPoint> somaPoint = vSomaPoints;
+    somaPoint = vSomaPoints;
     create_soma(somaPoint, g, aaPos, sh, 1);
     UG_LOGN("Done with soma!");
     std::vector<Vertex*> outQuadsInner;
@@ -3502,6 +3523,7 @@ namespace neuro_collection {
      	sh.set_subset_name(ss.str().c_str(), i);
     }
     SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting.ugx");
+
 
     // at branching points, we have not computed the correct positions yet,
     // so project the complete geometry using the projector -> for inner neurite this fails at some points -> needs to be addressed.
@@ -3593,6 +3615,7 @@ namespace neuro_collection {
     Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
     aaSurfParams.access(g, aSP);
 
+    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
     UG_LOGN("Creating soma!")
     sh.set_default_subset_index(1);
     std::vector<SWCPoint> somaPoint = vSomaPoints;
