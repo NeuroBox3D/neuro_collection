@@ -3227,6 +3227,152 @@ namespace neuro_collection {
     }
 }
 
+	/// get's the first points closest to soma
+	void get_closest_points_to_soma(const std::string& fn_precond, std::vector<ug::vector3>& vPos, size_t& lines) {
+		std::ifstream inFile(fn_precond.c_str());
+	    UG_COND_THROW(!inFile, "SWC input file '" << fn_precond << "' could not be opened for reading.");
+
+	    size_t lineCnt;
+	    std::string line;
+	    size_t somaIndex;
+	    std::vector<SWCPoint> swcPoints;
+	    while (std::getline(inFile, line)) {
+	    	lineCnt++;
+	    	// trim whitespace
+	        line = TrimString(line);
+
+	        // ignore anything from possible '#' onwards
+	        size_t nChar = line.size();
+	        for (size_t i = 0; i < nChar; ++i)
+	        {
+	            if (line.at(i) == '#')
+	            {
+	                line = line.substr(0, i);
+	                break;
+	            }
+	        }
+
+	        // empty lines can be ignored
+		    if (line.empty()) continue;
+
+		    // split the line into tokens
+		    std::istringstream buf(line);
+		    std::istream_iterator<std::string> beg(buf), end;
+		    std::vector<std::string> strs(beg, end);
+
+		    // assert number of tokens is correct
+		    UG_COND_THROW(strs.size() != 7, "Error reading SWC file '" << fn_precond
+		           << "': Line " << lineCnt << " does not contain exactly 7 values.");
+
+		   // type
+		   int type = boost::lexical_cast<int>(strs[1]);
+		   if (type == SWC_SOMA && boost::lexical_cast<int>(strs[6]) == -1) {
+			   somaIndex = lineCnt;
+		   } else {
+		        if (boost::lexical_cast<int>(strs[6]) == somaIndex) {
+		        	number x = boost::lexical_cast<number>(strs[2]);
+		        	number y = boost::lexical_cast<number>(strs[3]);
+		        	number z = boost::lexical_cast<number>(strs[4]);
+		        	vPos.push_back(ug::vector3(x, y, z));
+		        }
+		   }
+	    }
+	    lines = lineCnt;
+	}
+
+	/// get the closest surface point on soma based on triangulation
+	void get_closest_points_on_soma(const std::vector<ug::vector3>& vPos, std::vector<ug::vector3> vPointsSomaSurface, Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos, SubsetHandler& sh, size_t si) {
+		for (size_t i = 0; i < vPos.size(); i++) {
+				const ug::vector3* pointSet = vPos[i];
+				ug::vector3 centerOut;
+				CalculateCenter(centerOut, pointSet, 1);
+				Selector sel(g);
+				SelectSubsetElements<Vertex>(sel, sh, si, true);
+				Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
+				Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
+				number best = -1;
+				ug::Vertex* best_vertex = NULL;
+				for (; vit != vit_end; ++vit) {
+					number dist = VecDistance(aaPos[*vit], centerOut);
+					if (best == -1) {
+						best = dist;
+						best_vertex = *vit;
+					} else if (dist < best) {
+						best = dist;
+						best_vertex = *vit;
+					}
+				}
+				UG_COND_THROW(!best_vertex, "No best vertex found for quad >>" << i << "<<.");
+				vPointsSomaSurface.push_back(aaPos[best_vertex]);
+			}
+	}
+
+
+	void add_soma_surface_to_swc(const size_t& lines, const std::string& fn_precond, const std::string& fn_precond_with_soma, const std::vector<ug::vector3>& vPointsSomaSurface) {
+		size_t newPointIndex = lines+1;
+		std::ifstream inFile(fn_precond.c_str());
+	    UG_COND_THROW(!inFile, "SWC input file '" << fn_precond << "' could not be opened for reading.");
+		std::ofstream outFile(fn_precond_with_soma.c_str());
+	    UG_COND_THROW(!inFile, "SWC output file '" << fn_precond_with_soma << "' could not be opened for reading.");
+
+	    size_t lineCnt;
+	    std::string line;
+	    size_t somaIndex;
+	    std::vector<SWCPoint> swcPoints;
+        std::vector<number> rads;
+	    while (std::getline(inFile, line)) {
+	       lineCnt++;
+	       // trim whitespace
+		   line = TrimString(line);
+
+		   // ignore anything from possible '#' onwards
+		   size_t nChar = line.size();
+		   for (size_t i = 0; i < nChar; ++i)
+		   {
+		     if (line.at(i) == '#')
+		     {
+		        line = line.substr(0, i);
+		         break;
+		     }
+		   }
+
+			// empty lines can be ignored
+			if (line.empty()) continue;
+
+			// split the line into tokens
+			std::istringstream buf(line);
+			std::istream_iterator<std::string> beg(buf), end;
+			std::vector<std::string> strs(beg, end);
+
+			// assert number of tokens is correct
+			 UG_COND_THROW(strs.size() != 7, "Error reading SWC file '" << fn_precond
+			          << "': Line " << lineCnt << " does not contain exactly 7 values.");
+
+			 // type
+			   int type = boost::lexical_cast<int>(strs[1]);
+			   if (type == SWC_SOMA && strs[6] == -1) {
+				   somaIndex = lineCnt;
+			   } else {
+			        if (boost::lexical_cast<int>(strs[6]) == somaIndex) {
+			        	number rad = boost::lexical_cast<number>(strs[5]);
+			        	rads.push_back(rad);
+			        	strs[6] = lines;
+			        	lines++;
+			        }
+
+			        outFile << strs[0] << " " << strs[1] << " " << strs[2] << " "
+			        		<< strs[3] << " " << strs[4] << " " << strs[5] << " "
+			        		<< strs[6] << std::endl;
+			   }
+	    	}
+	    for (size_t i = 0; i < vPointsSomaSurface.size(); i++) {
+	        outFile << lines << " " << vPointsSomaSurface[i].x() << " "
+	        		<< vPointsSomaSurface[i].y() << " " << vPointsSomaSurface[i].z()
+	        		<< " " << rads[i] << " " << -1 << std::endl;
+	    }
+	}
+
 	/**
 	 * @brief the grid generation test method with scaling and ER generation as well as correcting angle
 	 */
@@ -3242,6 +3388,33 @@ namespace neuro_collection {
     std::vector<SWCPoint> vSomaPoints;
     std::string fn_noext = FilenameWithoutExtension(fileName);
     std::string fn_precond = fn_noext + "_precond.swc";
+    std::string fn_precond_with_soma = fn_noext + "_precond_with_soma.swc";
+    std::vector<ug::vector3> vSurfacePoints;
+    std::vector<ug::vector3> vPosSomaClosest;
+    size_t lines;
+    get_closest_points_to_soma(fn_precond, vPosSomaClosest, lines);
+
+    // create coarse grid
+     Grid g;
+     SubsetHandler sh(g);
+     sh.set_default_subset_index(0);
+     g.attach_to_vertices(aPosition);
+     Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+     Selector sel(g);
+
+     typedef NeuriteProjector::SurfaceParams NPSP;
+     UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
+             "GlobalAttachment 'npSurfParams' not declared.");
+     Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
+     if (!g.has_vertex_attachment(aSP))
+         g.attach_to_vertices(aSP);
+
+     Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
+     aaSurfParams.access(g, aSP);
+
+    std::vector<ug::vector3> vPointSomaSurface;
+    get_closest_points_on_soma(vPosSomaClosest, vPointSomaSurface, g, aaPos, sh, 1);
+    add_soma_surface_to_swc(lines, fn_precond, fn_precond_with_soma, vPointSomaSurface);
     import_swc(fn_precond, vPoints, correct, 1.0);
 
     // convert intermediate structure to neurite data
@@ -3260,23 +3433,7 @@ namespace neuro_collection {
     std::vector<NeuriteProjector::Neurite> vNeurites;
     create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
 
-    // create coarse grid
-    Grid g;
-    SubsetHandler sh(g);
-    sh.set_default_subset_index(0);
-    g.attach_to_vertices(aPosition);
-    Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
-    Selector sel(g);
 
-    typedef NeuriteProjector::SurfaceParams NPSP;
-    UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
-            "GlobalAttachment 'npSurfParams' not declared.");
-    Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
-    if (!g.has_vertex_attachment(aSP))
-        g.attach_to_vertices(aSP);
-
-    Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
-    aaSurfParams.access(g, aSP);
 
 
     UG_LOGN("do projection handling and generate geom3d")
@@ -3387,6 +3544,139 @@ namespace neuro_collection {
         UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
     }
 }
+
+
+	/**
+	 * @brief the grid generation test method with scaling and ER generation as well as correcting angle
+	 */
+	void test_import_swc_general_smooth(const std::string& fileName, bool correct, number scaleER, bool withER)
+{
+	UG_LOGN("scaling ER (inner layer) to: " << scaleER);
+	UG_COND_THROW(scaleER == 1.0, "scaling to the same size as outer layer is NOT allowed.");
+	// preconditioning
+    test_smoothing(fileName, 5, 1.0, 1.0);
+
+	// read in file to intermediate structure
+    std::vector<SWCPoint> vPoints;
+    std::vector<SWCPoint> vSomaPoints;
+    std::string fn_noext = FilenameWithoutExtension(fileName);
+    std::string fn_precond = fn_noext + "_precond.swc";
+    import_swc(fn_precond, vPoints, correct, 1.0);
+
+    // convert intermediate structure to neurite data
+    std::vector<std::vector<vector3> > vPos;
+    std::vector<std::vector<number> > vRad;
+    std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
+    std::vector<size_t> vRootNeuriteIndsOut;
+
+    std::vector<Vertex*> outVerts;
+    std::vector<number> outRads;
+    std::vector<Vertex*> outVertsInner;
+    std::vector<number> outRadsInner;
+
+
+    // create coarse grid
+    Grid g;
+    SubsetHandler sh(g);
+    sh.set_default_subset_index(0);
+    g.attach_to_vertices(aPosition);
+    Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+    Selector sel(g);
+
+    typedef NeuriteProjector::SurfaceParams NPSP;
+    UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
+            "GlobalAttachment 'npSurfParams' not declared.");
+    Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
+    if (!g.has_vertex_attachment(aSP))
+        g.attach_to_vertices(aSP);
+
+    Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
+    aaSurfParams.access(g, aSP);
+
+    UG_LOGN("Creating soma!")
+    sh.set_default_subset_index(1);
+    std::vector<SWCPoint> somaPoint = vSomaPoints;
+    create_soma(somaPoint, g, aaPos, sh, 1);
+    UG_LOGN("Done with soma!");
+
+
+    // create spline data
+    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+    std::vector<NeuriteProjector::Neurite> vNeurites;
+    create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
+
+    UG_LOGN("do projection handling and generate geom3d")
+    ProjectionHandler projHandler(&sh);
+    SmartPtr<IGeometry<3> > geom3d = MakeGeometry3d(g, aPosition);
+    projHandler.set_geometry(geom3d);
+    UG_LOGN("done!")
+
+    SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
+    projHandler.set_projector(0, neuriteProj);
+
+    /// indicate scale and if ER is present
+    for (std::vector<NeuriteProjector::Neurite>::iterator it = vNeurites.begin(); it != vNeurites.end(); ++it) {
+    	it->bHasER = true;
+    	it->scaleER = scaleER;
+    }
+
+    // FIXME: This has to be improved: When neurites are copied,
+    //        pointers inside still point to our vNeurites array.
+    //        If we destroy it, we're in for some pretty EXC_BAD_ACCESSes.
+    UG_LOGN("add neurites")
+    for (size_t i = 0; i < vNeurites.size(); ++i)
+        neuriteProj->add_neurite(vNeurites[i]);
+    UG_LOGN("done");
+
+    UG_LOGN("generating neurites")
+    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
+    	create_neurite_general(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, NULL, NULL, &outVerts, &outVertsInner, &outRads, &outRadsInner);
+    }
+
+    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
+
+    // at branching points, we have not computed the correct positions yet,
+    // so project the complete geometry using the projector -> for inner neurite this fails at some points -> needs to be addressed.
+    // TODO: little bit dirty; provide proper method in NeuriteProjector to do this
+    VertexIterator vit = sh.begin<Vertex>(0);
+    VertexIterator vit_end = sh.end<Vertex>(0);
+    for (; vit != vit_end; ++vit)
+    {
+        Edge* tmp = *g.create<RegularEdge>(EdgeDescriptor(*vit,*vit));
+        neuriteProj->new_vertex(*vit, tmp);
+        g.erase(tmp);
+    }
+
+    // refinement
+    std::string outFileName = FilenameWithoutPath(std::string("testNeuriteProjector.ugx"));
+    GridWriterUGX ugxWriter;
+    ugxWriter.add_grid(g, "defGrid", aPosition);
+    ugxWriter.add_subset_handler(sh, "defSH", 0);
+    ugxWriter.add_projection_handler(projHandler, "defPH", 0);
+    if (!ugxWriter.write_to_file(outFileName.c_str()))
+        UG_THROW("Grid could not be written to file '" << outFileName << "'.");
+
+    Domain3d dom;
+    try {LoadDomain(dom, outFileName.c_str());}
+    UG_CATCH_THROW("Failed loading domain from '" << outFileName << "'.");
+
+    std::string curFileName("testNeuriteProjector.ugx");
+    number offset=10;
+    try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
+    UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
+
+    GlobalMultiGridRefiner ref(*dom.grid(), dom.refinement_projector());
+    for (size_t i = 0; i < 4; ++i)
+    {
+        ref.refine();
+        std::ostringstream oss;
+        oss << "_refined_" << i+1 << ".ugx";
+        curFileName = outFileName.substr(0, outFileName.size()-4) + oss.str();
+        try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
+        UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
+    }
+}
+
 
 	/**
 	 * @brief the grid generation test method with scaling only and correcting angles
