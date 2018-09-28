@@ -2791,7 +2791,7 @@ namespace neuro_collection {
 			///                 additional cuboid as the interconnecting piece
 			///    TODO: Add this connecting piece as a new Section/Segment to the
 			///          current neurite then?
-			shrink_quadrilateral_copy(vrts, vrtsOut, vrtsInner, edgesOut, g, aaPos, -neurite.scaleER, true, NULL, &currentDir);
+			shrink_quadrilateral_copy(vrts, vrtsOut, vrtsInner, edgesOut, g, aaPos, -neurite.scaleER/2.0, true, NULL, &currentDir);
 			edgesInner = edgesOut;
 			vrtsInner = vrtsOut;
 			/// TODO: The vertices which are created here need to be populated
