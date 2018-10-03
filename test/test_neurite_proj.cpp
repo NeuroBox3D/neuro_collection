@@ -2218,10 +2218,10 @@ namespace neuro_collection {
 
 
 	/**
-	 * @brief creates neurites with inner layer
+	 * @brief creates neurites with one inner layer
+	 * Note: Make this more general: Provide std::vector<Layer> instead of
+	 * hard-coded one additional layer -> then can add provide more nestings
 	 */
-	/// TODO: Assign inner / outer to different subsets? assign connections to soma to neurite inner / outer subset?
-	/// TODO: Make this more general: Provide std::vector<Layer> instead of hard-coded one additional layer
 	static void create_neurite_general
 (
     const std::vector<NeuriteProjector::Neurite>& vNeurites,
@@ -2384,6 +2384,7 @@ namespace neuro_collection {
         		aaSurfParams[v].neuriteID = nid;
         		aaSurfParams[v].axial = 0.0;
         		aaSurfParams[v].angular = angle;
+        		aaSurfParams[v].scale = neurite.scaleER;
         		outVertsInner->push_back(v);
         		UG_LOGN("aaPos[v]: " << aaPos[v]);
         	}
@@ -2630,6 +2631,7 @@ namespace neuro_collection {
 					aaSurfParams[v].neuriteID = nid;
 					aaSurfParams[v].axial = segAxPos;
 					aaSurfParams[v].angular = angle;
+					aaSurfParams[v].scale = neurite.scaleER;
 
 					Grid::traits<Face>::secure_container faceCont;
 					g.associated_elements(faceCont, vEdgeInner[j]);  // faceCont must contain exactly one face
@@ -2784,32 +2786,16 @@ namespace neuro_collection {
 			g.erase(best);
 			std::vector<ug::Vertex*> vrtsOut;
 			std::vector<ug::Edge*> edgesOut;
-			/// TODO: Improve shrinkage at branching point:
-			/// 1) First idea: Create first segment after branching point, then cast
-			///                a ray back from each extruded inner vertex parallel
-			///                to outer vertex and take intersection with best face
-			///                inner, these will be the new vertices to which the
-			///                vertices of the best face inner needed to be connected
-			///                with shrink_auqdrilateral_copy function -> note that
-			///  			   this generate hanging nodes and the cylinders are not
-			///                shrunken 100% to the same size as specified.
-			/// 2) Better idea: Shrink not in the direction orthogonal to extrudeDir:
-			///					This will be more correct, still we need to add an
-			///                 additional cuboid as the interconnecting piece
-			///    TODO: Add this connecting piece as a new Section/Segment to the
-			///          current neurite then?
 			shrink_quadrilateral_copy(vrts, vrtsOut, vrtsInner, edgesOut, g, aaPos, -neurite.scaleER/2.0, true, NULL, &currentDir);
 			edgesInner = edgesOut;
 			vrtsInner = vrtsOut;
-			/// TODO: The vertices which are created here need to be populated
-			///       with correct values for the aaSurfParams: neuriteId, axial
-			///       and angular values have to be calculated correctly
-			/// MARK this as inner branching point, so we can handle it accordignly -> for now done by axial=3...
-			/// -> This can be set by the code above if  (connectingVerts) then set it
-			for (std::vector<ug::Vertex*>::const_iterator it = vrtsOut.begin(); it != vrtsOut.end(); ++it) {
-				aaSurfParams[*it].neuriteID = nid;
-				aaSurfParams[*it].axial = 3;
-				aaSurfParams[*it].angular = 0;
+			/// TODO: axial parameter is not correct for inner connecting pieces (inner BPs) to next neurite yet
+			for (size_t i = 0; i < vrtsOut.size(); i++) {
+			/// for (std::vector<ug::Vertex*>::const_iterator it = vrtsOut.begin(); it != vrtsOut.end(); ++it) {
+				aaSurfParams[vrtsOut[i]].neuriteID = nid;
+				aaSurfParams[vrtsOut[i]].axial = 3;
+				aaSurfParams[vrtsOut[i]].angular = 0;
+				aaSurfParams[vrtsOut[i]].scale = neurite.scaleER;
 			}
 			UG_LOGN("Creating child(s) for inner and outer...")
 			create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
@@ -2864,6 +2850,7 @@ namespace neuro_collection {
     aaSurfParams[vInner].neuriteID = nid;
     aaSurfParams[vInner].axial = 2.0;
     aaSurfParams[vInner].angular = 0.0;
+    aaSurfParams[vInner].scale = neurite.scaleER;
 }
 
 	void export_to_ugx
@@ -3175,7 +3162,7 @@ namespace neuro_collection {
 
     // at branching points, we have not computed the correct positions yet,
     // so project the complete geometry using the projector
-    // TODO: little bit dirty; provide proper method in NeuriteProjector to do this
+    // Note: little bit dirty; provide proper method in NeuriteProjector to do this
     VertexIterator vit = g.begin<Vertex>();
     VertexIterator vit_end = g.end<Vertex>();
     for (; vit != vit_end; ++vit)
@@ -3540,7 +3527,7 @@ namespace neuro_collection {
 
     // at branching points, we have not computed the correct positions yet,
     // so project the complete geometry using the projector -> for inner neurite this fails at some points -> needs to be addressed.
-    // TODO: little bit dirty; provide proper method in NeuriteProjector to do this
+    // Note: little bit dirty; provide proper method in NeuriteProjector to do this
     VertexIterator vit = sh.begin<Vertex>(0);
     VertexIterator vit_end = sh.end<Vertex>(0);
     for (; vit != vit_end; ++vit)
@@ -3673,7 +3660,7 @@ namespace neuro_collection {
 
     // at branching points, we have not computed the correct positions yet,
     // so project the complete geometry using the projector -> for inner neurite this fails at some points -> needs to be addressed.
-    // TODO: little bit dirty; provide proper method in NeuriteProjector to do this
+    // Note: little bit dirty; provide proper method in NeuriteProjector to do this
     VertexIterator vit = sh.begin<Vertex>(0);
     VertexIterator vit_end = sh.end<Vertex>(0);
     for (; vit != vit_end; ++vit)
@@ -4028,7 +4015,7 @@ namespace neuro_collection {
 
     // at branching points, we have not computed the correct positions yet,
     // so project the complete geometry using the projector
-    // TODO: little bit dirty; provide proper method in NeuriteProjector to do this
+    // Note: little bit dirty; provide proper method in NeuriteProjector to do this
     VertexIterator vit = g.begin<Vertex>();
     VertexIterator vit_end = g.end<Vertex>();
     for (; vit != vit_end; ++vit)
@@ -4128,7 +4115,6 @@ namespace neuro_collection {
 			UG_ASSERT(par, "Object with base object id FACE is not a face.");
 			neuriteProj->new_vertex(*vrtIter, par);
 		}
-
 		/// TODO: treat the volume case!
 	}
 }
