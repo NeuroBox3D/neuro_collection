@@ -1290,6 +1290,12 @@ namespace neuro_collection {
 	SaveGridToFile(g, sh, ss.str().c_str());
 	ss.str(""); ss.clear();
 
+	/*for (size_t i = 0; i < numQuads; i++) {
+		/// sh.begin<Vertex>(si),
+		/// TODO: iterate over all vertices of teh subset and set the aaSurfParam for axial to -1 and neurite index to i
+		/// TODO: create the SomaSection vector with circle information
+	}*/
+
 	UG_LOGN("6. Extrude rings along normal")
 	/// 6. Extrudiere die Ringe entlang ihrer Normalen mit Höhe 0 (Extrude mit
 	///    aktivierter create faces Option).
@@ -3442,6 +3448,12 @@ namespace neuro_collection {
     g.clear_geometry();
     import_swc(fn_precond_with_soma, vPoints, correct, 1.0);
 
+    /// see the "original" as ugx
+    /*   swc_points_to_grid(vPoints, g, sh);
+    std::string fn_orig = fn_noext + "_precond_with_soma_orig.ugx";
+   	export_to_ugx(g, sh, fn_orig);
+   	*/
+
     UG_LOGN("converted to neuritelist 2!")
     convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 
@@ -3524,6 +3536,7 @@ namespace neuro_collection {
     }
     SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting.ugx");
 
+    RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aaPos, 0.0001);
 
     // at branching points, we have not computed the correct positions yet,
     // so project the complete geometry using the projector -> for inner neurite this fails at some points -> needs to be addressed.
