@@ -728,7 +728,7 @@ namespace neuro_collection {
                      - (r[i] - r[i-1]) / dt[i]) ;
         xr = mat*rhs;
 
-        // FIXME: find suitable permissible render vector
+        // Note: find suitable permissible render vector
         neuriteOut.refDir = vector3(0,0,1);
         neuriteOut.vSec.reserve(nVrt-1);
 
@@ -801,7 +801,7 @@ namespace neuro_collection {
 
                 // calculate t_start and t_end for parent's BR
                 // we surround by approx. 3*radius in all directions
-                // TODO: This might need some patching up
+                // Note: This might need some patching up
                 //       for branching points with almost parallel child and parent,
                 //       where the branching point mollifying effect persists even farther away
                 number threeRad = 5.0 * r[i+1];
@@ -2339,14 +2339,6 @@ namespace neuro_collection {
 
         // ignore first branching region (the connecting region)
         ++brit;
-
-        /// TODO: in case we have connecting vertices from an branching point (where we shrink quadrilateral copy)
-        /// then we have to set aaSurfParam as below in the else branch!!!! -> this is always the case, thus just set it for inner only!
-        /// See the TODO note below, where we assign axial by default the value 3
-        /// We need to handle this, because this is not correct, but first step is to fully project the coarse grid geometry,
-        /// then address this issue! (fully project means scale vertices accordingly if they belong to inner or outer (can use bool flag in aaSurfParams for instance)
-        /// axial should be 0 and angle the angle we defined before -> i.e. just pretend the connectingvertices would be similiar then the first layer of vertices!
-        /// -> there is pos[0] used. we have to use pos[-1] (which we can get from the connecting vertices) -> then calculate axialOffset from pos[-1] to pos[0])
     }
     else
     {
@@ -2789,13 +2781,13 @@ namespace neuro_collection {
 			shrink_quadrilateral_copy(vrts, vrtsOut, vrtsInner, edgesOut, g, aaPos, -neurite.scaleER/2.0, true, NULL, &currentDir);
 			edgesInner = edgesOut;
 			vrtsInner = vrtsOut;
-			/// TODO: axial parameter is not correct for inner connecting pieces (inner BPs) to next neurite yet
+			/// TODO: axial parameter is not correct for inner connecting pieces (inner BPs) to next neurite yet maybe?!
 			for (size_t i = 0; i < vrtsOut.size(); i++) {
 			/// for (std::vector<ug::Vertex*>::const_iterator it = vrtsOut.begin(); it != vrtsOut.end(); ++it) {
 				aaSurfParams[vrtsOut[i]].neuriteID = nid;
-				aaSurfParams[vrtsOut[i]].axial = 3;
-				aaSurfParams[vrtsOut[i]].angular = 0;
-				aaSurfParams[vrtsOut[i]].scale = neurite.scaleER;
+				aaSurfParams[vrtsOut[i]].axial = aaSurfParams[vrts[i]].axial;
+				aaSurfParams[vrtsOut[i]].angular = aaSurfParams[vrts[i]].angular;
+				aaSurfParams[vrtsOut[i]].scale = neurite.scaleER; /// TODO: potentially this is -neurite.scaleER/2.0
 			}
 			UG_LOGN("Creating child(s) for inner and outer...")
 			create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
