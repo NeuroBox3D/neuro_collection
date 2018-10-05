@@ -10,6 +10,7 @@
 #include "lib_grid/refinement/projectors/projection_handler.h"
 #include "../../ugcore/ugbase/lib_grid/refinement/projectors/cylinder_volume_projector.h"
 #include "lib_grid/refinement/projectors/neurite_projector.h"
+#include "lib_grid/refinement/projectors/cylinder_projector.h"
 #include "lib_grid/file_io/file_io_ugx.h"  // GridWriterUGX
 #include "lib_grid/file_io/file_io.h"  // SaveGridHierarchyTransformed
 #include "lib_grid/grid/geometry.h" // MakeGeometry3d
@@ -2781,7 +2782,7 @@ namespace neuro_collection {
 			shrink_quadrilateral_copy(vrts, vrtsOut, vrtsInner, edgesOut, g, aaPos, -neurite.scaleER/2.0, true, NULL, &currentDir);
 			edgesInner = edgesOut;
 			vrtsInner = vrtsOut;
-			/// TODO: axial parameter is not correct for inner connecting pieces (inner BPs) to next neurite yet maybe?!
+			/// TODO: axial parameter is not correct for inner connecting pieces (inner BPs) to next neurite yet
 			for (size_t i = 0; i < vrtsOut.size(); i++) {
 			/// for (std::vector<ug::Vertex*>::const_iterator it = vrtsOut.begin(); it != vrtsOut.end(); ++it) {
 				aaSurfParams[vrtsOut[i]].neuriteID = nid;
@@ -3456,6 +3457,8 @@ namespace neuro_collection {
 
     SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
     projHandler.set_projector(0, neuriteProj);
+   // SmartPtr<CylinderProjector> cylinderProj(new CylinderProjector(geom3d, ug::vector3(2.16351, -6.54061, -11.6796), ug::vector3(-0.706319, 1.02197, 3.24604), -1, -1));
+   // projHandler.set_projector(2, cylinderProj);
 
     /// indicate scale and if ER is present
     for (std::vector<NeuriteProjector::Neurite>::iterator it = vNeurites.begin(); it != vNeurites.end(); ++it) {
