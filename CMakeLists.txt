@@ -79,22 +79,16 @@ include(${UG_ROOT_CMAKE_PATH}/ug_plugin_includes.cmake)
 # This will copy the configurable file config_cmake.h to
 # the final configuration header nc_config.h,
 # setting the #defines as given by the current CMake variables.
-configure_file(config_cmake.h nc_config.h)
+configure_file(config_cmake.h ${CMAKE_BINARY_DIR}/nc_config.h)
 
 
 if(buildEmbeddedPlugins)
 	# add the sources to ug4's sources
 	EXPORTSOURCES(${CMAKE_CURRENT_SOURCE_DIR} ${SOURCES})
-
-	# add include path for nc_config.h
-	ExportIncludes(${CMAKE_CURRENT_BINARY_DIR})
 	
 else(buildEmbeddedPlugins)
 	# create a shared library from the sources and link it against ug4.
 	add_library(${pluginName} SHARED ${SOURCES})
-	
-	# add include path for nc_config.h
-	include_directories(${CMAKE_CURRENT_BINARY_DIR})
 	
 	if (MembranePotentialMapping)
 		# make plugin link against MPM
