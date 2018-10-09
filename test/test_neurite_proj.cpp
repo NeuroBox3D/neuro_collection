@@ -2237,6 +2237,40 @@ namespace neuro_collection {
 
 }
 
+	typedef float (NeuriteProjector::SurfaceParams::*membervar);
+	template< membervar m > struct CompareBy {
+		Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> > m_aaSurfParams;
+	   bool operator()( const ug::Vertex* a, const ug::Vertex* b ) const {
+	      return m_aaSurfParams[a].*m < m_aaSurfParams[b].*m ;
+	   }
+	   CompareBy(const Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams) {
+		   m_aaSurfParams = aaSurfParams;
+	   }
+	};
+
+
+	static void correct_axial_offset
+	(
+		std::vector<ug::Vertex*>& verts,
+		Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+		Grid::VertexAttachmentAccessor<APosition>& aaPos,
+		number scale
+	) {
+		 sort(verts.begin(), verts.end(), CompareBy< &NeuriteProjector::SurfaceParams::axial >(aaSurfParams) );
+
+		 ug::vector3 min;
+		 ug::vector3 max;
+		 VecScaleAdd(min, 0.5, aaPos[verts[0]], 0.5, aaPos[verts[1]]);
+		 VecScaleAdd(max, 0.5, aaPos[verts[2]], 0.5, aaPos[verts[3]]);
+		 number length = VecDistance(min, max);
+		 /// TODO: scale length with total neurite length
+		 aaSurfParams[verts[0]].axial += length*scale;
+		 aaSurfParams[verts[1]].axial += length*scale;
+		 aaSurfParams[verts[2]].axial -= length*scale;
+		 aaSurfParams[verts[3]].axial -= length*scale;
+		 UG_COND_THROW(verts.size() != 4, "Exactly 4 vertices are necessary on coarse grid level.");
+	}
+
 
 	/**
 	 * @brief creates neurites with one inner layer
@@ -2657,6 +2691,7 @@ namespace neuro_collection {
 			lastPos = curPos;
     	}
 
+
 		vector3 currentDir;
     	/// connect branching neurites if present
     	if (brit != brit_end)
@@ -2802,7 +2837,6 @@ namespace neuro_collection {
 			shrink_quadrilateral_copy(vrts, vrtsOut, vrtsInner, edgesOut, g, aaPos, -neurite.scaleER/2.0, true, NULL, &currentDir);
 			edgesInner = edgesOut;
 			vrtsInner = vrtsOut;
-			/// TODO: axial parameter is not correct for inner connecting pieces (inner BPs) to next neurite yet
 			for (size_t i = 0; i < vrtsOut.size(); i++) {
 			/// for (std::vector<ug::Vertex*>::const_iterator it = vrtsOut.begin(); it != vrtsOut.end(); ++it) {
 				aaSurfParams[vrtsOut[i]].neuriteID = nid;
@@ -2811,6 +2845,8 @@ namespace neuro_collection {
 				aaSurfParams[vrtsOut[i]].scale = neurite.scaleER; /// TODO: potentially this is -neurite.scaleER/2.0  and axial needs to be corrected...
 				/// Way out: save the axial values in a temp vector, sort, add something to the two smallest and subtract something from the largest...
 			}
+			/// TODO: axial parameter is not correct for inner connecting pieces (inner BPs) to next neurite yet
+			correct_axial_offset(vrtsOut, aaSurfParams, aaPos, neurite.scaleER);
 			UG_LOGN("Creating child(s) for inner and outer...")
 			create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
     	}
