@@ -1060,8 +1060,7 @@ namespace neuro_collection {
 	/**
 	 * @brief connects neurites to soma
 	 * TODO: Find suitable parameters for tangential smooth and resolve intersection
-	 * Note: Try something better than linear to connect somata with neurites -> spline data?
-	 *
+	 * Note: How to improve connection at soma surface?!
 	 */
 	static void connect_neurites_with_soma
 (
@@ -1075,6 +1074,7 @@ namespace neuro_collection {
 	   SubsetHandler& sh,
 	   const std::string& fileName,
 	   number rimSnapThresholdFactor,
+	   std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > >& axisVectors,
 	   bool createInner=true,
 	   number alpha=0.01,
 	   int numIterations=10,
@@ -1099,11 +1099,14 @@ namespace neuro_collection {
 	UG_LOGN("2. Calculate center of each quad, find next surface vertex on soma.")
 	/// 2. Berechne den Schwerpunkt jedes Quads und finde den nächstgelegenen
 	///    Vertex des Oberflächengitters vom Soma
+	std::vector<ug::vector3> centerOuts;
+	std::vector<ug::vector3> centerOuts2;
 	std::vector<Vertex*> bestVertices;
 	for (size_t i = 0; i < numQuads; i++) {
 		const ug::vector3* pointSet = &(quads[i][0]);
 		ug::vector3 centerOut;
 		CalculateCenter(centerOut, pointSet, numVerts);
+		centerOuts.push_back(centerOut);
 		Selector sel(g);
 		SelectSubsetElements<Vertex>(sel, sh, si, true);
 		Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
@@ -1291,12 +1294,6 @@ namespace neuro_collection {
 	SaveGridToFile(g, sh, ss.str().c_str());
 	ss.str(""); ss.clear();
 
-	/*for (size_t i = 0; i < numQuads; i++) {
-		/// sh.begin<Vertex>(si),
-		/// TODO: iterate over all vertices of teh subset and set the aaSurfParam for axial to -1 and neurite index to i
-		/// TODO: create the SomaSection vector with circle information
-	}*/
-
 	UG_LOGN("6. Extrude rings along normal")
 	/// 6. Extrudiere die Ringe entlang ihrer Normalen mit Höhe 0 (Extrude mit
 	///    aktivierter create faces Option).
@@ -1306,20 +1303,32 @@ namespace neuro_collection {
 
 	std::vector<std::vector<Vertex*> > somaVertsInner;
 	std::vector<std::vector<Vertex*> > allVertsInner;
+
 	for (size_t i = 0; i < numQuads; i++) {
 		size_t si = beginningOfQuads+i;
 		ug::vector3 normal;
 		CalculateVertexNormal(normal, g, *sh.begin<Vertex>(si), aaPos);
 		UG_LOGN("normal (outer): " << normal);
+		ug::vector3 axisVector;
+		CalculateCenter(sh.begin<Vertex>(si), sh.end<Vertex>(si), aaPos);
+		VecAdd(axisVector, axisVector, normal);
 		std::vector<Edge*> edges;
+		std::vector<Vertex*> vertices;
 
 		for (SubsetHandler::traits<Edge>::const_iterator it = sh.begin<Edge>(si); it != sh.end<Edge>(si); ++it) {
 			edges.push_back(*it);
 		}
 
+		for (SubsetHandler::traits<Vertex>::const_iterator it = sh.begin<Vertex>(si); it != sh.end<Vertex>(si); ++it) {
+			vertices.push_back(*it);
+		}
+
 		if (createInner) {
 			for (SubsetHandler::traits<Edge>::const_iterator it = sh.begin<Edge>(si+numQuads); it != sh.end<Edge>(si+numQuads); ++it) {
 				edges.push_back(*it);
+			}
+			for (SubsetHandler::traits<Vertex>::const_iterator it = sh.begin<Vertex>(si+numQuads); it != sh.end<Vertex>(si+numQuads); ++it) {
+			vertices.push_back(*it);
 			}
 		}
 
@@ -1343,7 +1352,9 @@ namespace neuro_collection {
 		if (createInner) {
 			SelectSubsetElements<Vertex>(sel, sh, si+numQuads, true);
 		}
-		Extrude(g, NULL, &edges, NULL, normal, aaPos, EO_CREATE_FACES, NULL);
+		Extrude(g, &vertices, &edges, NULL, normal, aaPos, EO_CREATE_FACES, NULL);
+		ug::vector3 centerOut2 = CalculateCenter(vertices.begin(), vertices.end(), aaPos);
+		centerOuts2.push_back(centerOut2);
 		sel.clear();
 
 		SelectSubsetElements<Vertex>(sel, sh, si, true);
@@ -1360,6 +1371,9 @@ namespace neuro_collection {
 			sel.clear();
 			temp2.clear();
 		}
+
+		ug::vector3 cylinderCenter = CalculateCenter(sh.begin<Vertex>(si), sh.end<Vertex>(si), aaPos);
+		axisVectors.push_back(make_pair(si, make_pair(axisVector, cylinderCenter)));
 	}
 
 	ss << fileName << "_after_extruding_cylinders_before_removing_common_vertices.ugx";
@@ -1419,7 +1433,13 @@ namespace neuro_collection {
 			using ug::neuro_collection::quickhull::gen_face;
 			gen_face(temp, temp2, g, sh, si+i, aaPos);
 		#endif
-
+		ug::vector3 center;
+		center = CalculateCenter(sh.begin<Vertex>(si+i+1000), sh.end<Vertex>(si+i+1000), aaPos);
+		ug::vector3 axis;
+		VecSubtract(axis, centerOuts2[i], centerOuts[i]);
+		axisVectors.push_back(make_pair(si+i+numQuads*2, make_pair(axis, center)));
+		/// numQuads*2 is required: n-inner quads and n-outer quads -> these quads here are the connecting quads
+		/// i.e. first come all outer quads, then all inner quads, then the connecting outer quads, then the connecting inner quads
 	}
 
 	if (createInner) {
@@ -3419,7 +3439,7 @@ namespace neuro_collection {
 
     std::vector<ug::vector3> vPointSomaSurface;
     std::vector<SWCPoint> somaPoint = vSomaPoints;
-    somaPoint[0].radius *= 1.50;
+    somaPoint[0].radius *= 1.50; /// TODO check if this makes sense
     create_soma(somaPoint, g, aaPos, sh, 1);
     UG_LOGN("created soma!")
     get_closest_points_on_soma(vPosSomaClosest, vPointSomaSurface, g, aaPos, sh, 1);
@@ -3447,9 +3467,6 @@ namespace neuro_collection {
     std::vector<NeuriteProjector::Neurite> vNeurites;
     create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
 
-
-
-
     UG_LOGN("do projection handling and generate geom3d")
     ProjectionHandler projHandler(&sh);
     SmartPtr<IGeometry<3> > geom3d = MakeGeometry3d(g, aPosition);
@@ -3458,12 +3475,6 @@ namespace neuro_collection {
 
     SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
     projHandler.set_projector(0, neuriteProj);
-   // SmartPtr<CylinderProjector> cylinderProj(new CylinderProjector(geom3d, ug::vector3(-0.555984, -10.5534, -11.2105), ug::vector3(-2.1821, 0.897938, 4.3195), -1, -1));
-    //projHandler.set_projector(11, cylinderProj);
-
-    /// TODO: could add for each subset the appropriate cylinder then use this projector...
-   // SmartPtr<CylinderProjector> cylinderProj(new CylinderProjector(geom3d, ug::vector3(2.16351, -6.54061, -11.6796), ug::vector3(-0.706319, 1.02197, 3.24604), -1, -1));
-   // projHandler.set_projector(2, cylinderProj);
 
     /// indicate scale and if ER is present
     for (std::vector<NeuriteProjector::Neurite>::iterator it = vNeurites.begin(); it != vNeurites.end(); ++it) {
@@ -3471,7 +3482,7 @@ namespace neuro_collection {
     	it->scaleER = scaleER;
     }
 
-    // FIXME: This has to be improved: When neurites are copied,
+    // Note:  This has to be improved: When neurites are copied,
     //        pointers inside still point to our vNeurites array.
     //        If we destroy it, we're in for some pretty EXC_BAD_ACCESSes.
     UG_LOGN("add neurites")
@@ -3493,7 +3504,23 @@ namespace neuro_collection {
     create_soma(somaPoint, g, aaPos, sh, 1);
     UG_LOGN("Done with soma!");
     std::vector<Vertex*> outQuadsInner;
-    connect_neurites_with_soma(g, aaPos, outVerts, outVertsInner, outRads, outQuadsInner, 1, sh, fileName, 1.0, true);
+    std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectors;
+    /// TODO: add also innerQuads axisVectors for soma connections
+    connect_neurites_with_soma(g, aaPos, outVerts, outVertsInner, outRads, outQuadsInner, 1, sh, fileName, 1.0, axisVectors, true);
+
+    /// TODO: project each subset of soma connection by cylinder projector: And firstly project this on the correct cylinder in the 0th refinement
+    UG_LOGN("Number of projectors: " << axisVectors.size());
+    for (size_t i = 0; i < axisVectors.size(); i++) {
+    	size_t si = axisVectors[i].first;
+    	ug::vector3 axis = axisVectors[i].second.first;
+    	ug::vector3 center = axisVectors[i].second.second;
+    	UG_LOGN("si: " << si);
+    	UG_LOGN("center: " << center);
+    	UG_LOGN("axis: " << axis);
+    	SmartPtr<CylinderProjector> cylinderProj(new CylinderProjector(geom3d, center, axis, -1, -1));
+    	projHandler.set_projector(si, cylinderProj);
+    }
+
     UG_LOGN("Done with connecting neurites!");
     UG_LOGN("Creating soma inner!")
     somaPoint.front().radius = somaPoint.front().radius * scaleER;
@@ -3502,7 +3529,8 @@ namespace neuro_collection {
     UG_LOGN("Done with soma inner!");
     std::vector<Vertex*> outQuadsInner2;
     UG_LOGN("Size of outQuadsInner: " << outQuadsInner.size())
-    connect_neurites_with_soma(g, aaPos, outQuadsInner, outVertsInner, outRadsInner, outQuadsInner2, newSomaIndex, sh, fileName, scaleER, false);
+    std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectorsInner;
+    connect_neurites_with_soma(g, aaPos, outQuadsInner, outVertsInner, outRadsInner, outQuadsInner2, newSomaIndex, sh, fileName, scaleER, axisVectors, false);
 
     // save after connecting and assign subsets
     EraseEmptySubsets(sh);
@@ -3523,7 +3551,7 @@ namespace neuro_collection {
     }
     SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting.ugx");
 
-    /// Doubles might occur -> remove these
+    /// Double Vertices might occur (during Qhull gen faces) -> remove these here to be sure
     RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aaPos, 0.0001);
 
     // at branching points, we have not computed the correct positions yet,
@@ -3792,7 +3820,8 @@ namespace neuro_collection {
 
     // connect soma with neurites
     std::vector<Vertex*> outQuads;
-    connect_neurites_with_soma(g, aaPos, outVerts, outVerts, outRads, outQuads, 1, sh, fileName, 1.0, false);
+    std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectors;
+    connect_neurites_with_soma(g, aaPos, outVerts, outVerts, outRads, outQuads, 1, sh, fileName, 1.0, axisVectors, false);
     UG_LOGN("Done with connecting neurites!");
 
     // refinement
