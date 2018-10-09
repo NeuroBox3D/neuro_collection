@@ -2788,7 +2788,8 @@ namespace neuro_collection {
 				aaSurfParams[vrtsOut[i]].neuriteID = nid;
 				aaSurfParams[vrtsOut[i]].axial = aaSurfParams[vrts[i]].axial;
 				aaSurfParams[vrtsOut[i]].angular = aaSurfParams[vrts[i]].angular;
-				aaSurfParams[vrtsOut[i]].scale = neurite.scaleER; /// TODO: potentially this is -neurite.scaleER/2.0
+				aaSurfParams[vrtsOut[i]].scale = neurite.scaleER; /// TODO: potentially this is -neurite.scaleER/2.0  and axial needs to be corrected...
+				/// Way out: save the axial values in a temp vector, sort, add something to the two smallest and subtract something from the largest...
 			}
 			UG_LOGN("Creating child(s) for inner and outer...")
 			create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
@@ -3457,6 +3458,10 @@ namespace neuro_collection {
 
     SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
     projHandler.set_projector(0, neuriteProj);
+   // SmartPtr<CylinderProjector> cylinderProj(new CylinderProjector(geom3d, ug::vector3(-0.555984, -10.5534, -11.2105), ug::vector3(-2.1821, 0.897938, 4.3195), -1, -1));
+    //projHandler.set_projector(11, cylinderProj);
+
+    /// TODO: could add for each subset the appropriate cylinder then use this projector...
    // SmartPtr<CylinderProjector> cylinderProj(new CylinderProjector(geom3d, ug::vector3(2.16351, -6.54061, -11.6796), ug::vector3(-0.706319, 1.02197, 3.24604), -1, -1));
    // projHandler.set_projector(2, cylinderProj);
 
@@ -3518,6 +3523,7 @@ namespace neuro_collection {
     }
     SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting.ugx");
 
+    /// Doubles might occur -> remove these
     RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aaPos, 0.0001);
 
     // at branching points, we have not computed the correct positions yet,
