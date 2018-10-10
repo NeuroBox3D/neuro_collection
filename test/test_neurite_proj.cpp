@@ -2249,13 +2249,19 @@ namespace neuro_collection {
 	};
 
 
+	/**
+	 * @brief corrects the axial offset at the inner branching points
+	 * This means, we move the points with smaller axial value further down
+	 * the current neurite and the larger axial values further back
+	 */
 	static void correct_axial_offset
 	(
 		std::vector<ug::Vertex*>& verts,
 		Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 		Grid::VertexAttachmentAccessor<APosition>& aaPos,
 		number scale
-	) {
+	)
+	{
 		 sort(verts.begin(), verts.end(), CompareBy< &NeuriteProjector::SurfaceParams::axial >(aaSurfParams) );
 
 		 ug::vector3 min;
@@ -2264,6 +2270,7 @@ namespace neuro_collection {
 		 VecScaleAdd(max, 0.5, aaPos[verts[2]], 0.5, aaPos[verts[3]]);
 		 number length = VecDistance(min, max);
 		 /// TODO: scale length with total neurite length
+
 		 aaSurfParams[verts[0]].axial += length*scale;
 		 aaSurfParams[verts[1]].axial += length*scale;
 		 aaSurfParams[verts[2]].axial -= length*scale;
@@ -2845,8 +2852,8 @@ namespace neuro_collection {
 				aaSurfParams[vrtsOut[i]].scale = neurite.scaleER; /// TODO: potentially this is -neurite.scaleER/2.0  and axial needs to be corrected...
 				/// Way out: save the axial values in a temp vector, sort, add something to the two smallest and subtract something from the largest...
 			}
-			/// TODO: axial parameter is not correct for inner connecting pieces (inner BPs) to next neurite yet
-			correct_axial_offset(vrtsOut, aaSurfParams, aaPos, neurite.scaleER);
+			/// TODO: axial parameter is not correct for inner connecting pieces (inner BPs) to next neurite yet: scale length relative to neurite length
+			/// correct_axial_offset(vrtsOut, aaSurfParams, aaPos, neurite.scaleER);
 			UG_LOGN("Creating child(s) for inner and outer...")
 			create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
     	}
@@ -3198,7 +3205,7 @@ namespace neuro_collection {
     SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
     projHandler.set_projector(0, neuriteProj);
 
-    // FIXME: This has to be improved: When neurites are copied,
+    // Note:  This has to be improved: When neurites are copied,
     //        pointers inside still point to our vNeurites array.
     //        If we destroy it, we're in for some pretty EXC_BAD_ACCESSes.
     UG_LOGN("add neurites")
@@ -3271,8 +3278,16 @@ namespace neuro_collection {
     }
 }
 
-	/// get's the first points closest to soma
-	void get_closest_points_to_soma(const std::string& fn_precond, std::vector<ug::vector3>& vPos, size_t& lines) {
+	/**
+	 * @brief get's the first points closest to soma
+	 */
+	void get_closest_points_to_soma
+	(
+		const std::string& fn_precond,
+		std::vector<ug::vector3>& vPos,
+		size_t& lines
+	)
+	{
 		std::ifstream inFile(fn_precond.c_str());
 	    UG_COND_THROW(!inFile, "SWC input file '" << fn_precond << "' could not be opened for reading.");
 
@@ -3323,9 +3338,18 @@ namespace neuro_collection {
 	    lines = lineCnt;
 	}
 
-	/// get the closest surface point on soma based on triangulation
-	void get_closest_points_on_soma(const std::vector<ug::vector3>& vPos, std::vector<ug::vector3>& vPointsSomaSurface, Grid& g,
-			Grid::VertexAttachmentAccessor<APosition>& aaPos, SubsetHandler& sh, size_t si) {
+	/**
+	 * @brief get the closest surface point on soma surface based on triangulation
+	 */
+	void get_closest_points_on_soma
+	(
+		const std::vector<ug::vector3>& vPos,
+		std::vector<ug::vector3>& vPointsSomaSurface, Grid& g,
+		Grid::VertexAttachmentAccessor<APosition>& aaPos,
+		SubsetHandler& sh,
+		size_t si
+	)
+	{
 		UG_LOGN("finding now: " << vPos.size());
 		for (size_t i = 0; i < vPos.size(); i++) {
 			const ug::vector3* pointSet = &vPos[i];
@@ -3353,8 +3377,19 @@ namespace neuro_collection {
 		}
 	}
 
-
-	void add_soma_surface_to_swc(const size_t& lines, const std::string& fn_precond, const std::string& fn_precond_with_soma, const std::vector<ug::vector3>& vPointsSomaSurface) {
+	/**
+	 * @brief add the new soma surface points to the precondioned swc file.
+	 * Note that we assume every dendrite is connected to the ROOT soma point,
+	 * and this might, depending on the reconstruction of the SWC file not be true.
+	 */
+	void add_soma_surface_to_swc
+	(
+		const size_t& lines,
+		const std::string& fn_precond,
+		const std::string& fn_precond_with_soma,
+		const std::vector<ug::vector3>& vPointsSomaSurface
+	)
+	{
 		std::ifstream inFile(fn_precond.c_str());
 	    UG_COND_THROW(!inFile, "SWC input file '" << fn_precond << "' could not be opened for reading.");
 		std::ofstream outFile(fn_precond_with_soma.c_str());
@@ -3445,22 +3480,22 @@ namespace neuro_collection {
     UG_LOGN("got closest points: " << vPosSomaClosest.size());
 
     // create coarse grid
-     Grid g;
-     SubsetHandler sh(g);
-     sh.set_default_subset_index(0);
-     g.attach_to_vertices(aPosition);
-     Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
-     Selector sel(g);
+    Grid g;
+    SubsetHandler sh(g);
+    sh.set_default_subset_index(0);
+    g.attach_to_vertices(aPosition);
+    Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+    Selector sel(g);
 
-     typedef NeuriteProjector::SurfaceParams NPSP;
-     UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
-             "GlobalAttachment 'npSurfParams' not declared.");
-     Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
-     if (!g.has_vertex_attachment(aSP))
-         g.attach_to_vertices(aSP);
+    typedef NeuriteProjector::SurfaceParams NPSP;
+    UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
+            "GlobalAttachment 'npSurfParams' not declared.");
+    Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
+    if (!g.has_vertex_attachment(aSP))
+        g.attach_to_vertices(aSP);
 
-     Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
-     aaSurfParams.access(g, aSP);
+    Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
+    aaSurfParams.access(g, aSP);
 
 
     // convert intermediate structure to neurite data
@@ -3484,12 +3519,6 @@ namespace neuro_collection {
     UG_LOGN("added soma points to swc")
     g.clear_geometry();
     import_swc(fn_precond_with_soma, vPoints, correct, 1.0);
-
-    /// see the "original" as ugx
-    /*   swc_points_to_grid(vPoints, g, sh);
-    std::string fn_orig = fn_noext + "_precond_with_soma_orig.ugx";
-   	export_to_ugx(g, sh, fn_orig);
-   	*/
 
     UG_LOGN("converted to neuritelist 2!")
     convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
