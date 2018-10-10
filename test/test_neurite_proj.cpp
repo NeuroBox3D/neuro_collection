@@ -2284,8 +2284,7 @@ namespace neuro_collection {
 		std::vector<ug::Vertex*>& verts,
 		Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 		Grid::VertexAttachmentAccessor<APosition>& aaPos,
-		number scale,
-		number neurite_length
+		number scale
 	)
 	{
 		 sort(verts.begin(), verts.end(), CompareBy< &NeuriteProjector::SurfaceParams::axial >(aaSurfParams) );
@@ -2299,16 +2298,18 @@ namespace neuro_collection {
 
 		 number length = aaSurfParams[verts[2]].axial - aaSurfParams[verts[0]].axial;
 
+		 UG_LOGN("length TIMES scale/2: " << length*scale/2)
+
 		 /*UG_LOGN("axial verts0: " << aaSurfParams[verts[0]].axial);
 		 UG_LOGN("axial verts1: " << aaSurfParams[verts[1]].axial);
 		 UG_LOGN("axial verts2: " << aaSurfParams[verts[2]].axial);
 		 UG_LOGN("axial verts3: " << aaSurfParams[verts[3]].axial);
 		 */
 
-		 aaSurfParams[verts[0]].axial = aaSurfParams[verts[0]].axial + length*scale/2;
-		 aaSurfParams[verts[1]].axial = aaSurfParams[verts[1]].axial + length*scale/2;
-		 aaSurfParams[verts[2]].axial = aaSurfParams[verts[2]].axial - length*scale/2;
-		 aaSurfParams[verts[3]].axial = aaSurfParams[verts[3]].axial - length*scale/2;
+		 aaSurfParams[verts[0]].axial = aaSurfParams[verts[0]].axial - length*scale/2;
+		 aaSurfParams[verts[1]].axial = aaSurfParams[verts[1]].axial - length*scale/2;
+		 aaSurfParams[verts[2]].axial = aaSurfParams[verts[2]].axial + length*scale/2;
+		 aaSurfParams[verts[3]].axial = aaSurfParams[verts[3]].axial + length*scale/2;
 		 UG_COND_THROW(verts.size() != 4, "Exactly 4 vertices are necessary on coarse grid level.");
 	}
 
@@ -2874,21 +2875,24 @@ namespace neuro_collection {
 			g.erase(best);
 			std::vector<ug::Vertex*> vrtsOut;
 			std::vector<ug::Edge*> edgesOut;
-			//shrink_quadrilateral_copy(vrts, vrtsOut, vrtsInner, edgesOut, g, aaPos, -neurite.scaleER/2.0, true, NULL, &currentDir);
-			shrink_quadrilateral_copy(vrtsInner, vrtsOut, vrtsInner, edgesOut, g, aaPos, 0, true, NULL, &currentDir);
+			shrink_quadrilateral_copy(vrts, vrtsOut, vrtsInner, edgesOut, g, aaPos, -neurite.scaleER/2.0, true, NULL, &currentDir);
+			/// shrink_quadrilateral_copy(vrtsInner, vrtsOut, vrtsInner, edgesOut, g, aaPos, 0, true, NULL, &currentDir);
 			edgesInner = edgesOut;
 			vrtsInner = vrtsOut;
 			for (size_t i = 0; i < vrtsOut.size(); i++) {
 				aaSurfParams[vrtsOut[i]].neuriteID = nid;
 				aaSurfParams[vrtsOut[i]].axial = aaSurfParams[vrts[i]].axial;
 				aaSurfParams[vrtsOut[i]].angular = aaSurfParams[vrts[i]].angular;
-				aaSurfParams[vrtsOut[i]].scale = neurite.scaleER/2;
+				aaSurfParams[vrtsOut[i]].scale = neurite.scaleER;
 			}
-			/// TODO: The axial parameters for the inner BPs are either not correct or have to be
-			/// handled differently in the neurite_projector. -> Reposition the points after projection handling
-			/// Better idea: Use exactly same positions for vertices of inner face, and add neurite.scaleER to them
-			/// Then... in the neurite_projector code we handle the inner BPs as the outer BPs and scale down all
-			///correct_axial_offset(vrtsOut, aaSurfParams, aaPos, neurite.scaleER, neurite_length);
+			/// TODO: The axial parameters for the inner BPs are not correct and have to be handled differently.
+			/// -> Reposition the points after projection handling (Don't used shrunken quad because will get extra faces)
+			/// Better idea: Use exactly same positions for vertices of inner face and add neurite.scaleER to these vertices.
+			/// Then... in the neurite_projector code we handle the inner BPs the same way as the outer BPs and scale them down
+			/// Then... the axial parameters might not be correct again -> have to correct them aftewards / the positions
+			/// Or: Can try to correct axial parameters directly here with the method below, but this will make it hard to produce
+			/// a good cell-in-cell structure at branching points
+			/// correct_axial_offset(vrtsInner, aaSurfParams, aaPos, neurite.scaleER);
 			UG_LOGN("Creating child(s) for inner and outer...")
 			create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
     	}
