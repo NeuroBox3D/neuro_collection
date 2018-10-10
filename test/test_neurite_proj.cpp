@@ -58,6 +58,9 @@
 namespace ug {
 namespace neuro_collection {
 
+	/**
+	 * brief imports a SWC file
+	 */
 	void import_swc
 (
     const std::string& fileName,
@@ -166,6 +169,9 @@ namespace neuro_collection {
     }
 }
 
+	/**
+	 * @brief smooeths out the SWC file
+	 */
 	void smoothing(std::vector<SWCPoint>& vPointsInOut, size_t n, number h, number gamma)
 {
 	// find neurite root vertices
@@ -285,6 +291,9 @@ namespace neuro_collection {
 	{return e1.second > e2.second;}
 };
 
+	/**
+	 * @brief collapses too short edges, i.e. smaller then diameter of section
+	 */
 	void collapse_short_edges(Grid& g, SubsetHandler& sh)
 {
 	// get access to positions
@@ -439,6 +448,9 @@ namespace neuro_collection {
    	}
 }
 
+	/**
+	 * @brief SWC list to NeuriteList
+	 */
 	void convert_pointlist_to_neuritelist
 (
     const std::vector<SWCPoint>& vPoints,
@@ -642,6 +654,9 @@ namespace neuro_collection {
 
 }
 
+	/**
+	 * @brief create spline data operates on NeuriteList to create splines
+	 */
 	static void create_spline_data_for_neurites
 (
     std::vector<NeuriteProjector::Neurite>& vNeuritesOut,
@@ -888,6 +903,9 @@ namespace neuro_collection {
 */
 }
 
+	/**
+	 * @brief helper method to calculate length
+	 */
 	number calculate_length_over_radius
 (
 	number t_start,
@@ -958,6 +976,9 @@ namespace neuro_collection {
 	return integral;
 }
 
+	/**
+	 * @brief helper method to calculate the axial positions
+	 */
 	void calculate_segment_axial_positions
 (
 	std::vector<number>& segAxPosOut,
@@ -1212,7 +1233,6 @@ namespace neuro_collection {
 			SaveGridToFile(g, sh, ss.str().c_str());
 		}
 	}
-
 
 	if (createInner) {
 		/// Shrink each quad on the outer soma surface
@@ -1486,6 +1506,9 @@ namespace neuro_collection {
 	SaveGridToFile(g, sh, ss.str().c_str());
 }
 
+	/**
+	 * @brief the first create_neurite method
+	 */
 	static void create_neurite
 (
     const std::vector<NeuriteProjector::Neurite>& vNeurites,
@@ -1932,7 +1955,7 @@ namespace neuro_collection {
 }
 
 	/**
-	 * \brief splits quadrilateral along edge (parallel)
+	 * @brief splits quadrilateral along edge (parallel)
 	 */
 	void split_quadrilateral_along_edges
 	(
@@ -1993,7 +2016,7 @@ namespace neuro_collection {
 	}
 
 	/**
-	 * \brief callback method to test split quadrilateral with ugshell
+	 * @brief callback method to test split quadrilateral with ugshell
 	 */
 	void test_split_geom(number percentage) {
 		    Grid g;
@@ -2237,6 +2260,9 @@ namespace neuro_collection {
 
 }
 
+	/**
+	 * @brief generic comparator for SurfaceParams
+	 */
 	typedef float (NeuriteProjector::SurfaceParams::*membervar);
 	template< membervar m > struct CompareBy {
 		Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> > m_aaSurfParams;
@@ -2248,7 +2274,6 @@ namespace neuro_collection {
 	   }
 	};
 
-
 	/**
 	 * @brief corrects the axial offset at the inner branching points
 	 * This means, we move the points with smaller axial value further down
@@ -2259,7 +2284,8 @@ namespace neuro_collection {
 		std::vector<ug::Vertex*>& verts,
 		Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 		Grid::VertexAttachmentAccessor<APosition>& aaPos,
-		number scale
+		number scale,
+		number neurite_length
 	)
 	{
 		 sort(verts.begin(), verts.end(), CompareBy< &NeuriteProjector::SurfaceParams::axial >(aaSurfParams) );
@@ -2268,8 +2294,7 @@ namespace neuro_collection {
 		 ug::vector3 max;
 		 VecScaleAdd(min, 0.5, aaPos[verts[0]], 0.5, aaPos[verts[1]]);
 		 VecScaleAdd(max, 0.5, aaPos[verts[2]], 0.5, aaPos[verts[3]]);
-		 number length = VecDistance(min, max);
-		 /// TODO: scale length with total neurite length
+		 number length = VecDistance(min, max) / neurite_length;
 
 		 aaSurfParams[verts[0]].axial += length*scale;
 		 aaSurfParams[verts[1]].axial += length*scale;
@@ -2277,7 +2302,6 @@ namespace neuro_collection {
 		 aaSurfParams[verts[3]].axial -= length*scale;
 		 UG_COND_THROW(verts.size() != 4, "Exactly 4 vertices are necessary on coarse grid level.");
 	}
-
 
 	/**
 	 * @brief creates neurites with one inner layer
@@ -2853,7 +2877,7 @@ namespace neuro_collection {
 				/// Way out: save the axial values in a temp vector, sort, add something to the two smallest and subtract something from the largest...
 			}
 			/// TODO: axial parameter is not correct for inner connecting pieces (inner BPs) to next neurite yet: scale length relative to neurite length
-			/// correct_axial_offset(vrtsOut, aaSurfParams, aaPos, neurite.scaleER);
+			correct_axial_offset(vrtsOut, aaSurfParams, aaPos, neurite.scaleER, neurite_length);
 			UG_LOGN("Creating child(s) for inner and outer...")
 			create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
     	}
@@ -2910,6 +2934,9 @@ namespace neuro_collection {
     aaSurfParams[vInner].scale = neurite.scaleER;
 }
 
+	/**
+	 * @brief exports grid to ugx
+	 */
 	void export_to_ugx
 (
 	Grid& g,
@@ -2924,6 +2951,9 @@ namespace neuro_collection {
 		UG_THROW("Grid could not be written to file '" << fileName << "'.");
 }
 
+	/**
+	 * @brief exports grid to swc
+	 */
 	void export_to_swc
 (
 	Grid& g,
@@ -3064,6 +3094,9 @@ namespace neuro_collection {
     outFile.close();
 }
 
+	/**
+	 * @brief convert swc points to a ug grid
+	 */
 	void swc_points_to_grid
 (
 	const std::vector<SWCPoint>& vPts,
@@ -3114,6 +3147,9 @@ namespace neuro_collection {
 	EraseEmptySubsets(sh);
 }
 
+	/**
+	 * @brief test function to test smoothing
+	 */
 	void test_smoothing(const std::string& fileName, size_t n, number h, number gamma, number scale=1.0)
 {
 	std::vector<SWCPoint> vPoints;
@@ -3570,10 +3606,11 @@ namespace neuro_collection {
     UG_LOGN("Done with soma!");
     std::vector<Vertex*> outQuadsInner;
     std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectors;
-    /// TODO: add also innerQuads axisVectors for soma connections
+    /// TODO: add also innerQuads axisVectors for soma/neurite connections
     connect_neurites_with_soma(g, aaPos, outVerts, outVertsInner, outRads, outQuadsInner, 1, sh, fileName, 1.0, axisVectors, true);
 
-    /// TODO: project each subset of soma connection by cylinder projector: And firstly project this on the correct cylinder in the 0th refinement
+    /// TODO: Project each subset of soma connection by cylinder projector:
+    /// But first project this on the correct cylinder in the 0th refinement!
     UG_LOGN("Number of projectors: " << axisVectors.size());
     for (size_t i = 0; i < axisVectors.size(); i++) {
     	size_t si = axisVectors[i].first;
@@ -3660,7 +3697,6 @@ namespace neuro_collection {
         UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
     }
 }
-
 
 	/**
 	 * @brief the grid generation test method with scaling and ER generation as well as correcting angle
@@ -3794,7 +3830,6 @@ namespace neuro_collection {
     }
 }
 
-
 	/**
 	 * @brief the grid generation test method with scaling only and correcting angles
 	 */
@@ -3923,6 +3958,9 @@ namespace neuro_collection {
     }
 }
 
+	/**
+	 * @brief neurite projector test method for four section tube
+	 */
 	void test_neurite_projector_with_four_section_tube()
 {
     // we set up a neuron going
@@ -4026,6 +4064,9 @@ namespace neuro_collection {
     }
 }
 
+	/**
+	 * @brief neurite projector test method for sections with tubes and branches
+	 */
 	void test_neurite_projector_with_four_section_tube_and_branch_point()
 {
     // we set up a neurite going
@@ -4185,9 +4226,11 @@ namespace neuro_collection {
     }
 }
 
-	/// top level vertex repositioning function for neurite projection
+	/**
+	  * @brief top level vertex repositioning function for neurite projection
+	  */
 	void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuriteProj)
-{
+	{
 	// define attachment accessors
 	Grid::VertexAttachmentAccessor<APosition> aaPos(mg, aPosition);
 
@@ -4211,9 +4254,12 @@ namespace neuro_collection {
 			neuriteProj->new_vertex(*vrtIter, par);
 		}
 		/// TODO: treat the volume case!
+		}
 	}
-}
 
+	/**
+	 * @brief test method to test the experimental cylinder volume projector
+	 */
 	void test_cylinder_volume_projector()
 {
     // grid preparation
@@ -4287,5 +4333,6 @@ namespace neuro_collection {
         //    UG_THROW("Grid could not be written to file '" << fileName << "'.");
     }
 }
+
 	} // namespace neuro_collection
 } // namespace ug
