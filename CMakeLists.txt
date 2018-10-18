@@ -17,6 +17,7 @@ set(SOURCES neuro_collection_plugin.cpp
             membrane_transport_fv1.cpp
             membrane_transporters/membrane_transporter_interface.cpp
             membrane_transporters/hh.cpp
+            membrane_transporters/hh_charges.cpp
             membrane_transporters/hh_species.cpp
             membrane_transporters/leakage_ohmic.cpp
             membrane_transporters/ip3r.cpp

@@ -5,7 +5,7 @@
  *      Author: mbreit
  */
 
-#include "hh.h"
+#include "hh_charges.h"
 
 #include "lib_disc/spatial_disc/disc_util/geom_provider.h"  // for GeomProvider
 
@@ -15,7 +15,7 @@ namespace neuro_collection {
 
 
 template <typename TDomain>
-void HH<TDomain>::set_conductances(number gk, number gna)
+void HHCharges<TDomain>::set_conductances(number gk, number gna)
 {
 	m_gK = gk;
 	m_gNa = gna;
@@ -23,7 +23,7 @@ void HH<TDomain>::set_conductances(number gk, number gna)
 
 
 template <typename TDomain>
-void HH<TDomain>::set_reversal_potentials(number ek, number ena)
+void HHCharges<TDomain>::set_reversal_potentials(number ek, number ena)
 {
 	m_eK = ek;
 	m_eNa = ena;
@@ -31,14 +31,14 @@ void HH<TDomain>::set_reversal_potentials(number ek, number ena)
 
 
 template <typename TDomain>
-void HH<TDomain>::set_reference_time(number refTime)
+void HHCharges<TDomain>::set_reference_time(number refTime)
 {
 	m_refTime = refTime;
 }
 
 
 template <typename TDomain>
-void HH<TDomain>::use_exact_gating_mode(number timeStep)
+void HHCharges<TDomain>::use_exact_gating_mode(number timeStep)
 {
 	m_bVoltageExplicitDiscMode = true;
 	m_VEDMdt = timeStep;
@@ -46,12 +46,20 @@ void HH<TDomain>::use_exact_gating_mode(number timeStep)
 
 
 template <typename TDomain>
-HH<TDomain>::HH(const std::vector<std::string>& fcts, const std::vector<std::string>& subsets)
+void HHCharges<TDomain>::use_gating_explicit_current_mode()
+{
+	m_bGatingExplicitCurrentMode = true;
+}
+
+
+template <typename TDomain>
+HHCharges<TDomain>::HHCharges(const std::vector<std::string>& fcts, const std::vector<std::string>& subsets)
 : IMembraneTransporter(fcts), IElemDisc<TDomain>(fcts, subsets),
   m_gK(2e-11), m_gNa(2e-11),
   m_eK(-0.077), m_eNa(0.05),
   m_refTime(1.0),
   m_bVoltageExplicitDiscMode(false),
+  m_bGatingExplicitCurrentMode(false),
   m_VEDMdt(1e-5),
   m_bNonRegularGrid(false),
   m_bCurrElemIsHSlave(false)
@@ -61,12 +69,13 @@ HH<TDomain>::HH(const std::vector<std::string>& fcts, const std::vector<std::str
 
 
 template <typename TDomain>
-HH<TDomain>::HH(const char* fcts, const char* subsets)
+HHCharges<TDomain>::HHCharges(const char* fcts, const char* subsets)
 : IMembraneTransporter(fcts), IElemDisc<TDomain>(fcts, subsets),
   m_gK(2e-11), m_gNa(2e-11),
   m_eK(-0.077), m_eNa(0.05),
   m_refTime(1.0),
   m_bVoltageExplicitDiscMode(false),
+  m_bGatingExplicitCurrentMode(false),
   m_VEDMdt(1e-5),
   m_bNonRegularGrid(false),
   m_bCurrElemIsHSlave(false)
@@ -76,14 +85,14 @@ HH<TDomain>::HH(const char* fcts, const char* subsets)
 
 
 template <typename TDomain>
-HH<TDomain>::~HH()
+HHCharges<TDomain>::~HHCharges()
 {
 	// nothing to do
 }
 
 
 template <typename TDomain>
-void HH<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
+void HHCharges<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
 {
 	const number vm = u[_PHII_] - u[_PHIO_]; // membrane potential
 	const number n = u[_N_];                 // gating state n
@@ -98,7 +107,7 @@ void HH<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::ve
 
 
 template <typename TDomain>
-void HH<TDomain>::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
+void HHCharges<TDomain>::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
 	const number vm = u[_PHII_] - u[_PHIO_]; // membrane potential
 	const number n = u[_N_];                 // gating state n
@@ -119,21 +128,37 @@ void HH<TDomain>::calc_flux_deriv(const std::vector<number>& u, GridObject* e, s
 		++i;
 	}
 
-	flux_derivs[0][i].first = local_fct_index(_N_);
-	flux_derivs[0][i].second = m_gK * 4.0*n*n*n * (vm - m_eK);
-	++i;
+	if (!m_bGatingExplicitCurrentMode)
+	{
+		flux_derivs[0][i].first = local_fct_index(_N_);
+		flux_derivs[0][i].second = m_gK * 4.0*n*n*n * (vm - m_eK);
+		++i;
 
-	flux_derivs[0][i].first = local_fct_index(_M_);
-	flux_derivs[0][i].second = m_gNa * 3.0*m*m*h * (vm - m_eNa);
-	++i;
+		flux_derivs[0][i].first = local_fct_index(_M_);
+		flux_derivs[0][i].second = m_gNa * 3.0*m*m*h * (vm - m_eNa);
+		++i;
 
-	flux_derivs[0][i].first = local_fct_index(_H_);
-	flux_derivs[0][i].second = m_gNa * m*m*m * (vm - m_eNa);
+		flux_derivs[0][i].first = local_fct_index(_H_);
+		flux_derivs[0][i].second = m_gNa * m*m*m * (vm - m_eNa);
+	}
+	else
+	{
+		flux_derivs[0][i].first = local_fct_index(_N_);
+		flux_derivs[0][i].second = 0.0;
+		++i;
+
+		flux_derivs[0][i].first = local_fct_index(_M_);
+		flux_derivs[0][i].second = 0.0;
+		++i;
+
+		flux_derivs[0][i].first = local_fct_index(_H_);
+		flux_derivs[0][i].second = 0.0;
+	}
 }
 
 
 template <typename TDomain>
-size_t HH<TDomain>::n_dependencies() const
+size_t HHCharges<TDomain>::n_dependencies() const
 {
 	size_t n = 5;
 	if (has_constant_value(_PHII_))
@@ -146,37 +171,37 @@ size_t HH<TDomain>::n_dependencies() const
 
 
 template <typename TDomain>
-size_t HH<TDomain>::n_fluxes() const
+size_t HHCharges<TDomain>::n_fluxes() const
 {
 	return 1;
 }
 
 
 template <typename TDomain>
-const std::pair<size_t,size_t> HH<TDomain>::flux_from_to(size_t flux_i) const
+const std::pair<size_t,size_t> HHCharges<TDomain>::flux_from_to(size_t flux_i) const
 {
 	// current goes from the inside charge density to the outside charge density
 	size_t from, to;
-	if (allows_flux(_PHIO_)) to = local_fct_index(_PHIO_); else to = InnerBoundaryConstants::_IGNORE_;
-	if (allows_flux(_PHII_)) from = local_fct_index(_PHII_); else from = InnerBoundaryConstants::_IGNORE_;
+	if (allows_flux(_RHOO_)) to = local_fct_index(_RHOO_); else to = InnerBoundaryConstants::_IGNORE_;
+	if (allows_flux(_RHOI_)) from = local_fct_index(_RHOI_); else from = InnerBoundaryConstants::_IGNORE_;
 
 	return std::pair<size_t, size_t>(from, to);
 }
 
 
 template <typename TDomain>
-const std::string HH<TDomain>::name() const
+const std::string HHCharges<TDomain>::name() const
 {
 	return std::string("Hodgkin-Huxley");
 }
 
 
 template <typename TDomain>
-void HH<TDomain>::check_supplied_functions() const
+void HHCharges<TDomain>::check_supplied_functions() const
 {
 	// Check that not both, inner and outer charge are not supplied;
 	// in that case, calculation of a current would be of no consequence.
-	if (!allows_flux(_PHII_) && !allows_flux(_PHIO_))
+	if (!allows_flux(_RHOI_) && !allows_flux(_RHOO_))
 	{
 		UG_THROW("Supplying neither inner nor outer charge density is not allowed.\n"
 				"This would mean that the current calculation would be of no consequence\n"
@@ -186,7 +211,7 @@ void HH<TDomain>::check_supplied_functions() const
 
 
 template <typename TDomain>
-void HH<TDomain>::print_units() const
+void HHCharges<TDomain>::print_units() const
 {
 	std::string nm = name();
 	size_t n = nm.size();
@@ -393,7 +418,7 @@ static number d_tau_h_d_vm(number vm)
 
 
 template <typename TDomain>
-void HH<TDomain>::prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid)
+void HHCharges<TDomain>::prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid)
 {
 	// check that Lagrange 1st order
 	for (size_t i = 0; i < vLfeID.size(); ++i)
@@ -407,7 +432,7 @@ void HH<TDomain>::prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonReg
 
 
 template <typename TDomain>
-bool HH<TDomain>::use_hanging() const
+bool HHCharges<TDomain>::use_hanging() const
 {
 	return true;
 }
@@ -415,19 +440,19 @@ bool HH<TDomain>::use_hanging() const
 
 template <typename TDomain>
 template <typename TElem, typename TFVGeom>
-void HH<TDomain>::prep_elem_loop(const ReferenceObjectID roid, const int si)
+void HHCharges<TDomain>::prep_elem_loop(const ReferenceObjectID roid, const int si)
 {}
 
 
 template <typename TDomain>
 template <typename TElem, typename TFVGeom>
-void HH<TDomain>::fsh_elem_loop()
+void HHCharges<TDomain>::fsh_elem_loop()
 {}
 
 
 template <typename TDomain>
 template <typename TElem, typename TFVGeom>
-void HH<TDomain>::
+void HHCharges<TDomain>::
 prep_elem(const LocalVector& u, GridObject* elem, const ReferenceObjectID roid, const MathVector<dim> vCornerCoords[])
 {
 #ifdef UG_PARALLEL
@@ -447,7 +472,7 @@ prep_elem(const LocalVector& u, GridObject* elem, const ReferenceObjectID roid, 
 
 template <typename TDomain>
 template <typename TElem, typename TFVGeom>
-void HH<TDomain>::add_def_A_elem
+void HHCharges<TDomain>::add_def_A_elem
 (
 	LocalVector& d,
 	const LocalVector& u,
@@ -494,7 +519,7 @@ void HH<TDomain>::add_def_A_elem
 
 template <typename TDomain>
 template <typename TElem, typename TFVGeom>
-void HH<TDomain>::add_def_M_elem
+void HHCharges<TDomain>::add_def_M_elem
 (
 	LocalVector& d,
 	const LocalVector& u,
@@ -526,14 +551,14 @@ void HH<TDomain>::add_def_M_elem
 
 template<typename TDomain>
 template<typename TElem, typename TFVGeom>
-void HH<TDomain>::
+void HHCharges<TDomain>::
 add_rhs_elem(LocalVector& rhs, GridObject* elem, const MathVector<dim> vCornerCoords[])
 {}
 
 
 template <typename TDomain>
 template <typename TElem, typename TFVGeom>
-void HH<TDomain>::add_jac_A_elem
+void HHCharges<TDomain>::add_jac_A_elem
 (
 	LocalMatrix& J,
 	const LocalVector& u,
@@ -587,7 +612,7 @@ void HH<TDomain>::add_jac_A_elem
 
 template <typename TDomain>
 template <typename TElem, typename TFVGeom>
-void HH<TDomain>::add_jac_M_elem
+void HHCharges<TDomain>::add_jac_M_elem
 (
 	LocalMatrix& J,
 	const LocalVector& u,
@@ -621,7 +646,7 @@ void HH<TDomain>::add_jac_M_elem
 
 // register for 2D and 3d
 template <typename TDomain>
-void HH<TDomain>::
+void HHCharges<TDomain>::
 register_all_fv1_funcs()
 {
 //	get all grid element types in the dimension below
@@ -634,11 +659,11 @@ register_all_fv1_funcs()
 
 template <typename TDomain>
 template <typename TElem, typename TFVGeom>
-void HH<TDomain>::
+void HHCharges<TDomain>::
 register_fv1_func()
 {
 	ReferenceObjectID id = geometry_traits<TElem>::REFERENCE_OBJECT_ID;
-	typedef HH<TDomain> T;
+	typedef HHCharges<TDomain> T;
 
 	this->clear_add_fct(id);
 	this->set_prep_elem_loop_fct(	id, &T::template prep_elem_loop<TElem, TFVGeom>);
@@ -656,13 +681,13 @@ register_fv1_func()
 
 // explicit template specializations
 #ifdef UG_DIM_1
-	template class HH<Domain1d>;
+	template class HHCharges<Domain1d>;
 #endif
 #ifdef UG_DIM_2
-	template class HH<Domain2d>;
+	template class HHCharges<Domain2d>;
 #endif
 #ifdef UG_DIM_3
-	template class HH<Domain3d>;
+	template class HHCharges<Domain3d>;
 #endif
 
 

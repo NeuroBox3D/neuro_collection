@@ -27,6 +27,7 @@
 #include "user_flux_bnd_fv1.h"
 #include "membrane_transporters/membrane_transporter_interface.h"
 #include "membrane_transporters/hh.h"
+#include "membrane_transporters/hh_charges.h"
 #include "membrane_transporters/hh_species.h"
 #include "membrane_transporters/leakage_ohmic.h"
 #include "membrane_transporters/ip3r.h"
@@ -387,6 +388,32 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "HH", tag);
 	}
 
+	// Hodgkin-Huxley channels with charge densities as source / target
+	{
+		typedef HHCharges<TDomain> T;
+		typedef IMembraneTransporter TBase1;
+		typedef IElemDisc<TDomain> TBase2;
+		std::string name = std::string("HHCharges").append(suffix);
+		reg.add_class_<T, TBase1, TBase2>(name, grp)
+			.template add_constructor<void (*)(const char*, const char*)>
+				("Functions as comma-separated string with the following order: "
+				 "\"inner charge density\", \"outer charge density\", \"inner potential\", \"outer potential\","
+				 "\"gating param n\", \"gating param m\", \"gating param h\" # "
+				 "subsets as comma-separated string")
+			.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&)>
+				("Function vector with the following order: "
+				 "\"inner charge density\", \"outer charge density\", \"inner potential\", \"outer potential\","
+				 "\"gating param n\", \"gating param m\", \"gating param h\" # "
+				 "subsets vector")
+			.add_method("set_conductances", &T::set_conductances, "", "g_K#g_Na", "")
+			.add_method("set_reversal_potentials", &T::set_reversal_potentials, "", "E_K#E_Na", "")
+			.add_method("set_reference_time", &T::set_reference_time, "", "reference time (in units of s)", "")
+			.add_method("use_exact_gating_mode", &T::use_exact_gating_mode, "", "time step size", "")
+			.add_method("use_gating_explicit_current_mode", &T::use_gating_explicit_current_mode, "", "time step size", "")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "HHCharges", tag);
+	}
+
 	// Hodgkin-Huxley channels with Na and K unknowns
 	{
 		typedef HHSpecies<TDomain> T;
@@ -669,6 +696,21 @@ static void Common(Registry& reg, string grp)
 		typedef OhmicLeakage T;
 		typedef IMembraneTransporter TBase;
 		std::string name = std::string("OhmicLeakage");
+		reg.add_class_<T, TBase>(name, grp)
+			.add_constructor<void (*)(const char*)>
+				("Functions as comma-separated string with the following order: "
+				 "\"inner charge density\", \"outer charge density\", \"inner potential\", \"outer potential\"")
+			.add_constructor<void (*)(const std::vector<std::string>&)>
+				("Function vector with the following order: "
+				 "\"inner charge density\", \"outer charge density\", \"inner potential\", \"outer potential\"")
+			.add_method("set_conductance", &T::set_conductance, "", "g_L", "")
+			.add_method("set_reversal_potential", &T::set_reversal_potential, "", "E_L", "")
+			.set_construct_as_smart_pointer(true);
+	}
+	{
+		typedef OhmicLeakageCharges T;
+		typedef IMembraneTransporter TBase;
+		std::string name = std::string("OhmicLeakageCharges");
 		reg.add_class_<T, TBase>(name, grp)
 			.add_constructor<void (*)(const char*)>
 				("Functions as comma-separated string with the following order: "

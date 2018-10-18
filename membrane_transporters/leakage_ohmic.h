@@ -38,7 +38,7 @@ namespace neuro_collection {
 class OhmicLeakage : public IMembraneTransporter
 {
 	public:
-		enum{_RHOI_ = 0, _RHOO_, _PHII_, _PHIO_};
+		enum{_PHII_, _PHIO_};
 
 	public:
 		/// @copydoc IMembraneTransporter::IMembraneTransporter(const std::vector<std::string)
@@ -49,6 +49,72 @@ class OhmicLeakage : public IMembraneTransporter
 
 		/// @copydoc IMembraneTransporter::IMembraneTransporter()
 		virtual ~OhmicLeakage();
+
+		/// set leakage conductance
+		void set_conductance(number g);
+
+		/// set leakage reversal potential
+		void set_reversal_potential(number el);
+
+		/// @copydoc IMembraneTransporter::calc_flux()
+		virtual void calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const;
+
+		/// @copydoc IMembraneTransporter::calc_flux_deriv()
+		virtual void calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
+
+		/// @copydoc IMembraneTransporter::n_dependencies()
+		virtual size_t n_dependencies() const;
+
+		/// @copydoc IMembraneTransporter::n_fluxes()
+		virtual size_t n_fluxes() const;
+
+		/// @copydoc IMembraneTransporter::flux_from_to()
+		virtual const std::pair<size_t,size_t> flux_from_to(size_t flux_i) const;
+
+		/// @copydoc IMembraneTransporter::name()
+		virtual const std::string name() const;
+
+		/// @copydoc IMembraneTransporter::check_supplied_functions()
+		virtual void check_supplied_functions() const;
+
+		/// @copydoc IMembraneTransporter::print_units()
+		virtual void print_units() const;
+
+	protected:
+		number m_g;  ///< conductance
+		number m_eL; ///< reversal potential
+};
+
+
+/// Discretization for an ohmic leakage flux through a membrane
+/**
+ * This class implements an ohmic leakage flux through a membrane,
+ * i.e., it assumes a linear dependency of the current from the difference between
+ * membrane potential and reversal potential:
+ * j = g * (Vm - E_L). The leakage conductance g can be set using the appropriate method.
+ *
+ * The calculated current is outward.
+ *
+ * Units used in the implementation of this channel:
+ * Potential:    V
+ * Conductance:  C/(Vs)
+ * Current:      C/s
+ */
+
+class OhmicLeakageCharges : public IMembraneTransporter
+{
+	public:
+		enum{_RHOI_ = 0, _RHOO_, _PHII_, _PHIO_};
+
+	public:
+		/// @copydoc IMembraneTransporter::IMembraneTransporter(const std::vector<std::string)
+		OhmicLeakageCharges(const std::vector<std::string>& fcts);
+
+		/// @copydoc IMembraneTransporter::IMembraneTransporter()
+		OhmicLeakageCharges(const char* fcts);
+
+		/// @copydoc IMembraneTransporter::IMembraneTransporter()
+		virtual ~OhmicLeakageCharges();
 
 		/// set leakage conductance
 		void set_conductance(number g);

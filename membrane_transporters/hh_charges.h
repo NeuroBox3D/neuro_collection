@@ -5,8 +5,8 @@
  *      Author: mbreit
  */
 
-#ifndef __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__HH_H__
-#define __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__HH_H__
+#ifndef __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__HH_CHARGES_H__
+#define __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__HH_CHARGES_H__
 
 #include "membrane_transporter_interface.h"
 #include "lib_disc/spatial_disc/elem_disc/elem_disc_interface.h"
@@ -34,12 +34,12 @@ namespace neuro_collection {
  */
 
 template <typename TDomain>
-class HH
+class HHCharges
 : public IMembraneTransporter,
   public IElemDisc<TDomain>
 {
 	public:
-		enum{_PHII_, _PHIO_, _N_, _M_, _H_};
+		enum{_RHOI_ = 0, _RHOO_, _PHII_, _PHIO_, _N_, _M_, _H_};
 
 		static const int dim = TDomain::dim;	 //!< world dimension
 		typedef typename GeomObjBaseTypeByDim<dim>::base_obj_type elem_t;
@@ -47,13 +47,13 @@ class HH
 
 	public:
 		/// constructor with functions and subsets as vectors of string
-		HH(const std::vector<std::string>& fcts, const std::vector<std::string>& subsets);
+		HHCharges(const std::vector<std::string>& fcts, const std::vector<std::string>& subsets);
 
 		/// constructor with functions and subsets as c-style string
-		HH(const char* fcts, const char* subsets);
+		HHCharges(const char* fcts, const char* subsets);
 
 		/// destructor
-		virtual ~HH();
+		virtual ~HHCharges();
 
 	public:
 		/**
@@ -95,6 +95,8 @@ class HH
 		 * This time step size has to be supplied by the user!
 		 */
 		void use_exact_gating_mode(number timeStep);
+
+		void use_gating_explicit_current_mode();
 
 	// inheritances from IMembraneTransporter
 	public:
@@ -169,8 +171,8 @@ class HH
 
 		struct RegisterFV1
 		{
-			RegisterFV1(HH<TDomain>* pThis) : m_pThis(pThis){}
-			HH<TDomain>* m_pThis;
+			RegisterFV1(HHCharges<TDomain>* pThis) : m_pThis(pThis){}
+			HHCharges<TDomain>* m_pThis;
 			template< typename TElem > void operator()(TElem&)
 			{
 				if (m_pThis->m_bNonRegularGrid)
@@ -192,6 +194,7 @@ class HH
 		number m_refTime;
 
 		bool m_bVoltageExplicitDiscMode;
+		bool m_bGatingExplicitCurrentMode;
 		number m_VEDMdt;
 
 	protected:
@@ -204,5 +207,5 @@ class HH
 } // namespace neuro_collection
 } // namespace ug
 
-#endif // __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__HH_H__
+#endif // __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__HH_CHARGES_H__
 
