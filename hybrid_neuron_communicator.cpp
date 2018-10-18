@@ -799,9 +799,10 @@ void HybridNeuronCommunicator<TDomain>::gather_synaptic_currents
 	}
 
 	return;
-#endif
 
 serial_case:
+#endif
+
 	for (size_t i=0; i<vLocActSyn.size(); ++i)
 	{
 		synapse_id sid = vLocActSyn[i];
