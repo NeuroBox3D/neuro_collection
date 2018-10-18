@@ -899,7 +899,6 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("test_import_swc_surf", &test_import_swc_surf, "", "file name#correction", "");
 		reg.add_function("test_import_swc_1d", &test_import_swc_1d, "", "file name", "");
 		//reg.add_function("apply_neurite_projector", &apply_neurite_projector, "", "multigrid, neurite projector", "");
-		reg.add_function("test_cylinder_volume_projector", &test_cylinder_volume_projector, "", "", "");
 	}
 #endif
 }

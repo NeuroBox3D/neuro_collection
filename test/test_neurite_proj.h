@@ -67,8 +67,6 @@ void test_neurite_projector_with_four_section_tube_and_branch_point();
 
 void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuriteProj);
 
-void test_cylinder_volume_projector();
-
 } // namespace neuro_collection
 } // namespace ug
 
