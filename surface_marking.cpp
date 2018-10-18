@@ -42,6 +42,48 @@ void SurfaceMarking<TDomain>::remove_surface(int surf_si, int adj_vol_si)
 }
 
 
+template <typename TDomain>
+void SurfaceMarking<TDomain>::add_surface(const std::string& surf_si, const std::string& adj_vol_si)
+{
+	UG_COND_THROW(!m_spDom.valid(), "Adding surface marking pairs via subset names only works\n"
+		"when the SurfaceMarking object is given a domain at construction time.")
+
+	ConstSmartPtr<ISubsetHandler> spSH = m_spDom->subset_handler();
+	try
+	{
+		const int srfInd = spSH->get_subset_index(surf_si.c_str());
+		const int volInd = spSH->get_subset_index(adj_vol_si.c_str());
+		m_vpSurfaces.push_back(std::make_pair(srfInd, volInd));
+	}
+	UG_CATCH_THROW("Cannot convert both subset names to indices.");
+}
+
+template <typename TDomain>
+void SurfaceMarking<TDomain>::remove_surface(const std::string& surf_si, const std::string& adj_vol_si)
+{
+	UG_COND_THROW(!m_spDom.valid(), "Adding surface marking pairs via subset names only works \n"
+		"when the SurfaceMarking object is given a domain at construction time.")
+
+	int srfInd = 0;
+	int volInd = 0;
+	ConstSmartPtr<ISubsetHandler> spSH = m_spDom->subset_handler();
+	try
+	{
+		srfInd = spSH->get_subset_index(surf_si.c_str());
+		volInd = spSH->get_subset_index(adj_vol_si.c_str());
+	}
+	UG_CATCH_THROW("Cannot convert both subset names to indices.");
+
+
+	std::pair<int,int> pair = std::make_pair(srfInd, volInd);
+	std::vector<std::pair<int,int> >::iterator match =
+		std::find(m_vpSurfaces.begin(), m_vpSurfaces.end(), pair);
+
+	if (match != m_vpSurfaces.end())
+		m_vpSurfaces.erase(match);
+}
+
+
 
 template <typename TDomain>
 void SurfaceMarking<TDomain>::mark
@@ -51,6 +93,10 @@ void SurfaceMarking<TDomain>::mark
 	ConstSmartPtr<DoFDistribution> dd
 )
 {
+	UG_COND_THROW(m_tol == -1.0 && m_max_level == (size_t) -1,
+		"SurfaceMarking needs to be passed tolerance and maximal refinement level in constructor \n"
+		"when used as an error-based refinement strategy.");
+
 	number minElemErr;
 	number maxElemErr;
 	number errTotal;
@@ -71,6 +117,9 @@ void SurfaceMarking<TDomain>::mark_without_error
 	SmartPtr<ApproximationSpace<TDomain> > approx
 )
 {
+	// convert subsets given by name to indices using the given approxSpace
+	ConstSmartPtr<ISubsetHandler> sh = approx->domain()->subset_handler();
+
 	// get surface dof distribution
 	ConstSmartPtr<DoFDistribution> dd = approx->dof_distribution(GridLevel(), false);
 

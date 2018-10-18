@@ -34,14 +34,23 @@ class SurfaceMarking : public IElementMarkingStrategy<TDomain>
 public:
 	typedef IElementMarkingStrategy<TDomain> base_type;
 
+	SurfaceMarking(ConstSmartPtr<TDomain > dom)
+	: m_tol(-1.0), m_max_level(-1), m_spDom(dom) {}
+
 	SurfaceMarking(number tol, size_t max_level)
-	: m_tol(tol), m_max_level(max_level) {};
+	: m_tol(tol), m_max_level(max_level), m_spDom(SPNULL) {};
+
+	SurfaceMarking(ConstSmartPtr<TDomain > dom, number tol, size_t max_level)
+	: m_tol(tol), m_max_level(max_level), m_spDom(dom) {}
 
 	void set_tolerance(number tol) {m_tol = tol;}
 	void set_max_level(size_t max_level) {m_max_level = max_level;}
 
 	void add_surface(int surf_si, int adj_vol_si);
 	void remove_surface(int surf_si, int adj_vol_si);
+
+	void add_surface(const std::string& surf_si, const std::string& adj_vol_si);
+	void remove_surface(const std::string& surf_si, const std::string& adj_vol_si);
 
 	void mark
 	(
@@ -58,6 +67,8 @@ protected:
 protected:
 	number m_tol;
 	size_t m_max_level;
+
+	ConstSmartPtr<TDomain> m_spDom;
 
 	/// vector holding pairs of surface and adjacent
 	/// element subset indices
