@@ -11,6 +11,8 @@
 #include "../../ugcore/ugbase/lib_grid/refinement/projectors/cylinder_volume_projector.h"
 #include "lib_grid/refinement/projectors/neurite_projector.h"
 #include "lib_grid/refinement/projectors/cylinder_projector.h"
+#include "lib_grid/refinement/projectors/sphere_projector.h"
+#include "lib_grid/refinement/projectors/soma_projector.h"
 #include "lib_grid/file_io/file_io_ugx.h"  // GridWriterUGX
 #include "lib_grid/file_io/file_io.h"  // SaveGridHierarchyTransformed
 #include "lib_grid/grid/geometry.h" // MakeGeometry3d
@@ -34,6 +36,7 @@
 #include "lib_grid/algorithms/smoothing/manifold_smoothing.h" // TangentialSmoothing
 #include "lib_grid/algorithms/remeshing/resolve_intersections.h" // ResolveTriangleIntersection
 #include <boost/geometry.hpp>
+#include "../../ElementQualityStatistics/element_quality_statistics.h"
 
 #include <boost/lexical_cast.hpp>
 
@@ -1087,6 +1090,7 @@ namespace neuro_collection {
 (
 	   Grid& g,
 	   Grid::VertexAttachmentAccessor<APosition>& aaPos,
+	   Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 	   std::vector<Vertex*> outVerts,
 	   std::vector<Vertex*> outVertsInner,
 	   std::vector<number> outRads,
@@ -1324,6 +1328,7 @@ namespace neuro_collection {
 	std::vector<std::vector<Vertex*> > somaVertsInner;
 	std::vector<std::vector<Vertex*> > allVertsInner;
 
+
 	for (size_t i = 0; i < numQuads; i++) {
 		size_t si = beginningOfQuads+i;
 		ug::vector3 normal;
@@ -1331,6 +1336,12 @@ namespace neuro_collection {
 		UG_LOGN("normal (outer): " << normal);
 		ug::vector3 axisVector;
 		CalculateCenter(sh.begin<Vertex>(si), sh.end<Vertex>(si), aaPos);
+		/// indicate soma posiiton
+		for (SubsetHandler::traits<Vertex>::iterator it = sh.begin<Vertex>(si); it != sh.end<Vertex>(si); ++it) {
+			UG_LOGN("setting axial to -1!");
+			aaSurfParams[*it].axial = -1;
+		}
+
 		VecAdd(axisVector, axisVector, normal);
 		std::vector<Edge*> edges;
 		std::vector<Vertex*> vertices;
@@ -2056,6 +2067,31 @@ namespace neuro_collection {
 		    SaveGridToFile(g, sh, "test_shrunk_geom2_after.ugx");
 	}
 
+
+	void shrink_quadrilateral_center
+		(
+				std::vector<Vertex*>& vVrt,
+				Grid& g,
+				Grid::VertexAttachmentAccessor<APosition>& aaPos,
+				number percentage,
+				ug::vector3& center
+		)
+		{
+		    for (size_t i = 0; i < 4; ++i)
+		    {
+		       ug::vector3 dir;
+		       VecSubtract(dir, aaPos[vVrt[i]], center);
+
+		       UG_LOGN("dir:" << dir)
+		       VecScaleAdd(aaPos[vVrt[i]], 1.0, aaPos[vVrt[i]], percentage, dir);
+
+		       if (percentage > 1) {
+		          UG_WARNING("Moving vertex beyond center. Will create degenerated elements." << std::endl);
+		       }
+		    }
+		}
+
+
 	/**
 	 * @brief shrinks a quadrilateral and creates a copy of the smaller
 	 */
@@ -2274,6 +2310,61 @@ namespace neuro_collection {
 	   }
 	};
 
+
+	static void correct_edges
+	(
+		std::vector<ug::Vertex*>& verts,
+		Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+		Grid& g,
+		Grid::VertexAttachmentAccessor<APosition>& aaPos,
+		number scale
+	)
+	{
+		 sort(verts.begin(), verts.end(), CompareBy< &NeuriteProjector::SurfaceParams::axial >(aaSurfParams) );
+		 Edge* e1 = g.get_edge(verts[0], verts[2]);
+		 if (!e1) e1 = g.get_edge(verts[0], verts[3]);
+		 Edge* e2 = g.get_edge(verts[1], verts[2]);
+		 if (!e2) e2 = g.get_edge(verts[1], verts[3]);
+
+		 /// e1.vertex(0) - newVertex - newVertex2 - e1->vertex(1)
+		 vector3 dir;
+		 VecSubtract(dir, aaPos[e1->vertex(1)], aaPos[e1->vertex(0)]);
+		 ug::RegularVertex* newVertex1 = *g.create<ug::RegularVertex>();
+		 ug::RegularVertex* newVertex2 = *g.create<ug::RegularVertex>();
+		 aaPos[newVertex1] = aaPos[e1->vertex(0)];
+		 aaPos[newVertex2] = aaPos[e1->vertex(1)];
+		 VecScaleAdd(aaPos[newVertex1], 1.0, aaPos[newVertex1], 0.2, dir);
+		 aaSurfParams[newVertex1] = aaSurfParams[e1->vertex(0)];
+		 aaSurfParams[newVertex1].axial = aaSurfParams[e1->vertex(0)].axial + 0.2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
+		 VecScaleAdd(aaPos[newVertex2], 1.0, aaPos[newVertex2], -0.2, dir);
+		 aaSurfParams[newVertex2] = aaSurfParams[e1->vertex(1)];
+		 aaSurfParams[newVertex2].axial = aaSurfParams[e1->vertex(1)].axial - 0.2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
+
+		 /// e2.vertex(0) - newVertex - newVertex2 - e2->vertex(1)
+		 VecSubtract(dir, aaPos[e2->vertex(1)], aaPos[e2->vertex(0)]);
+		 ug::RegularVertex* newVertex3 = *g.create<ug::RegularVertex>();
+		 ug::RegularVertex* newVertex4 = *g.create<ug::RegularVertex>();
+		 aaPos[newVertex3] = aaPos[e2->vertex(0)];
+		 aaPos[newVertex4] = aaPos[e2->vertex(1)];
+		 VecScaleAdd(aaPos[newVertex3], 1.0, aaPos[newVertex3], 0.2, dir);
+		 aaSurfParams[newVertex3] = aaSurfParams[e2->vertex(0)];
+		 aaSurfParams[newVertex3].axial =  aaSurfParams[e2->vertex(0)].axial + 0.2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
+		 VecScaleAdd(aaPos[newVertex4], 1.0, aaPos[newVertex4], -0.2, dir);
+		 aaSurfParams[newVertex3] = aaSurfParams[e2->vertex(1)];
+		 aaSurfParams[newVertex4].axial = aaSurfParams[e2->vertex(0)].axial + 0.2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
+
+		 /// TODO: implement -> split quader
+		 /// connect vertex 1 with vertex 3
+		 /// connect vertex 2 with vertex 4
+		 /// erase edge e1 and e2
+		 /// create face with vertex 1 and vertex 3 and vertices of e1
+		 /// create face with vertex 2 and vertex 4 and vertices of e2
+		 /// set the innervrts to the new 4 vertices 1,3,2,4
+
+		 /// TODO can do the same thing for the opposing face... erase the opposing faces. find edges and repeat. -> shrunken
+
+	}
+
 	/**
 	 * @brief corrects the axial offset at the inner branching points
 	 * This means, we move the points with smaller axial value further down
@@ -2287,30 +2378,17 @@ namespace neuro_collection {
 		number scale
 	)
 	{
-		 sort(verts.begin(), verts.end(), CompareBy< &NeuriteProjector::SurfaceParams::axial >(aaSurfParams) );
-
-		 /*ug::vector3 min;
-		 ug::vector3 max;
-		 VecScaleAdd(min, 0.5, aaPos[verts[0]], 0.5, aaPos[verts[1]]);
-		 VecScaleAdd(max, 0.5, aaPos[verts[2]], 0.5, aaPos[verts[3]]);
-		 number length = VecDistance(min, max) / neurite_length;
-		 */
-
-		 number length = aaSurfParams[verts[2]].axial - aaSurfParams[verts[0]].axial;
-
-		 UG_LOGN("length TIMES scale/2: " << length*scale/2)
-
-		 /*UG_LOGN("axial verts0: " << aaSurfParams[verts[0]].axial);
-		 UG_LOGN("axial verts1: " << aaSurfParams[verts[1]].axial);
-		 UG_LOGN("axial verts2: " << aaSurfParams[verts[2]].axial);
-		 UG_LOGN("axial verts3: " << aaSurfParams[verts[3]].axial);
-		 */
-
-		 aaSurfParams[verts[0]].axial = aaSurfParams[verts[0]].axial - length*scale/2;
-		 aaSurfParams[verts[1]].axial = aaSurfParams[verts[1]].axial - length*scale/2;
-		 aaSurfParams[verts[2]].axial = aaSurfParams[verts[2]].axial + length*scale/2;
-		 aaSurfParams[verts[3]].axial = aaSurfParams[verts[3]].axial + length*scale/2;
-		 UG_COND_THROW(verts.size() != 4, "Exactly 4 vertices are necessary on coarse grid level.");
+		// check for consistency
+		UG_COND_THROW(verts.size() != 4, "Exactly 4 vertices are necessary on coarse grid level.");
+		// sort to find min and max axial values
+		sort(verts.begin(), verts.end(), CompareBy< &NeuriteProjector::SurfaceParams::axial >(aaSurfParams) );
+		number length = aaSurfParams[verts[2]].axial - aaSurfParams[verts[0]].axial;
+		UG_LOGN("length TIMES scale/2: " << length*scale/2)
+		// update surface parameters
+		aaSurfParams[verts[0]].axial = aaSurfParams[verts[0]].axial + length*scale/2;
+		aaSurfParams[verts[1]].axial = aaSurfParams[verts[1]].axial + length*scale/2;
+		aaSurfParams[verts[2]].axial = aaSurfParams[verts[2]].axial - length*scale/2;
+		aaSurfParams[verts[3]].axial = aaSurfParams[verts[3]].axial - length*scale/2;
 	}
 
 	/**
@@ -2830,6 +2908,7 @@ namespace neuro_collection {
 			bestProd = 0.0;
 			fit = sel2.faces_begin();
 			fit_end = sel2.faces_end();
+			ug::vector3 hexCenter = CalculateCenter(fit, fit_end, aaPos);
 			for (; fit != fit_end; ++fit)
 			{
 				CalculateNormal(normal, *fit, aaPos);
@@ -2875,26 +2954,29 @@ namespace neuro_collection {
 			g.erase(best);
 			std::vector<ug::Vertex*> vrtsOut;
 			std::vector<ug::Edge*> edgesOut;
-			shrink_quadrilateral_copy(vrts, vrtsOut, vrtsInner, edgesOut, g, aaPos, -neurite.scaleER/2.0, true, NULL, &currentDir);
+			/// 1. Strategie (A/B in HybridMG document)
+			/// shrink_quadrilateral_center(vrtsInner, g, aaPos, -neurite.scaleER, hexCenter);
+			/// 2. Strategie (C in HybridMG document)
+			/// shrink_quadrilateral_copy(vrts, vrtsOut, vrtsInner, edgesOut, g, aaPos, -neurite.scaleER/2.0, true, NULL, &currentDir);
 			/// shrink_quadrilateral_copy(vrtsInner, vrtsOut, vrtsInner, edgesOut, g, aaPos, 0, true, NULL, &currentDir);
-			edgesInner = edgesOut;
-			vrtsInner = vrtsOut;
+			/// edgesInner = edgesOut;
+			/// vrtsInner = vrtsOut;
 			for (size_t i = 0; i < vrtsOut.size(); i++) {
 				aaSurfParams[vrtsOut[i]].neuriteID = nid;
 				aaSurfParams[vrtsOut[i]].axial = aaSurfParams[vrts[i]].axial;
 				aaSurfParams[vrtsOut[i]].angular = aaSurfParams[vrts[i]].angular;
 				aaSurfParams[vrtsOut[i]].scale = neurite.scaleER;
 			}
+			/// 3. Strategie (D in HybridMG document)
 			/// TODO: The axial parameters for the inner BPs are not correct and have to be handled differently.
 			/// -> Reposition the points after projection handling (Don't used shrunken quad because will get extra faces)
 			/// Better idea: Use exactly same positions for vertices of inner face and add neurite.scaleER to these vertices.
-			/// Then... in the neurite_projector code we handle the inner BPs the same way as the outer BPs and scale them down
-			/// Then... the axial parameters might not be correct again -> have to correct them aftewards / the positions
-			/// Or: Can try to correct axial parameters directly here with the method below, but this will make it hard to produce
-			/// a good cell-in-cell structure at branching points
-			/// correct_axial_offset(vrtsInner, aaSurfParams, aaPos, neurite.scaleER);
+			/// Then we need to subdivide the inner hexaeder into three parts at the branching point and correct axial offset
+			/// correct_edges(vrtsInner, aaSurfParams, g, aaPos, neurite.scaleER);
+			/// correct_axial_offset(vrtsInner, aaSurfParams, aaPos, neurite.scaleER); /// and correct position too?
 			UG_LOGN("Creating child(s) for inner and outer...")
 			create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
+
     	}
 
     	// update t_end and curSec
@@ -3622,10 +3704,8 @@ namespace neuro_collection {
     std::vector<Vertex*> outQuadsInner;
     std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectors;
     /// TODO: add also innerQuads axisVectors for soma/neurite connections
-    connect_neurites_with_soma(g, aaPos, outVerts, outVertsInner, outRads, outQuadsInner, 1, sh, fileName, 1.0, axisVectors, true);
+    connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRads, outQuadsInner, 1, sh, fileName, 1.0, axisVectors, true);
 
-    /// TODO: Project each subset of soma connection by cylinder projector:
-    /// But first project this on the correct cylinder in the 0th refinement!
     UG_LOGN("Number of projectors: " << axisVectors.size());
     for (size_t i = 0; i < axisVectors.size(); i++) {
     	size_t si = axisVectors[i].first;
@@ -3634,9 +3714,28 @@ namespace neuro_collection {
     	UG_LOGN("si: " << si);
     	UG_LOGN("center: " << center);
     	UG_LOGN("axis: " << axis);
-    	SmartPtr<CylinderProjector> cylinderProj(new CylinderProjector(geom3d, center, axis, -1, -1));
-    	projHandler.set_projector(si, cylinderProj);
+    	/// TODO: for other subsets should be installed accordingly
+    	// SmartPtr<CylinderProjector> cylinderProj(new CylinderProjector(geom3d, center, axis, -1, -1));
+    	if (si == 2) {
+    		SmartPtr<SomaProjector> cylinderProj(new SomaProjector(geom3d, center, axis, somaPoint.front().coords, somaPoint.front().radius));
+    		projHandler.set_projector(si, cylinderProj);
+    	}
+    	if (si == 3) {
+    		SmartPtr<SomaProjector> cylinderProj(new SomaProjector(geom3d, center, axis, somaPoint.front().coords, somaPoint.front().radius));
+    		projHandler.set_projector(si, cylinderProj);
+    	}
+    	if (si == 4) {
+    		SmartPtr<SomaProjector> cylinderProj(new SomaProjector(geom3d, center, axis, somaPoint.front().coords, somaPoint.front().radius));
+    		projHandler.set_projector(si, cylinderProj);
+    	}
+    	if (si == 5) {
+    		SmartPtr<SomaProjector> cylinderProj(new SomaProjector(geom3d, center, axis, somaPoint.front().coords, somaPoint.front().radius));
+    		projHandler.set_projector(si, cylinderProj);
+    	}
     }
+
+    SmartPtr<SphereProjector> sphereProj(new SphereProjector(geom3d, somaPoint.front().coords, somaPoint.front().radius));
+    projHandler.set_projector(1, sphereProj);
 
     UG_LOGN("Done with connecting neurites!");
     UG_LOGN("Creating soma inner!")
@@ -3647,7 +3746,7 @@ namespace neuro_collection {
     std::vector<Vertex*> outQuadsInner2;
     UG_LOGN("Size of outQuadsInner: " << outQuadsInner.size())
     std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectorsInner;
-    connect_neurites_with_soma(g, aaPos, outQuadsInner, outVertsInner, outRadsInner, outQuadsInner2, newSomaIndex, sh, fileName, scaleER, axisVectors, false);
+    connect_neurites_with_soma(g, aaPos, aaSurfParams, outQuadsInner, outVertsInner, outRadsInner, outQuadsInner2, newSomaIndex, sh, fileName, scaleER, axisVectors, false);
 
     // save after connecting and assign subsets
     EraseEmptySubsets(sh);
@@ -3697,12 +3796,13 @@ namespace neuro_collection {
     UG_CATCH_THROW("Failed loading domain from '" << outFileName << "'.");
 
     std::string curFileName("testNeuriteProjector.ugx");
-    number offset=10;
+    number offset=somaPoint.front().radius * 2 * 10; // 10 times the diameter of the soma
     try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
     UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
 
     GlobalMultiGridRefiner ref(*dom.grid(), dom.refinement_projector());
-    for (size_t i = 0; i < 4; ++i)
+    size_t numRefs = 1;
+    for (size_t i = 0; i < numRefs; ++i)
     {
         ref.refine();
         std::ostringstream oss;
@@ -3711,6 +3811,7 @@ namespace neuro_collection {
         try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
         UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
     }
+
 }
 
 	/**
@@ -3936,7 +4037,7 @@ namespace neuro_collection {
     // connect soma with neurites
     std::vector<Vertex*> outQuads;
     std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectors;
-    connect_neurites_with_soma(g, aaPos, outVerts, outVerts, outRads, outQuads, 1, sh, fileName, 1.0, axisVectors, false);
+    connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVerts, outRads, outQuads, 1, sh, fileName, 1.0, axisVectors, false);
     UG_LOGN("Done with connecting neurites!");
 
     // refinement
@@ -4163,6 +4264,7 @@ namespace neuro_collection {
         neuriteProj->add_neurite(vNeurites[i]);
 
     create_neurite(vNeurites, vPos, vR, 0, g, aaPos, aaSurfParams, NULL, NULL);
+    //create_neurite_general(vNeurites, vPos, vR, 0, g, aaPos, aaSurfParams, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
     // at branching points, we have not computed the correct positions yet,
     // so project the complete geometry using the projector

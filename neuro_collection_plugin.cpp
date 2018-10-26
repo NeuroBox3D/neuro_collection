@@ -803,6 +803,7 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("test_split_geom", &test_split_geom, "", "shrink [%]", "");
 		//reg.add_function("apply_neurite_projector", &apply_neurite_projector, "", "multigrid, neurite projector", "");
 		reg.add_function("test_cylinder_volume_projector", &test_cylinder_volume_projector, "", "", "");
+		reg.add_function("test_neurite_projector_with_four_section_tube_and_branch_point", &test_neurite_projector_with_four_section_tube_and_branch_point, "", "", "");
 	}
 #endif
 }
