@@ -613,9 +613,11 @@ static void Domain(Registry& reg, string grp)
 #endif // NC_WITH_VM2UG
 
 
-	// mark_global
+	// mark for refinement functions
 	{
 		reg.add_function("mark_global", &mark_global<TDomain>, grp.c_str(), "", "refiner#approx space", "");
+		reg.add_function("mark_anisotropic", &mark_anisotropic<TDomain>, grp.c_str(), "", "refiner#approx space#anisotropy threshold (<=1)", "");
+		reg.add_function("mark_anisotropic_x", &mark_anisotropic_onlyX<TDomain>, grp.c_str(), "", "refiner#approx space#anisotropy threshold (<=1)", "");
 	}
 
 	// extra commands for this plugin

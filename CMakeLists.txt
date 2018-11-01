@@ -36,6 +36,7 @@ set(SOURCES neuro_collection_plugin.cpp
             stimulation/action_potential_train.cpp
             grid_generation/bouton_generator.cpp
             grid_generation/spine_generation.cpp
+            util/misc_util.cpp
    )
 
 ## add experimental neurite projector impl (but not in VRL)   

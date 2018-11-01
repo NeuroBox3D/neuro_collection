@@ -11,9 +11,6 @@
 
 #include "lib_disc/common/multi_index.h"                            // for DoFIndex, DoFRef
 #include "lib_disc/dof_manager/dof_distribution.h"                  // for DoFDistribution, DoFDistributio...
-#include "lib_disc/domain_traits.h"                                 // for domain_traits
-#include "lib_disc/function_spaces/approximation_space.h"           // for ApproximationSpace
-#include "lib_grid/tools/grid_level.h"                              // for GridLevel
 #include "lib_grid/tools/surface_view.h"                            // for SurfaceView::ConstSurfaceViewEl...
 
 
@@ -89,27 +86,6 @@ void scale_dimless_vector
 	if (dd->max_dofs(VOLUME))
 		scale_dof_indices<Volume, TGridFunction>(dd, scaledVecOut, dimlessVecIn, scalingFactors);
 }
-
-
-
-
-template <typename TDomain>
-void mark_global(SmartPtr<IRefiner> refiner, SmartPtr<ApproximationSpace<TDomain> > approx)
-{
-	typedef typename domain_traits<TDomain::dim>::element_type elem_type;
-	typedef typename DoFDistribution::traits<elem_type>::const_iterator const_iterator;
-
-	// get surface dof distribution
-	ConstSmartPtr<DoFDistribution> dd = approx->dof_distribution(GridLevel(), false);
-
-	const_iterator iter = dd->template begin<elem_type>();
-	const_iterator iterEnd = dd->template end<elem_type>();
-
-//	loop elements for marking
-	for (; iter != iterEnd; ++iter)
-		refiner->mark(*iter, RM_REFINE);
-}
-
 
 
 } // namspace neuro_collection

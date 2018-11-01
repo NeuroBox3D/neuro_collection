@@ -40,6 +40,22 @@ void scale_dimless_vector
 template <typename TDomain>
 void mark_global(SmartPtr<IRefiner> refiner, SmartPtr<ApproximationSpace<TDomain> > approx);
 
+template <typename TDomain>
+void mark_anisotropic
+(
+	SmartPtr<IRefiner> refiner,
+	SmartPtr<ApproximationSpace<TDomain> > approx,
+	number thresholdRatio
+);
+
+template <typename TDomain>
+void mark_anisotropic_onlyX
+(
+	SmartPtr<IRefiner> refiner,
+	SmartPtr<ApproximationSpace<TDomain> > approx,
+	number thresholdRatio
+);
+
 
 ///@}
 
