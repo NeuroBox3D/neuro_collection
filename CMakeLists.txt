@@ -34,7 +34,8 @@ set(SOURCES neuro_collection_plugin.cpp
             membrane_transporters/mncx.cpp
             membrane_transporters/nmdar.cpp
             stimulation/action_potential_train.cpp
-            grid_generation/bouton_generator/bouton_generator.cpp
+            grid_generation/bouton_generator.cpp
+            grid_generation/spine_generation.cpp
    )
 
 ## add experimental neurite projector impl (but not in VRL)   

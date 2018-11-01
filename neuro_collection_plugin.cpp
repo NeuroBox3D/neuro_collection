@@ -58,7 +58,8 @@
 #include "membrane_transporters/mncx.h"
 #include "membrane_transporters/nmdar.h"
 #include "stimulation/action_potential_train.h"
-#include "grid_generation/bouton_generator/bouton_generator.h"
+#include "grid_generation/bouton_generator.h"
+#include "grid_generation/spine_generation.h"
 
 #include "lib_grid/refinement/projectors/neurite_projector.h"
 #include "test/test_neurite_proj.h"
@@ -882,11 +883,25 @@ static void Common(Registry& reg, string grp)
 						"Returns membrane potential to given frequency stimulation interval.")
 			.set_construct_as_smart_pointer(true);
 	}
+
+	// build bouton
 	{
-		// build bouton
         reg.add_function("BuildBouton", &BuildBouton, grp,
                          "", "bExtSpace#radius#numRefinements#numReleaseSites#TbarHeight#TbarLegRadius#TbarTopRadius#TbarTopHeight#fileName",
                          "Generates a drosophila NMJ bouton volume grid.");
+	}
+
+	// build spine
+	{
+		// TODO: Rename "BuildSpine", remove ineffective parameters
+        reg.add_function("BuildDendrite", &BuildSpine, grp,
+                         "", "geometric param vector (cytosol radius, ER radius, dendrite length, spine position, "
+                         "spine ER neck radius, spine ER neck length, spine ER head radius, spine ER head length, "
+                         "spine neck radius, spine neck length, spine head radius, spine head length)"
+                         "options vector (build a synapse? [ineffective], build ER?, build spine ER?, "
+                         "synapse at different location? [ineffective], build spine ER head?)"
+                         "#fileName",
+                         "Generates a dendritic spine with a portion of the connected dendrite.");
 	}
 
 #ifndef UG_FOR_VRL
