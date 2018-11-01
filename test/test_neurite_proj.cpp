@@ -60,9 +60,8 @@
 
 namespace ug {
 namespace neuro_collection {
-
 	/**
-	 * brief imports a SWC file
+	 * @brief imports a SWC file
 	 */
 	void import_swc
 (
@@ -285,9 +284,11 @@ namespace neuro_collection {
 			if (treated[p]) // soma points may not have been treated
 				vPointsInOut[p].coords = newPos[p];
 	}
-
 }
 
+	/**
+	 * @brief function object to compare edge length
+	 */
 	struct EdgeLengthCompare
 {
 	bool operator()(const std::pair<Edge*, number> e1, const std::pair<Edge*, number> e2)
@@ -1084,7 +1085,6 @@ namespace neuro_collection {
 	/**
 	 * @brief connects neurites to soma
 	 * TODO: Find suitable parameters for tangential smooth and resolve intersection
-	 * Note: How to improve connection at soma surface?!
 	 */
 	static void connect_neurites_with_soma
 (
@@ -2067,7 +2067,9 @@ namespace neuro_collection {
 		    SaveGridToFile(g, sh, "test_shrunk_geom2_after.ugx");
 	}
 
-
+	/**
+	 * @brief shrinks quadrilateral towards center
+	 */
 	void shrink_quadrilateral_center
 		(
 				std::vector<Vertex*>& vVrt,
@@ -2090,7 +2092,6 @@ namespace neuro_collection {
 		       }
 		    }
 		}
-
 
 	/**
 	 * @brief shrinks a quadrilateral and creates a copy of the smaller
@@ -2310,10 +2311,13 @@ namespace neuro_collection {
 	   }
 	};
 
-
+	/**
+	 * @brief new strategy to correct inner branching points
+	 */
 	static void correct_edges
 	(
 		std::vector<ug::Vertex*>& verts,
+		std::vector<ug::Edge*>& edges,
 		Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 		Grid& g,
 		Grid::VertexAttachmentAccessor<APosition>& aaPos,
@@ -2326,7 +2330,8 @@ namespace neuro_collection {
 		 Edge* e2 = g.get_edge(verts[1], verts[2]);
 		 if (!e2) e2 = g.get_edge(verts[1], verts[3]);
 
-		 /// e1.vertex(0) - newVertex - newVertex2 - e1->vertex(1)
+		 /// e1.vertex(0) - newVertex1 - newVertex2 - e1->vertex(1)
+		 /// TODO: scale with percentage not 0.2!
 		 vector3 dir;
 		 VecSubtract(dir, aaPos[e1->vertex(1)], aaPos[e1->vertex(0)]);
 		 ug::RegularVertex* newVertex1 = *g.create<ug::RegularVertex>();
@@ -2336,11 +2341,14 @@ namespace neuro_collection {
 		 VecScaleAdd(aaPos[newVertex1], 1.0, aaPos[newVertex1], 0.2, dir);
 		 aaSurfParams[newVertex1] = aaSurfParams[e1->vertex(0)];
 		 aaSurfParams[newVertex1].axial = aaSurfParams[e1->vertex(0)].axial + 0.2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
+		// aaSurfParams[newVertex1].angular = aaSurfParams[e1->vertex(0)].angular;
+		// aaSurfParams[newVertex1].neuriteID = aaSurfParams[e1->vertex(0)].neuriteID;
+		 //aaSurfParams[newVertex1].scale = aaSurfParams[e1->vertex(0)].scale;
 		 VecScaleAdd(aaPos[newVertex2], 1.0, aaPos[newVertex2], -0.2, dir);
 		 aaSurfParams[newVertex2] = aaSurfParams[e1->vertex(1)];
 		 aaSurfParams[newVertex2].axial = aaSurfParams[e1->vertex(1)].axial - 0.2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
 
-		 /// e2.vertex(0) - newVertex - newVertex2 - e2->vertex(1)
+		 /// e2.vertex(0) - newVertex3 - newVertex4 - e2->vertex(1)
 		 VecSubtract(dir, aaPos[e2->vertex(1)], aaPos[e2->vertex(0)]);
 		 ug::RegularVertex* newVertex3 = *g.create<ug::RegularVertex>();
 		 ug::RegularVertex* newVertex4 = *g.create<ug::RegularVertex>();
@@ -2351,17 +2359,54 @@ namespace neuro_collection {
 		 aaSurfParams[newVertex3].axial =  aaSurfParams[e2->vertex(0)].axial + 0.2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
 		 VecScaleAdd(aaPos[newVertex4], 1.0, aaPos[newVertex4], -0.2, dir);
 		 aaSurfParams[newVertex3] = aaSurfParams[e2->vertex(1)];
-		 aaSurfParams[newVertex4].axial = aaSurfParams[e2->vertex(0)].axial + 0.2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
+		 aaSurfParams[newVertex4].axial = aaSurfParams[e2->vertex(1)].axial + 0.2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
 
-		 /// TODO: implement -> split quader
-		 /// connect vertex 1 with vertex 3
-		 /// connect vertex 2 with vertex 4
-		 /// erase edge e1 and e2
-		 /// create face with vertex 1 and vertex 3 and vertices of e1
-		 /// create face with vertex 2 and vertex 4 and vertices of e2
-		 /// set the innervrts to the new 4 vertices 1,3,2,4
+		 ug::RegularEdge* e13 = *g.create<RegularEdge>(EdgeDescriptor(newVertex1, newVertex3));
+		 ug::Quadrilateral* q1 = *g.create<Quadrilateral>(QuadrilateralDescriptor(e1->vertex(0), newVertex1, newVertex3, e2->vertex(0)));
+		 ug::RegularEdge* e24 = *g.create<RegularEdge>(EdgeDescriptor(newVertex2, newVertex4));
+		 ug::Quadrilateral* q2 = *g.create<Quadrilateral>(QuadrilateralDescriptor(e1->vertex(1), newVertex2, newVertex4, e2->vertex(1)));
+		 ug::RegularEdge* e12 =  *g.create<RegularEdge>(EdgeDescriptor(newVertex1, newVertex2));
+		 ug::RegularEdge* e34 =  *g.create<RegularEdge>(EdgeDescriptor(newVertex3, newVertex4));
 
-		 /// TODO can do the same thing for the opposing face... erase the opposing faces. find edges and repeat. -> shrunken
+		 g.erase(e1);
+		 g.erase(e2);
+
+		 verts.clear();
+		 verts.push_back(newVertex2);
+		 verts.push_back(newVertex1);
+		 verts.push_back(newVertex3);
+		 verts.push_back(newVertex4);
+		 edges.clear();
+		 edges.push_back(e12);
+		 edges.push_back(e13);
+		 edges.push_back(e34);
+		 edges.push_back(e24);
+
+		std::vector<ug::Edge*> newEdges(4);
+		for (size_t j = 0; j < 4; ++j)
+		{
+			Vertex* first = verts[j];
+			Vertex* second = verts[(j+1) % 4];
+
+			size_t k = 0;
+			for (; k < 4; ++k)
+			{
+				if ((edges[k]->vertex(0) == first && edges[k]->vertex(1) == second)
+					|| (edges[k]->vertex(0) == second && edges[k]->vertex(1) == first))
+		 		{
+		 			newEdges[j] = edges[k];
+		 			break;
+		 		}
+		 	}
+			UG_COND_THROW(k == 4, "Connecting edges for child neurite could not be determined.");
+		}
+
+		edges = newEdges;
+
+		 /// TODO: correct axial parameters for vertices, neurite id to be set and angular parameter to be set.
+
+		 /// TODO: 1) do the same thing for the opposing face... erase the opposing faces. find edges and repeat.
+		 ///       2) then need to create the separating faces for the splitted quad
 
 	}
 
@@ -2391,7 +2436,7 @@ namespace neuro_collection {
 		aaSurfParams[verts[3]].axial = aaSurfParams[verts[3]].axial - length*scale/2;
 	}
 
-	/**
+	 /**
 	 * @brief creates neurites with one inner layer
 	 * Note: Make this more general: Provide std::vector<Layer> instead of
 	 * hard-coded one additional layer -> then can add provide more nestings
@@ -2510,6 +2555,9 @@ namespace neuro_collection {
         else
             angleOffsetInner = relCoord2[0] < 0 ? PI - atan(-relCoord2[1]/relCoord2[0]) : atan(relCoord2[1]/relCoord2[0]);
         if (angleOffsetInner < 0) angleOffsetInner += 2.0*PI;
+
+        /// note we use the angle offset from the outer, which might be reasonable
+        angleOffsetInner = angleOffset;
 
         // ignore first branching region (the connecting region)
         ++brit;
@@ -2972,9 +3020,12 @@ namespace neuro_collection {
 			/// -> Reposition the points after projection handling (Don't used shrunken quad because will get extra faces)
 			/// Better idea: Use exactly same positions for vertices of inner face and add neurite.scaleER to these vertices.
 			/// Then we need to subdivide the inner hexaeder into three parts at the branching point and correct axial offset
-			/// correct_edges(vrtsInner, aaSurfParams, g, aaPos, neurite.scaleER);
+			std::vector<ug::Edge*> myEdges;
+			correct_edges(vrtsInner, myEdges, aaSurfParams, g, aaPos, neurite.scaleER);
+			edgesInner = myEdges;
 			/// correct_axial_offset(vrtsInner, aaSurfParams, aaPos, neurite.scaleER); /// and correct position too?
 			UG_LOGN("Creating child(s) for inner and outer...")
+			edgesInner = myEdges;
 			create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
 
     	}
@@ -3630,7 +3681,6 @@ namespace neuro_collection {
     Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
     aaSurfParams.access(g, aSP);
 
-
     // convert intermediate structure to neurite data
     std::vector<std::vector<vector3> > vPos;
     std::vector<std::vector<number> > vRad;
@@ -3811,7 +3861,6 @@ namespace neuro_collection {
         try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
         UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
     }
-
 }
 
 	/**
