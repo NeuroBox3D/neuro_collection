@@ -2330,10 +2330,8 @@ namespace neuro_collection {
 		 Edge* e2 = g.get_edge(verts[1], verts[2]);
 		 if (!e2) e2 = g.get_edge(verts[1], verts[3]);
 
-		 /// TODO Need to make sure e1 and e2 are pointing in the same direction...
-
+		 /// TODO: set the correct axial and angular parameters for aaSurfParams
 		 /// e1.vertex(0) - newVertex1 - newVertex2 - e1->vertex(1)
-		 /// TODO: scale with percentage not 0.2!
 		 vector3 dir;
 		 VecSubtract(dir, aaPos[e1->vertex(1)], aaPos[e1->vertex(0)]);
 		 ug::RegularVertex* newVertex1 = *g.create<ug::RegularVertex>();
@@ -2369,50 +2367,32 @@ namespace neuro_collection {
 		 ug::RegularEdge* e12 =  *g.create<RegularEdge>(EdgeDescriptor(newVertex2, newVertex1));
 		 ug::RegularEdge* e43 =  *g.create<RegularEdge>(EdgeDescriptor(newVertex3, newVertex4));
 
+		 /// Verify edges are quasi parallel
 		 VecNormalize(dir, dir);
 		 VecNormalize(dir2, dir2);
 		 number dotProd = VecDot(dir, dir2) / (VecLength(dir) * VecLength(dir2));
-		 UG_LOGN("dotProd: " << dotProd);
+		 UG_COND_THROW( !( fabs(dotProd-1) < SMALL), "Edges need to be quasi parallel during splitting a hexaeder: " << dotProd);
+
+		 /// erase old edges
 		 g.erase(e1);
 		 g.erase(e2);
 
+		 /// set new face vertices for connection
 		 verts.clear();
 		 verts.push_back(newVertex1);
 		 verts.push_back(newVertex3);
 		 verts.push_back(newVertex4);
 		 verts.push_back(newVertex2);
 
+		 /// set new edge vertices for connection
 		 edges.clear();
 		 edges.push_back(e31);
 		 edges.push_back(e43);
 		 edges.push_back(e24);
 		 edges.push_back(e12);
 
-		 /*
-		std::vector<ug::Edge*> newEdges(4);
-		for (size_t j = 0; j < 4; ++j)
-		{
-			Vertex* first = verts[j];
-			Vertex* second = verts[(j+1) % 4];
-
-			size_t k = 0;
-			for (; k < 4; ++k)
-			{
-				if ((edges[k]->vertex(0) == first && edges[k]->vertex(1) == second)
-					|| (edges[k]->vertex(0) == second && edges[k]->vertex(1) == first))
-		 		{
-		 			newEdges[j] = edges[k];
-		 			break;
-		 		}
-		 	}
-			UG_COND_THROW(k == 4, "Connecting edges for child neurite could not be determined.");
-		}
-		*/
-
-		//edges = newEdges;
-
 		 /// TODO: correct axial parameters for vertices, neurite id to be set and angular parameter to be set.
-		/// Need to introduce quads, otherwise hanging nodes...
+		 /// Need to introduce quads, otherwise hanging nodes...
 
 		 /// TODO: 1) do the same thing for the opposing face... erase the opposing faces. find edges and repeat.
 		 ///       2) then need to create the separating faces for the splitted quad
@@ -3007,34 +2987,14 @@ namespace neuro_collection {
 				}
 				UG_COND_THROW(k == esz, "Connecting edges for child neurite could not be determined.");
 			}
-
 			g.erase(best);
-			std::vector<ug::Vertex*> vrtsOut;
+
+			/// split hexaeder and correct inner branching points
 			std::vector<ug::Edge*> edgesOut;
-			/// 1. Strategie (A/B in HybridMG document)
-			/// shrink_quadrilateral_center(vrtsInner, g, aaPos, -neurite.scaleER, hexCenter);
-			/// 2. Strategie (C in HybridMG document)
-			/// shrink_quadrilateral_copy(vrts, vrtsOut, vrtsInner, edgesOut, g, aaPos, -neurite.scaleER/2.0, true, NULL, &currentDir);
-			/// shrink_quadrilateral_copy(vrtsInner, vrtsOut, vrtsInner, edgesOut, g, aaPos, 0, true, NULL, &currentDir);
-			/// edgesInner = edgesOut;
-			/// vrtsInner = vrtsOut;
-			for (size_t i = 0; i < vrtsOut.size(); i++) {
-				aaSurfParams[vrtsOut[i]].neuriteID = nid;
-				aaSurfParams[vrtsOut[i]].axial = aaSurfParams[vrts[i]].axial;
-				aaSurfParams[vrtsOut[i]].angular = aaSurfParams[vrts[i]].angular;
-				aaSurfParams[vrtsOut[i]].scale = neurite.scaleER;
-			}
-			/// 3. Strategie (D in HybridMG document)
-			/// TODO: The axial parameters for the inner BPs are not correct and have to be handled differently.
-			/// -> Reposition the points after projection handling (Don't used shrunken quad because will get extra faces)
-			/// Better idea: Use exactly same positions for vertices of inner face and add neurite.scaleER to these vertices.
-			/// Then we need to subdivide the inner hexaeder into three parts at the branching point and correct axial offset
-			std::vector<ug::Edge*> myEdges;
-			correct_edges(vrtsInner, myEdges, aaSurfParams, g, aaPos, neurite.scaleER);
-			edgesInner = myEdges;
-			/// correct_axial_offset(vrtsInner, aaSurfParams, aaPos, neurite.scaleER); /// and correct position too?
+			correct_edges(vrtsInner, edgesOut, aaSurfParams, g, aaPos, neurite.scaleER);
+			edgesInner = edgesOut;
+
 			UG_LOGN("Creating child(s) for inner and outer...")
-			edgesInner = myEdges;
 			create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
 
     	}
