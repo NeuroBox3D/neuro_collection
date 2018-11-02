@@ -2340,10 +2340,10 @@ namespace neuro_collection {
 		 ug::RegularVertex* newVertex2 = *g.create<ug::RegularVertex>();
 		 aaPos[newVertex1] = aaPos[e1->vertex(0)];
 		 aaPos[newVertex2] = aaPos[e1->vertex(1)];
-		 VecScaleAdd(aaPos[newVertex1], 1.0, aaPos[newVertex1], 0.2, dir);
+		 VecScaleAdd(aaPos[newVertex1], 1.0, aaPos[newVertex1], scale/2.0, dir);
 		 aaSurfParams[newVertex1] = aaSurfParams[e1->vertex(0)];
 		 aaSurfParams[newVertex1].axial = aaSurfParams[e1->vertex(0)].axial + 0.2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
-		 VecScaleAdd(aaPos[newVertex2], 1.0, aaPos[newVertex2], -0.2, dir);
+		 VecScaleAdd(aaPos[newVertex2], 1.0, aaPos[newVertex2], -scale/2.0, dir);
 		 aaSurfParams[newVertex2] = aaSurfParams[e1->vertex(1)];
 		 aaSurfParams[newVertex2].axial = aaSurfParams[e1->vertex(1)].axial - 0.2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
 
@@ -2355,10 +2355,10 @@ namespace neuro_collection {
 		 ug::RegularVertex* newVertex4 = *g.create<ug::RegularVertex>();
 		 aaPos[newVertex3] = aaPos[e2->vertex(0)];
 		 aaPos[newVertex4] = aaPos[e2->vertex(1)];
-		 VecScaleAdd(aaPos[newVertex3], 1.0, aaPos[newVertex3], 0.2, dir);
+		 VecScaleAdd(aaPos[newVertex3], 1.0, aaPos[newVertex3], scale/2.0, dir);
 		 aaSurfParams[newVertex3] = aaSurfParams[e2->vertex(0)];
 		 aaSurfParams[newVertex3].axial =  aaSurfParams[e2->vertex(0)].axial + 0.2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
-		 VecScaleAdd(aaPos[newVertex4], 1.0, aaPos[newVertex4], -0.2, dir);
+		 VecScaleAdd(aaPos[newVertex4], 1.0, aaPos[newVertex4], -scale/2.0, dir);
 		 aaSurfParams[newVertex3] = aaSurfParams[e2->vertex(1)];
 		 aaSurfParams[newVertex4].axial = aaSurfParams[e2->vertex(1)].axial + 0.2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
 
@@ -2377,16 +2377,16 @@ namespace neuro_collection {
 		 g.erase(e2);
 
 		 verts.clear();
-		 verts.push_back(newVertex2);
-		 verts.push_back(newVertex4);
-		 verts.push_back(newVertex3);
 		 verts.push_back(newVertex1);
+		 verts.push_back(newVertex3);
+		 verts.push_back(newVertex4);
+		 verts.push_back(newVertex2);
 
 		 edges.clear();
-		 edges.push_back(e24);
-		 edges.push_back(e12);
 		 edges.push_back(e31);
 		 edges.push_back(e43);
+		 edges.push_back(e24);
+		 edges.push_back(e12);
 
 		 /*
 		std::vector<ug::Edge*> newEdges(4);
