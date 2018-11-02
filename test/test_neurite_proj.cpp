@@ -2330,6 +2330,8 @@ namespace neuro_collection {
 		 Edge* e2 = g.get_edge(verts[1], verts[2]);
 		 if (!e2) e2 = g.get_edge(verts[1], verts[3]);
 
+		 /// TODO Need to make sure e1 and e2 are pointing in the same direction...
+
 		 /// e1.vertex(0) - newVertex1 - newVertex2 - e1->vertex(1)
 		 /// TODO: scale with percentage not 0.2!
 		 vector3 dir;
@@ -2341,15 +2343,14 @@ namespace neuro_collection {
 		 VecScaleAdd(aaPos[newVertex1], 1.0, aaPos[newVertex1], 0.2, dir);
 		 aaSurfParams[newVertex1] = aaSurfParams[e1->vertex(0)];
 		 aaSurfParams[newVertex1].axial = aaSurfParams[e1->vertex(0)].axial + 0.2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
-		// aaSurfParams[newVertex1].angular = aaSurfParams[e1->vertex(0)].angular;
-		// aaSurfParams[newVertex1].neuriteID = aaSurfParams[e1->vertex(0)].neuriteID;
-		 //aaSurfParams[newVertex1].scale = aaSurfParams[e1->vertex(0)].scale;
 		 VecScaleAdd(aaPos[newVertex2], 1.0, aaPos[newVertex2], -0.2, dir);
 		 aaSurfParams[newVertex2] = aaSurfParams[e1->vertex(1)];
 		 aaSurfParams[newVertex2].axial = aaSurfParams[e1->vertex(1)].axial - 0.2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
 
 		 /// e2.vertex(0) - newVertex3 - newVertex4 - e2->vertex(1)
+		 vector3 dir2;
 		 VecSubtract(dir, aaPos[e2->vertex(1)], aaPos[e2->vertex(0)]);
+		 VecSubtract(dir2, aaPos[e2->vertex(1)], aaPos[e2->vertex(0)]);
 		 ug::RegularVertex* newVertex3 = *g.create<ug::RegularVertex>();
 		 ug::RegularVertex* newVertex4 = *g.create<ug::RegularVertex>();
 		 aaPos[newVertex3] = aaPos[e2->vertex(0)];
@@ -2361,27 +2362,33 @@ namespace neuro_collection {
 		 aaSurfParams[newVertex3] = aaSurfParams[e2->vertex(1)];
 		 aaSurfParams[newVertex4].axial = aaSurfParams[e2->vertex(1)].axial + 0.2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
 
-		 ug::RegularEdge* e13 = *g.create<RegularEdge>(EdgeDescriptor(newVertex1, newVertex3));
+		 ug::RegularEdge* e31 = *g.create<RegularEdge>(EdgeDescriptor(newVertex1, newVertex3));
 		 ug::Quadrilateral* q1 = *g.create<Quadrilateral>(QuadrilateralDescriptor(e1->vertex(0), newVertex1, newVertex3, e2->vertex(0)));
-		 ug::RegularEdge* e24 = *g.create<RegularEdge>(EdgeDescriptor(newVertex2, newVertex4));
+		 ug::RegularEdge* e24 = *g.create<RegularEdge>(EdgeDescriptor(newVertex4, newVertex2));
 		 ug::Quadrilateral* q2 = *g.create<Quadrilateral>(QuadrilateralDescriptor(e1->vertex(1), newVertex2, newVertex4, e2->vertex(1)));
-		 ug::RegularEdge* e12 =  *g.create<RegularEdge>(EdgeDescriptor(newVertex1, newVertex2));
-		 ug::RegularEdge* e34 =  *g.create<RegularEdge>(EdgeDescriptor(newVertex3, newVertex4));
+		 ug::RegularEdge* e12 =  *g.create<RegularEdge>(EdgeDescriptor(newVertex2, newVertex1));
+		 ug::RegularEdge* e43 =  *g.create<RegularEdge>(EdgeDescriptor(newVertex3, newVertex4));
 
+		 VecNormalize(dir, dir);
+		 VecNormalize(dir2, dir2);
+		 number dotProd = VecDot(dir, dir2) / (VecLength(dir) * VecLength(dir2));
+		 UG_LOGN("dotProd: " << dotProd);
 		 g.erase(e1);
 		 g.erase(e2);
 
 		 verts.clear();
 		 verts.push_back(newVertex2);
-		 verts.push_back(newVertex1);
-		 verts.push_back(newVertex3);
 		 verts.push_back(newVertex4);
-		 edges.clear();
-		 edges.push_back(e12);
-		 edges.push_back(e13);
-		 edges.push_back(e34);
-		 edges.push_back(e24);
+		 verts.push_back(newVertex3);
+		 verts.push_back(newVertex1);
 
+		 edges.clear();
+		 edges.push_back(e24);
+		 edges.push_back(e12);
+		 edges.push_back(e31);
+		 edges.push_back(e43);
+
+		 /*
 		std::vector<ug::Edge*> newEdges(4);
 		for (size_t j = 0; j < 4; ++j)
 		{
@@ -2400,10 +2407,12 @@ namespace neuro_collection {
 		 	}
 			UG_COND_THROW(k == 4, "Connecting edges for child neurite could not be determined.");
 		}
+		*/
 
-		edges = newEdges;
+		//edges = newEdges;
 
 		 /// TODO: correct axial parameters for vertices, neurite id to be set and angular parameter to be set.
+		/// Need to introduce quads, otherwise hanging nodes...
 
 		 /// TODO: 1) do the same thing for the opposing face... erase the opposing faces. find edges and repeat.
 		 ///       2) then need to create the separating faces for the splitted quad
