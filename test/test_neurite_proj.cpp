@@ -2312,11 +2312,28 @@ namespace neuro_collection {
 	};
 
 	/**
+	 * @brief comparator for elements in vector
+	 */
+	template <typename TElem>
+	struct ExistsInVector
+	{
+		ExistsInVector(const std::vector<TElem>& vec) : m_vec(vec) {
+		}
+
+		bool operator() (TElem elem) {
+			return (std::find(m_vec.begin(), m_vec.end(), elem) != m_vec.end());
+		}
+	private:
+		const std::vector<TElem>& m_vec;
+	};
+
+	/**
 	 * @brief new strategy to correct inner branching points
 	 */
 	static void correct_edges
 	(
 		std::vector<ug::Vertex*>& verts,
+		std::vector<ug::Vertex*>& vertsOpposing,
 		std::vector<ug::Edge*>& edges,
 		Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 		Grid& g,
@@ -2330,7 +2347,7 @@ namespace neuro_collection {
 		 Edge* e2 = g.get_edge(verts[1], verts[2]);
 		 if (!e2) e2 = g.get_edge(verts[1], verts[3]);
 
-		 /// TODO: set the correct axial and angular parameters for aaSurfParams
+		 /// TODO: set the correct axial and angular parameters for aaSurfParams: Required for refinement
 		 /// e1.vertex(0) - newVertex1 - newVertex2 - e1->vertex(1)
 		 vector3 dir;
 		 VecSubtract(dir, aaPos[e1->vertex(1)], aaPos[e1->vertex(0)]);
@@ -2340,10 +2357,10 @@ namespace neuro_collection {
 		 aaPos[newVertex2] = aaPos[e1->vertex(1)];
 		 VecScaleAdd(aaPos[newVertex1], 1.0, aaPos[newVertex1], scale/2.0, dir);
 		 aaSurfParams[newVertex1] = aaSurfParams[e1->vertex(0)];
-		 aaSurfParams[newVertex1].axial = aaSurfParams[e1->vertex(0)].axial + 0.2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
+		 aaSurfParams[newVertex1].axial = aaSurfParams[e1->vertex(0)].axial + scale/2.0*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
 		 VecScaleAdd(aaPos[newVertex2], 1.0, aaPos[newVertex2], -scale/2.0, dir);
 		 aaSurfParams[newVertex2] = aaSurfParams[e1->vertex(1)];
-		 aaSurfParams[newVertex2].axial = aaSurfParams[e1->vertex(1)].axial - 0.2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
+		 aaSurfParams[newVertex2].axial = aaSurfParams[e1->vertex(1)].axial - scale/2.0*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
 
 		 /// e2.vertex(0) - newVertex3 - newVertex4 - e2->vertex(1)
 		 vector3 dir2;
@@ -2355,10 +2372,10 @@ namespace neuro_collection {
 		 aaPos[newVertex4] = aaPos[e2->vertex(1)];
 		 VecScaleAdd(aaPos[newVertex3], 1.0, aaPos[newVertex3], scale/2.0, dir);
 		 aaSurfParams[newVertex3] = aaSurfParams[e2->vertex(0)];
-		 aaSurfParams[newVertex3].axial =  aaSurfParams[e2->vertex(0)].axial + 0.2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
+		 aaSurfParams[newVertex3].axial =  aaSurfParams[e2->vertex(0)].axial + scale/2.0*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
 		 VecScaleAdd(aaPos[newVertex4], 1.0, aaPos[newVertex4], -scale/2.0, dir);
 		 aaSurfParams[newVertex3] = aaSurfParams[e2->vertex(1)];
-		 aaSurfParams[newVertex4].axial = aaSurfParams[e2->vertex(1)].axial + 0.2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
+		 aaSurfParams[newVertex4].axial = aaSurfParams[e2->vertex(1)].axial - scale/2.0*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
 
 		 ug::RegularEdge* e31 = *g.create<RegularEdge>(EdgeDescriptor(newVertex1, newVertex3));
 		 ug::Quadrilateral* q1 = *g.create<Quadrilateral>(QuadrilateralDescriptor(e1->vertex(0), newVertex1, newVertex3, e2->vertex(0)));
@@ -2787,6 +2804,7 @@ namespace neuro_collection {
 			VecScaleAdd(extrudeDir, 1.0, curPos, -1.0, lastPos);
 			Extrude(g, &vVrt, &vEdge, NULL, extrudeDir, aaPos, EO_CREATE_FACES, NULL);
 			sel.enable_autoselection(false);
+
 			if (s == nSeg-1 && brit != brit_end) {
 				sel2.enable_autoselection(true); // for last segment (BP), select new elems
 			}
@@ -2946,6 +2964,8 @@ namespace neuro_collection {
 			fit = sel2.faces_begin();
 			fit_end = sel2.faces_end();
 			ug::vector3 hexCenter = CalculateCenter(fit, fit_end, aaPos);
+
+			std::vector<Vertex*> vrtsOpposing;
 			for (; fit != fit_end; ++fit)
 			{
 				CalculateNormal(normal, *fit, aaPos);
@@ -2955,17 +2975,31 @@ namespace neuro_collection {
 					best = *fit;
 					bestProd = prod;
 				}
+
+				Face* f = *fit;
+				for (size_t i = 0; i < 4; ++i) {
+					vrtsOpposing.push_back(f->operator[](i));
+				}
 			}
+
+			UG_LOGN("Number of faces: " << sel2.num<Face>());
 			UG_COND_THROW(!best, "None of the branching point faces pointed in a suitable direction (inner).")
 			sel2.deselect(sel2.faces_begin(), sel2.faces_end());
 
 			// remove face and call creation of child neurite (recursion)
 			std::vector<Vertex*> vrtsInner(4);
 			UG_COND_THROW(best->num_vertices() != 4, "Hexaeder face does not have 4 vertices!");
-			for (size_t j = 0; j < 4; ++j)
-				vrtsInner[j] = best->vertex(j);
-			std::vector<Edge*> edgesInner(4);
+			for (size_t j = 0; j < 4; ++j) {
+				vrtsInner[j] = best->operator[](j);
+			}
 
+			vrtsOpposing.erase(std::remove_if(vrtsOpposing.begin(), vrtsOpposing.end(),
+					ExistsInVector<Vertex*>(vrtsInner)), vrtsOpposing.end());
+			vrtsOpposing.erase(std::remove_if(vrtsOpposing.begin(), vrtsOpposing.end(),
+					ExistsInVector<Vertex*>(vVrtInner)), vrtsOpposing.end());
+			UG_COND_THROW(vrtsOpposing.size() != 4, "Hexaeder has to have 4 vertices, but got: " << vrtsOpposing.size());
+
+			std::vector<Edge*> edgesInner(4);
 			edgeCont.clear();
 			g.associated_elements(edgeCont, best);
 			esz = edgeCont.size();
@@ -2991,7 +3025,7 @@ namespace neuro_collection {
 
 			/// split hexaeder and correct inner branching points
 			std::vector<ug::Edge*> edgesOut;
-			correct_edges(vrtsInner, edgesOut, aaSurfParams, g, aaPos, neurite.scaleER);
+			correct_edges(vrtsInner, vrtsOpposing, edgesOut, aaSurfParams, g, aaPos, neurite.scaleER);
 			edgesInner = edgesOut;
 
 			UG_LOGN("Creating child(s) for inner and outer...")
