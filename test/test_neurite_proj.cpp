@@ -2333,8 +2333,8 @@ namespace neuro_collection {
 	static void correct_edges
 	(
 		std::vector<ug::Vertex*>& verts,
-		std::vector<ug::Vertex*>& vertsOpposing,
 		std::vector<ug::Edge*>& edges,
+		std::vector<ug::Vertex*>& oldVertsSorted,
 		Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 		Grid& g,
 		Grid::VertexAttachmentAccessor<APosition>& aaPos,
@@ -2342,12 +2342,14 @@ namespace neuro_collection {
 	)
 	{
 		 sort(verts.begin(), verts.end(), CompareBy< &NeuriteProjector::SurfaceParams::axial >(aaSurfParams) );
+		 oldVertsSorted = verts;
+
 		 Edge* e1 = g.get_edge(verts[0], verts[2]);
 		 if (!e1) e1 = g.get_edge(verts[0], verts[3]);
 		 Edge* e2 = g.get_edge(verts[1], verts[2]);
 		 if (!e2) e2 = g.get_edge(verts[1], verts[3]);
 
-		 /// TODO: set the correct axial and angular parameters for aaSurfParams: Required for refinement
+		 /// TODO: set correct parameters for vertices: neurite id, angular, axial - Important for refinement
 		 /// e1.vertex(0) - newVertex1 - newVertex2 - e1->vertex(1)
 		 vector3 dir;
 		 VecSubtract(dir, aaPos[e1->vertex(1)], aaPos[e1->vertex(0)]);
@@ -2407,14 +2409,49 @@ namespace neuro_collection {
 		 edges.push_back(e43);
 		 edges.push_back(e24);
 		 edges.push_back(e12);
-
-		 /// TODO: correct axial parameters for vertices, neurite id to be set and angular parameter to be set.
-		 /// Need to introduce quads, otherwise hanging nodes...
-
-		 /// TODO: 1) do the same thing for the opposing face... erase the opposing faces. find edges and repeat.
-		 ///       2) then need to create the separating faces for the splitted quad
-
 	}
+
+	/**
+	 * @brief helper method to correct one side of the quadrilateral
+	 */
+	static void correct_edges_all
+	(
+		std::vector<ug::Vertex*>& verts,
+		std::vector<ug::Vertex*>& vertsOpp,
+		std::vector<ug::Edge*>& edges,
+		std::vector<ug::Edge*>& edgesOpp,
+		Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+		Grid& g,
+		Grid::VertexAttachmentAccessor<APosition>& aaPos,
+		number scale
+	)
+	{
+		/// the connecting vertices are needed later
+		UG_LOGN("correcting edges connecting...")
+		std::vector<ug::Vertex*> oldVertsSorted;
+		correct_edges(verts, edges, oldVertsSorted, aaSurfParams, g, aaPos, scale);
+		UG_LOGN("correcting edges oppossing...")
+		/// backside not needed
+		std::vector<ug::Vertex*> oldVertsSortedOpp;
+		correct_edges(vertsOpp, edgesOpp, oldVertsSortedOpp, aaSurfParams, g, aaPos, scale);
+		g.create<Quadrilateral>(QuadrilateralDescriptor(vertsOpp[0], vertsOpp[1], vertsOpp[2], vertsOpp[3]));
+
+		// connect the sides of splitted edges and fill top center and bottom center holes
+		g.create<RegularEdge>(EdgeDescriptor(verts[0], vertsOpp[1]));
+		g.create<RegularEdge>(EdgeDescriptor(verts[1], vertsOpp[0]));
+		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[0], verts[3], vertsOpp[2], vertsOpp[1]));
+		g.create<RegularEdge>(EdgeDescriptor(verts[2], vertsOpp[3]));
+		g.create<RegularEdge>(EdgeDescriptor(verts[3], vertsOpp[2]));
+		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[1], verts[2], vertsOpp[3], vertsOpp[0]));
+
+		/// fill 4 more holes to the left and right on top and left and right on bottom
+		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[0], vertsOpp[1], oldVertsSortedOpp[1], oldVertsSorted[0]));
+		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[1], vertsOpp[0], oldVertsSortedOpp[0], oldVertsSorted[1]));
+		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[2], vertsOpp[3], oldVertsSortedOpp[3], oldVertsSorted[2]));
+		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[3], vertsOpp[2], oldVertsSortedOpp[2], oldVertsSorted[3]));
+	}
+
+
 
 	/**
 	 * @brief corrects the axial offset at the inner branching points
@@ -2976,15 +3013,15 @@ namespace neuro_collection {
 					bestProd = prod;
 				}
 
+				/*
 				Face* f = *fit;
 				for (size_t i = 0; i < 4; ++i) {
 					vrtsOpposing.push_back(f->operator[](i));
 				}
+				*/
 			}
-
-			UG_LOGN("Number of faces: " << sel2.num<Face>());
+			UG_LOGN("Number of hexaeder verts: " << vrtsOpposing.size());
 			UG_COND_THROW(!best, "None of the branching point faces pointed in a suitable direction (inner).")
-			sel2.deselect(sel2.faces_begin(), sel2.faces_end());
 
 			// remove face and call creation of child neurite (recursion)
 			std::vector<Vertex*> vrtsInner(4);
@@ -2993,10 +3030,32 @@ namespace neuro_collection {
 				vrtsInner[j] = best->operator[](j);
 			}
 
-			vrtsOpposing.erase(std::remove_if(vrtsOpposing.begin(), vrtsOpposing.end(),
+			/// find opposing vertices
+			fit = sel2.faces_begin();
+			fit_end = sel2.faces_end();
+
+			for (; fit != fit_end; ++fit) {
+				Face* f = *fit;
+				bool opposingFace = true;
+				for (size_t i = 0; i < 4; ++i) {
+					if(std::find(vrtsInner.begin(), vrtsInner.end(), f->vertex(i)) != vrtsInner.end()) {
+						opposingFace = false;
+					}
+				}
+				if (opposingFace) {
+					for (size_t i = 0; i < 4; ++i) {
+						vrtsOpposing.push_back(f->vertex(i));
+					}
+				}
+			}
+
+			sel2.deselect(sel2.faces_begin(), sel2.faces_end());
+
+/*			vrtsOpposing.erase(std::remove_if(vrtsOpposing.begin(), vrtsOpposing.end(),
 					ExistsInVector<Vertex*>(vrtsInner)), vrtsOpposing.end());
 			vrtsOpposing.erase(std::remove_if(vrtsOpposing.begin(), vrtsOpposing.end(),
 					ExistsInVector<Vertex*>(vVrtInner)), vrtsOpposing.end());
+			*/
 			UG_COND_THROW(vrtsOpposing.size() != 4, "Hexaeder has to have 4 vertices, but got: " << vrtsOpposing.size());
 
 			std::vector<Edge*> edgesInner(4);
@@ -3025,7 +3084,8 @@ namespace neuro_collection {
 
 			/// split hexaeder and correct inner branching points
 			std::vector<ug::Edge*> edgesOut;
-			correct_edges(vrtsInner, vrtsOpposing, edgesOut, aaSurfParams, g, aaPos, neurite.scaleER);
+			std::vector<ug::Edge*> edgesOutOpposing;
+			correct_edges_all(vrtsInner, vrtsOpposing, edgesOut, edgesOutOpposing, aaSurfParams, g, aaPos, neurite.scaleER);
 			edgesInner = edgesOut;
 
 			UG_LOGN("Creating child(s) for inner and outer...")
