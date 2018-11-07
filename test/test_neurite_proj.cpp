@@ -2166,10 +2166,6 @@ namespace neuro_collection {
 	/**
 	 * @brief shrinks quadrilateral and overwrites old quadrilateral's vertices
 	 */
-	/// Note: Could also use this strategy: Get two edges emerging from a vertex
-	///       and then calculate normals in vertex for each vertex -> then move
-	///       along this combined normals n1, n2 into interior of quadrilateral.
-	///       Can use function pointer or template to allow usage of different strategies
 	void shrink_quadrilateral
 (
 	std::vector<Vertex*> vVrt,
@@ -2312,7 +2308,7 @@ namespace neuro_collection {
 	};
 
 	/**
-	 * @brief comparator for elements in vector
+     * @brief comparator for elements in vector
 	 */
 	template <typename TElem>
 	struct ExistsInVector
@@ -2461,8 +2457,6 @@ namespace neuro_collection {
 		/// TODO: Move new inner vertices, such that the connecting edges are parallel to outer edges
 	}
 
-
-
 	/**
 	 * @brief corrects the axial offset at the inner branching points
 	 * This means, we move the points with smaller axial value further down
@@ -2609,7 +2603,7 @@ namespace neuro_collection {
             angleOffsetInner = relCoord2[0] < 0 ? PI - atan(-relCoord2[1]/relCoord2[0]) : atan(relCoord2[1]/relCoord2[0]);
         if (angleOffsetInner < 0) angleOffsetInner += 2.0*PI;
 
-        /// note we use the angle offset from the outer, which might be reasonable
+        /// note we use the angle offset from the outer, which might be reasonable, since we have the same direction
         angleOffsetInner = angleOffset;
 
         // ignore first branching region (the connecting region)
