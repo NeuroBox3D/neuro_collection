@@ -2328,7 +2328,8 @@ namespace neuro_collection {
 	};
 
 	/**
-	 * @brief new strategy to correct inner branching points
+	 * @brief Correcting inner branching points of neurites
+	 * Note: In case of very small shrinkage factor might result in intersections
 	 */
 	static void correct_edges
 	(
@@ -2349,8 +2350,7 @@ namespace neuro_collection {
 		 Edge* e2 = g.get_edge(verts[1], verts[2]);
 		 if (!e2) e2 = g.get_edge(verts[1], verts[3]);
 
-		 /// TODO: set correct parameters for vertices: neurite id, angular, axial - Important for refinement
-		 /// e1.vertex(0) - newVertex1 - newVertex2 - e1->vertex(1)
+		 /// "bottom vertices of connecting inner face": e1->vertex(0) - newVertex1 - newVertex2 - e1->vertex(1)
 		 vector3 dir;
 		 VecSubtract(dir, aaPos[e1->vertex(1)], aaPos[e1->vertex(0)]);
 		 ug::RegularVertex* newVertex1 = *g.create<ug::RegularVertex>();
@@ -2359,12 +2359,16 @@ namespace neuro_collection {
 		 aaPos[newVertex2] = aaPos[e1->vertex(1)];
 		 VecScaleAdd(aaPos[newVertex1], 1.0, aaPos[newVertex1], scale/2.0, dir);
 		 aaSurfParams[newVertex1] = aaSurfParams[e1->vertex(0)];
-		 aaSurfParams[newVertex1].axial = aaSurfParams[e1->vertex(0)].axial + scale/2.0*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
+		 aaSurfParams[newVertex1].axial = aaSurfParams[e1->vertex(0)].axial + scale/2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
+		 aaSurfParams[newVertex1].neuriteID = aaSurfParams[e1->vertex(0)].neuriteID;
+		 aaSurfParams[newVertex1].scale = aaSurfParams[e1->vertex(0)].scale;
 		 VecScaleAdd(aaPos[newVertex2], 1.0, aaPos[newVertex2], -scale/2.0, dir);
 		 aaSurfParams[newVertex2] = aaSurfParams[e1->vertex(1)];
-		 aaSurfParams[newVertex2].axial = aaSurfParams[e1->vertex(1)].axial - scale/2.0*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
+		 aaSurfParams[newVertex2].axial = aaSurfParams[e1->vertex(1)].axial - scale/2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
+		 aaSurfParams[newVertex2].neuriteID = aaSurfParams[e1->vertex(1)].neuriteID;
+		 aaSurfParams[newVertex2].scale = aaSurfParams[e1->vertex(1)].scale;
 
-		 /// e2.vertex(0) - newVertex3 - newVertex4 - e2->vertex(1)
+		 /// "top vertices of connecting inner face": e2->vertex(0) - newVertex3 - newVertex4 - e2->vertex(1)
 		 vector3 dir2;
 		 VecSubtract(dir, aaPos[e2->vertex(1)], aaPos[e2->vertex(0)]);
 		 VecSubtract(dir2, aaPos[e2->vertex(1)], aaPos[e2->vertex(0)]);
@@ -2374,10 +2378,14 @@ namespace neuro_collection {
 		 aaPos[newVertex4] = aaPos[e2->vertex(1)];
 		 VecScaleAdd(aaPos[newVertex3], 1.0, aaPos[newVertex3], scale/2.0, dir);
 		 aaSurfParams[newVertex3] = aaSurfParams[e2->vertex(0)];
-		 aaSurfParams[newVertex3].axial =  aaSurfParams[e2->vertex(0)].axial + scale/2.0*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
+		 aaSurfParams[newVertex3].axial =  aaSurfParams[e2->vertex(0)].axial + scale/2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
+		 aaSurfParams[newVertex3].neuriteID = aaSurfParams[e2->vertex(0)].neuriteID;
+		 aaSurfParams[newVertex3].scale = aaSurfParams[e2->vertex(0)].scale;
 		 VecScaleAdd(aaPos[newVertex4], 1.0, aaPos[newVertex4], -scale/2.0, dir);
-		 aaSurfParams[newVertex3] = aaSurfParams[e2->vertex(1)];
-		 aaSurfParams[newVertex4].axial = aaSurfParams[e2->vertex(1)].axial - scale/2.0*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
+		 aaSurfParams[newVertex4] = aaSurfParams[e2->vertex(1)];
+		 aaSurfParams[newVertex4].axial = aaSurfParams[e2->vertex(1)].axial - scale/2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
+		 aaSurfParams[newVertex4].neuriteID = aaSurfParams[e2->vertex(1)].neuriteID;
+		 aaSurfParams[newVertex4].scale = aaSurfParams[e2->vertex(1)].scale;
 
 		 ug::RegularEdge* e31 = *g.create<RegularEdge>(EdgeDescriptor(newVertex1, newVertex3));
 		 ug::Quadrilateral* q1 = *g.create<Quadrilateral>(QuadrilateralDescriptor(e1->vertex(0), newVertex1, newVertex3, e2->vertex(0)));
@@ -2386,7 +2394,7 @@ namespace neuro_collection {
 		 ug::RegularEdge* e12 =  *g.create<RegularEdge>(EdgeDescriptor(newVertex2, newVertex1));
 		 ug::RegularEdge* e43 =  *g.create<RegularEdge>(EdgeDescriptor(newVertex3, newVertex4));
 
-		 /// Verify edges are quasi parallel
+		 /// Verify edges are quasi parallel (should never happen but you never know)
 		 VecNormalize(dir, dir);
 		 VecNormalize(dir2, dir2);
 		 number dotProd = VecDot(dir, dir2) / (VecLength(dir) * VecLength(dir2));
@@ -2449,6 +2457,8 @@ namespace neuro_collection {
 		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[1], vertsOpp[0], oldVertsSortedOpp[0], oldVertsSorted[1]));
 		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[2], vertsOpp[3], oldVertsSortedOpp[3], oldVertsSorted[2]));
 		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[3], vertsOpp[2], oldVertsSortedOpp[2], oldVertsSorted[3]));
+
+		/// TODO: Move new inner vertices, such that the connecting edges are parallel to outer edges
 	}
 
 
