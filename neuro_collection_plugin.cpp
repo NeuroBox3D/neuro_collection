@@ -66,6 +66,7 @@
 
 #include "util/measurement.h"
 #include "util/ca_wave_util.h"
+#include "util/axon_util.h"
 #include "util/misc_util.h"
 #include "lib_disc/function_spaces/grid_function.h"
 
@@ -618,6 +619,7 @@ static void Domain(Registry& reg, string grp)
 		reg.add_function("mark_global", &mark_global<TDomain>, grp.c_str(), "", "refiner#approx space", "");
 		reg.add_function("mark_anisotropic", &mark_anisotropic<TDomain>, grp.c_str(), "", "refiner#approx space#anisotropy threshold (<=1)", "");
 		reg.add_function("mark_anisotropic_x", &mark_anisotropic_onlyX<TDomain>, grp.c_str(), "", "refiner#approx space#anisotropy threshold (<=1)", "");
+		reg.add_function("unmark_ranvier_areas", &unmark_ranvier_areas<TDomain>, grp.c_str(), "", "refiner#approx space#ranvier node subsets#unmark", "");
 	}
 
 	// extra commands for this plugin

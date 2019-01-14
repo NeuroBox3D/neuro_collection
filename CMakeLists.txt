@@ -36,6 +36,7 @@ set(SOURCES neuro_collection_plugin.cpp
             stimulation/action_potential_train.cpp
             grid_generation/bouton_generator.cpp
             grid_generation/spine_generation.cpp
+            util/axon_util.cpp
             util/misc_util.cpp
    )
 
