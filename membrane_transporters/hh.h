@@ -39,7 +39,7 @@ class HH
   public IElemDisc<TDomain>
 {
 	public:
-		enum{_PHII_, _PHIO_, _N_, _M_, _H_};
+		enum{_PHII_ = 0, _PHIO_, _N_, _M_, _H_};
 
 		static const int dim = TDomain::dim;	 //!< world dimension
 		typedef typename GeomObjBaseTypeByDim<dim>::base_obj_type elem_t;

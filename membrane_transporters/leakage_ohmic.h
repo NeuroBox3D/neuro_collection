@@ -38,7 +38,7 @@ namespace neuro_collection {
 class OhmicLeakage : public IMembraneTransporter
 {
 	public:
-		enum{_PHII_, _PHIO_};
+		enum{_PHII_ = 0, _PHIO_};
 
 	public:
 		/// @copydoc IMembraneTransporter::IMembraneTransporter(const std::vector<std::string)

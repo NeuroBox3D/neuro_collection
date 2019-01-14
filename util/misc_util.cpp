@@ -32,7 +32,7 @@ void mark_global(SmartPtr<IRefiner> refiner, SmartPtr<ApproximationSpace<TDomain
 
 	// loop elements for marking
 	for (; iter != iterEnd; ++iter)
-		refiner->mark(*iter, RM_REFINE);
+		refiner->mark(*iter, RM_FULL);
 }
 
 

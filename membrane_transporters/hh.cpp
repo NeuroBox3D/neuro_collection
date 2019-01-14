@@ -398,7 +398,7 @@ void HH<TDomain>::prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonReg
 	// check that Lagrange 1st order
 	for (size_t i = 0; i < vLfeID.size(); ++i)
 		if (vLfeID[i].type() != LFEID::LAGRANGE || vLfeID[i].order() != 1)
-			UG_THROW("Hodgin-Hoxley: 1st order Lagrange functions expected.");
+			UG_THROW("Hodgkin-Huxley: 1st order Lagrange functions expected.");
 
 	// update assemble functions
 	m_bNonRegularGrid = bNonRegularGrid;

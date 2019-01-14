@@ -29,7 +29,7 @@ namespace ug {
  *                       - spine ER neck length (um)
  *                       - spine ER head radius (in addition to spine ER neck radius) (um)
  *                       - spine ER head length (um)
- *                       -  spine neck radius (um)
+ *                       - spine neck radius (um)
  *                       - spine neck length (um)
  *                       - spine head radius (in addition to spine neck radius) (um)
  *                       - spine head length (um)
