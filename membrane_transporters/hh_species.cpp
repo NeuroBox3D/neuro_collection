@@ -26,6 +26,14 @@ void HHSpecies<TDomain>::set_reversal_potentials(number ek, number ena)
 {
 	m_eK = ek;
 	m_eNa = ena;
+	m_bConstNernstPotentials = true;
+}
+
+
+template <typename TDomain>
+void HHSpecies<TDomain>::set_temperature(number t)
+{
+	m_T = t;
 }
 
 
@@ -51,8 +59,11 @@ HHSpecies<TDomain>::HHSpecies
 	ConstSmartPtr<ISubsetHandler> spSH
 )
 : IMembraneTransporter(fcts),
+  RoverF(8.6174e-5),
   m_gK(2e-11), m_gNa(2e-11),
+  m_bConstNernstPotentials(false),
   m_eK(-0.077), m_eNa(0.05),
+  m_T(310.0),
   m_spSH(spSH),
   m_vSubset(subsets),
   m_refTime(1.0),
@@ -69,8 +80,11 @@ HHSpecies<TDomain>::HHSpecies
 template <typename TDomain>
 HHSpecies<TDomain>::HHSpecies(const char* fcts, const char* subsets, ConstSmartPtr<ISubsetHandler> spSH)
 : IMembraneTransporter(fcts),
+  RoverF(8.6174e-5),
   m_gK(2e-11), m_gNa(2e-11),
+  m_bConstNernstPotentials(false),
   m_eK(-0.077), m_eNa(0.05),
+  m_T(310.0),
   m_spSH(spSH),
   m_vSubset(TokenizeString(subsets, ',')),
   m_refTime(1.0),
@@ -101,11 +115,26 @@ void HHSpecies<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, 
 	const number m = it->second.m;  // gating state m
 	const number h = it->second.h;  // gating state h
 
-	const number currentK = m_gK * n*n*n*n * (vm - m_eK);
-	const number currentNa = m_gNa * m*m*m*h * (vm - m_eNa);
+	if (m_bConstNernstPotentials)
+	{
+		const number currentK = m_gK * n*n*n*n * (vm - m_eK);
+		const number currentNa = m_gNa * m*m*m*h * (vm - m_eNa);
 
-	flux[0] = currentK;
-	flux[1] = currentNa;
+		flux[0] = currentK;
+		flux[1] = currentNa;
+	}
+	else
+	{
+		const number E_K = RoverF*m_T*log(u[_KO_]/u[_KI_]);
+		const number E_Na = RoverF*m_T*log(u[_NAO_]/u[_NAI_]);
+
+		const number currentK = m_gK * n*n*n*n * (vm - E_K);
+		const number currentNa = m_gNa * m*m*m*h * (vm - E_Na);
+
+		flux[0] = currentK;
+		flux[1] = currentNa;
+	}
+
 //UG_LOGN(std::setprecision(16) << "Kleak: " << currentK << "   Naleak: " << currentNa);
 }
 
@@ -136,13 +165,62 @@ void HHSpecies<TDomain>::calc_flux_deriv(const std::vector<number>& u, GridObjec
 		flux_derivs[1][i].second = - m_gNa * m*m*m*h;
 		++i;
 	}
+
+	if (!m_bConstNernstPotentials)
+	{
+		if (!has_constant_value(_KI_))
+		{
+			flux_derivs[0][i].first = local_fct_index(_KI_);
+			flux_derivs[0][i].second = m_gK * n*n*n*n * RoverF*m_T / u[_KI_];
+			flux_derivs[1][i].first = local_fct_index(_KI_);
+			flux_derivs[1][i].second = 0.0;
+			++i;
+		}
+		if (!has_constant_value(_KO_))
+		{
+			flux_derivs[0][i].first = local_fct_index(_KO_);
+			flux_derivs[0][i].second = -m_gK * n*n*n*n * RoverF*m_T / u[_KO_];
+			flux_derivs[1][i].first = local_fct_index(_KO_);
+			flux_derivs[1][i].second = 0.0;
+			++i;
+		}
+		if (!has_constant_value(_NAI_))
+		{
+			flux_derivs[0][i].first = local_fct_index(_NAI_);
+			flux_derivs[0][i].second = 0.0;
+			flux_derivs[1][i].first = local_fct_index(_NAI_);
+			flux_derivs[1][i].second = m_gNa * m*m*m*h * RoverF*m_T / u[_NAI_];
+			++i;
+		}
+		if (!has_constant_value(_NAO_))
+		{
+			flux_derivs[0][i].first = local_fct_index(_NAO_);
+			flux_derivs[0][i].second = 0.0;
+			flux_derivs[1][i].first = local_fct_index(_NAO_);
+			flux_derivs[1][i].second = -m_gNa * m*m*m*h * RoverF*m_T / u[_NAO_];
+			++i;
+		}
+	}
 }
 
 
 template <typename TDomain>
 size_t HHSpecies<TDomain>::n_dependencies() const
 {
-	size_t n = 2;
+	size_t n = 6;
+	if (m_bConstNernstPotentials)
+		n = 2;
+	else
+	{
+		if (has_constant_value(_KI_))
+			--n;
+		if (has_constant_value(_KO_))
+			--n;
+		if (has_constant_value(_NAI_))
+			--n;
+		if (has_constant_value(_NAO_))
+			--n;
+	}
 	if (has_constant_value(_PHII_))
 		--n;
 	if (has_constant_value(_PHIO_))

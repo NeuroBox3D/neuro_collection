@@ -46,6 +46,8 @@ class HHSpecies
 		typedef typename GeomObjBaseTypeByDim<dim>::base_obj_type elem_t;
 		typedef typename elem_t::side side_t;
 
+		const number RoverF;
+
 	public:
 		/// constructor with functions and subsets as vectors of string
 		HHSpecies
@@ -70,11 +72,18 @@ class HHSpecies
 		void set_conductances(number gk, number gna);
 
 		/**
-		 * @brief Set HH channel reversal potentials
+		 * @brief Set constant HH channel reversal potentials
 		 * @param ek   potassium reversal potential [V]
 		 * @param ena  sodium reversal potential [V]
 		 */
 		void set_reversal_potentials(number ek, number ena);
+
+		/**
+		 * @brief Set the temperature
+		 * Sets the temperature. Only needed when no constant reversal potential is used.
+		 * Default is 310 K.
+		 */
+		void set_temperature(number t);
 
 		/**
 		 * @brief Set the reference time used in the simulation.
@@ -180,8 +189,12 @@ class HHSpecies
 	protected:
 		number m_gK;    ///< potassium single-channel conductance [C/Vs]
 		number m_gNa;   ///< sodium single-channel conductance [C/Vs]
+
+		bool m_bConstNernstPotentials;
 		number m_eK;    ///< potassium reversal potential [V]
 		number m_eNa;   ///< sodium reversal potential [V]
+
+		number m_T;
 
 		struct GatingInfo
 		{
