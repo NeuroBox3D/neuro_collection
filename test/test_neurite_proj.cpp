@@ -1318,6 +1318,8 @@ namespace neuro_collection {
 	SaveGridToFile(g, sh, ss.str().c_str());
 	ss.str(""); ss.clear();
 
+	/// Old strategy
+	/*
 	UG_LOGN("6. Extrude rings along normal")
 	/// 6. Extrudiere die Ringe entlang ihrer Normalen mit Höhe 0 (Extrude mit
 	///    aktivierter create faces Option).
@@ -1432,89 +1434,62 @@ namespace neuro_collection {
 	ss << fileName << "_after_extruding_cylinders.ugx";
 	SaveGridToFile(g, sh, ss.str().c_str());
 	ss.str(""); ss.clear();
-
-
-	UG_LOGN("7. Calculate convex hull and connect")
-	/// 7. Vereine per MergeVertices die Vertices der in 6. extrudierten Ringe jeweils
-	///    mit den zu ihnen nächstgelegenen Vertices des entsprechenden Dendritenendes.
-	si = beginningOfQuads;
-	sel.clear();
-	for (size_t i = 0; i < numQuads; i++) {
-		std::vector<ug::vector3> temp;
-		std::vector<ug::vector3> foo;
-		std::vector<ug::vector3> foo2;
-		std::vector<Vertex*> temp2;
-		for (size_t j = 0; j < numVerts; j++) {
-			temp.push_back(aaPos[outVerts[i*4+j]]);
-			foo.push_back(aaPos[outVerts[i*4+j]]);
-		}
-		for (size_t j = 0; j < numVerts; j++) {
-			temp.push_back(aaPos[allVerts[i][j]]);
-			foo2.push_back(aaPos[allVerts[i][j]]);
-		}
-
-		UG_COND_THROW(temp.size() != 8, "Need 8 vertices for calculating all faces.");
-		#ifdef NC_WITH_QHULL
-			using ug::neuro_collection::convexhull::gen_face;
-			using ug::neuro_collection::convexhull::erase_face;
-			gen_face(temp, g, sh, si+i, aaPos);
-			erase_face(g, sh, si+i, aaPos, foo);
-			erase_face(g, sh, si+i, aaPos, foo2);
-		#else
-			using ug::neuro_collection::quickhull::gen_face;
-			gen_face(temp, temp2, g, sh, si+i, aaPos);
-		#endif
-		ug::vector3 center;
-		center = CalculateCenter(sh.begin<Vertex>(si+i+1000), sh.end<Vertex>(si+i+1000), aaPos);
-		ug::vector3 axis;
-		VecSubtract(axis, centerOuts2[i], centerOuts[i]);
-		axisVectors.push_back(make_pair(si+i+numQuads*2, make_pair(axis, center)));
-		/// numQuads*2 is required: n-inner quads and n-outer quads -> these quads here are the connecting quads
-		/// i.e. first come all outer quads, then all inner quads, then the connecting outer quads, then the connecting inner quads
-	}
+	*/
 
 	if (createInner) {
-		si = beginningOfQuads+numQuads;
-		sel.clear();
-		for (size_t i = 0; i < numQuads; i++) {
-			std::vector<ug::vector3> temp;
-			std::vector<Vertex*> temp2;
-			std::vector<ug::vector3> foo;
-			std::vector<ug::vector3> foo2;
-			for (size_t j = 0; j < numVerts; j++) {
-				temp.push_back(aaPos[outVertsInner[i*4+j]]);
-				foo.push_back(aaPos[outVertsInner[i*4+j]]);
-			}
-			for (size_t j = 0; j < numVerts; j++) {
-				temp.push_back(aaPos[allVertsInner[i][j]]);
-				foo2.push_back(aaPos[allVertsInner[i][j]]);
-			}
+	number snapThreshold = 10.0f;
+	/// New strategy
+	UG_LOGN("Trying to merge...");
+	/// merge extruded verts with beginning of each neurite
+	for (size_t i = 0; i < numQuads; i++) {
+		size_t si = beginningOfQuads+i;
+		std::vector<Vertex*> somaVerts;
+		for (SubsetHandler::traits<Vertex>::iterator it = sh.begin<Vertex>(si); it != sh.end<Vertex>(si); ++it) {
+			aaSurfParams[*it].axial = -1;
+			somaVerts.push_back(*it);
+		}
 
-			UG_COND_THROW(temp.size() != 8, "Need 8 vertices for calculating all faces.");
-			#ifdef NC_WITH_QHULL
-				using ug::neuro_collection::convexhull::gen_face;
-				using ug::neuro_collection::convexhull::erase_face;
-				gen_face(temp, g, sh, si+i, aaPos);
-				erase_face(g, sh, si+i, aaPos, foo);
-				erase_face(g, sh, si+i, aaPos, foo2);
-			#else
-				using ug::neuro_collection::quickhull::gen_face;
-				gen_face(temp, temp2, g, sh, si+i, aaPos);
-			#endif
+		for (size_t j = 0; j < numVerts; j++) {
+			int index = FindClosestVertexInArray(somaVerts, aaPos[outVerts[i*4+j]], aaPos, snapThreshold);
+			UG_COND_THROW(index == -1, "Could not find closest vertex to merge with.");
+			aaSurfParams[somaVerts[index]].neuriteID = aaSurfParams[outVerts[i*4+j]].neuriteID;
+			aaSurfParams[somaVerts[index]].axial = aaSurfParams[outVerts[i*4+j]].axial;
+			aaSurfParams[somaVerts[index]].angular = aaSurfParams[outVerts[i*4+j]].angular;
+			MergeVertices(g, somaVerts[index], outVerts[i*4+j]);
+			UG_LOGN("Vertex #" << j << " and vertex #" << index << " need to be merged.");
 		}
 	}
+	}
 
-	EraseEmptySubsets(sh);
-	AssignSubsetColors(sh);
-	ss << fileName << "_after_extruding_cylinders_and_merging.ugx";
-	SaveGridToFile(g, sh, ss.str().c_str());
+	/*
+	if (!createInner) {
+	/// Note: Each merge kills one subset, thus we start again at beginnOfQuads
+	for (size_t i = 0; i < numQuads; i++) {
+		size_t si = beginningOfQuads+i;
+		std::vector<Vertex*> somaVertsInner;
+		for (SubsetHandler::traits<Vertex>::iterator it = sh.begin<Vertex>(si); it != sh.end<Vertex>(si); ++it) {
+			aaSurfParams[*it].axial = -1;
+			somaVertsInner.push_back(*it);
+		}
+
+		for (size_t j = 0; j < numVerts; j++) {
+			int index = FindClosestVertexInArray(somaVertsInner, aaPos[outVertsInner[i*4+j]], aaPos, snapThreshold);
+			UG_COND_THROW(index == -1, "Could not find closest vertex to merge with.");
+			aaSurfParams[somaVertsInner[index]].neuriteID = aaSurfParams[outVertsInner[i*4+j]].neuriteID;
+			aaSurfParams[somaVertsInner[index]].axial = aaSurfParams[outVertsInner[i*4+j]].axial;
+			aaSurfParams[somaVertsInner[index]].angular = aaSurfParams[outVertsInner[i*4+j]].angular;
+			aaSurfParams[somaVertsInner[index]].scale = 0.5;
+			MergeVertices(g, somaVertsInner[index], outVertsInner[i*4+j]);
+			UG_LOGN("Vertex #" << j << " and vertex #" << index << " need to be merged.");
+			}
+		}
+	}
+	*/
+
 	ss.str(""); ss.clear();
-
-	UG_LOGN("9. Resolve potentially generated intersection(s)")
-	ResolveTriangleIntersections(g, g.begin<ug::Triangle>(), g.end<ug::Triangle>(), resolveThreshold, aPosition);
-
 	ss << fileName << "_final.ugx";
 	SaveGridToFile(g, sh, ss.str().c_str());
+
 }
 
 	/**
@@ -3724,6 +3699,7 @@ namespace neuro_collection {
     std::string fn_noext = FilenameWithoutExtension(fileName);
     std::string fn_precond = fn_noext + "_precond.swc";
     std::string fn_precond_with_soma = fn_noext + "_precond_with_soma.swc";
+    std::string fn_precond_with_soma_soma = fn_noext + "_precond_with_soma_and_soma.swc";
     std::vector<ug::vector3> vSurfacePoints;
     std::vector<ug::vector3> vPosSomaClosest;
     size_t lines;
@@ -3754,23 +3730,47 @@ namespace neuro_collection {
     std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
     std::vector<size_t> vRootNeuriteIndsOut;
 
+    /// point on soma surface 100%
     import_swc(fn_precond, vPoints, correct, 1.0);
     convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
     UG_LOGN("converted to neuritelist 1!")
 
     std::vector<ug::vector3> vPointSomaSurface;
     std::vector<SWCPoint> somaPoint = vSomaPoints;
-    somaPoint[0].radius *= 1.50; /// TODO check if this makes sense
-    create_soma(somaPoint, g, aaPos, sh, 1);
+    somaPoint[0].radius *= 1.0; /// TODO check if this makes sense
+    create_soma(somaPoint, g, aaPos, sh, 2);
     UG_LOGN("created soma!")
-    get_closest_points_on_soma(vPosSomaClosest, vPointSomaSurface, g, aaPos, sh, 1);
+    get_closest_points_on_soma(vPosSomaClosest, vPointSomaSurface, g, aaPos, sh, 2);
     UG_LOGN("got closest points on soma: " << vPointSomaSurface.size());
     add_soma_surface_to_swc(lines, fn_precond, fn_precond_with_soma, vPointSomaSurface);
     UG_LOGN("added soma points to swc")
     g.clear_geometry();
-    import_swc(fn_precond_with_soma, vPoints, correct, 1.0);
 
+    /// point on some surface 50%
+    vPos.clear();
+    vPoints.clear();
+    vRad.clear();
+    vBPInfo.clear();
+    vRootNeuriteIndsOut.clear();
+    vPointSomaSurface.clear();
+    vPosSomaClosest.clear();
+    get_closest_points_to_soma(fn_precond_with_soma, vPosSomaClosest, lines);
+    import_swc(fn_precond_with_soma, vPoints, correct, 1.0);
+    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
     UG_LOGN("converted to neuritelist 2!")
+
+    somaPoint = vSomaPoints;
+    somaPoint[0].radius *= 0.50; /// TODO check if this makes sense
+    create_soma(somaPoint, g, aaPos, sh, 2);
+    UG_LOGN("created soma!")
+    get_closest_points_on_soma(vPosSomaClosest, vPointSomaSurface, g, aaPos, sh, 2);
+    UG_LOGN("got closest points on soma: " << vPointSomaSurface.size());
+    add_soma_surface_to_swc(lines, fn_precond_with_soma, fn_precond_with_soma_soma, vPointSomaSurface);
+    UG_LOGN("added soma points to swc")
+    g.clear_geometry();
+
+    import_swc(fn_precond_with_soma_soma, vPoints, correct, 1.0);
+    UG_LOGN("converted to neuritelist 3!")
     convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 
     std::vector<Vertex*> outVerts;
@@ -3821,6 +3821,8 @@ namespace neuro_collection {
     std::vector<Vertex*> outQuadsInner;
     std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectors;
     /// TODO: add also innerQuads axisVectors for soma/neurite connections
+
+    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_first_soma.ugx");
     connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRads, outQuadsInner, 1, sh, fileName, 1.0, axisVectors, true);
 
     UG_LOGN("Number of projectors: " << axisVectors.size());
