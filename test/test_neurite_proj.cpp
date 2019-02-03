@@ -3820,40 +3820,8 @@ namespace neuro_collection {
     UG_LOGN("Done with soma!");
     std::vector<Vertex*> outQuadsInner;
     std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectors;
-    /// TODO: add also innerQuads axisVectors for soma/neurite connections
+    /// TODO: add also innerQuads axisVectors for soma/neurite connections. this will be used by the neurite projector at soma. this is somehow redundant, if we have the scale for ER.
     connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRads, outQuadsInner, 1, sh, fileName, 1.0, axisVectors, true);
-
-    UG_LOGN("Number of projectors: " << axisVectors.size());
-    for (size_t i = 0; i < axisVectors.size(); i++) {
-    	size_t si = axisVectors[i].first;
-    	ug::vector3 axis = axisVectors[i].second.first;
-    	ug::vector3 center = axisVectors[i].second.second;
-    	UG_LOGN("si: " << si);
-    	UG_LOGN("center: " << center);
-    	UG_LOGN("axis: " << axis);
-    	/// TODO: for other subsets should be installed accordingly
-    	// SmartPtr<CylinderProjector> cylinderProj(new CylinderProjector(geom3d, center, axis, -1, -1));
-    	if (si == 2) {
-    		SmartPtr<SomaProjector> cylinderProj(new SomaProjector(geom3d, center, axis, somaPoint.front().coords, somaPoint.front().radius));
-    		projHandler.set_projector(si, cylinderProj);
-    	}
-    	if (si == 3) {
-    		SmartPtr<SomaProjector> cylinderProj(new SomaProjector(geom3d, center, axis, somaPoint.front().coords, somaPoint.front().radius));
-    		projHandler.set_projector(si, cylinderProj);
-    	}
-    	if (si == 4) {
-    		SmartPtr<SomaProjector> cylinderProj(new SomaProjector(geom3d, center, axis, somaPoint.front().coords, somaPoint.front().radius));
-    		projHandler.set_projector(si, cylinderProj);
-    	}
-    	if (si == 5) {
-    		SmartPtr<SomaProjector> cylinderProj(new SomaProjector(geom3d, center, axis, somaPoint.front().coords, somaPoint.front().radius));
-    		projHandler.set_projector(si, cylinderProj);
-    	}
-    }
-
-    SmartPtr<SphereProjector> sphereProj(new SphereProjector(geom3d, somaPoint.front().coords, somaPoint.front().radius));
-    projHandler.set_projector(1, sphereProj);
-
     UG_LOGN("Done with connecting neurites!");
     UG_LOGN("Creating soma inner!")
     somaPoint.front().radius = somaPoint.front().radius * scaleER;
