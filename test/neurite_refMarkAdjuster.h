@@ -16,7 +16,6 @@
 namespace ug {
 namespace neuro_collection {
 
-
 /**
  * @brief Refinement mark adjuster for anisotropic refinement of neurites
  * This refinement adjuster, unless disabled, will make refinement anisotropic along neurites.
