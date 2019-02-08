@@ -1434,6 +1434,7 @@ namespace neuro_collection {
 	ss.str(""); ss.clear();
 
 
+	/*
 	UG_LOGN("7. Calculate convex hull and connect")
 	/// 7. Vereine per MergeVertices die Vertices der in 6. extrudierten Ringe jeweils
 	///    mit den zu ihnen nächstgelegenen Vertices des entsprechenden Dendritenendes.
@@ -1504,6 +1505,7 @@ namespace neuro_collection {
 		}
 	}
 
+	*/
 	EraseEmptySubsets(sh);
 	AssignSubsetColors(sh);
 	ss << fileName << "_after_extruding_cylinders_and_merging.ugx";
@@ -1515,6 +1517,11 @@ namespace neuro_collection {
 
 	ss << fileName << "_final.ugx";
 	SaveGridToFile(g, sh, ss.str().c_str());
+
+	/// TODO: create_neurite wird 2 mal aufgerufen, einmal um die quads zu extrudieren, dann werden neuriten gelöscht, dann wieder erzeugt mit der korreten Startposition und Winkel...
+	/// TODO: Set aaSurfParams for soma to -5*radius of initial neurite section -> use outRad
+	/// TODO: Set extrudierte Vertices vom Soma auf aaSurfParams.axial = 0 und neuriteId vom neuriten...
+	///       winkel werden dann gesetzt wie im word document und position erzwungen und an create_neurite übergeben...
 }
 
 	/**
@@ -3760,7 +3767,7 @@ namespace neuro_collection {
 
     std::vector<ug::vector3> vPointSomaSurface;
     std::vector<SWCPoint> somaPoint = vSomaPoints;
-    somaPoint[0].radius *= 1.50; /// TODO check if this makes sense
+    somaPoint[0].radius *= 1.05; /// TODO check if this makes sense
     create_soma(somaPoint, g, aaPos, sh, 1);
     UG_LOGN("created soma!")
     get_closest_points_on_soma(vPosSomaClosest, vPointSomaSurface, g, aaPos, sh, 1);
