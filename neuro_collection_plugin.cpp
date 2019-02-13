@@ -33,6 +33,7 @@
 #include "membrane_transporters/ip3r.h"
 #include "membrane_transporters/ryr.h"
 #include "membrane_transporters/ryr2.h"
+#include "membrane_transporters/ryr_discrete.h"
 #include "membrane_transporters/ryr_implicit.h"
 #include "membrane_transporters/serca.h"
 #include "membrane_transporters/leak.h"
@@ -925,6 +926,35 @@ static void Common(Registry& reg, string grp)
 
 }; // end Functionality
 
+
+struct NonBlockedFunctionality
+{
+	template <typename TDomain, typename TAlgebra>
+	static void DomainAlgebra(Registry& reg, string grp)
+	{
+		string suffix = GetDomainAlgebraSuffix<TDomain,TAlgebra>();
+		string tag = GetDomainAlgebraTag<TDomain,TAlgebra>();
+
+		// discrete RyR
+		{
+			typedef RyRDiscrete<TDomain, TAlgebra> T;
+			typedef IDomainConstraint<TDomain, TAlgebra> TBase;
+			string name = string("RyRDiscrete").append(suffix);
+			reg.add_class_<T, TBase>(name, grp)
+				.template add_constructor<void (*)(const char*, const char*)>
+					("function names (comma-separated c-string) # subset names (comma-separated c-string)")
+				.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&)>
+					("function names (vector of strings) # subset names (vector of strings)")
+				.add_method("calculate_steady_state", &T::calculate_steady_state, "", "solution", "")
+				.add_method("set_cutoff_open_probability", &T::set_cutoff_open_probability, "", "cutoff probability",
+					"set open probability below which the channel is supposed to be certainly closed")
+				.set_construct_as_smart_pointer(true);
+			reg.add_class_to_group(name, "RyRDiscrete", tag);
+		}
+	}
+};
+
+
 // end group plugin_neuro_collection
 /// \}
 
@@ -943,23 +973,30 @@ InitUGPlugin_neuro_collection(Registry* reg, string grp)
 	GlobalAttachments::declare_attachment<ANumber>("diameter");
 	typedef Attachment<NeuriteProjector::SurfaceParams> NPSurfParam;
 	GlobalAttachments::declare_attachment<NPSurfParam>("npSurfParams", true);
-/*
-	// most (if not all) algebra-dependent code is only meant for non-blocked algebras
+
+	try
+	{
+		RegisterCommon<Functionality>(*reg,grp);
+		//RegisterDimensionDependent<Functionality>(*reg,grp);
+		RegisterDomainDependent<Functionality>(*reg,grp);
+		//RegisterAlgebraDependent<Functionality>(*reg,grp);
+		RegisterDomainAlgebraDependent<Functionality>(*reg,grp);
+	}
+	UG_REGISTRY_CATCH_THROW(grp);
+
+	// some algebra-dependent code is only meant for non-blocked algebras
 	typedef boost::mpl::list
 	<
 		#ifdef UG_CPU_1
 		CPUAlgebra,
 		#endif
 		end_boost_list
-	> MyCompileAlgebraList;
-*/
-	try{
-		RegisterCommon<Functionality>(*reg,grp);
-		//RegisterDimensionDependent<Functionality>(*reg,grp);
-		RegisterDomainDependent<Functionality>(*reg,grp);
-		//RegisterAlgebraDependent<Functionality>(*reg,grp);
-		RegisterDomainAlgebraDependent<Functionality, CompileDomainList, CompileAlgebraList>(*reg,grp);
-		//RegisterDomainAlgebraDependent<Functionality>(*reg,grp);
+	> CompileNonBlockedAlgebraList;
+
+	typedef neuro_collection::NonBlockedFunctionality NonBlockedFunctionality;
+	try
+	{
+		RegisterDomainAlgebraDependent<NonBlockedFunctionality, CompileDomainList, CompileNonBlockedAlgebraList>(*reg,grp);
 	}
 	UG_REGISTRY_CATCH_THROW(grp);
 }
