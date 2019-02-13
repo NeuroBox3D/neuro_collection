@@ -141,100 +141,189 @@ number waveFrontX
 	try {fctGrp = u->fct_grp_by_name(fctNames);}
 	UG_CATCH_THROW("Something went wrong during creation of function group for \n"
 		"function names '" << fctNames << "' and provided solution.");
-	UG_COND_THROW(fctGrp.size() != 2, "Function group must have exactly 2 entries.\n"
-		"Make sure you provided exactly 2 function names in the following order:\n"
-		"c1, c2.");
 
-	size_t fi_c1 = fctGrp[0];
-	size_t fi_c2 = fctGrp[1];
+	UG_COND_THROW(fctGrp.size() < 1 || fctGrp.size() > 2,
+		"Function group must have exactly 1 or exactly 2 entries.\n"
+		"Make sure you provide either exactly 1 function name (ca_cyt)\n"
+		"or exactly 2 functions in the following order: c1, c2.");
 
 	// get subset indices via SubsetGroup
 	SubsetGroup ssGrp;
 	try {ssGrp = u->subset_grp_by_name(subsetName);}
 	UG_CATCH_THROW("Something went wrong during creation of subset group for \n"
 		"membrane subset names '" << subsetName << "' and provided solution.");
-	UG_COND_THROW(ssGrp.size() != 1, "Subset group must have exactly 1 entry.\n"
-			"Make sure you provide exactly 1 subset name for ER membrane subset.");
-	int si = ssGrp[0];
+	UG_COND_THROW(ssGrp.size() < 1, "Subset group must have at least 1 entry.\n"
+			"Make sure you provide at least 1 subset name for ER membrane subset.");
+	const size_t nSs = ssGrp.size();
 
 	double xMax = -std::numeric_limits<double>::max();
-	Vertex* maxVrt = NULL;
-	number pOpenMax = 0.0;
 
-	// loop vertices on that subset
-	DoFDistribution::traits<Vertex>::const_iterator it, itEnd;
-	it = dd->begin<Vertex>(si);
-	itEnd = dd->end<Vertex>(si);
-	for (; it != itEnd; ++it)
+	// RyR channel state mode:
+	// wave front position is calculated depending on RyR channel open probability
+	if (fctGrp.size() == 2)
 	{
-		Vertex* vrt = *it;
+		size_t fi_c1 = fctGrp[0];
+		size_t fi_c2 = fctGrp[1];
 
-		// only treat vertices to the right of the current max
-		number xCoord = aaPos[vrt][0];
-		if ((double) xCoord <= xMax)
-			continue;
+		Vertex* maxVrt = NULL;
+		number pOpenMax = 0.0;
 
-		// get function values in that vertex
-		std::vector<DoFIndex> ind;
-
-		UG_COND_THROW(!dd->is_def_in_subset(fi_c1, si),
-			"Function " << fi_c1 << " is not defined on subset " << si << ".");
-		size_t numInd = dd->dof_indices(vrt, fi_c1, ind, true, true);
-		UG_ASSERT(numInd == 1, "More (or less) than one function index found on a vertex!");
-		number c1 = DoFRef(*u, ind[0]);
-
-		UG_COND_THROW(!dd->is_def_in_subset(fi_c2, si),
-			"Function " << fi_c2 << " is not defined on subset " << si << ".");
-		numInd = dd->dof_indices(vrt, fi_c2, ind, true, true);
-		UG_ASSERT(numInd == 1, "More (or less) than one function index found on a vertex!");
-		number c2 = DoFRef(*u, ind[0]);
-
-		// calculate open probability
-		number pOpen = 1.0 - (c1 + c2);
-
-		// update xMax if necessary
-		if (pOpen > thresh)
+		for (size_t s = 0; s < nSs; ++s)
 		{
-			xMax = xCoord;
-			pOpenMax = pOpen;
-			maxVrt = vrt;
+			int si = ssGrp[s];
+
+			// loop vertices on that subset
+			DoFDistribution::traits<Vertex>::const_iterator it, itEnd;
+			it = dd->begin<Vertex>(si);
+			itEnd = dd->end<Vertex>(si);
+			for (; it != itEnd; ++it)
+			{
+				Vertex* vrt = *it;
+
+				// only treat vertices to the right of the current max
+				number xCoord = aaPos[vrt][0];
+				if ((double) xCoord <= xMax)
+					continue;
+
+				// get function values in that vertex
+				std::vector<DoFIndex> ind;
+
+				UG_COND_THROW(!dd->is_def_in_subset(fi_c1, si),
+					"Function " << fi_c1 << " is not defined on subset " << si << ".");
+				size_t numInd = dd->dof_indices(vrt, fi_c1, ind, true, true);
+				UG_ASSERT(numInd == 1, "More (or less) than one function index found on a vertex!");
+				number c1 = DoFRef(*u, ind[0]);
+
+				UG_COND_THROW(!dd->is_def_in_subset(fi_c2, si),
+					"Function " << fi_c2 << " is not defined on subset " << si << ".");
+				numInd = dd->dof_indices(vrt, fi_c2, ind, true, true);
+				UG_ASSERT(numInd == 1, "More (or less) than one function index found on a vertex!");
+				number c2 = DoFRef(*u, ind[0]);
+
+				// calculate open probability
+				number pOpen = 1.0 - (c1 + c2);
+
+				// update xMax if necessary
+				if (pOpen > thresh)
+				{
+					xMax = xCoord;
+					pOpenMax = pOpen;
+					maxVrt = vrt;
+				}
+			}
+		}
+
+		// interpolate exact threshold position
+		if (maxVrt)
+		{
+			MultiGrid& mg = *u->domain()->grid();
+			MGSubsetHandler& sh = *u->domain()->subset_handler();
+
+			typename Grid::traits<Edge>::secure_container edges;
+			mg.associated_elements(edges, maxVrt);
+			size_t esz = edges.size();
+			for (size_t e = 0; e < esz; ++e)
+			{
+				Edge* ed = edges[e];
+				Vertex* other = GetOpposingSide(mg, ed, maxVrt);
+				if (!ssGrp.contains(sh.get_subset_index(other)))
+					continue;
+
+				number xCoord = aaPos[other][0];
+				if ((double) xCoord <= xMax)
+					continue;
+
+				// now we have the right neighbor vertex (if it exists)
+				// per def of the max, it has a value below thresh
+				std::vector<DoFIndex> ind;
+				dd->dof_indices(other, fi_c1, ind, true, true);
+				number c1 = DoFRef(*u, ind[0]);
+				dd->dof_indices(other, fi_c2, ind, true, true);
+				number c2 = DoFRef(*u, ind[0]);
+				number pOpen = 1.0 - (c1 + c2);
+
+				xMax = (xMax*(pOpen-thresh) - xCoord*(pOpenMax - thresh)) / (pOpen-pOpenMax);
+				break;
+			}
 		}
 	}
 
-	// interpolate exact threshold position
-	if (maxVrt)
+	// cytosolic calcium mode:
+	// wave front position is calculated depending on cytosolic calcium concentration
+	else if (fctGrp.size() == 1)
 	{
-		MultiGrid& mg = *u->domain()->grid();
-		MGSubsetHandler& sh = *u->domain()->subset_handler();
+		size_t fi_cc = fctGrp[0];
 
-		typename Grid::traits<Edge>::secure_container edges;
-		mg.associated_elements(edges, maxVrt);
-		size_t esz = edges.size();
-		for (size_t e = 0; e < esz; ++e)
+		Vertex* maxVrt = NULL;
+		number ccMax = 0.0;
+
+		for (size_t s = 0; s < nSs; ++s)
 		{
-			Edge* ed = edges[e];
-			Vertex* other = GetOpposingSide(mg, ed, maxVrt);
-			if (sh.get_subset_index(other) != si)
-				continue;
+			int si = ssGrp[s];
 
-			number xCoord = aaPos[other][0];
-			if ((double) xCoord <= xMax)
-				continue;
+			// loop vertices on that subset
+			DoFDistribution::traits<Vertex>::const_iterator it, itEnd;
+			it = dd->begin<Vertex>(si);
+			itEnd = dd->end<Vertex>(si);
+			for (; it != itEnd; ++it)
+			{
+				Vertex* vrt = *it;
 
-			// now we have the right neighbor vertex (if it exists)
-			// per def of the max, it has a value below thresh
-			std::vector<DoFIndex> ind;
-			dd->dof_indices(other, fi_c1, ind, true, true);
-			number c1 = DoFRef(*u, ind[0]);
-			dd->dof_indices(other, fi_c2, ind, true, true);
-			number c2 = DoFRef(*u, ind[0]);
-			number pOpen = 1.0 - (c1 + c2);
+				// only treat vertices to the right of the current max
+				number xCoord = aaPos[vrt][0];
+				if ((double) xCoord <= xMax)
+					continue;
 
-			xMax = (xMax*(pOpen-thresh) - xCoord*(pOpenMax - thresh)) / (pOpen-pOpenMax);
-			break;
+				// get function values in that vertex
+				std::vector<DoFIndex> ind;
+
+				UG_COND_THROW(!dd->is_def_in_subset(fi_cc, si),
+					"Function " << fi_cc << " is not defined on subset " << si << ".");
+				size_t numInd = dd->dof_indices(vrt, fi_cc, ind, true, true);
+				UG_COND_THROW(numInd != 1, "More (or less) than one function index found on a vertex!");
+				const number cc = DoFRef(*u, ind[0]);
+
+				// update xMax if necessary
+				if (cc > thresh)
+				{
+					xMax = xCoord;
+					ccMax = cc;
+					maxVrt = vrt;
+				}
+			}
+		}
+
+		// interpolate exact threshold position
+		if (maxVrt)
+		{
+			MultiGrid& mg = *u->domain()->grid();
+			MGSubsetHandler& sh = *u->domain()->subset_handler();
+
+			typename Grid::traits<Edge>::secure_container edges;
+			mg.associated_elements(edges, maxVrt);
+			size_t esz = edges.size();
+			for (size_t e = 0; e < esz; ++e)
+			{
+				Edge* ed = edges[e];
+				Vertex* other = GetOpposingSide(mg, ed, maxVrt);
+				if (!ssGrp.contains(sh.get_subset_index(other)))
+					continue;
+
+				number xCoord = aaPos[other][0];
+				if ((double) xCoord <= xMax)
+					continue;
+
+				// now we have the right neighbor vertex (if it exists)
+				// per def of the max, it has a value below thresh
+				std::vector<DoFIndex> ind;
+				dd->dof_indices(other, fi_cc, ind, true, true);
+				const number cc = DoFRef(*u, ind[0]);
+
+				xMax = (xMax*(cc-thresh) - xCoord*(ccMax - thresh)) / (cc-ccMax);
+				break;
+			}
 		}
 	}
-
 
 	// max over all processes
 #ifdef UG_PARALLEL
@@ -268,6 +357,7 @@ WaveProfileExporter<TDomain, TAlgebra>::WaveProfileExporter
   m_vvvDoFSeries(m_vSs.size()),
   m_vvXPos(m_vSs.size())
 {
+	typedef typename TDomain::position_attachment_type pos_attach_type;
 	typedef typename DoFDistribution::traits<Vertex>::const_iterator vrt_it;
 
 	ConstSmartPtr<MGSubsetHandler> sh = m_spApprox->domain()->subset_handler();
@@ -281,7 +371,8 @@ WaveProfileExporter<TDomain, TAlgebra>::WaveProfileExporter
 	try {fg.add(m_vFct);}
 	UG_CATCH_THROW("Could not add all functions to WaveProfileExporter.");
 
-	Grid::VertexAttachmentAccessor<APosition2> aaPos(*m_spApprox->domain()->grid(), aPosition2);
+	pos_attach_type& aPos = GetDefaultPositionAttachment<pos_attach_type>();
+	Grid::VertexAttachmentAccessor<pos_attach_type> aaPos(*m_spApprox->domain()->grid(), aPos);
 
 	// iterate all subsets
 	size_t nfct = fg.size();

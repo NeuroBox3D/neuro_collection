@@ -55,15 +55,18 @@ number maxRyRFluxDensity
  * This function is useful in determining the wave front position
  * of a RyR-induced calcium wave from the left to the right.
  * The wave front is determined by a user-specified threshold on the
- * open probability of the RyR channel.
+ * open probability of the RyR channel (RyR mode) OR on the cytosolic
+ * calcium concentration (calcium mode).
  *
  * The function is designed to work with the fully implicit RyR
  * implementation.
  *
  * @param u             solution grid function
- * @param fctNames      names for functions c1, c2 (in this order)
- * @param subsetName    name of ER membrane subset with RyR channels
- * @param thresh        threshold value of (1-(c1+c2))
+ * @param fctNames      names for functions c1, c2 in this order (RyR mode)
+ *                      OR name for function ca_cyt (calcium mode)
+ * @param subsetName    name of ER membrane subset(s) with RyR channels
+ * @param thresh        threshold value of (1-(c1+c2)) (RyR mode)
+ *                      OR threshold value for ca_cyt (calcium mode)
  * @return              rightmost vertex where threshold value is exceeded
  */
 template <typename TGridFunction>
