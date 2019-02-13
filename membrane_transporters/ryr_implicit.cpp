@@ -648,7 +648,7 @@ void RyRImplicit_1drotsym<TDomain>::prepare_setting(const std::vector<LFEID>& vL
 	// check that Lagrange 1st order
 	for (size_t i = 0; i < vLfeID.size(); ++i)
 		if (vLfeID[i].type() != LFEID::LAGRANGE || vLfeID[i].order() != 1)
-			UG_THROW("RyRImplicit: 1st order Lagrange functions expected.");
+			UG_THROW("RyRImplicit_1drotsym: 1st order Lagrange functions expected.");
 
 	// update assemble functions
 	m_bNonRegularGrid = bNonRegularGrid;
@@ -697,7 +697,7 @@ prep_elem
 	// update geometry for this element
 	static TFVGeom& geo = GeomProvider<TFVGeom>::get();
 	try {geo.update(elem, vCornerCoords, &(this->subset_handler()));}
-	UG_CATCH_THROW("RyRImplicit::prep_elem: Cannot update finite volume geometry.");
+	UG_CATCH_THROW("RyRImplicit_1drotsym::prep_elem: Cannot update finite volume geometry.");
 }
 
 

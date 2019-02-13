@@ -381,13 +381,11 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_<T, TBase1, TBase2>(name, grp)
 			.template add_constructor<void (*)(const char*, const char*)>
 				("Functions as comma-separated string with the following order: "
-				 "\"inner charge density\", \"outer charge density\", \"inner potential\", \"outer potential\","
-				 "\"gating param n\", \"gating param m\", \"gating param h\" # "
+				 "\"inner potential\", \"outer potential\", \"gating param n\", \"gating param m\", \"gating param h\" # "
 				 "subsets as comma-separated string")
 			.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&)>
 				("Function vector with the following order: "
-				 "\"inner charge density\", \"outer charge density\", \"inner potential\", \"outer potential\","
-				 "\"gating param n\", \"gating param m\", \"gating param h\" # "
+				 "\"inner potential\", \"outer potential\", \"gating param n\", \"gating param m\", \"gating param h\" # "
 				 "subsets vector")
 			.add_method("set_conductances", &T::set_conductances, "", "g_K#g_Na", "")
 			.add_method("set_reversal_potentials", &T::set_reversal_potentials, "", "E_K#E_Na", "")
