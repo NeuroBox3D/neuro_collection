@@ -1100,6 +1100,7 @@ namespace neuro_collection {
 	   const std::string& fileName,
 	   number rimSnapThresholdFactor,
 	   std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > >& axisVectors,
+	   std::vector<NeuriteProjector::Neurite> vNeurites,
 	   bool createInner=true,
 	   number alpha=0.01,
 	   int numIterations=10,
@@ -1236,6 +1237,18 @@ namespace neuro_collection {
 			ss << fileName << "_after_collapse_number_" << j << "_for_quad_" << i << ".ugx";
 			SaveGridToFile(g, sh, ss.str().c_str());
 		}
+
+		SubsetHandler::traits<Vertex>::iterator vit = sh.begin<Vertex>(si);
+		SubsetHandler::traits<Vertex>::iterator vend = sh.end<Vertex>(si);
+
+		/// Outer Soma is assumed to start at -5 * outRads[i] of corresponding neurite and inner soma is assumed to start at -1
+		for (; vit != vend; ++vit) {
+			aaSurfParams[*vit].soma = true;
+			if (createInner)
+				aaSurfParams[*vit].axial = -5 * outRads[i];
+			else
+				aaSurfParams[*vit].axial = -1;
+		}
 	}
 
 	if (createInner) {
@@ -1293,6 +1306,7 @@ namespace neuro_collection {
 
 			Selector selToAssign(g);
 			UG_COND_THROW(vrts.size() != 4, "Non-quadrilateral encountered. Cannot shrink a non-quadrilateral!");
+			/// TODO: -0.5 should be a parameter... not hardcoded...
 			shrink_quadrilateral_copy(vrts, vVrtOut, vVrtOut, vEdgeOut, g, aaPos, -0.5, false, &selToAssign, NULL);
 			for (std::vector<Vertex*>::const_iterator it = vVrtOut.begin(); it != vVrtOut.end(); ++it) {
 				smallerQuadVerts.push_back(*it);
@@ -1300,6 +1314,16 @@ namespace neuro_collection {
 			AssignSelectionToSubset(selToAssign, sh, si+numQuads);
 			sel.clear();
 			selToAssign.clear();
+
+			SubsetHandler::traits<Vertex>::iterator vit = sh.begin<Vertex>(si);
+			SubsetHandler::traits<Vertex>::iterator vend = sh.end<Vertex>(si);
+
+			/// Inner soma is assumed to start at -5 * outRads[i] of corresponding neurite too
+			for (; vit != vend; ++vit) {
+				aaSurfParams[*vit].soma = true;
+				aaSurfParams[*vit].axial =  -5 * outRads[i];
+				vNeurites[i].somaStart = 5 * outRads[i];
+			}
 		}
 	}
 
@@ -1337,10 +1361,10 @@ namespace neuro_collection {
 		ug::vector3 axisVector;
 		CalculateCenter(sh.begin<Vertex>(si), sh.end<Vertex>(si), aaPos);
 		/// indicate soma posiiton
-		for (SubsetHandler::traits<Vertex>::iterator it = sh.begin<Vertex>(si); it != sh.end<Vertex>(si); ++it) {
+		/*for (SubsetHandler::traits<Vertex>::iterator it = sh.begin<Vertex>(si); it != sh.end<Vertex>(si); ++it) {
 			UG_LOGN("setting axial to -1!");
 			aaSurfParams[*it].axial = -1;
-		}
+		}*/
 
 		VecAdd(axisVector, axisVector, normal);
 		std::vector<Edge*> edges;
@@ -1383,10 +1407,18 @@ namespace neuro_collection {
 		if (createInner) {
 			SelectSubsetElements<Vertex>(sel, sh, si+numQuads, true);
 		}
+
 		Extrude(g, &vertices, &edges, NULL, normal, aaPos, EO_CREATE_FACES, NULL);
 		ug::vector3 centerOut2 = CalculateCenter(vertices.begin(), vertices.end(), aaPos);
 		centerOuts2.push_back(centerOut2);
 		sel.clear();
+
+		/// indicate start of neurite with axial 0 and soma false explicitly: neurite start is 0 for outer soma and for inner soma it is -1 + radOut[i] * 5;
+		for (std::vector<Vertex*>::iterator it = vertices.begin(); it != vertices.end(); ++it) {
+			aaSurfParams[*it].axial = -1 + 5 * outRads[i];
+			vNeurites[i].somaStart = 5 * outRads[i];
+			aaSurfParams[*it].soma = false;
+		}
 
 		SelectSubsetElements<Vertex>(sel, sh, si, true);
 		std::vector<Vertex*> temp2;
@@ -1518,10 +1550,8 @@ namespace neuro_collection {
 	ss << fileName << "_final.ugx";
 	SaveGridToFile(g, sh, ss.str().c_str());
 
-	/// TODO: create_neurite wird 2 mal aufgerufen, einmal um die quads zu extrudieren, dann werden neuriten gelöscht, dann wieder erzeugt mit der korreten Startposition und Winkel...
-	/// TODO: Set aaSurfParams for soma to -5*radius of initial neurite section -> use outRad
-	/// TODO: Set extrudierte Vertices vom Soma auf aaSurfParams.axial = 0 und neuriteId vom neuriten...
-	///       winkel werden dann gesetzt wie im word document und position erzwungen und an create_neurite übergeben...
+	/// TODO: create_neurite kann 1mal für die root neurites aufgerufen werden um die positionen zu erhalten dann abgebrochen werden, grid löschen/neurites, und danach die volle neurite erzeuung mitels create_neurite durchführen
+	/// TODO: nutze extrudierte vertices als start für die neurites, übergebe diese zu create_neurite, winkel werden dann gesetzt wie im word document und position erzwungen und an create_neurite übergeben...
 }
 
 	/**
@@ -2504,6 +2534,7 @@ namespace neuro_collection {
     Grid& g,
     Grid::VertexAttachmentAccessor<APosition>& aaPos,
     Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+    bool firstLayerOnly,
     std::vector<Vertex*>* connectingVrts = NULL,
     std::vector<Edge*>* connectingEdges = NULL,
     std::vector<Vertex*>* connectingVrtsInner = NULL,
@@ -2663,6 +2694,10 @@ namespace neuro_collection {
         		vEdgeInner[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrtInner[i], vVrtInner[(i+1)%4]));
         	}
         }
+    }
+
+    if (firstLayerOnly) {
+    	return;
     }
 
     // Now create dendrite to the next branching point and iterate this process.
@@ -3100,7 +3135,7 @@ namespace neuro_collection {
 			edgesInner = edgesOut;
 
 			UG_LOGN("Creating child(s) for inner and outer...")
-			create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
+			create_neurite_general(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, false, &vrts, &edges, &vrtsInner, &edgesInner, NULL, NULL, NULL, NULL);
 
     	}
 
@@ -3814,7 +3849,7 @@ namespace neuro_collection {
 
     UG_LOGN("generating neurites")
     for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
-    	create_neurite_general(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, NULL, NULL, &outVerts, &outVertsInner, &outRads, &outRadsInner);
+    	create_neurite_general(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, false, NULL, NULL, NULL, NULL, &outVerts, &outVertsInner, &outRads, &outRadsInner);
     }
 
     SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
@@ -3827,8 +3862,8 @@ namespace neuro_collection {
     UG_LOGN("Done with soma!");
     std::vector<Vertex*> outQuadsInner;
     std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectors;
-    /// TODO: add also innerQuads axisVectors for soma/neurite connections. this will be used by the neurite projector at soma. this is somehow redundant, if we have the scale for ER.
-    connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRads, outQuadsInner, 1, sh, fileName, 1.0, axisVectors, true);
+    /// TODO: add also innerQuads axisVectors for soma/neurite connections. this will be used by the neurite projector at soma in the interior.
+    connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRads, outQuadsInner, 1, sh, fileName, 1.0, axisVectors, vNeurites, true);
     UG_LOGN("Done with connecting neurites!");
     UG_LOGN("Creating soma inner!")
     somaPoint.front().radius = somaPoint.front().radius * scaleER;
@@ -3838,7 +3873,12 @@ namespace neuro_collection {
     std::vector<Vertex*> outQuadsInner2;
     UG_LOGN("Size of outQuadsInner: " << outQuadsInner.size())
     std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectorsInner;
-    connect_neurites_with_soma(g, aaPos, aaSurfParams, outQuadsInner, outVertsInner, outRadsInner, outQuadsInner2, newSomaIndex, sh, fileName, scaleER, axisVectors, false);
+    connect_neurites_with_soma(g, aaPos, aaSurfParams, outQuadsInner, outVertsInner, outRadsInner, outQuadsInner2, newSomaIndex, sh, fileName, scaleER, axisVectors, vNeurites, false);
+
+    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
+    	vNeurites[i].somaRadius = somaPoint.front().radius;
+    	vNeurites[i].somaPt = somaPoint.front().coords;
+    }
 
     // save after connecting and assign subsets
     EraseEmptySubsets(sh);
@@ -3850,6 +3890,7 @@ namespace neuro_collection {
      	ss << "outer-connex #" << i;
      	sh.set_subset_name(ss.str().c_str(), i);
     }
+
 
     sh.set_subset_name("soma (inner)", newSomaIndex);
     for (size_t i = newSomaIndex+1; i < sh.num_subsets(); i++) {
@@ -3990,7 +4031,7 @@ namespace neuro_collection {
 
     UG_LOGN("generating neurites")
     for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
-    	create_neurite_general(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, NULL, NULL, &outVerts, &outVertsInner, &outRads, &outRadsInner);
+    	create_neurite_general(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, false, NULL, NULL, NULL, NULL, &outVerts, &outVertsInner, &outRads, &outRadsInner);
     }
 
     SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
@@ -4128,7 +4169,7 @@ namespace neuro_collection {
     // connect soma with neurites
     std::vector<Vertex*> outQuads;
     std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectors;
-    connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVerts, outRads, outQuads, 1, sh, fileName, 1.0, axisVectors, false);
+    connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVerts, outRads, outQuads, 1, sh, fileName, 1.0, axisVectors, vNeurites, false);
     UG_LOGN("Done with connecting neurites!");
 
     // refinement
