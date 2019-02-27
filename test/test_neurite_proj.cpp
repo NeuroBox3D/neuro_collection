@@ -2494,7 +2494,7 @@ namespace neuro_collection {
 		UG_LOGN("correcting edges connecting...")
 		std::vector<ug::Vertex*> oldVertsSorted;
 		correct_edges(verts, edges, oldVertsSorted, aaSurfParams, g, aaPos, scale);
-		UG_LOGN("correcting edges oppossing...")
+		UG_LOGN("correcting edges opposing...")
 		/// backside not needed
 		std::vector<ug::Vertex*> oldVertsSortedOpp;
 		correct_edges(vertsOpp, edgesOpp, oldVertsSortedOpp, aaSurfParams, g, aaPos, scale);
@@ -2513,8 +2513,6 @@ namespace neuro_collection {
 		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[1], vertsOpp[0], oldVertsSortedOpp[0], oldVertsSorted[1]));
 		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[2], vertsOpp[3], oldVertsSortedOpp[3], oldVertsSorted[2]));
 		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[3], vertsOpp[2], oldVertsSortedOpp[2], oldVertsSorted[3]));
-
-		/// TODO: Move new inner vertices, such that the connecting edges are parallel to outer edges. This method is not used in latest implementation
 	}
 
 	/**
@@ -2690,31 +2688,7 @@ namespace neuro_collection {
         	outRads->push_back(r[0]);
 
         	for (size_t i = 0; i < 4; ++i) {
-            	vEdge[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i], vVrt[(i+1)%4]));
-        	}
-
-        	if (forcePositions) {
-        		/// TODO: find edges
-        		/*
-        		for (size_t j = 0; j < 4; ++j)
-        					{
-        						Vertex* first = vrts[j];
-        						Vertex* second = vrts[(j+1) % 4];
-
-        						size_t k = 0;
-        						for (; k < esz; ++k)
-        						{
-        							if ((edgeCont[k]->vertex(0) == first && edgeCont[k]->vertex(1) == second)
-        								|| (edgeCont[k]->vertex(0) == second && edgeCont[k]->vertex(1) == first))
-        							{
-        								edges[j] = edgeCont[k];
-        								break;
-        							}
-        						}
-        						UG_COND_THROW(k == esz, "Connecting edges for child neurite could not be determined.");
-        					}
-        					*/
-
+        		vEdge[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i], vVrt[(i+1)%4]));
         	}
 
         	// create first layer of vertices and edges for inner layer
@@ -2742,33 +2716,8 @@ namespace neuro_collection {
         		for (size_t i = 0; i < 4; ++i) {
         			vEdgeInner[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrtInner[i], vVrtInner[(i+1)%4]));
         		}
-        		        	if (forcePositions) {
-        		/// TODO: find edges
-        		/*
-        		for (size_t j = 0; j < 4; ++j)
-        					{
-        						Vertex* first = vrts[j];
-        						Vertex* second = vrts[(j+1) % 4];
-
-        						size_t k = 0;
-        						for (; k < esz; ++k)
-        						{
-        							if ((edgeCont[k]->vertex(0) == first && edgeCont[k]->vertex(1) == second)
-        								|| (edgeCont[k]->vertex(0) == second && edgeCont[k]->vertex(1) == first))
-        							{
-        								edges[j] = edgeCont[k];
-        								break;
-        							}
-        						}
-        						UG_COND_THROW(k == esz, "Connecting edges for child neurite could not be determined.");
-        					}
-        					*/
-
         	}
-
-
     	}
-    }
 
     if (firstLayerOnly) {
     	return;
@@ -3876,7 +3825,7 @@ namespace neuro_collection {
 
     std::vector<ug::vector3> vPointSomaSurface;
     std::vector<SWCPoint> somaPoint = vSomaPoints;
-    somaPoint[0].radius *= 1.05; /// TODO check if this makes sense
+    somaPoint[0].radius *= 1.05; /// TODO: Check if this makes sense - we don't end up directly on the soma
     create_soma(somaPoint, g, aaPos, sh, 1);
     UG_LOGN("created soma!")
     get_closest_points_on_soma(vPosSomaClosest, vPointSomaSurface, g, aaPos, sh, 1);
@@ -3930,6 +3879,7 @@ namespace neuro_collection {
     sel.clear();
 
     /// Outer soma
+    /// Note: axisVectors (outer soma) and axisVectorsInner (inner soma) save the cylinder center, diameter and length parameters for the CylinderProjectors
     UG_LOGN("Creating soma!")
     sh.set_default_subset_index(1);
     somaPoint = vSomaPoints;
@@ -3937,7 +3887,6 @@ namespace neuro_collection {
     UG_LOGN("Done with soma!");
     std::vector<Vertex*> outQuadsInner;
     std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectors;
-    /// TODO: add also innerQuads axisVectors for soma/neurite connections. this will be used by the neurite projector at soma in the interior.
     std::vector<std::vector<ug::Vertex*> > connectingVertices(vRootNeuriteIndsOut.size());
    	std::vector<std::vector<ug::Vertex*> > connectingVerticesInner(vRootNeuriteIndsOut.size());
    	std::vector<std::vector<ug::Edge*> > connectingEdges(vRootNeuriteIndsOut.size());
@@ -3949,13 +3898,13 @@ namespace neuro_collection {
     g.erase(outVertsInner.begin(), outVertsInner.end());
     outVerts.clear();
     outVertsInner.clear();
+    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_finding_initial_edges.ugx");
 
     sh.set_default_subset_index(0);
     UG_LOGN("generating neurites")
     for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
     	/// TODO: 1. Setzte Winkel wie im Word document festgelegt...
-    	///       2. Edges müssen gefunden werden: Siehe snippet in create_neurite_general Methode.
-    	///       3. Refactoring... create_neurite_general und connect_neurites_with_soma.
+    	///       2. Refactoring... create_neurite_general und connect_neurites_with_soma.
     	create_neurite_general(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, false, &connectingVertices[i], &connectingEdges[i], &connectingVerticesInner[i], &connectingEdgesInner[i], &outVerts, &outVertsInner, &outRads, &outRadsInner, true);
     	/// create_neurite_general(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, false, NULL, NULL, NULL, NULL, &outVerts, &outVertsInner, &outRads, &outRadsInner, true);
     }
@@ -3972,7 +3921,7 @@ namespace neuro_collection {
     std::vector<Vertex*> outQuadsInner2;
     UG_LOGN("Size of outQuadsInner: " << outQuadsInner.size())
     std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectorsInner;
-    connect_neurites_with_soma(g, aaPos, aaSurfParams, outQuadsInner, outVertsInner, outRadsInner, outQuadsInner2, newSomaIndex, sh, fileName, scaleER, axisVectors, vNeurites, connectingVertices, connectingVerticesInner, connectingEdges, connectingEdgesInner, false);
+    connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRadsInner, outQuadsInner2, newSomaIndex, sh, fileName, scaleER, axisVectorsInner, vNeurites, connectingVertices, connectingVerticesInner, connectingEdges, connectingEdgesInner, false);
 
     for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
     	vNeurites[i].somaRadius = somaPoint.front().radius;
