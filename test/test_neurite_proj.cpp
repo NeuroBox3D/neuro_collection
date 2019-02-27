@@ -2186,7 +2186,7 @@ namespace neuro_collection {
 	       ug::vector3 dir;
 	       VecSubtract(dir, aaPos[vVrt[i]], center);
 
-	       /// TODO: Correct shrinkage into a direction
+	       /// TODO: Add the correct shrinkage into a prescribed direction
 	       if (currentDir) {
 	    	   /// 1. get Edge e starting from i % 4 to i+1 % 4
 	    	   /// 2. Check if e is parallel or anti-parallel to currentDir
@@ -3951,9 +3951,10 @@ namespace neuro_collection {
     /// Double Vertices might occur (during Qhull gen faces) -> remove these here to be sure
     RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aaPos, 0.0001);
 
-    // at branching points, we have not computed the correct positions yet,
-    // so project the complete geometry using the projector -> for inner neurite this fails at some points -> needs to be addressed.
-    // Note: little bit dirty; provide proper method in NeuriteProjector to do this
+    // Note: At branching points, we have not computed the correct positions yet.
+    // By adding new edges (point, point) which collapse into a vertex we force a
+    // projection refinement on the initial geometry. This is a little hack.
+    // TODO: Provide proper method in NeuriteProjector to do this
     VertexIterator vit = sh.begin<Vertex>(0);
     VertexIterator vit_end = sh.end<Vertex>(0);
     for (; vit != vit_end; ++vit)
