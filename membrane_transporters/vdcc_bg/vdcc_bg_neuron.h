@@ -29,9 +29,9 @@ template<typename TDomain>
 class VDCC_BG_VM2UG_NEURON : public VDCC_BG<TDomain>
 {
 private:
-	SmartPtr<Transformator> m_NrnInterpreter;
-	SmartPtr<Mapper<TDomain::dim, number> > m_vmProvider;
-	SmartPtr<NeuronMPM> m_mapper;
+	SmartPtr<membrane_potential_mapping::Transformator> m_NrnInterpreter;
+	SmartPtr<membrane_potential_mapping::Mapper<TDomain::dim, number> > m_vmProvider;
+	SmartPtr<membrane_potential_mapping::NeuronMPM> m_mapper;
 	//SmartPtr<Vm2uG<std::string> > m_vmProvider;
 
 	protected:
@@ -44,7 +44,7 @@ private:
 
 	public:
 		//typedef Vm2uG<std::string> vmProvType;
-		typedef Mapper<TDomain::dim, number> vmProvType;
+		typedef membrane_potential_mapping::Mapper<TDomain::dim, number> vmProvType;
 
 	public:
 		/**
@@ -64,7 +64,7 @@ private:
 			const std::vector<std::string>& fcts,
 			const std::vector<std::string>& subsets,
 			SmartPtr<ApproximationSpace<TDomain> > approx,
-			SmartPtr<Transformator> transformator = make_sp(new Transformator),
+			SmartPtr<membrane_potential_mapping::Transformator> transformator = make_sp(new membrane_potential_mapping::Transformator),
 			const std::string baseName = "timesteps/timestep_",
 			const char* timeFmt = "%.4f",
 			const std::string ext = ".dat",
@@ -88,7 +88,7 @@ private:
 			const char* fcts,
 			const char* subsets,
 			SmartPtr<ApproximationSpace<TDomain> > approx,
-			SmartPtr<Transformator> transformator = make_sp(new Transformator),
+			SmartPtr<membrane_potential_mapping::Transformator> transformator = make_sp(new membrane_potential_mapping::Transformator),
 			const std::string baseName = "timesteps/timestep_",
 			const char* timeFmt = "%.4f",
 			const std::string ext = ".dat",
@@ -113,17 +113,17 @@ private:
 		/// transformator and mapper soon obsolete!
 
 		// set the transformator
-		inline void set_transformator(SmartPtr<Transformator> transformator) {
+		inline void set_transformator(SmartPtr<membrane_potential_mapping::Transformator> transformator) {
 			this->m_NrnInterpreter = transformator;
 		}
 
 		// set the provider
-		inline void set_provider(SmartPtr<Mapper<TDomain::dim, number> > provider) {
+		inline void set_provider(SmartPtr<membrane_potential_mapping::Mapper<TDomain::dim, number> > provider) {
 			this->m_vmProvider = provider;
 		}
 
 		// set the mapper
-		inline void set_mapper(SmartPtr<NeuronMPM> mapper) {
+		inline void set_mapper(SmartPtr<membrane_potential_mapping::NeuronMPM> mapper) {
 			this->m_mapper = mapper;
 		}
 

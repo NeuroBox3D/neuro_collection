@@ -599,14 +599,14 @@ static void Domain(Registry& reg, string grp)
 		std::string name = std::string("VDCC_BG_VM2UG_NEURON").append(suffix);
 		reg.add_class_<T, TBase>(name, grp)
 			.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&,
-				SmartPtr<ApproximationSpace<TDomain> >, SmartPtr<Transformator>, const std::string, const char*, const std::string, const bool)>
+				SmartPtr<ApproximationSpace<TDomain> >, SmartPtr<membrane_potential_mapping::Transformator>, const std::string, const char*, const std::string, const bool)>
 				("function(s) as vector#subset(s) as vector#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#vertexOrderOrPositionCanChange")
 			.template add_constructor<void (*)(const char*, const char*,
-				SmartPtr<ApproximationSpace<TDomain> >, SmartPtr<Transformator>, const std::string, const char*, const std::string, const bool)>
+				SmartPtr<ApproximationSpace<TDomain> >, SmartPtr<membrane_potential_mapping::Transformator>, const std::string, const char*, const std::string, const bool)>
 				("function(s) as comma-separated c-string#subset(s) as comma-separated c-string#approxSpace#baseNameVmFile#timeFormat#extensionVmFile#vertexOrderOrPositionCanChange")
-			.add_method("set_transformator", static_cast<void (T::*) (SmartPtr<Transformator>)> (&T::set_transformator), "", "", "")
-			.add_method("set_provider", static_cast<void (T::*) (SmartPtr<Mapper<TDomain::dim, number> >)> (&T::set_provider), "", "", "")
-			.add_method("set_mapper", static_cast<void (T::*) (SmartPtr<NeuronMPM>)> (&T::set_mapper), "", "", "")
+			.add_method("set_transformator", static_cast<void (T::*) (SmartPtr<membrane_potential_mapping::Transformator>)> (&T::set_transformator), "", "", "")
+			.add_method("set_provider", static_cast<void (T::*) (SmartPtr<membrane_potential_mapping::Mapper<TDomain::dim, number> >)> (&T::set_provider), "", "", "")
+			.add_method("set_mapper", static_cast<void (T::*) (SmartPtr<membrane_potential_mapping::NeuronMPM>)> (&T::set_mapper), "", "", "")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "VDCC_BG_VM2UG_NEURON", tag);
 	}
