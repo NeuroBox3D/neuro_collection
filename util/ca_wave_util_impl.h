@@ -20,17 +20,15 @@
 namespace ug {
 namespace neuro_collection {
 
-template <typename TGridFunction>
+template <typename TGridFunction, typename TRyRImpl>
 number maxRyRFluxDensity
 (
 	ConstSmartPtr<TGridFunction> u,
 	const char* fctNames,
 	const char* subsetNames,
-	ConstSmartPtr<RyRImplicit<typename TGridFunction::domain_type> > ryr
+	ConstSmartPtr<TRyRImpl> ryr
 )
 {
-	typedef RyRImplicit<typename TGridFunction::domain_type> RyRType;
-
 	// get (surface) DoF distro
 	ConstSmartPtr<DoFDistribution> dd = u->dof_distribution();
 
@@ -77,25 +75,25 @@ number maxRyRFluxDensity
 				"Function " << fi_cc << " is not defined on subset " << si << ".");
 			size_t numInd = dd->dof_indices(vrt, fi_cc, ind, true, true);
 			UG_ASSERT(numInd == 1, "More (or less) than one function index found on a vertex!");
-			values[RyRType::_CCYT_] = ryr->scale_input(RyRType::_CCYT_) * DoFRef(*u, ind[0]);
+			values[TRyRImpl::_CCYT_] = ryr->scale_input(TRyRImpl::_CCYT_) * DoFRef(*u, ind[0]);
 
 			UG_COND_THROW(!dd->is_def_in_subset(fi_ce, si),
 				"Function " << fi_ce << " is not defined on subset " << si << ".");
 			numInd = dd->dof_indices(vrt, fi_ce, ind, true, true);
 			UG_ASSERT(numInd == 1, "More (or less) than one function index found on a vertex!");
-			values[RyRType::_CER_] = ryr->scale_input(RyRType::_CER_) * DoFRef(*u, ind[0]);
+			values[TRyRImpl::_CER_] = ryr->scale_input(TRyRImpl::_CER_) * DoFRef(*u, ind[0]);
 
 			UG_COND_THROW(!dd->is_def_in_subset(fi_c1, si),
 				"Function " << fi_c1 << " is not defined on subset " << si << ".");
 			numInd = dd->dof_indices(vrt, fi_c1, ind, true, true);
 			UG_ASSERT(numInd == 1, "More (or less) than one function index found on a vertex!");
-			values[RyRType::_C1_] = ryr->scale_input(RyRType::_C1_) * DoFRef(*u, ind[0]);
+			values[TRyRImpl::_C1_] = ryr->scale_input(TRyRImpl::_C1_) * DoFRef(*u, ind[0]);
 
 			UG_COND_THROW(!dd->is_def_in_subset(fi_c2, si),
 				"Function " << fi_c2 << " is not defined on subset " << si << ".");
 			numInd = dd->dof_indices(vrt, fi_c2, ind, true, true);
 			UG_ASSERT(numInd == 1, "More (or less) than one function index found on a vertex!");
-			values[RyRType::_C2_] = ryr->scale_input(RyRType::_C2_) * DoFRef(*u, ind[0]);
+			values[TRyRImpl::_C2_] = ryr->scale_input(TRyRImpl::_C2_) * DoFRef(*u, ind[0]);
 
 			// calculate flux density
 			std::vector<number> flux(1, 0.0);

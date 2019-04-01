@@ -116,10 +116,10 @@ static void DomainAlgebra(Registry& reg, string grp)
 					 "outputs average values of unknowns on subsets");
 
 	// calcium wave examination functions
-	reg.add_function("max_ryr_flux_density", &maxRyRFluxDensity<TGridFunction>, grp.c_str(),
-					 "", "solution # function names for ca_cyt, ca_er, c1, c2 as c-style string #"
-						 "RyR-carrying membrane subset names as c-style string # RyR channel",
-					 "maximal flux density through RyR channel (mol/(m^2*s))");
+	reg.add_function("max_ryr_flux_density", &maxRyRFluxDensity<TGridFunction, RyRImplicit<TDomain> >, grp.c_str(),
+						 "", "solution # function names for ca_cyt, ca_er, c1, c2 as c-style string #"
+							 "RyR-carrying membrane subset names as c-style string # RyR channel",
+						 "maximal flux density through RyR channel (mol/(m^2*s))");
 	reg.add_function("wave_front_x", &waveFrontX<TGridFunction>, grp.c_str(),
 					 "", "solution # function names for c1, c2 as c-style string #"
 						 "RyR-carrying membrane subset names as c-style string # threshold open probability",
@@ -936,6 +936,8 @@ struct NonBlockedFunctionality
 		string suffix = GetDomainAlgebraSuffix<TDomain,TAlgebra>();
 		string tag = GetDomainAlgebraTag<TDomain,TAlgebra>();
 
+		typedef GridFunction<TDomain, TAlgebra> TGridFunction;
+
 		// discrete RyR
 		{
 			typedef RyRDiscrete<TDomain, TAlgebra> T;
@@ -952,6 +954,12 @@ struct NonBlockedFunctionality
 				.set_construct_as_smart_pointer(true);
 			reg.add_class_to_group(name, "RyRDiscrete", tag);
 		}
+
+		reg.add_function("max_ryr_flux_density", &maxRyRFluxDensity<TGridFunction, RyRDiscrete<TDomain, TAlgebra> >, grp.c_str(),
+			"", "solution # function names for ca_cyt, ca_er, c1, c2 as c-style string #"
+			"RyR-carrying membrane subset names as c-style string # RyR channel",
+			"maximal flux density through RyR channel (mol/(m^2*s))");
+
 	}
 };
 
