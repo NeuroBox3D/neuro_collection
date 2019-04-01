@@ -24,7 +24,8 @@ HybridNeuronCommunicator<TDomain>::HybridNeuronCommunicator
     SmartPtr<ApproximationSpace<TDomain> > spApprox3d,
     SmartPtr<ApproximationSpace<TDomain> > spApprox1d
 )
-: m_spSynHandler(SPNULL),
+: m_spGridDistributionCallbackID(SPNULL),
+  m_spSynHandler(SPNULL),
   m_mSynapse3dVertex(std::map<synapse_id, Vertex*>()),
 #ifdef UG_PARALLEL
   rcvSize(NULL), rcvFrom(NULL), rcvBuf(NULL),
@@ -39,7 +40,8 @@ HybridNeuronCommunicator<TDomain>::HybridNeuronCommunicator
   m_aaPos3d(m_spApprox3d->domain()->position_accessor()),
   m_aNID(GlobalAttachments::attachment<ANeuronID>("neuronID")),
   m_vNid(1,0),
-  m_bInited(false)
+  m_bPotentialMappingNeedsUpdate(true),
+  m_bSynapseMappingNeedsUpdate(true)
 {
 	if (!m_spGrid1d->has_vertex_attachment(m_aNID))
 		m_spGrid1d->attach_to_vertices(m_aNID);
@@ -47,6 +49,17 @@ HybridNeuronCommunicator<TDomain>::HybridNeuronCommunicator
 
 	// calculate identifiers for each neuron
 	cable_neuron::neuron_identification(*m_spGrid1d);
+
+	// set this object as listener for distribution events
+	m_spGridDistributionCallbackID = m_spGrid1d->message_hub()->register_class_callback(this,
+		&HybridNeuronCommunicator<TDomain>::grid_distribution_callback);
+	m_spGridDistributionCallbackID = m_spGrid3d->message_hub()->register_class_callback(this,
+		&HybridNeuronCommunicator<TDomain>::grid_distribution_callback);
+
+	m_spGridAdaptionCallbackID = m_spGrid1d->message_hub()->register_class_callback(this,
+		&HybridNeuronCommunicator<TDomain>::grid_adaption_callback);
+	m_spGridAdaptionCallbackID = m_spGrid3d->message_hub()->register_class_callback(this,
+		&HybridNeuronCommunicator<TDomain>::grid_adaption_callback);
 }
 
 
@@ -61,6 +74,11 @@ HybridNeuronCommunicator<TDomain>::~HybridNeuronCommunicator()
     if (sendTo) delete[] sendTo;
     if (sendBuf)  delete[] (char*) sendBuf;
 #endif
+
+    m_spGrid1d->message_hub()->unregister_callback(m_spGridDistributionCallbackID);
+    m_spGrid1d->message_hub()->unregister_callback(m_spGridAdaptionCallbackID);
+    m_spGrid3d->message_hub()->unregister_callback(m_spGridDistributionCallbackID);
+    m_spGrid3d->message_hub()->unregister_callback(m_spGridAdaptionCallbackID);
 }
 
 
@@ -119,23 +137,11 @@ void HybridNeuronCommunicator<TDomain>::set_neuron_ids(const std::vector<uint>& 
 
 
 template <typename TDomain>
-void HybridNeuronCommunicator<TDomain>::reinit()
-{
-	if (!m_bInited)
-	{
-		// TODO: This is awkward.
-		//       HNC is used for two purposes which require different members set.
-		//       Think about better separation.
-		if (!m_vPotSubset3d.empty()) reinit_potential_mapping();
-		if (!m_vCurrentSubset3d.empty()) reinit_synapse_mapping();
-		m_bInited = true;
-	}
-}
-
-
-template <typename TDomain>
 void HybridNeuronCommunicator<TDomain>::reinit_potential_mapping()
 {
+	if (!m_bPotentialMappingNeedsUpdate)
+		return;
+
     typedef typename DoFDistribution::traits<side_t>::const_iterator SideItType;
     typedef typename DoFDistribution::traits<Vertex>::const_iterator VrtItType;
     typedef typename TDomain::position_accessor_type posAccType;
@@ -144,6 +150,9 @@ void HybridNeuronCommunicator<TDomain>::reinit_potential_mapping()
     posAccType aaPos3 = m_spApprox3d->domain()->position_accessor();
     ConstSmartPtr<DoFDistribution> dd1 = m_spApprox1d->dof_distribution(GridLevel());
     ConstSmartPtr<DoFDistribution> dd3 = m_spApprox3d->dof_distribution(GridLevel());
+
+	// delete old potential value mappings
+	m_mElemPot.clear();
 
     // find all elements of the 3d geometry boundary on which the potential is defined
     // store their center coords in the same order
@@ -364,6 +373,7 @@ void HybridNeuronCommunicator<TDomain>::reinit_potential_mapping()
         sendBuf = new char[sendBytes];
     }
 
+    m_bPotentialMappingNeedsUpdate = false;
     return;
 
 serial_case:
@@ -373,6 +383,9 @@ serial_case:
 	std::vector<typename posType::value_type> vDist;
 	int noNeighbors = nearest_neighbor_search(vLocPotElemPos, vLocVrtPos, vNearest, vDist);
 	UG_COND_THROW(noNeighbors, "No 1d vertices are present to map 3d potential elements to.");
+
+	// delete old mapping
+	m_mPotElemToVertex.clear();
 
 	// fill 3d->1d map
 	size_t i = 0;
@@ -387,6 +400,8 @@ serial_case:
 			++i;
 		}
 	}
+
+	m_bPotentialMappingNeedsUpdate = false;
 }
 
 
@@ -395,7 +410,7 @@ void HybridNeuronCommunicator<TDomain>::coordinate_potential_values()
 {
 	// perform 3d elem -> 1d vertex and 1d synapse -> 3d vertex mappings
 	// if not yet done
-	reinit();
+	reinit_potential_mapping();
 
     ConstSmartPtr<DoFDistribution> dd1 = m_spApprox1d->dof_distribution(GridLevel(), false);
 
@@ -563,6 +578,12 @@ uint HybridNeuronCommunicator<TDomain>::get_postsyn_neuron_id(synapse_id id)
 template <typename TDomain>
 void HybridNeuronCommunicator<TDomain>::reinit_synapse_mapping()
 {
+	if (!m_bSynapseMappingNeedsUpdate)
+		return;
+
+	// clear previous synapse mapping
+	m_mSynapse3dVertex.clear();
+
 	std::vector<MathVector<dim> > syn_coords_local;
 	std::vector<synapse_id> syn_ids_local;
 
@@ -761,7 +782,7 @@ void HybridNeuronCommunicator<TDomain>::gather_synaptic_currents
 )
 {
 	// reinit mappings if necessary
-	reinit();
+	reinit_synapse_mapping();
 
 	vActSynOut.clear();
 	vSynCurrOut.clear();
@@ -798,6 +819,7 @@ void HybridNeuronCommunicator<TDomain>::gather_synaptic_currents
 		}
 	}
 
+	m_bSynapseMappingNeedsUpdate = false;
 	return;
 
 serial_case:
@@ -813,6 +835,8 @@ serial_case:
 			vSynCurrOut.push_back(vLocSynCurr[i]);
 		}
 	}
+
+	m_bSynapseMappingNeedsUpdate = false;
 }
 
 
@@ -829,6 +853,31 @@ void HybridNeuronCommunicator<TDomain>::get_postsyn_coordinates(synapse_id id, M
 	number localcoord = m_spSynHandler->post_synapse(id)->location();
 	VecScaleAdd(vCoords, 1.0 - localcoord, m_aaPos1d[v0], localcoord, m_aaPos1d[v1]);
 }
+
+
+template <typename TDomain>
+void HybridNeuronCommunicator<TDomain>::grid_adaption_callback(const GridMessage_Adaption& gma)
+{
+	// after grid adaption, mappings need to be force-updated
+	if (gma.adaption_ends())
+	{
+		m_bPotentialMappingNeedsUpdate = true;
+		m_bSynapseMappingNeedsUpdate = true;
+	}
+}
+
+
+template <typename TDomain>
+void HybridNeuronCommunicator<TDomain>::grid_distribution_callback(const GridMessage_Distribution& gmd)
+{
+	// after grid distribution, mappings need to be force-updated
+	if (gmd.msg() == GMDT_DISTRIBUTION_STOPS)
+	{
+		m_bPotentialMappingNeedsUpdate = true;
+		m_bSynapseMappingNeedsUpdate = true;
+	}
+}
+
 
 
 

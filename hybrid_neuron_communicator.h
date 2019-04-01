@@ -18,10 +18,6 @@ namespace ug {
 namespace neuro_collection {
 
 
-// TODO: register this object as refinement listener and redistribution listener
-//       it has to react to both events with a call to reinit_potential_mappings()
-//       as well as reinit_synapse_mapping()
-
 template <typename TDomain>
 class HybridNeuronCommunicator
 {
@@ -114,13 +110,6 @@ class HybridNeuronCommunicator
 
 
     protected:
-    	/**
-    	 * reinitialize internal mappings
-         * This method needs to be called whenever there are any changes in one of the geometries
-         * or when one of the geometries has been redistributed.
-        **/
-    	void reinit();
-
         ///reinitialize mappings for 3d elem -> 1d vertex potential value mapping
         void reinit_potential_mapping();
 
@@ -128,13 +117,20 @@ class HybridNeuronCommunicator
         /// reinitialize mappings for 1d syn -> 3d vertex mapping
         void reinit_synapse_mapping();
 
+
+		MessageHub::SPCallbackId 	m_spGridAdaptionCallbackID;
+		void grid_adaption_callback(const GridMessage_Adaption& msg);
+
+		MessageHub::SPCallbackId m_spGridDistributionCallbackID;
+		void grid_distribution_callback(const GridMessage_Distribution& gmd);
+
     private:
         SmartPtr<synh_type> m_spSynHandler;
 
         /// memory for side element potential values
         std::map<side_t*, number> m_mElemPot;
 
-        //Synapse to 3d-Vertex mapping
+        /// synapse to 3d vertex mapping
         std::map<synapse_id, Vertex*> m_mSynapse3dVertex;
 
 #ifdef UG_PARALLEL
@@ -179,7 +175,8 @@ class HybridNeuronCommunicator
         std::vector<int> m_vPotSubset3d;
         std::vector<int> m_vCurrentSubset3d;
 
-        bool m_bInited;
+        bool m_bPotentialMappingNeedsUpdate;
+        bool m_bSynapseMappingNeedsUpdate;
 };
 
 
