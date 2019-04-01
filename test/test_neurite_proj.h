@@ -60,6 +60,14 @@ void convert_pointlist_to_neuritelist
 
 void test_smoothing(const std::string& fileName, size_t n, number h, number gamma);
 void test_import_swc(const std::string& fileName, number anisotropy = 2.0, size_t numRefs = 0);
+void test_import_swc_with_er
+(
+	const std::string& fileNameIn,
+	const std::string& fileNameOut,
+	number erScaleFactor,
+	number anisotropy = 2.0,
+	size_t numRefs = 0
+);
 void test_import_swc_surf(const std::string& fileName);
 void test_import_swc_1d(const std::string& fileName, number anisotropy = 2.0, size_t numRefs = 0, number scale = 1e-6);
 void test_neurite_projector_with_four_section_tube();

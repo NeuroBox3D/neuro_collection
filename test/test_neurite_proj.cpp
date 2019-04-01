@@ -7,24 +7,27 @@
 
 #include "test_neurite_proj.h"
 
-#include "lib_grid/refinement/projectors/projection_handler.h"
-#include "lib_grid/refinement/projectors/neurite_projector.h"
+#include "neurite_refMarkAdjuster.h"
+
+#include "common/util/file_util.h"  // FindFileInStandardPaths
+#include "common/util/string_util.h"  // TrimString etc.
+#include "lib_algebra/small_algebra/small_algebra.h" // Invert
+#include "lib_disc/domain_util.h"   // LoadDomain
+#include "lib_disc/function_spaces/error_elem_marking_strategy.h" // GlobalMarking
+#include "lib_disc/quadrature/gauss_legendre/gauss_legendre.h"
+#include "lib_grid/algorithms/element_side_util.h" // GetOpposingSide
+#include "lib_grid/algorithms/extrusion/extrusion.h" // Extrude
+#include "lib_grid/algorithms/geom_obj_util/face_util.h" // CalculateNormal
+#include "lib_grid/algorithms/grid_generation/icosahedron.h" // icosahedron
 #include "lib_grid/file_io/file_io_ugx.h"  // GridWriterUGX
 #include "lib_grid/file_io/file_io.h"  // SaveGridHierarchyTransformed
-#include "lib_grid/grid/geometry.h" // MakeGeometry3d
-#include "lib_grid/refinement/global_multi_grid_refiner.h" // GlobalMultigridRefiner
 #include "lib_grid/global_attachments.h"
-#include "lib_grid/algorithms/extrusion/extrusion.h" // Extrude
+#include "lib_grid/grid/geometry.h" // MakeGeometry3d
+#include "lib_grid/grid/neighborhood_util.h"  // for GetConnectedNeighbor
+#include "lib_grid/refinement/global_multi_grid_refiner.h" // GlobalMultigridRefiner
+#include "lib_grid/refinement/projectors/neurite_projector.h"
+#include "lib_grid/refinement/projectors/projection_handler.h"
 #include "lib_grid/refinement/regular_refinement.h"  // Refine
-#include "lib_grid/algorithms/geom_obj_util/face_util.h" // CalculateNormal
-#include "lib_disc/domain_util.h"   // LoadDomain
-#include "lib_algebra/small_algebra/small_algebra.h" // Invert
-#include "common/util/string_util.h"  // TrimString etc.
-#include "neurite_refMarkAdjuster.h"
-#include "lib_disc/function_spaces/error_elem_marking_strategy.h" // GlobalMarking
-#include "lib_grid/algorithms/element_side_util.h" // GetOpposingSide
-#include "lib_disc/quadrature/gauss_legendre/gauss_legendre.h"
-#include "lib_grid/algorithms/grid_generation/icosahedron.h" // icosahedron
 
 #include <boost/lexical_cast.hpp>
 
@@ -51,7 +54,9 @@ void import_swc
 {
     vPointsOut.clear();
 
-    std::ifstream inFile(fileName.c_str());
+    std::string inFileName = FindFileInStandardPaths(fileName.c_str());
+
+    std::ifstream inFile(inFileName.c_str());
     UG_COND_THROW(!inFile, "SWC input file '" << fileName << "' could not be opened for reading.");
 
     // read line by line
@@ -86,7 +91,7 @@ void import_swc
         std::vector<std::string> strs(beg, end);
 
         // assert number of tokens is correct
-        UG_COND_THROW(strs.size() != 7, "Error reading SWC file '" << fileName
+        UG_COND_THROW(strs.size() != 7, "Error reading SWC file '" << inFileName
             << "': Line " << lineCnt << " does not contain exactly 7 values.");
 
         // collect data for SWC point
@@ -120,7 +125,7 @@ void import_swc
         if (conn >= 0)
         {
             std::map<int, size_t>::const_iterator it = indexMap.find(conn);
-            UG_COND_THROW(it == indexMap.end(), "Error reading SWC file '" << fileName
+            UG_COND_THROW(it == indexMap.end(), "Error reading SWC file '" << inFileName
                 << "': Line " << lineCnt << " refers to unknown parent index " << conn << ".");
 
             size_t parentID = indexMap[conn];
@@ -706,7 +711,24 @@ static void create_spline_data_for_neurites
         xr = mat*rhs;
 
         // FIXME: find suitable permissible render vector
-        neuriteOut.refDir = vector3(0,0,1);
+        vector3 neuriteDir;
+        VecSubtract(neuriteDir, pos[nVrt-1], pos[0]);
+        VecNormalize(neuriteDir, neuriteDir);
+        if (fabs(neuriteDir[0]) < fabs(neuriteDir[1]))
+        {
+        	if (fabs(neuriteDir[0]) < fabs(neuriteDir[2]))
+            	neuriteOut.refDir = vector3(1,0,0);
+        	else
+            	neuriteOut.refDir = vector3(0,0,1);
+        }
+        else
+        {
+			if (fabs(neuriteDir[1]) < fabs(neuriteDir[2]))
+				neuriteOut.refDir = vector3(0,1,0);
+			else
+				neuriteOut.refDir = vector3(0,0,1);
+		}
+
         //neuriteOut.refDir = vector3(0,1/sqrt(2),1/sqrt(2));
 		neuriteOut.vSec.reserve(nVrt-1);
 
@@ -878,7 +900,7 @@ number calculate_length_over_radius
 			r = r*t + s[2];
 			r = r*t + s[3];
 
-			UG_COND_THROW(r < 0, "r = " << r << " at t = " << t << "!");
+			UG_COND_THROW(r*r <= VecNormSquared(vel)*1e-12, "r = " << r << " at t = " << t << "!");
 
 			sec_integral += gl.weight(i) * sqrt(VecNormSquared(vel)) / r;
 		}
@@ -955,7 +977,7 @@ void calculate_segment_axial_positions
 			r = r*t + s[2];
 			r = r*t + s[3];
 
-			UG_COND_THROW(r < 0, "r = " << r << " at t = " << t << "!");
+			UG_COND_THROW(r*r <= VecNormSquared(vel)*1e-12, "r = " << r << " at t = " << t << "!");
 
 			sec_integral += gl.weight(i) * sqrt(VecNormSquared(vel)) / r;
 		}
@@ -1706,6 +1728,7 @@ static void create_neurite
 
 		// initial branch offsets (to prevent the first segment being shorter than the following)
 		std::vector<number> branchOffset;
+		number surfBPoffset;
 
 		// last section: create until tip
 		if (brit == brit_end)
@@ -1772,15 +1795,16 @@ static void create_neurite
 				number velNorm = sqrt(VecNormSquared(vel));
 				VecScale(neuriteDir, vel, 1.0/velNorm);
 
-				// calculate offset of true branch position, which is r1*cot(alpha)
-				number brScProd = VecProd(neuriteDir, branchDir);
-				number surfBPoffset =  0.5*sqrt(2.0) * bpRad * brScProd / sqrt(1.0 - brScProd*brScProd);
+				// calculate offset of true branch position, which is r1/sqrt(2)*cot(alpha)
+				const number brScProd = VecProd(neuriteDir, branchDir);
+				const number sinAlphaInv = 1.0 / sqrt(1.0 - brScProd*brScProd);
+				surfBPoffset = 0.5*sqrt(2.0) * bpRad * brScProd * sinAlphaInv;
 
-				// calculate offset of new branch, which is sqrt(2)/2*r1/sin(alpha)
-				branchOffset[br] = 0.5*sqrt(2.0) * bpRad / sqrt(1.0 - brScProd*brScProd);
+				// calculate offset of new branch, which is r1/sqrt(2)/sin(alpha)
+				branchOffset[br] = 0.5*sqrt(2.0) * bpRad * sinAlphaInv;
 
-				// calculate true length of BP, which is 2*r2*sin(alpha)
-				number surfBPhalfLength = 0.5*sqrt(2.0) * brRadSeg1 * sqrt(1.0 - brScProd*brScProd);
+				// calculate true half-length of BP, which is r2/sin(alpha)
+				number surfBPhalfLength = brRadSeg1 * sinAlphaInv;
 
 				// finally set bp start and end
 				bp_start = std::min(bp_start, bpTPos + (surfBPoffset - surfBPhalfLength) / neurite_length);
@@ -1794,7 +1818,9 @@ static void create_neurite
 		// = integral from t_start to t_end over: ||v(t)|| / r(t) dt
 		number lengthOverRadius = calculate_length_over_radius(t_start, t_end, neurite, curSec);
 
-		size_t nSeg = (size_t) floor(lengthOverRadius / anisotropy);
+		// to reach the desired anisotropy on the surface in the refinement limit,
+		// it has to be multiplied by pi/2 h
+		size_t nSeg = (size_t) floor(lengthOverRadius / (anisotropy*0.5*PI));
 		if (!nSeg)
 			nSeg = 1;
 		number segLength = lengthOverRadius / nSeg;	// segments are between 8 and 16 radii long
@@ -1883,11 +1909,15 @@ static void create_neurite
 			VecNormalize(projRefDir, projRefDir);
 			VecCross(thirdDir, vel, projRefDir);
 
+			/*
 			vector2 relCoord;
 			VecScaleAppend(childDir, -VecProd(childDir, vel), vel);
 			relCoord[0] = VecProd(childDir, projRefDir);
 			VecScaleAppend(childDir, -relCoord[0], projRefDir);
 			relCoord[1] = VecProd(childDir, thirdDir);
+			VecNormalize(relCoord, relCoord);
+			*/
+			vector2 relCoord(VecProd(childDir, projRefDir), VecProd(childDir, thirdDir));
 			VecNormalize(relCoord, relCoord);
 
 			number branchOffset = 0.0;
@@ -1897,8 +1927,8 @@ static void create_neurite
 				branchOffset = relCoord[0] < 0 ? PI - atan(-relCoord[1]/relCoord[0]) : atan(relCoord[1]/relCoord[0]);
 
 			addOffset = branchOffset - angleOffset;
-			connFaceInd = floor(std::fmod(addOffset+6*PI, 2*PI) / (PI/2));
-			addOffset = std::fmod(branchOffset - (connFaceInd*PI/2 + PI/4) + 4*PI, 2*PI);
+			connFaceInd = floor(std::fmod(addOffset+4*PI, 2*PI) / (PI/2));
+			addOffset = std::fmod(addOffset - (connFaceInd*PI/2 + PI/4) + 4*PI, 2*PI);
 			if (addOffset > PI)
 				addOffset -= 2*PI;
 			addOffset /= nSeg - 1;
@@ -2018,6 +2048,17 @@ static void create_neurite
 					aaSurfParams[v].radial = 1.0;
 				}
 
+				// correct offsets of non-connecting vertices (opposite direction than branching ones)
+				VecScaleAppend(aaPos[vVrt[(connFaceInd+2)%4]], -2.0*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[(connFaceInd+3)%4]], -2.0*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vNewVrt[(connFaceInd+2)%4]], -2.0*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vNewVrt[(connFaceInd+3)%4]], -2.0*surfBPoffset, vel);
+
+				aaSurfParams[vVrt[(connFaceInd+2)%4]].axial -= 2.0*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[(connFaceInd+3)%4]].axial -= 2.0*surfBPoffset / neurite_length;
+				aaSurfParams[vNewVrt[(connFaceInd+2)%4]].axial -= 2.0*surfBPoffset / neurite_length;
+				aaSurfParams[vNewVrt[(connFaceInd+3)%4]].axial -= 2.0*surfBPoffset / neurite_length;
+
 				// prepare connectingVrts, -Edges, -Faces for branch
 				std::vector<Vertex*> vBranchVrts(4);
 				vBranchVrts[0] = vVrt[(connFaceInd+1)%4];
@@ -2123,6 +2164,984 @@ static void create_neurite
 	aaSurfParams[tip].angular = 0.0;
 	aaSurfParams[tip].radial = 1.0;
 	*/
+}
+
+
+static void create_neurite_with_er
+(
+	const std::vector<NeuriteProjector::Neurite>& vNeurites,
+	const std::vector<std::vector<vector3> >& vPos,
+	const std::vector<std::vector<number> >& vR,
+	size_t nid,
+	number erScaleFactor,
+	number anisotropy,
+	Grid& g,
+	Grid::VertexAttachmentAccessor<APosition>& aaPos,
+	Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+	SubsetHandler& sh,
+	std::vector<Vertex*>* connectingVrts = NULL,
+	std::vector<Edge*>* connectingEdges = NULL,
+	std::vector<Face*>* connectingFaces = NULL,
+	number initialOffset = 0.0
+)
+{
+	const NeuriteProjector::Neurite& neurite = vNeurites[nid];
+	const std::vector<vector3>& pos = vPos[nid];
+	const std::vector<number>& r = vR[nid];
+
+	number neurite_length = 0.0;
+	for (size_t i = 1; i < pos.size(); ++i)
+		neurite_length += VecDistance(pos[i], pos[i-1]);
+
+	size_t nSec = neurite.vSec.size();
+
+	const std::vector<NeuriteProjector::BranchingRegion>& vBR = neurite.vBR;
+	std::vector<NeuriteProjector::BranchingRegion>::const_iterator brit = vBR.begin();
+	std::vector<NeuriteProjector::BranchingRegion>::const_iterator brit_end = vBR.end();
+
+	std::vector<Vertex*> vVrt;
+	std::vector<Edge*> vEdge;
+	std::vector<Face*> vFace;
+	vVrt.resize(16);
+	vEdge.resize(24);
+	vFace.resize(9);
+
+	vector3 vel;
+	const NeuriteProjector::Section& sec = neurite.vSec[0];
+	number h = sec.endParam;
+	vel[0] = -3.0*sec.splineParamsX[0]*h*h - 2.0*sec.splineParamsX[1]*h - sec.splineParamsX[2];
+	vel[1] = -3.0*sec.splineParamsY[0]*h*h - 2.0*sec.splineParamsY[1]*h - sec.splineParamsY[2];
+	vel[2] = -3.0*sec.splineParamsZ[0]*h*h - 2.0*sec.splineParamsZ[1]*h - sec.splineParamsZ[2];
+
+	vector3 projRefDir;
+	VecNormalize(vel, vel);
+	number fac = VecProd(neurite.refDir, vel);
+	VecScaleAdd(projRefDir, 1.0, neurite.refDir, -fac, vel);
+	VecNormalize(projRefDir, projRefDir);
+
+	vector3 thirdDir;
+	VecCross(thirdDir, vel, projRefDir);
+
+	number angleOffset = 0.0;
+
+	number t_start = 0.0;
+	number t_end = 0.0;
+
+	if (connectingVrts && connectingEdges && connectingFaces)
+	{
+		vVrt = *connectingVrts;
+		vEdge = *connectingEdges;
+		vFace = *connectingFaces;
+
+		// calculate start angle offset
+		vector3 center(0.0);
+		for (size_t i = 0; i < 4; ++i)
+			VecAdd(center, center, aaPos[(*connectingVrts)[i]]);
+		center /= 4;
+
+		vector3 centerToFirst;
+		VecSubtract(centerToFirst, aaPos[(*connectingVrts)[0]], center);
+
+		vector2 relCoord;
+		VecScaleAdd(centerToFirst, 1.0, centerToFirst, -VecProd(centerToFirst, vel), vel);
+		relCoord[0] = VecProd(centerToFirst, projRefDir);
+		VecScaleAdd(centerToFirst, 1.0, centerToFirst, -relCoord[0], projRefDir);
+		relCoord[1] = VecProd(centerToFirst, thirdDir);
+		VecNormalize(relCoord, relCoord);
+
+		if (fabs(relCoord[0]) < 1e-8)
+			angleOffset = relCoord[1] < 0 ? 1.5*PI : 0.5*PI;
+		else
+			angleOffset = relCoord[0] < 0 ? PI - atan(-relCoord[1]/relCoord[0]) : atan(relCoord[1]/relCoord[0]);
+		if (angleOffset < 0) angleOffset += 2.0*PI;
+
+		// ignore first branching region (the connecting region)
+		++brit;
+
+		// apply initial offset (to prevent first segment being shorter than the others)
+		t_end = initialOffset / neurite_length;
+		for (size_t i = 0; i < 4; ++i)
+		{
+			aaSurfParams[(*connectingVrts)[i]].axial = t_end;
+			aaSurfParams[(*connectingVrts)[i]].angular = 0.5*PI*i + angleOffset < 2*PI ? 0.5*PI*i + angleOffset : 0.5*PI*i + angleOffset - 2*PI;
+			aaSurfParams[(*connectingVrts)[i]].radial = erScaleFactor;
+		}
+	}
+	else
+	{
+		// create first layer of vertices/edges //
+
+		// ER vertices
+		for (size_t i = 0; i < 4; ++i)
+		{
+			Vertex* v = *g.create<RegularVertex>();
+			vVrt[i] = v;
+			number angle = 0.5*PI*i;
+			VecScaleAdd(aaPos[v], 1.0, pos[0], erScaleFactor*r[0]*cos(angle), projRefDir, erScaleFactor*r[0]*sin(angle), thirdDir);
+
+			aaSurfParams[v].neuriteID = nid;
+			aaSurfParams[v].axial = 0.0;
+			aaSurfParams[v].angular = angle;
+			aaSurfParams[v].radial = erScaleFactor;
+			sh.assign_subset(v, 3);
+		}
+
+		for (size_t i = 0; i < 12; ++i)
+		{
+			Vertex* v = *g.create<RegularVertex>();
+			vVrt[i+4] = v;
+			number angle = PI*((number)i/6);
+			VecScaleAdd(aaPos[v], 1.0, pos[0], r[0]*cos(angle), projRefDir, r[0]*sin(angle), thirdDir);
+
+			aaSurfParams[v].neuriteID = nid;
+			aaSurfParams[v].axial = 0.0;
+			aaSurfParams[v].angular = angle;
+			aaSurfParams[v].radial = 1.0;
+			sh.assign_subset(v, 2);
+		}
+
+		// edges
+		for (size_t i = 0; i < 4; ++i)
+		{
+			vEdge[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i], vVrt[(i+1)%4]));
+			vEdge[i+4] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i], vVrt[5+3*i]));
+			vEdge[i+8] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[(i+1)%4], vVrt[6+3*i]));
+
+			sh.assign_subset(vEdge[i], 3);
+			sh.assign_subset(vEdge[i+4], 0);
+		}
+		for (size_t i = 0; i < 12; ++i)
+		{
+			vEdge[i+12] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i+4], vVrt[(i+1)%12+4]));
+			sh.assign_subset(vEdge[i+12], 2);
+		}
+
+		// faces
+		vFace[0] = *g.create<Quadrilateral>(QuadrilateralDescriptor(vVrt[0], vVrt[1], vVrt[2], vVrt[3]));
+		sh.assign_subset(vFace[0], 1);
+		for (size_t i = 0; i < 4; ++i)
+		{
+			vFace[i+1] = *g.create<Quadrilateral>(QuadrilateralDescriptor(vVrt[i], vVrt[(3*i+11)%12+4], vVrt[3*i+4], vVrt[3*i+5]));
+			vFace[i+5] = *g.create<Quadrilateral>(QuadrilateralDescriptor(vVrt[i], vVrt[3*i+5], vVrt[3*i+6], vVrt[(i+1)%4]));
+			sh.assign_subset(vFace[i+1], 0);
+			sh.assign_subset(vFace[i+5], 0);
+		}
+	}
+
+	// Now create dendrite to the next branching point and iterate this process.
+	// We want to create each of the segments with approx. the same aspect ratio.
+	// To that end, we first calculate the length of the section to be created (in units of radius)
+	// and then divide this number by 2^n where n is the number of anisotropic refinements to
+	// be performed to make all segments (more or less) isotropic. The result is the number
+	// of segments to be used for the section.
+	vector3 lastPos = pos[0];
+	size_t curSec = 0;
+
+	while (true)
+	{
+		t_start = t_end;
+
+		// if there is another BP, store its extensions here
+		number bp_start = 1.0;
+		number bp_end = 0.0;
+
+		// initial branch offsets (to prevent the first segment being shorter than the following)
+		std::vector<number> branchOffset;
+		number surfBPoffset;
+
+		// last section: create until tip
+		if (brit == brit_end)
+			t_end = 1.0;
+
+		// otherwise: section goes to next branching point
+		else
+		{
+			// calculate the exact position of the branching point,
+			// i.e., the axial position of the intersection of the branching neurite's
+			// spline with the surface of the current neurite
+			// this is necessary esp. when the branching angle is very small
+			const std::vector<uint32_t>& vBranchInd = brit->bp->vNid;
+			size_t nBranches = vBranchInd.size();
+
+			branchOffset.resize(brit->bp->vNid.size(), 0.0);
+			for (size_t br = 1; br < nBranches; ++br)
+			{
+				uint32_t brInd = vBranchInd[br];
+
+				// get position and radius of first point of branch
+				const number brRadSeg1 = vR[brInd][0];
+
+				// get position and radius of branching point
+				const number bpTPos = brit->t;
+				size_t brSec = curSec;
+				for (; brSec < nSec; ++brSec)
+				{
+					const NeuriteProjector::Section& sec = neurite.vSec[brSec];
+					if (bpTPos - sec.endParam < 1e-6*bpTPos)
+						break;
+				}
+				UG_COND_THROW(brSec == nSec, "Could not find section containing branching point "
+					"at t = " << bpTPos << ".");
+				const number bpRad = vR[nid][brSec+1];
+
+				// calculate branch and neurite directions
+				vector3 branchDir;
+				const NeuriteProjector::Section& childSec = vNeurites[brInd].vSec[0];
+				number te = childSec.endParam;
+
+				const number* s = &childSec.splineParamsX[0];
+				number& v0 = branchDir[0];
+				v0 = -3.0*s[0]*te - 2.0*s[1];
+				v0 = v0*te - s[2];
+
+				s = &childSec.splineParamsY[0];
+				number& v1 = branchDir[1];
+				v1 = -3.0*s[0]*te - 2.0*s[1];
+				v1 = v1*te - s[2];
+
+				s = &childSec.splineParamsZ[0];
+				number& v2 = branchDir[2];
+				v2 = -3.0*s[0]*te - 2.0*s[1];
+				v2 = v2*te - s[2];
+
+				VecNormalize(branchDir, branchDir);
+
+				vector3 neuriteDir;
+				const NeuriteProjector::Section& sec = neurite.vSec.at(brSec);
+				vel[0] = -sec.splineParamsX[2];
+				vel[1] = -sec.splineParamsY[2];
+				vel[2] = -sec.splineParamsZ[2];
+				number velNorm = sqrt(VecNormSquared(vel));
+				VecScale(neuriteDir, vel, 1.0/velNorm);
+
+				// calculate offset of true branch position, which is r1/sqrt(2)*cot(alpha)
+				const number brScProd = VecProd(neuriteDir, branchDir);
+				const number sinAlphaInv = 1.0 / sqrt(1.0 - brScProd*brScProd);
+				surfBPoffset = 0.5*sqrt(2.0) * bpRad * brScProd * sinAlphaInv;
+
+				// calculate offset of new branch, which is r1/sqrt(2)/sin(alpha)
+				branchOffset[br] = 0.5*sqrt(2.0) * bpRad * sinAlphaInv;
+
+				// calculate true half-length of BP, which is r2/sqrt(2)/sin(alpha)
+				number surfBPhalfLength = brRadSeg1 * sinAlphaInv;
+
+				// finally set bp start and end
+				bp_start = std::min(bp_start, bpTPos - surfBPhalfLength / neurite_length);
+				bp_end = std::max(bp_end, bpTPos + surfBPhalfLength / neurite_length);
+			}
+
+			t_end = bp_start;
+		}
+
+		// calculate total length in units of radius
+		// = integral from t_start to t_end over: ||v(t)|| / r(t) dt
+		number lengthOverRadius = calculate_length_over_radius(t_start, t_end, neurite, curSec);
+
+		// to reach the desired anisotropy on the surface in the refinement limit,
+		// it has to be multiplied by pi/2 h
+		size_t nSeg = (size_t) floor(lengthOverRadius / (anisotropy*0.5*PI));
+		if (!nSeg)
+			nSeg = 1;
+		number segLength = lengthOverRadius / nSeg;	// segments are between 8 and 16 radii long
+		std::vector<number> vSegAxPos(nSeg);
+		calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
+
+		// add the branching point to segment list (if present)
+		if (brit != brit_end)
+		{
+			vSegAxPos.resize(nSeg+1);
+			vSegAxPos[nSeg] = bp_end;
+			++nSeg;
+		}
+
+
+		// in case we construct to a BP, find out the branching angle
+		// in order to adjust this neurites offset bit by bit
+		number addOffset = 0.0;
+		size_t child_nid;
+		size_t connFaceInd = 0;
+		if (brit != brit_end)
+		{
+			// find branching child neurite
+			SmartPtr<NeuriteProjector::BranchingPoint> bp = brit->bp;
+			UG_COND_THROW(bp->vNid.size() > 2,
+				"This implementation can only handle branching points with one branching child.");
+
+			if (bp->vNid[0] != nid)
+				child_nid = bp->vNid[0];
+			else
+				child_nid = bp->vNid[1];
+
+			// find out branching child neurite initial direction
+			vector3 childDir;
+			const NeuriteProjector::Section& childSec = vNeurites[child_nid].vSec[0];
+			number te = childSec.endParam;
+
+			const number* sp = &childSec.splineParamsX[0];
+			number& vc0 = childDir[0];
+			vc0 = -3.0*sp[0]*te - 2.0*sp[1];
+			vc0 = vc0*te - sp[2];
+
+			sp = &childSec.splineParamsY[0];
+			number& vc1 = childDir[1];
+			vc1 = -3.0*sp[0]*te - 2.0*sp[1];
+			vc1 = vc1*te - sp[2];
+
+			sp = &childSec.splineParamsZ[0];
+			number& vc2 = childDir[2];
+			vc2 = -3.0*sp[0]*te - 2.0*sp[1];
+			vc2 = vc2*te - sp[2];
+
+
+			// find out neurite direction in next BP
+			number bpAxPos = vSegAxPos[nSeg-1];
+			size_t tmpSec = curSec;
+			for (; tmpSec < nSec; ++tmpSec)
+			{
+				const NeuriteProjector::Section& sec = neurite.vSec[tmpSec];
+				if (sec.endParam >= bpAxPos)
+					break;
+			}
+
+			const NeuriteProjector::Section& sec = neurite.vSec[tmpSec];
+			number monom = sec.endParam - bpAxPos;
+			sp = &sec.splineParamsX[0];
+			number& v0 = vel[0];
+			v0 = -3.0*sp[0]*monom -2.0*sp[1];
+			v0 = v0*monom - sp[2];
+
+			sp = &sec.splineParamsY[0];
+			number& v1 = vel[1];
+			v1 = -3.0*sp[0]*monom -2.0*sp[1];
+			v1 = v1*monom - sp[2];
+
+			sp = &sec.splineParamsZ[0];
+			number& v2 = vel[2];
+			v2 = -3.0*sp[0]*monom -2.0*sp[1];
+			v2 = v2*monom - sp[2];
+
+			VecNormalize(vel, vel);
+
+			// calculate offset
+			number fac = VecProd(neurite.refDir, vel);
+			VecScaleAdd(projRefDir, 1.0, neurite.refDir, -fac, vel);
+			VecNormalize(projRefDir, projRefDir);
+			VecCross(thirdDir, vel, projRefDir);
+
+			vector2 relCoord;
+			VecScaleAppend(childDir, -VecProd(childDir, vel), vel);
+			relCoord[0] = VecProd(childDir, projRefDir);
+			VecScaleAppend(childDir, -relCoord[0], projRefDir);
+			relCoord[1] = VecProd(childDir, thirdDir);
+			VecNormalize(relCoord, relCoord);
+
+			number branchOffset = 0.0;
+			if (fabs(relCoord[0]) < 1e-8)
+				branchOffset = relCoord[1] < 0 ? 1.5*PI : 0.5*PI;
+			else
+				branchOffset = relCoord[0] < 0 ? PI - atan(-relCoord[1]/relCoord[0]) : atan(relCoord[1]/relCoord[0]);
+
+			addOffset = branchOffset - angleOffset;
+			connFaceInd = floor(std::fmod(addOffset+4*PI, 2*PI) / (PI/2));
+			addOffset = std::fmod(addOffset - (connFaceInd*PI/2 + PI/4) + 4*PI, 2*PI);
+			if (addOffset > PI)
+				addOffset -= 2*PI;
+			addOffset /= nSeg - 1;
+		}
+
+		// create mesh for segments
+		Selector sel(g);
+		for (size_t s = 0; s < nSeg; ++s)
+		{
+			// get exact position, velocity and radius of segment end
+			number segAxPos = vSegAxPos[s];
+			for (; curSec < nSec; ++curSec)
+			{
+				const NeuriteProjector::Section& sec = neurite.vSec[curSec];
+				if (sec.endParam >= segAxPos)
+					break;
+			}
+
+			const NeuriteProjector::Section& sec = neurite.vSec[curSec];
+			vector3 curPos;
+			number monom = sec.endParam - segAxPos;
+			const number* sp = &sec.splineParamsX[0];
+			number& p0 = curPos[0];
+			number& v0 = vel[0];
+			p0 = sp[0]*monom + sp[1];
+			p0 = p0*monom + sp[2];
+			p0 = p0*monom + sp[3];
+			v0 = -3.0*sp[0]*monom -2.0*sp[1];
+			v0 = v0*monom - sp[2];
+
+			sp = &sec.splineParamsY[0];
+			number& p1 = curPos[1];
+			number& v1 = vel[1];
+			p1 = sp[0]*monom + sp[1];
+			p1 = p1*monom + sp[2];
+			p1 = p1*monom + sp[3];
+			v1 = -3.0*sp[0]*monom -2.0*sp[1];
+			v1 = v1*monom - sp[2];
+
+			sp = &sec.splineParamsZ[0];
+			number& p2 = curPos[2];
+			number& v2 = vel[2];
+			p2 = sp[0]*monom + sp[1];
+			p2 = p2*monom + sp[2];
+			p2 = p2*monom + sp[3];
+			v2 = -3.0*sp[0]*monom -2.0*sp[1];
+			v2 = v2*monom - sp[2];
+
+			sp = &sec.splineParamsR[0];
+			number radius;
+			radius = sp[0]*monom + sp[1];
+			radius = radius*monom + sp[2];
+			radius = radius*monom + sp[3];
+
+			VecNormalize(vel, vel);
+
+			// calculate reference dir projected to normal plane of velocity
+			number fac = VecProd(neurite.refDir, vel);
+			VecScaleAdd(projRefDir, 1.0, neurite.refDir, -fac, vel);
+			VecNormalize(projRefDir, projRefDir);
+
+			VecCross(thirdDir, vel, projRefDir);
+
+			// usual segment: extrude
+			if (s != nSeg - 1 || brit == brit_end)
+			{
+				// apply additional offset
+				angleOffset = std::fmod(angleOffset + addOffset + 2*PI, 2*PI);
+
+				// extrude from last pos to new pos
+				vector3 extrudeDir;
+				VecScaleAdd(extrudeDir, 1.0, curPos, -1.0, lastPos);
+				std::vector<Volume*> vVol;
+				Extrude(g, &vVrt, &vEdge, &vFace, extrudeDir, aaPos, EO_CREATE_FACES | EO_CREATE_VOLUMES, &vVol);
+
+				// set new positions and param attachments
+				for (size_t j = 0; j < 4; ++j)
+				{
+					number angle = 0.5*PI*j + angleOffset;
+					if (angle > 2*PI)
+						angle -= 2*PI;
+					Vertex* v = vVrt[j];
+					vector3 radialVec;
+					VecScaleAdd(radialVec, erScaleFactor*radius*cos(angle), projRefDir, erScaleFactor*radius*sin(angle), thirdDir);
+					VecAdd(aaPos[v], curPos, radialVec);
+
+					aaSurfParams[v].neuriteID = nid;
+					aaSurfParams[v].axial = segAxPos;
+					aaSurfParams[v].angular = angle;
+					aaSurfParams[v].radial = erScaleFactor;
+				}
+				for (size_t j = 0; j < 12; ++j)
+				{
+					number angle = PI*((number)j/6) + angleOffset;
+					if (angle > 2*PI)
+						angle -= 2*PI;
+					Vertex* v = vVrt[j+4];
+					vector3 radialVec;
+					VecScaleAdd(radialVec, radius*cos(angle), projRefDir, radius*sin(angle), thirdDir);
+					VecAdd(aaPos[v], curPos, radialVec);
+
+					aaSurfParams[v].neuriteID = nid;
+					aaSurfParams[v].axial = segAxPos;
+					aaSurfParams[v].angular = angle;
+					aaSurfParams[v].radial = 1.0;
+				}
+
+				// ensure correct volume orientation
+				FixOrientation(g, vVol.begin(), vVol.end(), aaPos);
+			}
+
+			// BP segment: create BP with tetrahedra/pyramids and create whole branch
+			else
+			{
+				std::vector<Volume*> vBPVols;
+				vBPVols.reserve(27);
+
+				// correct vertex offsets to reflect angle at which child branches
+				VecScaleAppend(aaPos[vVrt[(connFaceInd)%4]], erScaleFactor*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[(connFaceInd+1)%4]], erScaleFactor*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[(connFaceInd+2)%4]], -erScaleFactor*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[(connFaceInd+3)%4]], -erScaleFactor*surfBPoffset, vel);
+				aaSurfParams[vVrt[(connFaceInd)%4]].axial += erScaleFactor*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[(connFaceInd+1)%4]].axial += erScaleFactor*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[(connFaceInd+2)%4]].axial -= erScaleFactor*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[(connFaceInd+3)%4]].axial -= erScaleFactor*surfBPoffset / neurite_length;
+
+				VecScaleAppend(aaPos[vVrt[4+3*((connFaceInd)%4)]], surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[4+3*((connFaceInd+1)%4)]], surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[4+3*((connFaceInd+2)%4)]], -surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[4+3*((connFaceInd+3)%4)]], -surfBPoffset, vel);
+				aaSurfParams[vVrt[4+3*((connFaceInd)%4)]].axial += surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[4+3*((connFaceInd+1)%4)]].axial += surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[4+3*((connFaceInd+2)%4)]].axial -= surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[4+3*((connFaceInd+3)%4)]].axial -= surfBPoffset / neurite_length;
+
+				VecScaleAppend(aaPos[vVrt[5+3*((connFaceInd)%4)]], 1.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[6+3*((connFaceInd)%4)]], 1.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[5+3*((connFaceInd+2)%4)]], -1.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[6+3*((connFaceInd+2)%4)]], -1.366*surfBPoffset, vel);
+				aaSurfParams[vVrt[5+3*((connFaceInd)%4)]].axial += 1.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[6+3*((connFaceInd)%4)]].axial += 1.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[5+3*((connFaceInd+2)%4)]].axial -= 1.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[6+3*((connFaceInd+2)%4)]].axial -= 1.366*surfBPoffset / neurite_length;
+
+				VecScaleAppend(aaPos[vVrt[5+3*((connFaceInd+1)%4)]], 0.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[6+3*((connFaceInd+1)%4)]], -0.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[5+3*((connFaceInd+3)%4)]], -0.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[6+3*((connFaceInd+3)%4)]], 0.366*surfBPoffset, vel);
+				aaSurfParams[vVrt[5+3*((connFaceInd+1)%4)]].axial += 0.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[6+3*((connFaceInd+1)%4)]].axial -= 0.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[5+3*((connFaceInd+3)%4)]].axial -= 0.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[6+3*((connFaceInd+3)%4)]].axial += 0.366*surfBPoffset / neurite_length;
+
+				// add branch neurite ID to its initial vertices
+				aaSurfParams[vVrt[4+3*((connFaceInd)%4)]].neuriteID += ((brit - vBR.begin()) << 20) + (1 << 28);
+				aaSurfParams[vVrt[4+3*((connFaceInd+1)%4)]].neuriteID += ((brit - vBR.begin()) << 20) + (1 << 28);
+				aaSurfParams[vVrt[5+3*((connFaceInd)%4)]].neuriteID += ((brit - vBR.begin()) << 20) + (1 << 28);
+				aaSurfParams[vVrt[6+3*((connFaceInd)%4)]].neuriteID += ((brit - vBR.begin()) << 20) + (1 << 28);
+
+
+				// prepare branch vertices
+				std::vector<Vertex*> vBranchVrts(16);
+				vBranchVrts[4] = vVrt[4+3*((connFaceInd+1)%4)];
+				vBranchVrts[13] = vVrt[4+3*((connFaceInd)%4)];
+				vBranchVrts[14] = vVrt[5+3*((connFaceInd)%4)];
+				vBranchVrts[15] = vVrt[6+3*((connFaceInd)%4)];
+
+
+				// extrude to first third of BP //
+				segAxPos = 0.5*(1.0 + erScaleFactor)*vSegAxPos[s-1] + 0.5*(1.0 - erScaleFactor)*vSegAxPos[s];
+				vector3 firstPos;
+				VecScaleAdd(firstPos, 0.5*(1.0 + erScaleFactor), lastPos, 0.5*(1.0 - erScaleFactor), curPos);
+				vector3 extrudeDir;
+				VecScaleAdd(extrudeDir, 1.0, firstPos, -1.0, lastPos);
+				std::vector<Volume*> vVol;
+				Extrude(g, &vVrt, &vEdge, &vFace, extrudeDir, aaPos, EO_CREATE_FACES | EO_CREATE_VOLUMES, &vVol);
+				for (size_t j = 0; j < 9; ++j)
+					vBPVols.push_back(vVol[j]);
+
+				// set new positions and param attachments
+				for (size_t j = 0; j < 4; ++j)
+				{
+					number angle = 0.5*PI*j + angleOffset;
+					if (angle > 2*PI)
+						angle -= 2*PI;
+					Vertex* v = vVrt[j];
+					vector3 radialVec;
+					VecScaleAdd(radialVec, erScaleFactor*radius*cos(angle), projRefDir, erScaleFactor*radius*sin(angle), thirdDir);
+					VecAdd(aaPos[v], firstPos, radialVec);
+
+					aaSurfParams[v].neuriteID = nid;
+					aaSurfParams[v].axial = segAxPos;
+					aaSurfParams[v].angular = angle;
+					aaSurfParams[v].radial = erScaleFactor;
+				}
+				for (size_t j = 0; j < 12; ++j)
+				{
+					number angle = PI*((number)j/6) + angleOffset;
+					if (angle > 2*PI)
+						angle -= 2*PI;
+					Vertex* v = vVrt[j+4];
+					vector3 radialVec;
+					VecScaleAdd(radialVec, radius*cos(angle), projRefDir, radius*sin(angle), thirdDir);
+					VecAdd(aaPos[v], firstPos, radialVec);
+
+					aaSurfParams[v].neuriteID = nid;
+					aaSurfParams[v].axial = segAxPos;
+					aaSurfParams[v].angular = angle;
+					aaSurfParams[v].radial = 1.0;
+				}
+
+				// correct vertex offsets to reflect angle at which child branches
+				VecScaleAppend(aaPos[vVrt[(connFaceInd)%4]], erScaleFactor*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[(connFaceInd+1)%4]], erScaleFactor*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[(connFaceInd+2)%4]], -erScaleFactor*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[(connFaceInd+3)%4]], -erScaleFactor*surfBPoffset, vel);
+				aaSurfParams[vVrt[(connFaceInd)%4]].axial += erScaleFactor*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[(connFaceInd+1)%4]].axial += erScaleFactor*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[(connFaceInd+2)%4]].axial -= erScaleFactor*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[(connFaceInd+3)%4]].axial -= erScaleFactor*surfBPoffset / neurite_length;
+
+				VecScaleAppend(aaPos[vVrt[4+3*((connFaceInd)%4)]], surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[4+3*((connFaceInd+1)%4)]], surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[4+3*((connFaceInd+2)%4)]], -surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[4+3*((connFaceInd+3)%4)]], -surfBPoffset, vel);
+				aaSurfParams[vVrt[4+3*((connFaceInd)%4)]].axial += surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[4+3*((connFaceInd+1)%4)]].axial += surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[4+3*((connFaceInd+2)%4)]].axial -= surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[4+3*((connFaceInd+3)%4)]].axial -= surfBPoffset / neurite_length;
+
+				VecScaleAppend(aaPos[vVrt[5+3*((connFaceInd)%4)]], 1.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[6+3*((connFaceInd)%4)]], 1.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[5+3*((connFaceInd+2)%4)]], -1.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[6+3*((connFaceInd+2)%4)]], -1.366*surfBPoffset, vel);
+				aaSurfParams[vVrt[5+3*((connFaceInd)%4)]].axial += 1.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[6+3*((connFaceInd)%4)]].axial += 1.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[5+3*((connFaceInd+2)%4)]].axial -= 1.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[6+3*((connFaceInd+2)%4)]].axial -= 1.366*surfBPoffset / neurite_length;
+
+				VecScaleAppend(aaPos[vVrt[5+3*((connFaceInd+1)%4)]], 0.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[6+3*((connFaceInd+1)%4)]], -0.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[5+3*((connFaceInd+3)%4)]], -0.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[6+3*((connFaceInd+3)%4)]], 0.366*surfBPoffset, vel);
+				aaSurfParams[vVrt[5+3*((connFaceInd+1)%4)]].axial += 0.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[6+3*((connFaceInd+1)%4)]].axial -= 0.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[5+3*((connFaceInd+3)%4)]].axial -= 0.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[6+3*((connFaceInd+3)%4)]].axial += 0.366*surfBPoffset / neurite_length;
+
+				FixOrientation(g, vVol.begin(), vVol.end(), aaPos);
+
+				// add branch neurite ID to its initial vertices
+				aaSurfParams[vVrt[(connFaceInd)%4]].neuriteID += ((brit - vBR.begin()) << 20) + (1 << 28);
+				aaSurfParams[vVrt[(connFaceInd+1)%4]].neuriteID += ((brit - vBR.begin()) << 20) + (1 << 28);
+
+				aaSurfParams[vVrt[4+3*((connFaceInd)%4)]].neuriteID += ((brit - vBR.begin()) << 20) + (1 << 28);
+				aaSurfParams[vVrt[4+3*((connFaceInd+1)%4)]].neuriteID += ((brit - vBR.begin()) << 20) + (1 << 28);
+				aaSurfParams[vVrt[5+3*((connFaceInd)%4)]].neuriteID = child_nid;
+				aaSurfParams[vVrt[6+3*((connFaceInd)%4)]].neuriteID = child_nid;
+
+				// prepare branch vertices
+				vBranchVrts[0] = vVrt[6+3*((connFaceInd)%4)];
+				vBranchVrts[3] = vVrt[5+3*((connFaceInd)%4)];
+				vBranchVrts[5] = vVrt[4+3*((connFaceInd+1)%4)];
+				vBranchVrts[12] = vVrt[4+3*((connFaceInd)%4)];
+
+
+				// extrude to second third of BP //
+				segAxPos = 0.5*(1.0 - erScaleFactor)*vSegAxPos[s-1] + 0.5*(1.0 + erScaleFactor)*vSegAxPos[s];
+				vector3 secondPos;
+				VecScaleAdd(secondPos, 0.5*(1.0 - erScaleFactor), lastPos, 0.5*(1.0 + erScaleFactor), curPos);
+				VecScaleAdd(extrudeDir, 1.0, secondPos, -1.0, firstPos);
+				vVol.clear();
+				Extrude(g, &vVrt, &vEdge, &vFace, extrudeDir, aaPos, EO_CREATE_FACES | EO_CREATE_VOLUMES, &vVol);
+				for (size_t j = 0; j < 9; ++j)
+					vBPVols.push_back(vVol[j]);
+
+				// set new positions and param attachments
+				for (size_t j = 0; j < 4; ++j)
+				{
+					number angle = 0.5*PI*j + angleOffset;
+					if (angle > 2*PI)
+						angle -= 2*PI;
+					Vertex* v = vVrt[j];
+					vector3 radialVec;
+					VecScaleAdd(radialVec, erScaleFactor*radius*cos(angle), projRefDir, erScaleFactor*radius*sin(angle), thirdDir);
+					VecAdd(aaPos[v], secondPos, radialVec);
+
+					aaSurfParams[v].neuriteID = nid;
+					aaSurfParams[v].axial = segAxPos;
+					aaSurfParams[v].angular = angle;
+					aaSurfParams[v].radial = erScaleFactor;
+				}
+				for (size_t j = 0; j < 12; ++j)
+				{
+					number angle = PI*((number)j/6) + angleOffset;
+					if (angle > 2*PI)
+						angle -= 2*PI;
+					Vertex* v = vVrt[j+4];
+					vector3 radialVec;
+					VecScaleAdd(radialVec, radius*cos(angle), projRefDir, radius*sin(angle), thirdDir);
+					VecAdd(aaPos[v], secondPos, radialVec);
+
+					aaSurfParams[v].neuriteID = nid;
+					aaSurfParams[v].axial = segAxPos;
+					aaSurfParams[v].angular = angle;
+					aaSurfParams[v].radial = 1.0;
+				}
+
+				// correct vertex offsets to reflect angle at which child branches
+				VecScaleAppend(aaPos[vVrt[(connFaceInd)%4]], erScaleFactor*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[(connFaceInd+1)%4]], erScaleFactor*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[(connFaceInd+2)%4]], -erScaleFactor*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[(connFaceInd+3)%4]], -erScaleFactor*surfBPoffset, vel);
+				aaSurfParams[vVrt[(connFaceInd)%4]].axial += erScaleFactor*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[(connFaceInd+1)%4]].axial += erScaleFactor*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[(connFaceInd+2)%4]].axial -= erScaleFactor*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[(connFaceInd+3)%4]].axial -= erScaleFactor*surfBPoffset / neurite_length;
+
+				VecScaleAppend(aaPos[vVrt[4+3*((connFaceInd)%4)]], surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[4+3*((connFaceInd+1)%4)]], surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[4+3*((connFaceInd+2)%4)]], -surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[4+3*((connFaceInd+3)%4)]], -surfBPoffset, vel);
+				aaSurfParams[vVrt[4+3*((connFaceInd)%4)]].axial += surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[4+3*((connFaceInd+1)%4)]].axial += surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[4+3*((connFaceInd+2)%4)]].axial -= surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[4+3*((connFaceInd+3)%4)]].axial -= surfBPoffset / neurite_length;
+
+				VecScaleAppend(aaPos[vVrt[5+3*((connFaceInd)%4)]], 1.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[6+3*((connFaceInd)%4)]], 1.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[5+3*((connFaceInd+2)%4)]], -1.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[6+3*((connFaceInd+2)%4)]], -1.366*surfBPoffset, vel);
+				aaSurfParams[vVrt[5+3*((connFaceInd)%4)]].axial += 1.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[6+3*((connFaceInd)%4)]].axial += 1.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[5+3*((connFaceInd+2)%4)]].axial -= 1.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[6+3*((connFaceInd+2)%4)]].axial -= 1.366*surfBPoffset / neurite_length;
+
+				VecScaleAppend(aaPos[vVrt[5+3*((connFaceInd+1)%4)]], 0.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[6+3*((connFaceInd+1)%4)]], -0.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[5+3*((connFaceInd+3)%4)]], -0.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[6+3*((connFaceInd+3)%4)]], 0.366*surfBPoffset, vel);
+				aaSurfParams[vVrt[5+3*((connFaceInd+1)%4)]].axial += 0.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[6+3*((connFaceInd+1)%4)]].axial -= 0.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[5+3*((connFaceInd+3)%4)]].axial -= 0.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[6+3*((connFaceInd+3)%4)]].axial += 0.366*surfBPoffset / neurite_length;
+
+				FixOrientation(g, vVol.begin(), vVol.end(), aaPos);
+
+				// add branch neurite ID to its initial vertices
+				aaSurfParams[vVrt[(connFaceInd)%4]].neuriteID += ((brit - vBR.begin()) << 20) + (1 << 28);
+				aaSurfParams[vVrt[(connFaceInd+1)%4]].neuriteID += ((brit - vBR.begin()) << 20) + (1 << 28);
+
+				aaSurfParams[vVrt[4+3*((connFaceInd)%4)]].neuriteID += ((brit - vBR.begin()) << 20) + (1 << 28);
+				aaSurfParams[vVrt[4+3*((connFaceInd+1)%4)]].neuriteID += ((brit - vBR.begin()) << 20) + (1 << 28);
+				aaSurfParams[vVrt[5+3*((connFaceInd)%4)]].neuriteID = child_nid;
+				aaSurfParams[vVrt[6+3*((connFaceInd)%4)]].neuriteID = child_nid;
+
+				// prepare branch vertices
+				vBranchVrts[1] = vVrt[6+3*((connFaceInd)%4)];
+				vBranchVrts[2] = vVrt[5+3*((connFaceInd)%4)];
+				vBranchVrts[6] = vVrt[4+3*((connFaceInd+1)%4)];
+				vBranchVrts[11] = vVrt[4+3*((connFaceInd)%4)];
+
+				// extrude to end of BP //
+				segAxPos = vSegAxPos[s];
+				VecScaleAdd(extrudeDir, 1.0, curPos, -1.0, secondPos);
+				vVol.clear();
+				Extrude(g, &vVrt, &vEdge, &vFace, extrudeDir, aaPos, EO_CREATE_FACES | EO_CREATE_VOLUMES, &vVol);
+				for (size_t j = 0; j < 9; ++j)
+					vBPVols.push_back(vVol[j]);
+
+				// set new positions and param attachments
+				for (size_t j = 0; j < 4; ++j)
+				{
+					number angle = 0.5*PI*j + angleOffset;
+					if (angle > 2*PI)
+						angle -= 2*PI;
+					Vertex* v = vVrt[j];
+					vector3 radialVec;
+					VecScaleAdd(radialVec, erScaleFactor*radius*cos(angle), projRefDir, erScaleFactor*radius*sin(angle), thirdDir);
+					VecAdd(aaPos[v], curPos, radialVec);
+
+					aaSurfParams[v].neuriteID = nid;
+					aaSurfParams[v].axial = segAxPos;
+					aaSurfParams[v].angular = angle;
+					aaSurfParams[v].radial = erScaleFactor;
+				}
+				for (size_t j = 0; j < 12; ++j)
+				{
+					number angle = PI*((number)j/6) + angleOffset;
+					if (angle > 2*PI)
+						angle -= 2*PI;
+					Vertex* v = vVrt[j+4];
+					vector3 radialVec;
+					VecScaleAdd(radialVec, radius*cos(angle), projRefDir, radius*sin(angle), thirdDir);
+					VecAdd(aaPos[v], curPos, radialVec);
+
+					aaSurfParams[v].neuriteID = nid;
+					aaSurfParams[v].axial = segAxPos;
+					aaSurfParams[v].angular = angle;
+					aaSurfParams[v].radial = 1.0;
+				}
+
+				// correct vertex offsets to reflect angle at which child branches
+				VecScaleAppend(aaPos[vVrt[(connFaceInd)%4]], erScaleFactor*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[(connFaceInd+1)%4]], erScaleFactor*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[(connFaceInd+2)%4]], -erScaleFactor*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[(connFaceInd+3)%4]], -erScaleFactor*surfBPoffset, vel);
+				aaSurfParams[vVrt[(connFaceInd)%4]].axial += erScaleFactor*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[(connFaceInd+1)%4]].axial += erScaleFactor*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[(connFaceInd+2)%4]].axial -= erScaleFactor*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[(connFaceInd+3)%4]].axial -= erScaleFactor*surfBPoffset / neurite_length;
+
+				VecScaleAppend(aaPos[vVrt[4+3*((connFaceInd)%4)]], surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[4+3*((connFaceInd+1)%4)]], surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[4+3*((connFaceInd+2)%4)]], -surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[4+3*((connFaceInd+3)%4)]], -surfBPoffset, vel);
+				aaSurfParams[vVrt[4+3*((connFaceInd)%4)]].axial += surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[4+3*((connFaceInd+1)%4)]].axial += surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[4+3*((connFaceInd+2)%4)]].axial -= surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[4+3*((connFaceInd+3)%4)]].axial -= surfBPoffset / neurite_length;
+
+				VecScaleAppend(aaPos[vVrt[5+3*((connFaceInd)%4)]], 1.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[6+3*((connFaceInd)%4)]], 1.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[5+3*((connFaceInd+2)%4)]], -1.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[6+3*((connFaceInd+2)%4)]], -1.366*surfBPoffset, vel);
+				aaSurfParams[vVrt[5+3*((connFaceInd)%4)]].axial += 1.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[6+3*((connFaceInd)%4)]].axial += 1.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[5+3*((connFaceInd+2)%4)]].axial -= 1.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[6+3*((connFaceInd+2)%4)]].axial -= 1.366*surfBPoffset / neurite_length;
+
+				VecScaleAppend(aaPos[vVrt[5+3*((connFaceInd+1)%4)]], 0.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[6+3*((connFaceInd+1)%4)]], -0.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[5+3*((connFaceInd+3)%4)]], -0.366*surfBPoffset, vel);
+				VecScaleAppend(aaPos[vVrt[6+3*((connFaceInd+3)%4)]], 0.366*surfBPoffset, vel);
+				aaSurfParams[vVrt[5+3*((connFaceInd+1)%4)]].axial += 0.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[6+3*((connFaceInd+1)%4)]].axial -= 0.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[5+3*((connFaceInd+3)%4)]].axial -= 0.366*surfBPoffset / neurite_length;
+				aaSurfParams[vVrt[6+3*((connFaceInd+3)%4)]].axial += 0.366*surfBPoffset / neurite_length;
+
+				FixOrientation(g, vVol.begin(), vVol.end(), aaPos);
+
+				// add branch neurite ID to its initial vertices
+				aaSurfParams[vVrt[4+3*((connFaceInd)%4)]].neuriteID += ((brit - vBR.begin()) << 20) + (1 << 28);
+				aaSurfParams[vVrt[4+3*((connFaceInd+1)%4)]].neuriteID += ((brit - vBR.begin()) << 20) + (1 << 28);
+				aaSurfParams[vVrt[5+3*((connFaceInd)%4)]].neuriteID += ((brit - vBR.begin()) << 20) + (1 << 28);
+				aaSurfParams[vVrt[6+3*((connFaceInd)%4)]].neuriteID += ((brit - vBR.begin()) << 20) + (1 << 28);
+
+				// prepare branch vertices
+				vBranchVrts[7] = vVrt[4+3*((connFaceInd+1)%4)];
+				vBranchVrts[8] = vVrt[6+3*((connFaceInd)%4)];
+				vBranchVrts[9] = vVrt[5+3*((connFaceInd)%4)];
+				vBranchVrts[10] = vVrt[4+3*((connFaceInd)%4)];
+
+
+				// prepare connectingEdges, -Faces for branch
+				std::vector<EdgeDescriptor> vED(24);
+				for (size_t i = 0; i < 4; ++i)
+				{
+					vED[i] = EdgeDescriptor(vBranchVrts[i], vBranchVrts[(i+1)%4]);
+					vED[i+4] = EdgeDescriptor(vBranchVrts[i], vBranchVrts[5+3*i]);
+					vED[i+8] = EdgeDescriptor(vBranchVrts[(i+1)%4], vBranchVrts[6+3*i]);
+				}
+				for (size_t i = 0; i < 12; ++i)
+					vED[i+12] = EdgeDescriptor(vBranchVrts[i+4], vBranchVrts[(i+1)%12+4]);
+
+				std::vector<FaceDescriptor> vFD(9);
+				vFD[0] = FaceDescriptor(vBranchVrts[0], vBranchVrts[1], vBranchVrts[2], vBranchVrts[3]);
+				for (size_t i = 0; i < 4; ++i)
+				{
+					vFD[i+1] = FaceDescriptor(vBranchVrts[i], vBranchVrts[(3*i+11)%12+4], vBranchVrts[3*i+4], vBranchVrts[3*i+5]);
+					vFD[i+5] = FaceDescriptor(vBranchVrts[i], vBranchVrts[3*i+5], vBranchVrts[3*i+6], vBranchVrts[(i+1)%4]);
+				}
+
+				typedef Grid::traits<Face>::secure_container faceCont;
+				std::vector<Face*> vBranchFaces(9);
+				for (size_t j = 0; j < 9; ++j)
+				{
+					const FaceDescriptor& qDesc = vFD[j];
+
+					faceCont fl;
+					bool found = false;
+					for (size_t k = 0; k < 27; ++k)
+					{
+						g.associated_elements(fl, vBPVols[k]);
+						const size_t flSz = fl.size();
+						for (size_t f = 0; f < flSz; ++f)
+						{
+							if (CompareVertices(fl[f], &qDesc))
+							{
+								vBranchFaces[j] = fl[f];
+								found = true;
+								break;
+							}
+						}
+						if (found)
+							break;
+					}
+					UG_COND_THROW(!found, "Connecting face " << j << " not found.")
+				}
+
+				typedef Grid::traits<Edge>::secure_container edgeCont;
+				std::vector<Edge*> vBranchEdges(24);
+				for (size_t j = 0; j < 24; ++j)
+				{
+					const EdgeDescriptor& eDesc = vED[j];
+
+					edgeCont el;
+					bool found = false;
+					for (size_t k = 0; k < 9; ++k)
+					{
+						g.associated_elements(el, vBranchFaces[k]);
+						const size_t elSz = el.size();
+						for (size_t e = 0; e < elSz; ++e)
+						{
+							if (CompareVertices(el[e], &eDesc))
+							{
+								vBranchEdges[j] = el[e];
+								found = true;
+								break;
+							}
+						}
+						if (found)
+							break;
+					}
+					UG_COND_THROW(!found, "Connecting edge " << j << " not found.")
+				}
+
+				// correct connecting volume subset indices
+				{
+					Volume* connVol = vBPVols[connFaceInd+14];
+					sh.assign_subset(connVol, 1);
+
+					typedef Grid::traits<Face>::secure_container faceCont;
+					faceCont fl;
+					g.associated_elements(fl, connVol);
+					const size_t flSz = fl.size();
+					for (size_t f = 0; f < flSz; ++f)
+					{
+						Face* sideFace = fl[f];
+						Volume* opp = GetConnectedNeighbor(g, sideFace, connVol);
+						if (!opp || sh.get_subset_index(opp) == 1)
+							sh.assign_subset(sideFace, 1);
+						else
+						{
+							sh.assign_subset(sideFace, 3);
+
+							typedef Grid::traits<Edge>::secure_container edgeCont;
+							edgeCont el;
+							g.associated_elements(el, sideFace);
+							const size_t elSz = el.size();
+							for (size_t e = 0; e < elSz; ++e)
+							{
+								Edge* sideEdge = el[e];
+								sh.assign_subset(sideEdge, 3);
+								sh.assign_subset(sideEdge->vertex(0), 3);
+								sh.assign_subset(sideEdge->vertex(1), 3);
+							}
+						}
+					}
+				}
+				for (size_t j = 1; j < 9; ++j)
+				{
+					Face* connFace = vBranchFaces[j];
+					sh.assign_subset(connFace, 0);
+				}
+				for (size_t j = 4; j < 12; ++j)
+				{
+					Edge* connEdge = vBranchEdges[j];
+					sh.assign_subset(connEdge, 0);
+				}
+
+
+				// recursively build branch
+				create_neurite_with_er(vNeurites, vPos, vR, child_nid, erScaleFactor, anisotropy,
+					g, aaPos, aaSurfParams, sh, &vBranchVrts, &vBranchEdges, &vBranchFaces, branchOffset[1]);
+			}
+
+			lastPos = curPos;
+		}
+
+		// update t_end and curSec
+		if (brit != brit_end)
+			t_end = bp_end;
+
+		for (; curSec < nSec; ++curSec)
+		{
+			const NeuriteProjector::Section& sec = neurite.vSec[curSec];
+			if (sec.endParam >= t_end)
+				break;
+		}
+
+		// check whether tip has been reached
+		if (brit == brit_end)
+			break;
+		else
+			++brit;
+	}
 }
 
 
@@ -2340,8 +3359,10 @@ static void create_neurite_surf
     	// = integral from t_start to t_end over: ||v(t)|| / r(t) dt
     	number lengthOverRadius = calculate_length_over_radius(t_start, t_end, neurite, curSec);
 
-    	size_t nSeg = (size_t) floor(lengthOverRadius / anisotropy);
-    	if (!nSeg)
+    	// to reach the desired anisotropy on the surface in the refinement limit,
+		// it has to be multiplied by pi/2 h
+		size_t nSeg = (size_t) floor(lengthOverRadius / (anisotropy*0.5*PI));
+		if (!nSeg)
     		nSeg = 1;
     	number segLength = lengthOverRadius / nSeg;	// segments are between 8 and 16 radii long
     	std::vector<number> vSegAxPos(nSeg);
@@ -2657,7 +3678,9 @@ static void create_neurite_1d
     	// = integral from t_start to t_end over: ||v(t)|| / r(t) dt
     	number lengthOverRadius = calculate_length_over_radius(t_start, t_end, neurite, curSec);
 
-    	size_t nSeg = (size_t) floor(lengthOverRadius / anisotropy);
+    	// to reach the desired anisotropy on the surface in the refinement limit,
+		// it has to be multiplied by pi/2 h
+		size_t nSeg = (size_t) floor(lengthOverRadius / (anisotropy*0.5*PI));
     	if (nSeg < 1 || lengthOverRadius < 0)
     		nSeg = 1;
     	number segLength = lengthOverRadius / nSeg;	// segments are between 8 and 16 radii long
@@ -3030,11 +4053,7 @@ void test_import_swc
 
 	convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 
-	// create spline data
-	std::vector<NeuriteProjector::Neurite> vNeurites;
-	create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
-
-	// create coarse grid
+	// prepare grid and projector
 	Grid g;
 	SubsetHandler sh(g);
 	sh.set_default_subset_index(0);
@@ -3061,27 +4080,21 @@ void test_import_swc
 	SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
 	projHandler.set_projector(0, neuriteProj);
 
-	// FIXME: This has to be improved: When neurites are copied,
-	//        pointers inside still point to our vNeurites array.
-	//        If we destroy it, we're in for some pretty EXC_BAD_ACCESSes.
-	for (size_t i = 0; i < vNeurites.size(); ++i)
-		neuriteProj->add_neurite(vNeurites[i]);
+	// create spline data
+	std::vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
+	create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
 
+	// create coarse grid
 	for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i)
 		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 			anisotropy, g, aaPos, aaSurfParams, NULL, NULL);
 
 	// at branching points, we have not computed the correct positions yet,
 	// so project the complete geometry using the projector
-	// TODO: little bit dirty; provide proper method in NeuriteProjector to do this
 	VertexIterator vit = g.begin<Vertex>();
 	VertexIterator vit_end = g.end<Vertex>();
 	for (; vit != vit_end; ++vit)
-	{
-		Edge* tmp = *g.create<RegularEdge>(EdgeDescriptor(*vit,*vit));
-		neuriteProj->new_vertex(*vit, tmp);
-		g.erase(tmp);
-	}
+		neuriteProj->project(*vit);
 
 	// assign subset
 	AssignSubsetColors(sh);
@@ -3106,6 +4119,126 @@ void test_import_swc
 	number offset = 5.0;
 
 	curFileName = outFileName.substr(0, outFileName.size()-4) + "_refined_0.ugx";
+	try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
+	UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
+
+	GlobalMultiGridRefiner ref(*dom.grid(), dom.refinement_projector());
+	for (uint i = 0; i < numRefs; ++i)
+	{
+		ref.refine();
+
+		std::ostringstream oss;
+		oss << "_refined_" << i+1 << ".ugx";
+		curFileName = outFileName.substr(0, outFileName.size()-4) + oss.str();
+		try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
+		UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
+	}
+}
+
+
+
+void test_import_swc_with_er
+(
+	const std::string& fileNameIn,
+	const std::string& fileNameOut,
+	number erScaleFactor,
+	number anisotropy,
+	size_t numRefs
+)
+{
+	// preconditioning
+	//test_smoothing(fileNameIn, 5, 1.0, 1.0);
+
+	// read in file to intermediate structure
+	std::vector<SWCPoint> vPoints;
+	std::vector<SWCPoint> vSomaPoints;
+	//std::string fn_noext = FilenameWithoutExtension(fileNameIn);
+	//std::string fn_precond = fn_noext + "_precond.swc";
+	//import_swc(fn_precond, vPoints);
+	import_swc(fileNameIn, vPoints);
+
+	// convert intermediate structure to neurite data
+	std::vector<std::vector<vector3> > vPos;
+	std::vector<std::vector<number> > vRad;
+	std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
+	std::vector<size_t> vRootNeuriteIndsOut;
+
+	convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+
+	// prepare grid and projector
+	Grid g;
+	SubsetHandler sh(g);
+	sh.set_default_subset_index(0);
+	g.attach_to_vertices(aPosition);
+	Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+
+
+	typedef NeuriteProjector::SurfaceParams NPSP;
+	UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
+			"GlobalAttachment 'npSurfParams' not declared.");
+	Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
+	if (!g.has_vertex_attachment(aSP))
+		g.attach_to_vertices(aSP);
+
+	Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
+	aaSurfParams.access(g, aSP);
+
+	SubsetHandler psh(g);
+	psh.set_default_subset_index(0);
+
+	ProjectionHandler projHandler(&psh);
+	SmartPtr<IGeometry<3> > geom3d = MakeGeometry3d(g, aPosition);
+	projHandler.set_geometry(geom3d);
+
+	SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
+	projHandler.set_projector(0, neuriteProj);
+
+	// create spline data
+	std::vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
+	create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
+
+	// create coarse grid
+	for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i)
+		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
+			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, NULL, NULL);
+
+	// at branching points, we have not computed the correct positions yet,
+	// so project the complete geometry using the projector
+	VertexIterator vit = g.begin<Vertex>();
+	VertexIterator vit_end = g.end<Vertex>();
+	for (; vit != vit_end; ++vit)
+		neuriteProj->project(*vit);
+
+	// assign subset
+	AssignSubsetColors(sh);
+	sh.set_subset_name("cyt", 0);
+	sh.set_subset_name("er", 1);
+	sh.set_subset_name("pm", 2);
+	sh.set_subset_name("erm", 3);
+
+	// output
+	std::string outFileNameBase = FilenameAndPathWithoutExtension(fileNameOut);
+	std::string outFileName = outFileNameBase + ".ugx";
+	GridWriterUGX ugxWriter;
+	ugxWriter.add_grid(g, "defGrid", aPosition);
+	ugxWriter.add_subset_handler(sh, "defSH", 0);
+	ugxWriter.add_subset_handler(psh, "projSH", 0);
+	ugxWriter.add_projection_handler(projHandler, "defPH", 0);
+	if (!ugxWriter.write_to_file(outFileName.c_str()))
+		UG_THROW("Grid could not be written to file '" << outFileName << "'.");
+
+	if (numRefs == 0)
+		return;
+
+	// refinement
+	Domain3d dom;
+	dom.create_additional_subset_handler("projSH");
+	try {LoadDomain(dom, outFileName.c_str());}
+	UG_CATCH_THROW("Failed loading domain from '" << outFileName << "'.");
+
+	number offset = 5.0;
+	std::string curFileName = outFileNameBase + "_refined_0.ugx";
+
 	try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
 	UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
 
@@ -3160,11 +4293,7 @@ void test_import_swc_surf(const std::string& fileName)
 	}
 	*/
 
-	// create spline data
-	std::vector<NeuriteProjector::Neurite> vNeurites;
-	create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
-
-	// create coarse grid
+	// prepare grid and projector
 	Grid g;
 	SubsetHandler sh(g);
 	sh.set_default_subset_index(0);
@@ -3191,12 +4320,11 @@ void test_import_swc_surf(const std::string& fileName)
 	SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
 	projHandler.set_projector(0, neuriteProj);
 
-	// FIXME: This has to be improved: When neurites are copied,
-	//        pointers inside still point to our vNeurites array.
-	//        If we destroy it, we're in for some pretty EXC_BAD_ACCESSes.
-	for (size_t i = 0; i < vNeurites.size(); ++i)
-		neuriteProj->add_neurite(vNeurites[i]);
+	// create spline data
+	std::vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
+	create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
 
+	// create coarse grid
 	const number anisotropy = 2.0;
 	for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i)
 		create_neurite_surf(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
@@ -3204,15 +4332,10 @@ void test_import_swc_surf(const std::string& fileName)
 
 	// at branching points, we have not computed the correct positions yet,
 	// so project the complete geometry using the projector
-	// TODO: little bit dirty; provide proper method in NeuriteProjector to do this
 	VertexIterator vit = g.begin<Vertex>();
 	VertexIterator vit_end = g.end<Vertex>();
 	for (; vit != vit_end; ++vit)
-	{
-		Edge* tmp = *g.create<RegularEdge>(EdgeDescriptor(*vit,*vit));
-		neuriteProj->new_vertex(*vit, tmp);
-		g.erase(tmp);
-	}
+		neuriteProj->project(*vit);
 
 	// create soma
 	sel.clear();
@@ -3280,11 +4403,7 @@ void test_import_swc_1d(const std::string& fileName, number anisotropy, size_t n
 
 	convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 
-	// create spline data
-	std::vector<NeuriteProjector::Neurite> vNeurites;
-	create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
-
-	// create coarse grid
+	// prepare grid and projector
 	Grid g;
 	SubsetHandler sh(g);
 	sh.set_default_subset_index(0);
@@ -3311,13 +4430,6 @@ void test_import_swc_1d(const std::string& fileName, number anisotropy, size_t n
 
 	Grid::VertexAttachmentAccessor<Attachment<number> > aaDiam;
 	aaDiam.access(g, aDiam);
-
-	for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i)
-		create_neurite_1d(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
-			anisotropy, g, aaPos, aaSurfParams, aaDiam, NULL);
-
-
-	// setup projection handler
 	ProjectionHandler projHandler(&sh);
 	SmartPtr<IGeometry<3> > geom3d = MakeGeometry3d(g, aPosition);
 	projHandler.set_geometry(geom3d);
@@ -3325,12 +4437,15 @@ void test_import_swc_1d(const std::string& fileName, number anisotropy, size_t n
 	SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
 	projHandler.set_projector(0, neuriteProj);
 
-	// FIXME: This has to be improved: When neurites are copied,
-	//        pointers inside still point to our vNeurites array.
-	//        If we destroy it, we're in for some pretty EXC_BAD_ACCESSes.
-	const size_t nNeurites = vNeurites.size();
-	for (size_t i = 0; i < nNeurites; ++i)
-		neuriteProj->add_neurite(vNeurites[i]);
+	// create spline data
+	std::vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
+	create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
+
+	// create coarse grid
+	for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i)
+		create_neurite_1d(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
+			anisotropy, g, aaPos, aaSurfParams, aaDiam, NULL);
+
 
 	// subsets
 	AssignSubsetColors(sh);
@@ -3397,10 +4512,6 @@ void test_neurite_projector_with_four_section_tube()
     r[3] = 0.15;
     r[4] = 0.05;
 
-    std::vector<NeuriteProjector::Neurite> vNeurites;
-    create_spline_data_for_neurites(vNeurites, vPos, vR);
-    NeuriteProjector::Neurite& neurite = vNeurites[0];
-
 
     // second step: create coarse grid
     Grid g;
@@ -3427,8 +4538,10 @@ void test_neurite_projector_with_four_section_tube()
     projHandler.set_geometry(geom3d);
 
     SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
-    neuriteProj->add_neurite(neurite);
     projHandler.set_projector(0, neuriteProj);
+
+    std::vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
+    create_spline_data_for_neurites(vNeurites, vPos, vR);
 
     const number anisotropy = 8.0;
     create_neurite_surf(vNeurites, vPos, vR, 0, anisotropy, g, aaPos, aaSurfParams);
@@ -3522,9 +4635,6 @@ void test_neurite_projector_with_four_section_tube_and_branch_point()
     bpInfo[0].begin()->first = 2;   // at this vertex in neurite 0 starts another neurite (or more)
     bpInfo[0].begin()->second = std::vector<size_t>(1,1);  // these neurites start here
 
-    std::vector<NeuriteProjector::Neurite> vNeurites(2);
-    create_spline_data_for_neurites(vNeurites, vPos, vR, &bpInfo);
-
     // second step: create coarse grid
     Grid g;
     SubsetHandler sh(g);
@@ -3552,23 +4662,18 @@ void test_neurite_projector_with_four_section_tube_and_branch_point()
     SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
     projHandler.set_projector(0, neuriteProj);
 
-    for (size_t i = 0; i < vNeurites.size(); ++i)
-        neuriteProj->add_neurite(vNeurites[i]);
+    std::vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
+    create_spline_data_for_neurites(vNeurites, vPos, vR, &bpInfo);
 
     const number anisotropy = 8.0;
     create_neurite_surf(vNeurites, vPos, vR, 0, anisotropy, g, aaPos, aaSurfParams, NULL, NULL);
 
     // at branching points, we have not computed the correct positions yet,
     // so project the complete geometry using the projector
-    // TODO: little bit dirty; provide proper method in NeuriteProjector to do this
     VertexIterator vit = g.begin<Vertex>();
     VertexIterator vit_end = g.end<Vertex>();
     for (; vit != vit_end; ++vit)
-    {
-        Edge* tmp = *g.create<RegularEdge>(EdgeDescriptor(*vit,*vit));
-        neuriteProj->new_vertex(*vit, tmp);
-        g.erase(tmp);
-    }
+		neuriteProj->project(*vit);
 
     // third step: refinement
     AssignSubsetColors(sh);
