@@ -14,6 +14,8 @@
 #include "../cable_neuron/synapse_handling/synapses/pre_synapse.h"
 #include "hybrid_neuron_communicator.h"
 
+#include "lib_disc/spatial_disc/elem_disc/err_est_data.h"  // for MultipleSideAndElemErrEstData
+
 namespace ug {
 namespace neuro_collection {
 
@@ -29,9 +31,13 @@ public:
     typedef typename algebra_type::matrix_type matrix_type;
     typedef typename algebra_type::vector_type vector_type;
 
+	/// error estimator type
+	typedef MultipleSideAndElemErrEstData<TDomain> err_est_type;
+
 
     /// construcor with IP3
-	HybridSynapseCurrentAssembler(
+	HybridSynapseCurrentAssembler
+	(
 		SmartPtr<ApproximationSpace<TDomain> > spApprox3d,
 		SmartPtr<ApproximationSpace<TDomain> > spApprox1d,
 		SmartPtr<cable_neuron::synapse_handler::SynapseHandler<TDomain> > spSH,
@@ -41,7 +47,8 @@ public:
 	);
 
 	/// constructor without IP3
-	HybridSynapseCurrentAssembler(
+	HybridSynapseCurrentAssembler
+	(
 		SmartPtr<ApproximationSpace<TDomain> > spApprox3d,
 		SmartPtr<ApproximationSpace<TDomain> > spApprox1d,
 		SmartPtr<cable_neuron::synapse_handler::SynapseHandler<TDomain> > spSH,
@@ -51,31 +58,73 @@ public:
 
 	virtual ~HybridSynapseCurrentAssembler(){}
 
-	void adjust_jacobian(matrix_type& J, const vector_type& u,
-			                             ConstSmartPtr<DoFDistribution> dd, int type, number time = 0.0,
-			                             ConstSmartPtr<VectorTimeSeries<vector_type> > vSol = SPNULL,
-										 const number s_a0 = 1.0) {}
+	void adjust_jacobian
+	(
+		matrix_type& J,
+		const vector_type& u,
+		ConstSmartPtr<DoFDistribution> dd,
+		int type,
+		number time = 0.0,
+		ConstSmartPtr<VectorTimeSeries<vector_type> > vSol = SPNULL,
+		const number s_a0 = 1.0
+	) {}
 
-	void adjust_defect(vector_type& d, const vector_type& u,
-									   ConstSmartPtr<DoFDistribution> dd, int type, number time = 0.0,
-									   ConstSmartPtr<VectorTimeSeries<vector_type> > vSol = SPNULL,
-									   const std::vector<number>* vScaleMass = NULL,
-									   const std::vector<number>* vScaleStiff = NULL);
+	void adjust_defect
+	(
+		vector_type& d,
+		const vector_type& u,
+		ConstSmartPtr<DoFDistribution> dd,
+		int type,
+		number time = 0.0,
+		ConstSmartPtr<VectorTimeSeries<vector_type> > vSol = SPNULL,
+		const std::vector<number>* vScaleMass = NULL,
+		const std::vector<number>* vScaleStiff = NULL
+	);
 
-	void adjust_linear(matrix_type& mat, vector_type& rhs,
-			                           ConstSmartPtr<DoFDistribution> dd, int type, number time = 0.0){}
+	void adjust_linear
+	(
+		matrix_type& mat,
+		vector_type& rhs,
+		ConstSmartPtr<DoFDistribution> dd,
+		int type,
+		number time = 0.0
+	) {}
 
-	void adjust_rhs(vector_type& rhs, const vector_type& u,
-			                        ConstSmartPtr<DoFDistribution> dd, int type, number time = 0.0){}
+	void adjust_rhs
+	(
+		vector_type& rhs,
+		const vector_type& u,
+		ConstSmartPtr<DoFDistribution> dd,
+		int type,
+		number time = 0.0
+	) {}
 
-	void adjust_solution(vector_type& u, ConstSmartPtr<DoFDistribution> dd, int type,
-										 number time = 0.0){}
+	void adjust_solution
+	(
+		vector_type& u,
+		ConstSmartPtr<DoFDistribution> dd,
+		int type,
+		number time = 0.0
+	) {}
+
+	virtual void adjust_error
+	(
+		const vector_type& u,
+		ConstSmartPtr<DoFDistribution> dd,
+		int type,
+		number time = 0.0,
+		ConstSmartPtr<VectorTimeSeries<vector_type> > vSol = SPNULL,
+		const std::vector<number>* vScaleMass = NULL,
+		const std::vector<number>* vScaleStiff = NULL
+	);
 
 	int type() const {return CT_CONSTRAINTS;};
 
 	void set_valency(int val) {m_valency = val;}
 
 	void set_current_percentage(number val) {m_current_percentage = val;}
+
+	void set_synaptic_radius(number r) {m_sqSynRadius = r*r;}
 
 	void set_ip3_production_params(number j_max, number decayRate)
 	{
@@ -144,6 +193,12 @@ private:
 	number m_current_percentage;
 
 	SmartPtr<hnc_type> m_spHNC;
+
+	SmartPtr<TDomain> m_spDom;
+	std::vector<int> m_vMembraneSI;
+
+	/// (squared) synapse radius
+	number m_sqSynRadius;
 
 	/// scaling factors
 	number m_scaling_3d_to_1d_amount_of_substance;
