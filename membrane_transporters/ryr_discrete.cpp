@@ -131,21 +131,21 @@ void RyRDiscrete<TDomain, TAlgebra>::adjust_defect
 				number c1;
 				number c2;
 
-				if (nTimes == 1)
-				{
-					caCyt = 1e3 * DoFRef(u, vDI[_CCYT_]);   // scale from M to mM
-					caER = 1e3 * DoFRef(u, vDI[_CER_]);   // scale from M to mM
-					o2 = DoFRef(u, vDI[_O2_]);
-					c1 = DoFRef(u, vDI[_C1_]);
-					c2 = DoFRef(u, vDI[_C2_]);
-				}
-				else
+				if (vSol.valid())
 				{
 					caCyt = 1e3 * DoFRef(*vSol->solution(k), vDI[_CCYT_]);   // scale from M to mM
 					caER = 1e3 * DoFRef(*vSol->solution(k), vDI[_CER_]);   // scale from M to mM
 					o2 = DoFRef(*vSol->solution(k), vDI[_O2_]);
 					c1 = DoFRef(*vSol->solution(k), vDI[_C1_]);
 					c2 = DoFRef(*vSol->solution(k), vDI[_C2_]);
+				}
+				else
+				{
+					caCyt = 1e3 * DoFRef(u, vDI[_CCYT_]);   // scale from M to mM
+					caER = 1e3 * DoFRef(u, vDI[_CER_]);   // scale from M to mM
+					o2 = DoFRef(u, vDI[_O2_]);
+					c1 = DoFRef(u, vDI[_C1_]);
+					c2 = DoFRef(u, vDI[_C2_]);
 				}
 				const number o1 = 1.0 - (o2 + c1 + c2);
 
@@ -160,8 +160,8 @@ void RyRDiscrete<TDomain, TAlgebra>::adjust_defect
 					{
 						const number x0 = m_cutoffOpenProb;
 						const number x1 = 2*m_cutoffOpenProb;
-						const number sa = -1.0 / ((x1-x0)*(x1+x0));
-						const number sb = 2.0 / (x1-x0);
+						const number sa = - (x1-x0) / ((x1+x0)*(x1+x0)*(x1+x0));
+						const number sb = 2.0*(x1*x1 + x1*x0 + x0*x0) / ((x1+x0)*(x1+x0)*(x1+x0));
 						const number sc = -3.0*x0*x0*sa - 2*x0*sb;
 						const number sd = -x0*x0*x0*sa - x0*x0*sb - x0*sc;
 						pOpen = sa*pOpen*pOpen*pOpen + sb*pOpen*pOpen + sc*pOpen + sd;
@@ -274,8 +274,8 @@ void RyRDiscrete<TDomain, TAlgebra>::adjust_jacobian
 					{
 						const number x0 = m_cutoffOpenProb;
 						const number x1 = 2*m_cutoffOpenProb;
-						const number sa = -1.0 / ((x1-x0)*(x1+x0));
-						const number sb = 2.0 / (x1-x0);
+						const number sa = - (x1-x0) / ((x1+x0)*(x1+x0)*(x1+x0));
+						const number sb = 2.0*(x1*x1 + x1*x0 + x0*x0) / ((x1+x0)*(x1+x0)*(x1+x0));
 						const number sc = -3.0*x0*x0*sa - 2*x0*sb;
 						const number sd = -x0*x0*x0*sa - x0*x0*sb - x0*sc;
 
@@ -289,22 +289,22 @@ void RyRDiscrete<TDomain, TAlgebra>::adjust_jacobian
 					}
 				}
 
-				DoFRef(J, vDI[_CCYT_], vDI[_CCYT_]) += pOpen * R*T/(4*F*F) * MU_RYR/REF_CA_ER * s_a0 * 1e15;
-				DoFRef(J, vDI[_CCYT_], vDI[_CER_]) -= pOpen * R*T/(4*F*F) * MU_RYR/REF_CA_ER * s_a0 * 1e15;
+				DoFRef(J, vDI[_CCYT_], vDI[_CCYT_]) += pOpen * R*T/(4*F*F) * MU_RYR/REF_CA_ER * s_a0 * 1e18;
+				DoFRef(J, vDI[_CCYT_], vDI[_CER_]) -= pOpen * R*T/(4*F*F) * MU_RYR/REF_CA_ER * s_a0 * 1e18;
 				DoFRef(J, vDI[_CCYT_], vDI[_C1_]) -= dPOdC12 * R*T/(4*F*F) * MU_RYR/REF_CA_ER * (caER - caCyt) * s_a0 * 1e15;
 				DoFRef(J, vDI[_CCYT_], vDI[_C2_]) -= dPOdC12 * R*T/(4*F*F) * MU_RYR/REF_CA_ER * (caER - caCyt) * s_a0 * 1e15;
 
-				DoFRef(J, vDI[_CER_], vDI[_CCYT_]) -= pOpen * R*T/(4*F*F) * MU_RYR/REF_CA_ER * s_a0 * 1e15;
-				DoFRef(J, vDI[_CER_], vDI[_CER_]) += pOpen * R*T/(4*F*F) * MU_RYR/REF_CA_ER * s_a0 * 1e15;
+				DoFRef(J, vDI[_CER_], vDI[_CCYT_]) -= pOpen * R*T/(4*F*F) * MU_RYR/REF_CA_ER * s_a0 * 1e18;
+				DoFRef(J, vDI[_CER_], vDI[_CER_]) += pOpen * R*T/(4*F*F) * MU_RYR/REF_CA_ER * s_a0 * 1e18;
 				DoFRef(J, vDI[_CER_], vDI[_C1_]) += dPOdC12 * R*T/(4*F*F) * MU_RYR/REF_CA_ER * (caER - caCyt) * s_a0 * 1e15;
 				DoFRef(J, vDI[_CER_], vDI[_C2_]) += dPOdC12 * R*T/(4*F*F) * MU_RYR/REF_CA_ER * (caER - caCyt) * s_a0 * 1e15;
 
-				DoFRef(J, vDI[_O2_], vDI[_CCYT_]) -= s_a0 * KBplus * 3.0*caCyt*caCyt * o1;
+				DoFRef(J, vDI[_O2_], vDI[_CCYT_]) -= s_a0 * KBplus * 3.0*caCyt*caCyt * o1 * 1e3;
 				DoFRef(J, vDI[_O2_], vDI[_O2_]) += s_a0 * (KBminus + KBplus * caCyt*caCyt*caCyt);
 				DoFRef(J, vDI[_O2_], vDI[_C1_]) += s_a0 * KBplus * caCyt*caCyt*caCyt;
 				DoFRef(J, vDI[_O2_], vDI[_C2_]) += s_a0 * KBplus * caCyt*caCyt*caCyt;
 
-				DoFRef(J, vDI[_C1_], vDI[_CCYT_]) += s_a0 * KAplus * 4.0*caCyt*caCyt*caCyt * c1;
+				DoFRef(J, vDI[_C1_], vDI[_CCYT_]) += s_a0 * KAplus * 4.0*caCyt*caCyt*caCyt * c1 * 1e3;
 				DoFRef(J, vDI[_C1_], vDI[_O2_]) += s_a0 * KAminus;
 				DoFRef(J, vDI[_C1_], vDI[_C1_]) += s_a0 * (KAminus + KAplus * caCyt*caCyt*caCyt*caCyt);
 				DoFRef(J, vDI[_C1_], vDI[_C2_]) += s_a0 * KAminus;
@@ -396,6 +396,53 @@ set_approximation_space(SmartPtr<ApproximationSpace<TDomain> > approxSpace)
 	UG_CATCH_THROW("Functions could not be added to function group.");
 	for (size_t i = 0; i < nFct; ++i)
 		m_vFctMap[i] = fg[i];
+}
+
+
+template <typename TDomain, typename TAlgebra>
+void RyRDiscrete<TDomain, TAlgebra>::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
+{
+	const number caCyt = u[_CCYT_];   // scale from M to mM
+	const number caER = u[_CER_];   // scale from M to mM
+	const number c1 = u[_C1_];
+	const number c2 = u[_C2_];
+	number pOpen = 1.0 - (c1 + c2);
+
+	// really close channels below cutoff (0.002 corresponds to equil. cy_cyt of ~8e-5mM)
+	// using a cubic spline between x0=cutoff and x1=2*cutoff
+	// satisfying f'(x0) = 0; f(x0) = 0, f'(x1) = 1, f(x1) = x1
+	if (pOpen < 2*m_cutoffOpenProb)
+	{
+		if (pOpen > m_cutoffOpenProb)
+		{
+			const number x0 = m_cutoffOpenProb;
+			const number x1 = 2*m_cutoffOpenProb;
+			const number sa = -1.0 / ((x1-x0)*(x1+x0));
+			const number sb = 2.0 / (x1-x0);
+			const number sc = -3.0*x0*x0*sa - 2*x0*sb;
+			const number sd = -x0*x0*x0*sa - x0*x0*sb - x0*sc;
+			pOpen = sa*pOpen*pOpen*pOpen + sb*pOpen*pOpen + sc*pOpen + sd;
+		}
+		else
+			pOpen = 0.0;
+	}
+
+	flux[0] = pOpen * R*T/(4*F*F) * MU_RYR/REF_CA_ER * (caER - caCyt);
+}
+
+
+template <typename TDomain, typename TAlgebra>
+number RyRDiscrete<TDomain, TAlgebra>::scale_input(const size_t i) const
+{
+	switch (i)
+	{
+		case _CCYT_:
+		case _CER_: return 1e3;
+		case _O2_:
+		case _C1_:
+		case _C2_: return 1.0;
+		default: return 1.0;
+	}
 }
 
 

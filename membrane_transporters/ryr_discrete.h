@@ -46,6 +46,15 @@ class RyRDiscrete
 		/// value type
 		typedef typename matrix_type::value_type value_type;
 
+		enum
+		{
+			_CCYT_ = 0,
+			_CER_  = 1,
+			_O2_   = 2,
+			_C1_   = 3,
+			_C2_   = 4
+		};
+
 	protected:
 		const number R;			// universal gas constant
 		const number T;			// temperature
@@ -60,15 +69,6 @@ class RyRDiscrete
 		const number MU_RYR;	// RyR channel conductance
 
 		const number REF_CA_ER;		// reference endoplasmic Ca2+ concentration (for conductances)
-
-		enum
-		{
-			_CCYT_ = 0,
-			_CER_  = 1,
-			_O2_   = 2,
-			_C1_   = 3,
-			_C2_   = 4
-		};
 
 	public:
 	/// constructor with c-string
@@ -147,6 +147,12 @@ class RyRDiscrete
 		virtual void set_approximation_space(SmartPtr<ApproximationSpace<TDomain> > approxSpace);
 
 	public:
+		/// calculate current with given unknowns (method is needed in maxRyRFluxDensity)
+		void calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const;
+
+		/// scaling factor of a single input (method is needed in maxRyRFluxDensity)
+		number scale_input(const size_t i) const;
+
 		/// init gating variables to equilibrium
 		void calculate_steady_state(SmartPtr<vector_type> u) const;
 
