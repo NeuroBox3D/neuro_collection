@@ -586,9 +586,9 @@ static void Domain(Registry& reg, string grp)
 
 	// mark for refinement functions
 	{
-		reg.add_function("mark_global", &mark_global<TDomain>, grp.c_str(), "", "refiner#approx space", "");
-		reg.add_function("mark_anisotropic", &mark_anisotropic<TDomain>, grp.c_str(), "", "refiner#approx space#anisotropy threshold (<=1)", "");
-		reg.add_function("mark_anisotropic_x", &mark_anisotropic_onlyX<TDomain>, grp.c_str(), "", "refiner#approx space#anisotropy threshold (<=1)", "");
+		reg.add_function("mark_global", &mark_global<TDomain>, grp.c_str(), "", "refiner#domain", "");
+		reg.add_function("mark_anisotropic", &mark_anisotropic<TDomain>, grp.c_str(), "", "refiner#domain#anisotropy threshold (<=1)", "");
+		reg.add_function("mark_anisotropic_x", &mark_anisotropic_onlyX<TDomain>, grp.c_str(), "", "refiner#domain#anisotropy threshold (<=1)", "");
 		reg.add_function("unmark_ranvier_areas", &unmark_ranvier_areas<TDomain>, grp.c_str(), "", "refiner#approx space#ranvier node subsets#unmark", "");
 	}
 
@@ -921,6 +921,13 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("test_import_swc_surf", &test_import_swc_surf, "", "file name#correction", "");
 		reg.add_function("test_import_swc_1d", &test_import_swc_1d, "", "file name # anisotropy # refinements", "");
 		//reg.add_function("apply_neurite_projector", &apply_neurite_projector, "", "multigrid, neurite projector", "");
+	}
+#endif
+
+#ifdef UG_DIM_3
+	// mark for refinement functions
+	{
+		reg.add_function("MarkNeuriteForAxialRefinement", &MarkNeuriteForAxialRefinement, grp.c_str(), "", "refiner#domain", "");
 	}
 #endif
 }

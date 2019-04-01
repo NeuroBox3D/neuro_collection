@@ -12,6 +12,7 @@
 
 #include "common/types.h"               // for number
 #include "common/util/smart_pointer.h"  // for SmartPtr, ConstSmartPtr
+#include "lib_disc/domain.h"            // for Domain3d, ...
 #include "lib_grid/refinement/refiner_interface.h"  // for IRefiner (ptr only), Refinement...
 
 
@@ -38,13 +39,13 @@ void scale_dimless_vector
 
 
 template <typename TDomain>
-void mark_global(SmartPtr<IRefiner> refiner, SmartPtr<ApproximationSpace<TDomain> > approx);
+void mark_global(SmartPtr<IRefiner> refiner, SmartPtr<TDomain> domain);
 
 template <typename TDomain>
 void mark_anisotropic
 (
 	SmartPtr<IRefiner> refiner,
-	SmartPtr<ApproximationSpace<TDomain> > approx,
+	SmartPtr<TDomain> domain,
 	number thresholdRatio
 );
 
@@ -52,9 +53,14 @@ template <typename TDomain>
 void mark_anisotropic_onlyX
 (
 	SmartPtr<IRefiner> refiner,
-	SmartPtr<ApproximationSpace<TDomain> > approx,
+	SmartPtr<TDomain> domain,
 	number thresholdRatio
 );
+
+
+void MarkNeuriteForAxialRefinement(SmartPtr<IRefiner> refiner, SmartPtr<Domain3d> domain);
+
+
 
 
 ///@}
