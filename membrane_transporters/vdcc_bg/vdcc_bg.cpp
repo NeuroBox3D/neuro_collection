@@ -116,11 +116,13 @@ number VDCC_BG<TDomain>::calc_gating_start(GatingParams& gp, number Vm)
 template<typename TDomain>
 void VDCC_BG<TDomain>::calc_gating_step(GatingParams& gp, number Vm, number dt, number& currVal)
 {
+	const number gp_inf = calc_gating_start(gp,Vm);
+
 	// forward step: implicit
 	if (dt >= 0)
 	{
 		// For calculating the next gating step it is recommended to use a time step
-		// size no larger than 1e-5s = 1e-2ms in order to meet a sufficient accuracy
+		// size no larger than 1e-5s = 1e-2ms in order to meet a sufficient accuracy.
 		if (dt > 1e-2)
 		{
 			number vdcc_dt = 1e-2;
@@ -142,7 +144,7 @@ void VDCC_BG<TDomain>::calc_gating_step(GatingParams& gp, number Vm, number dt, 
 				}
 
 				// compute next gating value
-				currVal = (currVal + vdcc_dt/gp.tau_0 * calc_gating_start(gp,Vm)) / (1.0 + vdcc_dt/gp.tau_0);
+				currVal = (gp.tau_0*currVal + vdcc_dt*gp_inf) / (gp.tau_0 + vdcc_dt);
 
 				// save new time as current time
 				t0 = t;
@@ -150,14 +152,43 @@ void VDCC_BG<TDomain>::calc_gating_step(GatingParams& gp, number Vm, number dt, 
 		}
 		// sufficiently small time step size already specified
 		else
-			currVal = (currVal + dt/gp.tau_0 * calc_gating_start(gp,Vm)) / (1.0 + dt/gp.tau_0);
+			currVal = (gp.tau_0*currVal + dt*gp_inf) / (gp.tau_0 + dt);
 	}
 
-	// backward step: explicit // TODO: do the above backwards!
+	// backward step: explicit
 	else
 	{
-		if (dt<-1e-2) UG_THROW("timestep too large; not implemented yet!");
-		currVal += dt/gp.tau_0 * (calc_gating_start(gp,Vm) - currVal);
+		// For calculating the next gating step it is recommended to use a time step
+		// size no larger than 1e-5s = 1e-2ms in order to meet a sufficient accuracy.
+		if (dt < -1e-2)
+		{
+			number vdcc_dt = -1e-2;
+			number t0 = 0.0;
+
+			// loop intermediate time steps until the current intermediate time point
+			// is the final time point dt
+			while (t0 > dt)
+			{
+				// compute next time point
+				number t = t0 + vdcc_dt;
+
+				// check if out of bounds, if yes:
+				// set to final time point and adjust step size accordingly
+				if (t < dt)
+				{
+					t = dt;
+					vdcc_dt = dt - t0;
+				}
+
+				// compute next gating value
+				currVal += vdcc_dt/gp.tau_0 * (gp_inf - currVal);
+
+				// save new time as current time
+				t0 = t;
+			}
+		}
+		// sufficiently small time step size already specified
+		currVal += dt/gp.tau_0 * (gp_inf - currVal);
 	}
 }
 
@@ -182,6 +213,8 @@ void VDCC_BG<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, st
 	else maxFlux = -m_perm * 2*F/(R*T) * vm * (caExt - caCyt*exp(2*F/(R*T)*vm)) / (1.0 - exp(2*F/(R*T)*vm));
 
 	flux[0] = gating * maxFlux;
+
+	//UG_LOGN(std::setprecision(std::numeric_limits<long double>::digits10 + 1) << "VDCC flux:" << flux[0]);
 
 	//UG_COND_THROW(flux[0] != flux[0],
 	//	"VDCC NaN: gating = " << gating << ", maxFlux = " << maxFlux);
@@ -347,7 +380,8 @@ void VDCC_BG<TDomain>::update_gating(side_t* elem)
 	// set new gating particle values
 	number dt = 1e3*(m_time - m_oldTime);	// calculating in ms
 	calc_gating_step(m_gpMGate, 1e3*m_aaVm[elem], dt, m_aaMGate[elem]);
-	if (has_hGate()) calc_gating_step(m_gpHGate, 1e3*m_aaVm[elem], dt, m_aaHGate[elem]);
+	if (has_hGate())
+		calc_gating_step(m_gpHGate, 1e3*m_aaVm[elem], dt, m_aaHGate[elem]);
 }
 
 template<typename TDomain>
@@ -371,6 +405,7 @@ void VDCC_BG<TDomain>::prep_timestep
         init(time);
 
 	update_time(future_time);
+    bool backwardsStep = m_time < m_oldTime;
 
 	SubsetGroup ssGrp;
     try { ssGrp = SubsetGroup(m_dom->subset_handler(), this->m_vSubset);}
@@ -387,10 +422,21 @@ void VDCC_BG<TDomain>::prep_timestep
         // loop sides and update potential and then gatings
         it_type it = m_dd->begin<side_t>(ssGrp[si]);
         it_type it_end = m_dd->end<side_t>(ssGrp[si]);
-        for (; it != it_end; ++it)
+        if (backwardsStep)
         {
-            update_potential(*it);
-            update_gating(*it);
+			for (; it != it_end; ++it)
+			{
+				update_gating(*it);
+				update_potential(*it);
+			}
+        }
+        else
+        {
+			for (; it != it_end; ++it)
+			{
+				update_potential(*it);
+				update_gating(*it);
+			}
         }
     }
 }
