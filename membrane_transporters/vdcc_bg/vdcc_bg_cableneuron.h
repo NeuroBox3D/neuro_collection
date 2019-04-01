@@ -135,7 +135,7 @@ class VDCC_BG_CN
         number m_curTime;
         number m_dt;
         size_t m_stepLv;
-        size_t m_StepCheckBackCounter[11];
+        size_t m_StepCheckBackCounter[16];
 
         number m_dt_potentialUpdate;
         number m_timeSinceLastPotentialUpdate;

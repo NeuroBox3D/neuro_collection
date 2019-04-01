@@ -256,7 +256,7 @@ void VDCC_BG_CN<TDomain>::prep_timestep(number future_time, const number time, V
         {
             m_dt = m_dt/2.0;
 
-            UG_COND_THROW(m_stepLv+1 > 10, "Time step for 1d cable simulation too small.");
+            UG_COND_THROW(m_stepLv+1 > 15, "Time step for 1d cable simulation too small.");
 
             ++m_stepLv;
             m_StepCheckBackCounter[m_stepLv] = 0;
