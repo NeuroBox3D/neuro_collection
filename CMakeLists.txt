@@ -39,6 +39,7 @@ set(SOURCES neuro_collection_plugin.cpp
             grid_generation/spine_generation.cpp
             util/axon_util.cpp
             util/misc_util.cpp
+            util/neurite_axial_refinement_marker.cpp
    )
 
 ## add experimental neurite projector impl (but not in VRL)   
@@ -69,6 +70,9 @@ if (cable_neuron)
 	                       hybrid_neuron_communicator.cpp)
 endif (cable_neuron)
 
+if (Parmetis)
+	set(NC_WITH_PARMETIS 1)
+endif (Parmetis)
 
 ################################################################################
 # The code below doesn't have to be changed (usually)
@@ -100,11 +104,15 @@ else(buildEmbeddedPlugins)
 		set(linkLibraries MembranePotentialMapping ${linkLibraries})
 	endif (MembranePotentialMapping)
 	
-	## temporarily commented out until split synapse handler replaces synapse handler
 	if (cable_neuron)
 		# make plugin link against cable_neuron
 		set(linkLibraries cable_neuron ${linkLibraries})
 	endif (cable_neuron)
+	
+	if (Parmetis)
+		# make plugin link against Parmetis
+		set(linkLibraries Parmetis ${linkLibraries})
+	endif (Parmetis)
 	
 	target_link_libraries (${pluginName} ug4 ${linkLibraries})
 endif(buildEmbeddedPlugins)

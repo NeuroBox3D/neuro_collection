@@ -69,6 +69,7 @@
 #include "util/ca_wave_util.h"
 #include "util/axon_util.h"
 #include "util/misc_util.h"
+#include "util/neurite_axial_refinement_marker.h"
 #include "lib_disc/function_spaces/grid_function.h"
 
 
@@ -925,6 +926,20 @@ static void Common(Registry& reg, string grp)
 #endif
 
 #ifdef UG_DIM_3
+	{
+		typedef NeuriteAxialRefinementMarker T;
+		std::string name = std::string("NeuriteAxialRefinementMarker");
+#ifdef NC_WITH_PARMETIS
+		typedef parmetis::IUnificator<Volume> TBase;
+		reg.add_class_<T, TBase>(name, grp)
+#else
+		reg.add_class_<T>(name, grp)
+#endif
+			.add_constructor<void (*)(SmartPtr<Domain3d>)>("domain")
+			.add_method("mark", &T::mark, "", "refiner", "Marks neurites for axial refinement.")
+			.set_construct_as_smart_pointer(true);
+	}
+
 	// mark for refinement functions
 	{
 		reg.add_function("MarkNeuriteForAxialRefinement", &MarkNeuriteForAxialRefinement, grp.c_str(), "", "refiner#domain", "");
