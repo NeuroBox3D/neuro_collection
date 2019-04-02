@@ -1480,7 +1480,7 @@ namespace neuro_collection {
 			SelectSubsetElements<Vertex>(sel, sh, si+numQuads, true);
 		}
 
-		Extrude(g, &vertices, &edges, NULL, normal, aaPos, EO_CREATE_FACES, NULL);
+		///Extrude(g, &vertices, &edges, NULL, normal, aaPos, EO_CREATE_FACES, NULL);
 
 		/// store found soma vertices as connectingvertices for initial neurite vertices (used in create_neurite_general)
 		for (size_t j= 0; j < vertices.size(); j++) {
@@ -2231,6 +2231,31 @@ namespace neuro_collection {
 		    }
 		}
 
+	/*!
+	 * @brief reorders the vertices accordingly
+	 */
+	void reorder_connecting_elements
+	(
+	   	std::vector<ug::Vertex*>& v,
+		std::vector<ug::Edge*> e
+	) {
+		std::vector<ug::Vertex*> sorted;
+		sorted.push_back(v[0]);
+
+		for (size_t j = 1; j < v.size(); ++j) {
+			Vertex* next = v[j];
+			for (size_t i = 0; i < e.size(); i++) {
+				if ( (e[i]->vertex(0) == next && e[i]->vertex(1) == sorted[j-1]) ||
+					 (e[i]->vertex(1) == next && e[i]->vertex(0) == sorted[j-1])) {
+					sorted.push_back(next);
+					break;
+				}
+			}
+		}
+		UG_COND_THROW(sorted.size() != 4, "Did not find vertices to sort...");
+		v = sorted;
+	}
+
 	/**
 	 * @brief shrinks a quadrilateral and creates a copy of the smaller
 	 */
@@ -2779,8 +2804,10 @@ namespace neuro_collection {
             	outVerts->push_back(v);
             	UG_LOGN("aaPos[v]: " << aaPos[v]);
             	if (forcePositions) {
-            		aaPos[v] = aaPos[(*connectingVrts)[i]];
+            		//aaPos[v] = aaPos[(*connectingVrts)[i]];
+            		v = (*connectingVrts)[i];
             		aaSurfParams[v].angular = calculate_angle(pos[0], aaPos[vVrt[0]], aaPos[vVrt[i]]);
+            		UG_LOGN("angle: " << aaSurfParams[v].angular);
             	}
         	}
         	outRads->push_back(r[0]);
@@ -2807,7 +2834,8 @@ namespace neuro_collection {
         			outVertsInner->push_back(v);
         			UG_LOGN("aaPos[v]: " << aaPos[v]);
         			if (forcePositions) {
-        				aaPos[v] = aaPos[(*connectingVrtsInner)[i]];
+        				//aaPos[v] = aaPos[(*connectingVrtsInner)[i]];
+        				v = (*connectingVrtsInner)[i];
         				aaSurfParams[v].angular = calculate_angle(pos[0], aaPos[vVrt[0]], aaPos[vVrt[i]]);
         			}
         		}
@@ -3030,7 +3058,9 @@ namespace neuro_collection {
 				Vertex* v = vVrt[j];
 				vector3 radialVec;
 				VecScaleAdd(radialVec, radius*cos(angle), projRefDir, radius*sin(angle), thirdDir);
+			//	if (!forcePositions) {
 				VecAdd(aaPos[v], curPos, radialVec);
+				//}
 				UG_LOGN("aaPos[v] (after extrude (outer)): " << aaPos[v])
 
 				aaSurfParams[v].neuriteID = nid;
@@ -3046,7 +3076,7 @@ namespace neuro_collection {
 
 				/// correct angle offset
 				if (forcePositions) {
-					aaPos[v] = aaPos[vVrt[j]]; /// TODO: This is wrong, aaPos[v] is wrong in the end because wrong angle used above...
+					//aaPos[v] = aaPos[vVrt[j]]; /// TODO: This is wrong, aaPos[v] is wrong in the end because wrong angle used above...
 					number angle = calculate_angle(curPos, aaPos[vVrt[0]], aaPos[vVrt[j]]) + angleOffset;
 					if (angle > 2*PI) angle -=2*PI;
 				}
@@ -3060,7 +3090,9 @@ namespace neuro_collection {
 					Vertex* v = vVrtInner[j];
 					vector3 radialVec;
 					VecScaleAdd(radialVec, radius*neurite.scaleER*cos(angle), projRefDir, radius*neurite.scaleER*sin(angle), thirdDir);
+					//if (!forcePositions) {
 					VecAdd(aaPos[v], curPos, radialVec);
+					//}
 					/// VecScale(aaPos[v], aaPos[v], neurite.scaleER);
 					UG_LOGN("aaPos[v] (after extrude (inner)): " << aaPos[v])
 
@@ -4012,6 +4044,11 @@ namespace neuro_collection {
     std::vector<std::vector<ug::Edge*> > connectingEdgesInner(vRootNeuriteIndsOut.size());
     connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRads, outQuadsInner, 1, sh, fileName, 1.0, axisVectors, vNeurites, connectingVertices, connectingVerticesInner, connectingEdges, connectingEdgesInner,true);
 
+    for (size_t i = 0; i < 2; i++) {
+    	reorder_connecting_elements(connectingVertices[i], connectingEdges[i]);
+    	reorder_connecting_elements(connectingVerticesInner[i], connectingEdgesInner[i]);
+    }
+
     /// delete old vertices from incorrect neurite starts
     g.erase(outVerts.begin(), outVerts.end());
     g.erase(outVertsInner.begin(), outVertsInner.end());
@@ -4021,9 +4058,12 @@ namespace neuro_collection {
 
     sh.set_default_subset_index(0);
     UG_LOGN("generating neurites")
-    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
+
+    ///for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
+    for (size_t i = 0; i < 2; ++i) {
     	create_neurite_general(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, false, &connectingVertices[i], &connectingEdges[i], &connectingVerticesInner[i], &connectingEdgesInner[i], &outVerts, &outVertsInner, &outRads, &outRadsInner, true);
-    	/// create_neurite_general(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, false, NULL, NULL, NULL, NULL, &outVerts, &outVertsInner, &outRads, &outRadsInner, true);
+    	///break;
+    	///create_neurite_general(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, false, NULL, NULL, NULL, NULL, &outVerts, &outVertsInner, &outRads, &outRadsInner, false);
     }
 
     /// connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRads, outQuadsInner, 1, sh, fileName, 1.0, axisVectors, vNeurites, connectingVertices, connectingVerticesInner, connectingEdges, connectingEdgesInner,true);
@@ -4063,7 +4103,7 @@ namespace neuro_collection {
      	ss << "inner-connex #" << i;
      	sh.set_subset_name(ss.str().c_str(), i);
     }
-    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting.ugx");
+    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_not_forced.ugx");
 
     /// Double Vertices might occur (during Qhull gen faces) -> remove these here to be sure
     RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aaPos, 0.0001);
