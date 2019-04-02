@@ -2804,7 +2804,7 @@ namespace neuro_collection {
             	outVerts->push_back(v);
             	UG_LOGN("aaPos[v]: " << aaPos[v]);
             	if (forcePositions) {
-            		//aaPos[v] = aaPos[(*connectingVrts)[i]];
+            		aaPos[v] = aaPos[(*connectingVrts)[i]];
             		v = (*connectingVrts)[i];
             		aaSurfParams[v].angular = calculate_angle(pos[0], aaPos[vVrt[0]], aaPos[vVrt[i]]);
             		UG_LOGN("angle: " << aaSurfParams[v].angular);
@@ -2834,7 +2834,7 @@ namespace neuro_collection {
         			outVertsInner->push_back(v);
         			UG_LOGN("aaPos[v]: " << aaPos[v]);
         			if (forcePositions) {
-        				//aaPos[v] = aaPos[(*connectingVrtsInner)[i]];
+        				aaPos[v] = aaPos[(*connectingVrtsInner)[i]];
         				v = (*connectingVrtsInner)[i];
         				aaSurfParams[v].angular = calculate_angle(pos[0], aaPos[vVrt[0]], aaPos[vVrt[i]]);
         			}
@@ -3058,9 +3058,9 @@ namespace neuro_collection {
 				Vertex* v = vVrt[j];
 				vector3 radialVec;
 				VecScaleAdd(radialVec, radius*cos(angle), projRefDir, radius*sin(angle), thirdDir);
-			//	if (!forcePositions) {
+				if (!forcePositions) {
 				VecAdd(aaPos[v], curPos, radialVec);
-				//}
+				}
 				UG_LOGN("aaPos[v] (after extrude (outer)): " << aaPos[v])
 
 				aaSurfParams[v].neuriteID = nid;
@@ -3090,9 +3090,9 @@ namespace neuro_collection {
 					Vertex* v = vVrtInner[j];
 					vector3 radialVec;
 					VecScaleAdd(radialVec, radius*neurite.scaleER*cos(angle), projRefDir, radius*neurite.scaleER*sin(angle), thirdDir);
-					//if (!forcePositions) {
+					if (!forcePositions) {
 					VecAdd(aaPos[v], curPos, radialVec);
-					//}
+					}
 					/// VecScale(aaPos[v], aaPos[v], neurite.scaleER);
 					UG_LOGN("aaPos[v] (after extrude (inner)): " << aaPos[v])
 
