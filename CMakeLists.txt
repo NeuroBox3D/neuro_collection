@@ -36,6 +36,7 @@ set(SOURCES neuro_collection_plugin.cpp
             membrane_transporters/nmdar.cpp
             stimulation/action_potential_train.cpp
             grid_generation/bouton_generator.cpp
+            grid_generation/dendrite_generator.cpp
             grid_generation/spine_generation.cpp
             util/axon_util.cpp
             util/misc_util.cpp
@@ -55,7 +56,7 @@ endif (NOT buildForVRL)
 ##message(STATUS "Additional options for the neuro_collection plugin (-DNC for setting options):")
 
 if (MembranePotentialMapping)
-	set(NC_WITH_VM2UG 1)
+	set(NC_WITH_MPM 1)
     set(SOURCES ${SOURCES} membrane_transporters/vdcc_bg/vdcc_bg_vm2ug.cpp)
 
 	if (MPMNEURON)

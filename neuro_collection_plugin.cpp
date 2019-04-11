@@ -14,7 +14,6 @@
 // replace this with util_domain_dependent.h or util_algebra_dependent.h
 // to speed up compilation time
 #include "bridge/util_domain_algebra_dependent.h"
-#include "bridge/util_domain_dependent.h"
 
 #include "lib_grid/global_attachments.h"  // for GlobalAttachments::declare_attachment
 
@@ -48,7 +47,7 @@
     #include "membrane_transporters/vdcc_bg/vdcc_bg_cableneuron.h"
 #endif
 
-#ifdef NC_WITH_VM2UG
+#ifdef NC_WITH_MPM
 	#include "membrane_transporters/vdcc_bg/vdcc_bg_vm2ug.h"
 	#ifdef NC_WITH_NEURON
 		#include "membrane_transporters/vdcc_bg/vdcc_bg_neuron.h"
@@ -60,6 +59,7 @@
 #include "membrane_transporters/nmdar.h"
 #include "stimulation/action_potential_train.h"
 #include "grid_generation/bouton_generator.h"
+#include "grid_generation/dendrite_generator.h"
 #include "grid_generation/spine_generation.h"
 
 #include "lib_grid/refinement/projectors/neurite_projector.h"
@@ -70,6 +70,7 @@
 #include "util/axon_util.h"
 #include "util/misc_util.h"
 #include "util/neurite_axial_refinement_marker.h"
+#include "util/solution_impexp_util.h"
 #include "lib_disc/function_spaces/grid_function.h"
 
 
@@ -153,6 +154,17 @@ static void DomainAlgebra(Registry& reg, string grp)
 					 "", "solution#time#subset names#function names#output file name#output file extension",
 					 "outputs average values of unknowns on subsets");
 
+	// solution import / export
+	reg.add_function("exportSolution", &exportSolution<TGridFunction>, grp.c_str(),
+		"", "solution#time#subsetNames#functionNames#outFileName", "outputs solutions to file");
+
+#ifdef NC_WITH_MPM
+	reg.add_function("importSolution", &importSolution<TGridFunction>, grp.c_str(),
+		"", "solution#subset names#function name#input file name",
+		"writes values for the given function and on the given subsets "
+		"from the given file to the given solution vector "
+		"(using the value of the nearest neighbour for each vertex)");
+#endif
 
 	// export all template realizations of RyRImplicit::calculate_steady_state()
 	{
@@ -544,7 +556,7 @@ static void Domain(Registry& reg, string grp)
     }
 #endif
 
-#ifdef NC_WITH_VM2UG
+#ifdef NC_WITH_MPM
 	// VDCC with Vm2UG
 	{
 		typedef VDCC_BG_VM2UG<TDomain> T;
@@ -582,7 +594,7 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "VDCC_BG_VM2UG_NEURON", tag);
 	}
 #endif // NC_WITH_NEURON
-#endif // NC_WITH_VM2UG
+#endif // NC_WITH_MPM
 
 
 	// mark for refinement functions
@@ -908,6 +920,26 @@ static void Common(Registry& reg, string grp)
                          "synapse at different location? [ineffective], build spine ER head?)"
                          "#fileName",
                          "Generates a dendritic spine with a portion of the connected dendrite.");
+	}
+
+	// DendriteGenerator
+	{
+		typedef DendriteGenerator T;
+		string name = string("DendriteGenerator");
+		reg.add_class_<T>(name, grp)
+			.add_constructor()
+			.add_method("set_dendrite_length", &T::set_dendrite_length, "", "", "")
+			.add_method("set_dendrite_radius", &T::set_dendrite_radius, "", "", "")
+			.add_method("set_er_radius", &T::set_er_radius, "", "", "")
+			.add_method("set_synapse_area", &T::set_synapse_area, "", "", "")
+			.add_method("set_num_segments", &T::set_num_segments, "", "", "")
+			.add_method("num_segments", &T::num_segments, "", "", "")
+			.add_method("create_dendrite_middle_influx", &T::create_dendrite_middle_influx, "", "", "")
+			.add_method("create_dendrite", &T::create_dendrite, "", "", "")
+			.add_method("create_dendrite_1d", &T::create_dendrite, "", "", "")
+			.add_method("create_dendrite_discreteRyR", &T::create_dendrite_discreteRyR, "", "", "")
+			.add_method("set_bobbel_er", &T::set_bobbel_er, "", "numSeg / ER block # numSeg / hole block", "")
+			.set_construct_as_smart_pointer(true);
 	}
 
 #ifndef UG_FOR_VRL

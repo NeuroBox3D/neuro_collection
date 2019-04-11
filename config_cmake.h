@@ -7,8 +7,8 @@
 #ifndef UG__PLUGINS__NEURO_COLLECTION__CONFIG_H
 #define UG__PLUGINS__NEURO_COLLECTION__CONFIG_H
 
+#cmakedefine NC_WITH_MPM
 #cmakedefine NC_WITH_CABLENEURON
-#cmakedefine NC_WITH_VM2UG
 #cmakedefine NC_WITH_NEURON
 #cmakedefine NC_WITH_PARMETIS
 
