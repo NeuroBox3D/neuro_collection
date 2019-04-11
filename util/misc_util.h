@@ -27,7 +27,15 @@ namespace neuro_collection {
 ///@addtogroup plugin_neuro_collection
 ///@{
 
-
+/**
+ * \brief Scales all functions contained in a grid function.
+ *
+ *	Each function has a separate scaling factor.
+ *
+ * \param scaledVecOut    the scaled grid function (output)
+ * \param dimlessVecIn	  the original grid function (input)
+ * \param scalingFactors  vector of scales for each of the composite functions
+ */
 template <typename TGridFunction>
 void scale_dimless_vector
 (
