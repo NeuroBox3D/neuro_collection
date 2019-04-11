@@ -26,7 +26,6 @@ HybridNeuronCommunicator<TDomain>::HybridNeuronCommunicator
 )
 : m_spGridDistributionCallbackID(SPNULL),
   m_spSynHandler(SPNULL),
-  m_mSynapse3dVertex(std::map<synapse_id, Vertex*>()),
 #ifdef UG_PARALLEL
   rcvSize(NULL), rcvFrom(NULL), rcvBuf(NULL),
   sendSize(NULL), sendTo(NULL), sendBuf(NULL),
@@ -582,7 +581,7 @@ void HybridNeuronCommunicator<TDomain>::reinit_synapse_mapping()
 		return;
 
 	// clear previous synapse mapping
-	m_mSynapse3dVertex.clear();
+	m_mSynapse3dCoords.clear();
 
 	std::vector<MathVector<dim> > syn_coords_local;
 	std::vector<synapse_id> syn_ids_local;
@@ -604,7 +603,6 @@ void HybridNeuronCommunicator<TDomain>::reinit_synapse_mapping()
 		{
 			v3dVertices.push_back(*it);
 			v3dVertexPos.push_back(m_aaPos3d[*it]);
-			v3dVertexPos.back().operator*=(m_scale_factor_from_3d_to_1d);
 		}
 	}
 
@@ -624,7 +622,7 @@ void HybridNeuronCommunicator<TDomain>::reinit_synapse_mapping()
 			{
 				MathVector<dim> coords;
 				get_postsyn_coordinates(syn->id(), coords);
-				syn_coords_local.push_back(coords);
+				syn_coords_local.push_back(coords /= m_scale_factor_from_3d_to_1d);
 				syn_ids_local.push_back(syn->id());
 				break;
 			}
@@ -643,120 +641,61 @@ void HybridNeuronCommunicator<TDomain>::reinit_synapse_mapping()
 		// communicate all interesting synapse coords to all procs
 		com.allgatherv(syn_coords_global, syn_coords_local, &vSizes, &vOffsets);
 
+		const size_t nGlobSyn = syn_coords_global.size();
+
 		// compute min distances of all local 3d vertices to the global 1d synapse positions
         std::vector<size_t> vNearest;
     	std::vector<number> vDistances;
 		int failure = nearest_neighbor_search(syn_coords_global, v3dVertexPos, vNearest, vDistances);
 
-		if (failure) // this happens if no 3d vertices are present on this proc
-			vDistances.resize(syn_coords_global.size(), std::numeric_limits<typename posType::value_type>::max());
+		std::vector<number> vLocNearestPos(nGlobSyn*dim);
+		for (size_t s = 0; s < nGlobSyn; ++s)
+		{
+			if (!failure)
+				for (int d = 0; d < dim; ++d)
+					vLocNearestPos[s*dim+d] = v3dVertexPos[vNearest[s]][d];
+			else
+				for (int d = 0; d < dim; ++d)
+					vLocNearestPos[s*dim+d] = std::numeric_limits<typename posType::value_type>::quiet_NaN();
+		}
 
 
 		// communicate local min dists back to original 1d-synapse holders
-		number* globDist = new number[nProcs * syn_coords_local.size()];
+		number* globMinPos = new number[nProcs * syn_coords_local.size()*dim];
 		for (size_t p = 0; p < nProcs; ++p)
 		{
 			if (!vSizes[p]) continue;
-			com.gather((void*) &vDistances[vOffsets[p]], vSizes[p], PCL_DT_DOUBLE, (void*) globDist, vSizes[p], PCL_DT_DOUBLE, (int) p);
+			com.gather((void*) &vLocNearestPos[vOffsets[p]*dim], vSizes[p]*dim, PCL_DT_DOUBLE, (void*) globMinPos, vSizes[p]*dim, PCL_DT_DOUBLE, (int) p);
 		}
 
 		// compute minimizing proc for each 1d synapse
-		size_t nSyn1d = syn_coords_local.size();
-		std::vector<size_t> vMinProc(nSyn1d, 0);
+		const size_t nSyn1d = syn_coords_local.size();
 		for (size_t s = 0; s < nSyn1d; ++s)
 		{
-			size_t& minProc = vMinProc[s];
-			number minDist = globDist[s];
+			//size_t& minProc = vMinProc[s];
+			MathVector<dim>& minPos = m_mSynapse3dCoords[syn_ids_local[s]];
+			MathVector<dim> pos;
+			for (int d = 0; d < dim; ++d)
+				pos[d] = globMinPos[s*dim + d];
+			number minDistSq = VecDistanceSq(pos, syn_coords_local[s]);
+			minPos = pos;
 			for (size_t p = 1; p < nProcs; ++p)
 			{
-				if (globDist[s + p*nSyn1d] < minDist)
+				for (int d = 0; d < dim; ++d)
+					pos[d] = globMinPos[p*nSyn1d*dim + s*dim + d];
+
+				const number distSq = VecDistanceSq(pos, syn_coords_local[s]);
+				if (distSq < minDistSq)
 				{
-					minDist = globDist[s + p*nSyn1d];
-					minProc = p;
+					minDistSq = distSq;
+					minPos = pos;
 				}
 			}
-			UG_COND_THROW(minDist == std::numeric_limits<typename posType::value_type>::max(),
-				"No 3d vertex in defined plasma membrane subset present on any proc.")
+			UG_COND_THROW(minDistSq == std::numeric_limits<typename posType::value_type>::quiet_NaN(),
+				"No 3d vertex in defined plasma membrane subset present on any proc.");
 		}
 
-		delete[] globDist;
-
-		// inform minProcs about their representing a synapse
-		// and also provide them with the synapse ID (for ease of use)
-
-		// step 1: fill send buffers
-		std::vector<BinaryBuffer> sendBuffers;
-		std::vector<int> receiverProcs;
-		std::map<size_t, size_t> mapProcToBufferIndex;
-		for (size_t s = 0; s < nSyn1d; ++s)
-		{
-			size_t proc = vMinProc[s];
-			std::map<size_t, size_t>::const_iterator mapIt = mapProcToBufferIndex.find(proc);
-			if (mapIt == mapProcToBufferIndex.end())
-			{
-				mapProcToBufferIndex[proc] = sendBuffers.size();
-				receiverProcs.push_back(proc);
-				sendBuffers.resize(sendBuffers.size() + 1);
-				BinaryBuffer& buf = sendBuffers.back();
-				buf.write((char*) &s, sizeof(size_t));
-				buf.write((char*) &syn_ids_local[s], sizeof(synapse_id));
-			}
-			else
-			{
-				BinaryBuffer& buf = sendBuffers[mapIt->second];
-				buf.write((char*) &s, sizeof(size_t));
-				buf.write((char*) &syn_ids_local[s], sizeof(synapse_id));
-			}
-		}
-
-		// step 2: prepare (communicate who will send to whom)
-		std::vector<int> vSendTo(nProcs, 0);
-		int numRecProcs = receiverProcs.size();
-		for (int r = 0; r < numRecProcs; ++r)
-			vSendTo[receiverProcs[r]] = 1;	// set all receivers 1; the others stay 0
-
-		std::vector<int> vNumFrom(nProcs);
-		com.alltoall(&vSendTo[0], 1, PCL_DT_INT, &vNumFrom[0], 1, PCL_DT_INT);
-
-		std::vector<int> senderProcs;
-		for (size_t p = 0; p < nProcs; ++p)
-			if (vNumFrom[p])
-				senderProcs.push_back(p);
-
-		// step 3: distribute data
-		int numSendProcs = senderProcs.size();
-		std::vector<BinaryBuffer> recBuffers(numSendProcs);
-
-		com.distribute_data
-		(
-			GetDataPtr(recBuffers),
-			GetDataPtr(senderProcs),
-			numSendProcs,
-			GetDataPtr(sendBuffers),
-			GetDataPtr(receiverProcs),
-			numRecProcs
-		);
-
-		// step 4: use received data to construct 1d-post-synapse -> 3d vertex map
-		for (size_t s = 0; s < (size_t) numSendProcs; ++s)
-		{
-			BinaryBuffer& recBuf = recBuffers[s];
-			int sendProc = senderProcs[s];
-			int offset = vOffsets[sendProc];
-
-			while (!recBuf.eof())
-			{
-				size_t ind;
-				synapse_id sid;
-				recBuf.read((char*) &ind, sizeof(size_t));
-				recBuf.read((char*) &sid, sizeof(synapse_id));
-
-				UG_ASSERT(m_mSynapse3dVertex.find(sid) == m_mSynapse3dVertex.end(),
-					"Synapse ID " << sid << " already mapped to a vertex.");
-
-				m_mSynapse3dVertex[sid] = v3dVertices[vNearest[offset + ind]];
-			}
-		}
+		delete[] globMinPos;
 	}
 	else
 	{
@@ -767,7 +706,7 @@ void HybridNeuronCommunicator<TDomain>::reinit_synapse_mapping()
 		UG_COND_THROW(failure, "No 3d vertices in the defined plasma membrane subset present to map 1d synapses to.");
 
 		for (size_t i = 0; i < syn_coords_local.size(); ++i)
-			m_mSynapse3dVertex[syn_ids_local[i]] = v3dVertices[vNearest[i]];
+			m_mSynapse3dCoords[syn_ids_local[i]] = v3dVertexPos[vNearest[i]];
 #ifdef UG_PARALLEL
 	}
 #endif
@@ -776,15 +715,16 @@ void HybridNeuronCommunicator<TDomain>::reinit_synapse_mapping()
 template <typename TDomain>
 void HybridNeuronCommunicator<TDomain>::gather_synaptic_currents
 (
-	std::vector<Vertex*>& vActSynOut,
+	std::vector<MathVector<dim> >& vActSynPosOut,
 	std::vector<number>& vSynCurrOut,
+	std::vector<synapse_id>& vSynIDOut,
 	number time
 )
 {
 	// reinit mappings if necessary
 	reinit_synapse_mapping();
 
-	vActSynOut.clear();
+	vActSynPosOut.clear();
 	vSynCurrOut.clear();
 
 	// get locally active synapses
@@ -792,47 +732,16 @@ void HybridNeuronCommunicator<TDomain>::gather_synaptic_currents
 	std::vector<number> vLocSynCurr;
 	m_spSynHandler->active_postsynapses_and_currents(vLocActSyn, vLocSynCurr, m_vNid, m_aaNID, time);
 
-	// todo: in the parallel case, do not gather all active synapse ids and currents
-	//       on every proc; instead, send active synapses only to the procs that have
-	//       the corresponding 3d vertex; use information computed in reinit_synapse_mapping()
-#ifdef UG_PARALLEL
-	if (pcl::NumProcs() == 1)
-		goto serial_case;
-
-	{
-		std::vector<synapse_id> vGlobActSyn;
-		std::vector<number> vGlobSynCurr;
-
-		pcl::ProcessCommunicator com;
-		com.allgatherv(vGlobActSyn, vLocActSyn, NULL, NULL);
-		com.allgatherv(vGlobSynCurr, vLocSynCurr, NULL, NULL);
-
-		for (size_t i=0; i<vGlobActSyn.size(); ++i)
-		{
-			synapse_id sid = vGlobActSyn[i];
-			std::map<synapse_id, Vertex*>::const_iterator it;
-			if ((it = m_mSynapse3dVertex.find(sid)) != m_mSynapse3dVertex.end())
-			{
-				vActSynOut.push_back(it->second);
-				vSynCurrOut.push_back(vGlobSynCurr[i]);
-			}
-		}
-	}
-
-	m_bSynapseMappingNeedsUpdate = false;
-	return;
-
-serial_case:
-#endif
-
-	for (size_t i=0; i<vLocActSyn.size(); ++i)
+	const size_t numLocActSyn = vLocActSyn.size();
+	for (size_t i = 0; i < numLocActSyn; ++i)
 	{
 		synapse_id sid = vLocActSyn[i];
-		std::map<synapse_id, Vertex*>::const_iterator it;
-		if ((it = m_mSynapse3dVertex.find(sid)) != m_mSynapse3dVertex.end())
+		typename std::map<synapse_id, MathVector<dim> >::const_iterator it;
+		if ((it = m_mSynapse3dCoords.find(sid)) != m_mSynapse3dCoords.end())
 		{
-			vActSynOut.push_back(it->second);
+			vActSynPosOut.push_back(it->second);
 			vSynCurrOut.push_back(vLocSynCurr[i]);
+			vSynIDOut.push_back(sid);
 		}
 	}
 

@@ -89,30 +89,25 @@ HybridSynapseCurrentAssembler
 
 
 template <typename TDomain, typename TAlgebra>
-number HybridSynapseCurrentAssembler<TDomain, TAlgebra>::get_ip3(Vertex* const vrt, number time)
+number HybridSynapseCurrentAssembler<TDomain, TAlgebra>::get_ip3(synapse_id sid, number time)
 {
 	// check whether vrt is newly active
-	typename std::map<Vertex*, IP3Timing>::iterator it = m_mSynapseActivationTime.find(vrt);
+	typename std::map<synapse_id, number>::iterator it = m_mSynapseActivationTime.find(sid);
 	if (it == m_mSynapseActivationTime.end())
 	{
-		IP3Timing timing;
-		timing.t_start = time;
-		timing.t_end = time + m_j_ip3_duration;
-		m_mSynapseActivationTime[vrt] = timing;
-
+		m_mSynapseActivationTime[sid] = time;
 		return m_j_ip3_max;
-
 	}
 
 	// check whether v is still active
-	if (time >= it->second.t_end)
+	if (time >= it->second + m_j_ip3_duration)
 	{
 		// erase entry
-		m_mSynapseActivationTime.erase(vrt);
+		m_mSynapseActivationTime.erase(sid);
 		return 0.0;
 	}
 
-	return m_j_ip3_max * std::exp(m_j_ip3_decayRate*(it->second.t_start - time));
+	return m_j_ip3_max * std::exp(m_j_ip3_decayRate*(it->second - time));
 }
 
 template <typename TDomain, typename TAlgebra>
@@ -131,12 +126,31 @@ void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::adjust_defect
 	// we want to add inward currents to the defect
 	// at all vertices representing an active synapse (or more)
 
-	// Using the m_spHNC, get a list of all (3d) vertices on this proc
-	// that are mapped to an active (1d) synapse (on any proc);
+	// Using the m_spHNC, get a list of all synapse positions
+	// that are mapped to a (locally) active (1d) synapse;
 	// also get the corresponding current values at the same time.
-	std::vector<Vertex*> vActiveList;
-	std::vector<number> vCurrent;
-	m_spHNC->gather_synaptic_currents(vActiveList, vCurrent, time);
+	typename std::vector<MathVector<dim> > vActiveList;
+	std::vector<number> vSynCurrent;
+	std::vector<synapse_id> vSynID;
+
+#ifdef UG_PARALLEL
+	if (pcl::NumProcs() > 1)
+	{
+		typename std::vector<MathVector<dim> > vLocActiveList;
+		std::vector<number> vLocSynCurrent;
+		std::vector<synapse_id> vLocSynID;
+		m_spHNC->gather_synaptic_currents(vLocActiveList, vLocSynCurrent, vLocSynID, time);
+
+		// make all (3d) active synapse positions known to all procs
+		pcl::ProcessCommunicator com;
+		com.allgatherv(vActiveList, vLocActiveList, NULL, NULL);
+		com.allgatherv(vSynCurrent, vLocSynCurrent, NULL, NULL);
+		com.allgatherv(vSynID, vLocSynID, NULL, NULL);
+	}
+	else
+#endif
+		m_spHNC->gather_synaptic_currents(vActiveList, vSynCurrent, vSynID, time);
+
 
 
 	// calculate dt
@@ -150,123 +164,87 @@ void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::adjust_defect
 		dt += (*vScaleStiff)[tp];
 
 
-	SmartPtr<MultiGrid> mg = m_spDom->grid();
+	// loop all surface sides in membrane subsets
 	typename TDomain::position_accessor_type& aaPos = m_spDom->position_accessor();
 	SmartPtr<ISubsetHandler> sh = m_spDom->subset_handler();
-	ConstSmartPtr<SurfaceView> sv = dd->surface_view();
-
 	typedef typename domain_traits<TDomain::dim>::side_type side_type;
-
-	typedef typename Grid::traits<side_type>::secure_container side_list_type;
-	side_list_type sl;
-
-	std::queue<side_type*> q;
-
-	std::vector<side_type*> vSynElems;
-	std::vector<number> vSynElemArea;
-	std::vector<DoFIndex> vDoFIndex;
+	typedef typename DoFDistribution::traits<side_type>::const_iterator const_side_iter;
 
 	const size_t nSyn = vActiveList.size();
+	std::vector<number> totalSynAreaLocal(nSyn, 0.0);
+	std::vector<std::vector<side_type*> > elemsForSyn(nSyn);
+	const size_t nSs = m_vMembraneSI.size();
+	for (size_t ss = 0; ss < nSs; ++ss)
+	{
+		const int si = m_vMembraneSI[ss];
+		const_side_iter it = dd->begin<side_type>(si);
+		const_side_iter itEnd = dd->end<side_type>(si);
+		for (; it != itEnd; ++it)
+		{
+			side_type* side = *it;
+
+			// loop all active synapse positions and find out whether
+			// the current element is in their range
+			for (size_t s = 0; s < nSyn; ++s)
+			{
+				if (VecDistanceSq(vActiveList[s], CalculateCenter(side, aaPos)) < m_sqSynRadius)
+				{
+					totalSynAreaLocal[s] += CalculateVolume(side, aaPos);
+					elemsForSyn[s].push_back(side);
+				}
+				// at least directly adjacent elements need to be used
+				else
+				{
+					const size_t nVrt = side->num_vertices();
+					for (size_t v = 0; v < nVrt; ++v)
+					{
+						if (VecDistanceSq(aaPos[side->vertex(v)], vActiveList[s]) < 1e-10*m_sqSynRadius)
+						{
+							totalSynAreaLocal[s] += CalculateVolume(side, aaPos);
+							elemsForSyn[s].push_back(side);
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	std::vector<number> totalSynArea = totalSynAreaLocal;
+#ifdef UG_PARALLEL
+	if (pcl::NumProcs() > 1)
+	{
+		pcl::ProcessCommunicator pc;
+		pc.allreduce(totalSynAreaLocal, totalSynArea, PCL_RO_SUM);
+	}
+#endif
+
+	// now treat all synapses
+	std::vector<DoFIndex> vDoFIndex;
 	for (size_t s = 0; s < nSyn; ++s)
 	{
-		Vertex* synVrt = vActiveList[s];
+		const size_t nElems = elemsForSyn[s].size();
+		if (!nElems)
+			continue;
 
-		// For each synaptic vertex, find all (local) plasma membrane elements within a specific range.
-		// The synaptic current will be distributed evenly among them.
-		// (A more correct approach would be to find all GLOBAL elements, but this is more complicated
-		// and probably not really necessary.)
-		vSynElems.clear();
-		vSynElemArea.clear();
-		number totalSynArea = 0.0;
-
-		const typename TDomain::position_type& synPos = aaPos[synVrt];
-
-		// initialize queue with all neighboring elements (they at least need to be used)
-		mg->begin_marking();
-		mg->associated_elements(sl, synVrt);
-		const size_t slSz = sl.size();
-		for (size_t e = 0; e < slSz; ++e)
-		{
-			side_type* side = sl[e];
-			if (std::find(m_vMembraneSI.begin(), m_vMembraneSI.end(), sh->get_subset_index(side))
-				!= m_vMembraneSI.end())
-			{
-				q.push(side);
-				mg->mark(side);
-			}
-		}
-
-		// find all near neighbors
-		while (!q.empty())
-		{
-			side_type* side = q.front();
-			q.pop();
-
-			// take care only to adjust the surface
-			const size_t numChildren = mg->num_children<side_type>(side);
-			if (numChildren)
-			{
-				for (size_t c = 0; c < numChildren; ++c)
-				{
-					side_type* childSide = mg->get_child<side_type>(side, c);
-
-					if (!mg->is_marked(childSide)
-						&& VecDistanceSq(synPos, CalculateCenter(childSide, aaPos)) < m_sqSynRadius)
-					{
-						q.push(childSide);
-					}
-
-					mg->mark(childSide);
-				}
-			}
-			else if (sv->is_contained(side, GridLevel()))
-			{
-				vSynElems.push_back(side);
-				vSynElemArea.push_back(CalculateVolume(side, aaPos));
-				totalSynArea += vSynElemArea.back();
-			}
-			const size_t nSideVrt = side->num_vertices();
-			for (size_t v = 0; v < nSideVrt; ++v)
-			{
-				Vertex* sideVrt = side->vertex(v);
-
-				mg->associated_elements(sl, sideVrt);
-				const size_t slSz = sl.size();
-				for (size_t e = 0; e < slSz; ++e)
-				{
-					side_type* connSide = sl[e];
-					if (!mg->is_marked(connSide)
-						&& std::find(m_vMembraneSI.begin(), m_vMembraneSI.end(), sh->get_subset_index(connSide))
-							!= m_vMembraneSI.end()
-						&& VecDistanceSq(synPos, CalculateCenter(connSide, aaPos)) < m_sqSynRadius)
-					{
-						q.push(connSide);
-					}
-
-					mg->mark(connSide);
-				}
-			}
-		}
-		mg->end_marking();
-		const size_t nSynElems = vSynElems.size();
-
+		const std::vector<side_type*>& vElems = elemsForSyn[s];
 
 		// if the potential rises high, synaptic currents are reversed;
 		// we need to exclude calcium from this effect
 		// TODO: this is a bit awkward, better use proper Ca2+ entry modeling
-		if (vCurrent[s] < 0.0)
+		if (vSynCurrent[s] < 0.0)
 		{
-			const number substanceCurrent = vCurrent[s] * m_current_percentage / (m_valency*m_F) / m_scaling_3d_to_1d_amount_of_substance;
-			const number fluxDensity = substanceCurrent / totalSynArea;
+			const number substanceCurrent = vSynCurrent[s] * m_current_percentage / (m_valency*m_F) / m_scaling_3d_to_1d_amount_of_substance;
+			const number fluxDensity = substanceCurrent / totalSynArea[s];
 
 			// loop all elems participating in that synapse
-			for (size_t e = 0; e < nSynElems; ++e)
+			for (size_t e = 0; e < nElems; ++e)
 			{
-				side_type* elem = vSynElems[e];
+				side_type* elem = vElems[e];
 				const size_t nSynElemVrts = elem->num_vertices();
 
 				// each node gets an equal part of this synElem's current
-				const number currentPerNode = fluxDensity * vSynElemArea[e] / nSynElemVrts;
+				const number currentPerNode = fluxDensity * CalculateVolume(elem, aaPos) / nSynElemVrts;
 				for (size_t n = 0; n < nSynElemVrts; ++n)
 				{
 					Vertex* node = elem->vertex(n);
@@ -286,21 +264,23 @@ void HybridSynapseCurrentAssembler<TDomain, TAlgebra>::adjust_defect
 			}
 		}
 
-
 		// same for IP3 currents
-		if (!m_ip3_set) return;
+		if (!m_ip3_set)
+			return;
 
-		const number substanceCurrent = get_ip3(synVrt, time) / m_scaling_3d_to_1d_ip3;
-		const number fluxDensity = substanceCurrent / totalSynArea;
+		const synapse_id sid = vSynID[s];
+
+		const number substanceCurrent = get_ip3(sid, time) / m_scaling_3d_to_1d_ip3;
+		const number fluxDensity = substanceCurrent / totalSynArea[s];
 
 		// loop all elems participating in that synapse
-		for (size_t e = 0; e < nSynElems; ++e)
+		for (size_t e = 0; e < nElems; ++e)
 		{
-			side_type* elem = vSynElems[e];
+			side_type* elem = vElems[e];
 			const size_t nSynElemVrts = elem->num_vertices();
 
 			// each node gets an equal part of this synElem's current
-			const number currentPerNode = fluxDensity * vSynElemArea[e] / nSynElemVrts;
+			const number currentPerNode = fluxDensity * CalculateVolume(elem, aaPos) / nSynElemVrts;
 			for (size_t n = 0; n < nSynElemVrts; ++n)
 			{
 				Vertex* node = elem->vertex(n);
@@ -344,12 +324,30 @@ adjust_error
 		<< std::endl << "Make sure you handed the correct type of ErrEstData to this discretization.");
 
 
-	// Using the m_spHNC, get a list of all (3d) vertices on this proc
-	// that are mapped to an active (1d) synapse (on any proc);
+	// Using the m_spHNC, get a list of all synapse positions
+	// that are mapped to a (locally) active (1d) synapse;
 	// also get the corresponding current values at the same time.
-	std::vector<Vertex*> vActiveList;
-	std::vector<number> vCurrent;
-	m_spHNC->gather_synaptic_currents(vActiveList, vCurrent, time);
+	typename std::vector<MathVector<dim> > vActiveList;
+	std::vector<number> vSynCurrent;
+	std::vector<synapse_id> vSynID;
+
+#ifdef UG_PARALLEL
+	if (pcl::NumProcs() > 1)
+	{
+		typename std::vector<MathVector<dim> > vLocActiveList;
+		std::vector<number> vLocSynCurrent;
+		std::vector<synapse_id> vLocSynID;
+		m_spHNC->gather_synaptic_currents(vLocActiveList, vLocSynCurrent, vLocSynID, time);
+
+		// make all (3d) active synapse positions known to all procs
+		pcl::ProcessCommunicator com;
+		com.allgatherv(vActiveList, vLocActiveList, NULL, NULL);
+		com.allgatherv(vSynCurrent, vLocSynCurrent, NULL, NULL);
+		com.allgatherv(vSynID, vLocSynID, NULL, NULL);
+	}
+	else
+#endif
+		m_spHNC->gather_synaptic_currents(vActiveList, vSynCurrent, vSynID, time);
 
 
 	// calculate dt
@@ -363,120 +361,83 @@ adjust_error
 		dt += (*vScaleStiff)[tp];
 
 
-	SmartPtr<MultiGrid> mg = m_spDom->grid();
+	// loop all surface sides in membrane subsets
 	typename TDomain::position_accessor_type& aaPos = m_spDom->position_accessor();
 	SmartPtr<ISubsetHandler> sh = m_spDom->subset_handler();
-	ConstSmartPtr<SurfaceView> sv = dd->surface_view();
-
 	typedef typename domain_traits<TDomain::dim>::side_type side_type;
-
-	typedef typename Grid::traits<side_type>::secure_container side_list_type;
-	side_list_type sl;
-
-	std::queue<side_type*> q;
-
-	std::vector<side_type*> vSynElems;
-	std::vector<number> vSynElemArea;
-	std::vector<DoFIndex> vDoFIndex;
+	typedef typename DoFDistribution::traits<side_type>::const_iterator const_side_iter;
 
 	const size_t nSyn = vActiveList.size();
+	std::vector<number> totalSynAreaLocal(nSyn, 0.0);
+	std::vector<std::vector<side_type*> > elemsForSyn(nSyn);
+	const size_t nSs = m_vMembraneSI.size();
+	for (size_t ss = 0; ss < nSs; ++ss)
+	{
+		const int si = m_vMembraneSI[ss];
+		const_side_iter it = dd->begin<side_type>(si);
+		const_side_iter itEnd = dd->end<side_type>(si);
+		for (; it != itEnd; ++it)
+		{
+			side_type* side = *it;
+
+			// loop all active synapse positions and find out whether
+			// the current element is in their range
+			for (size_t s = 0; s < nSyn; ++s)
+			{
+				if (VecDistanceSq(vActiveList[s], CalculateCenter(side, aaPos)) < m_sqSynRadius)
+				{
+					totalSynAreaLocal[s] += CalculateVolume(side, aaPos);
+					elemsForSyn[s].push_back(side);
+				}
+				// at least directly adjacent elements need to be used
+				else
+				{
+					const size_t nVrt = side->num_vertices();
+					for (size_t v = 0; v < nVrt; ++v)
+					{
+						if (VecDistanceSq(aaPos[side->vertex(v)], vActiveList[s]) < 1e-10*m_sqSynRadius)
+						{
+							totalSynAreaLocal[s] += CalculateVolume(side, aaPos);
+							elemsForSyn[s].push_back(side);
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	std::vector<number> totalSynArea = totalSynAreaLocal;
+#ifdef UG_PARALLEL
+	if (pcl::NumProcs() > 1)
+	{
+		pcl::ProcessCommunicator pc;
+		pc.allreduce(totalSynAreaLocal, totalSynArea, PCL_RO_SUM);
+	}
+#endif
+
+
+	// now treat all synapses
 	for (size_t s = 0; s < nSyn; ++s)
 	{
-		Vertex* synVrt = vActiveList[s];
+		const size_t nElems = elemsForSyn[s].size();
+		if (!nElems)
+			continue;
 
-		// For each synaptic vertex, find all (local) plasma membrane elements within a specific range.
-		// The synaptic current will be distributed evenly among them.
-		// (A more correct approach would be to find all GLOBAL elements, but this is more complicated
-		// and probably not really necessary.)
-		vSynElems.clear();
-		vSynElemArea.clear();
-		number totalSynArea = 0.0;
-
-		const typename TDomain::position_type& synPos = aaPos[synVrt];
-
-		// initialize queue with all neighboring elements (they at least need to be used)
-		mg->begin_marking();
-		mg->associated_elements(sl, synVrt);
-		const size_t slSz = sl.size();
-		for (size_t e = 0; e < slSz; ++e)
-		{
-			side_type* side = sl[e];
-			if (std::find(m_vMembraneSI.begin(), m_vMembraneSI.end(), sh->get_subset_index(side))
-				!= m_vMembraneSI.end())
-			{
-				q.push(side);
-				mg->mark(side);
-			}
-		}
-
-		// find all near neighbors
-		while (!q.empty())
-		{
-			side_type* side = q.front();
-			q.pop();
-
-			// take care only to adjust the surface
-			const size_t numChildren = mg->num_children<side_type>(side);
-			if (numChildren)
-			{
-				for (size_t c = 0; c < numChildren; ++c)
-				{
-					side_type* childSide = mg->get_child<side_type>(side, c);
-
-					if (!mg->is_marked(childSide)
-						&& VecDistanceSq(synPos, CalculateCenter(childSide, aaPos)) < m_sqSynRadius)
-					{
-						q.push(childSide);
-					}
-
-					mg->mark(childSide);
-				}
-			}
-			else if (sv->is_contained(side, GridLevel()))
-			{
-				vSynElems.push_back(side);
-				vSynElemArea.push_back(CalculateVolume(side, aaPos));
-				totalSynArea += vSynElemArea.back();
-			}
-
-			const size_t nSideVrt = side->num_vertices();
-			for (size_t v = 0; v < nSideVrt; ++v)
-			{
-				Vertex* sideVrt = side->vertex(v);
-
-				mg->associated_elements(sl, sideVrt);
-				const size_t slSz = sl.size();
-				for (size_t e = 0; e < slSz; ++e)
-				{
-					side_type* connSide = sl[e];
-					if (!mg->is_marked(connSide)
-						&& std::find(m_vMembraneSI.begin(), m_vMembraneSI.end(), sh->get_subset_index(connSide))
-							!= m_vMembraneSI.end()
-						&& VecDistanceSq(synPos, CalculateCenter(connSide, aaPos)) < m_sqSynRadius)
-					{
-						q.push(connSide);
-					}
-
-					mg->mark(connSide);
-				}
-			}
-		}
-		mg->end_marking();
-
+		const std::vector<side_type*>& vElems = elemsForSyn[s];
 
 		// if the potential rises high, synaptic currents are reversed;
 		// we need to exclude calcium from this effect
 		// TODO: this is a bit awkward, better use proper Ca2+ entry modeling
-		if (vCurrent[s] < 0.0)
+		if (vSynCurrent[s] < 0.0)
 		{
-			const number substanceCurrent = vCurrent[s] * m_current_percentage / (m_valency*m_F) / m_scaling_3d_to_1d_amount_of_substance;
-			const number fluxDensity = substanceCurrent / totalSynArea;
+			const number substanceCurrent = vSynCurrent[s] * m_current_percentage / (m_valency*m_F) / m_scaling_3d_to_1d_amount_of_substance;
+			const number fluxDensity = substanceCurrent / totalSynArea[s];
 
 			// loop all elems participating in that synapse
-			const size_t nSynElems = vSynElems.size();
-			for (size_t e = 0; e < nSynElems; ++e)
+			for (size_t e = 0; e < nElems; ++e)
 			{
-				side_type* elem = vSynElems[e];
+				side_type* elem = vElems[e];
 
 				// get reference object id
 				ReferenceObjectID roid = elem->reference_object_id();
@@ -502,18 +463,19 @@ adjust_error
 			}
 		}
 
-
 		// same for IP3 currents
-		if (!m_ip3_set) return;
+		if (!m_ip3_set)
+			return;
 
-		const number substanceCurrent = get_ip3(synVrt, time) / m_scaling_3d_to_1d_ip3;
-		const number fluxDensity = substanceCurrent / totalSynArea;
+		const synapse_id sid = vSynID[s];
+
+		const number substanceCurrent = get_ip3(sid, time) / m_scaling_3d_to_1d_ip3;
+		const number fluxDensity = substanceCurrent / totalSynArea[s];
 
 		// loop all elems participating in that synapse
-		const size_t nSynElems = vSynElems.size();
-		for (size_t e = 0; e < nSynElems; ++e)
+		for (size_t e = 0; e < nElems; ++e)
 		{
-			side_type* elem = vSynElems[e];
+			side_type* elem = vElems[e];
 
 			// get reference object id
 			ReferenceObjectID roid = elem->reference_object_id();

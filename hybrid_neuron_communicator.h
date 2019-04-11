@@ -71,7 +71,13 @@ class HybridNeuronCommunicator
         void coordinate_potential_values();
 
         /// coordinate synaptic current values (only active post-synapses)
-        void gather_synaptic_currents(std::vector<Vertex*>& vActSynOut, std::vector<number>& vSynCurrOut, number time);
+        void gather_synaptic_currents
+		(
+			std::vector<MathVector<dim> >& vActSynPosOut,
+			std::vector<number>& vSynCurrOut,
+			std::vector<synapse_id>& vSynIDOut,
+			number time
+		);
 
         /// get potential value for high-dim side element
         number potential(side_t* elem) const;
@@ -106,8 +112,6 @@ class HybridNeuronCommunicator
     	void get_postsyn_coordinates(synapse_id id, MathVector<dim>& vCoords);
     	uint get_postsyn_neuron_id(synapse_id id);
 
-    	const std::map<synapse_id, Vertex*>& synapse_3dVertex_map() const {return m_mSynapse3dVertex;}
-
 
     protected:
         ///reinitialize mappings for 3d elem -> 1d vertex potential value mapping
@@ -130,8 +134,8 @@ class HybridNeuronCommunicator
         /// memory for side element potential values
         std::map<side_t*, number> m_mElemPot;
 
-        /// synapse to 3d vertex mapping
-        std::map<synapse_id, Vertex*> m_mSynapse3dVertex;
+        /// synapse to 3d coordinate vertex mapping
+        std::map<synapse_id, MathVector<dim> > m_mSynapse3dCoords;
 
 #ifdef UG_PARALLEL
         /// list of 1d sender vertices on this proc and who they send to
