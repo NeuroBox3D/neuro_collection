@@ -1150,6 +1150,85 @@ namespace neuro_collection {
 			#endif
 		}
 	}
+
+	static std::vector<ug::vector3> find_quad_verts_on_soma
+(
+	   Grid& g,
+	   Grid::VertexAttachmentAccessor<APosition>& aaPos,
+	   std::vector<ug::Vertex*> verticesOld,
+	   std::vector<std::vector<number> > outRads,
+	   size_t si,
+	   SubsetHandler& sh,
+	   number rimSnapThresholdFactor,
+	   size_t numQuads
+) {
+	size_t numVerts = 4;
+	std::vector<ug::vector3> centers;
+	UG_LOGN("3. AdaptSurfaceGridToCylinder")
+	Selector sel(g);
+	for (size_t i = 0; i < verticesOld.size(); i++) {
+		sel.clear();
+		ug::vector3 normal;
+		CalculateVertexNormal(normal, g, verticesOld[i], aaPos);
+		number radius = outRads[i][0];
+		AdaptSurfaceGridToCylinder(sel, g, verticesOld[i], normal, radius, 1.0*rimSnapThresholdFactor, aPosition);
+		UG_LOGN("Adaption done");
+
+		sel.clear();
+		sel.select(verticesOld[i]);
+		ExtendSelection(sel, 1, true);
+		CloseSelection(sel);
+		sel.deselect(verticesOld[i]);
+		g.erase(verticesOld[i]);
+
+		UG_LOGN("num edges: " << sel.num<Edge>());
+		size_t numEdges = sel.num<Edge>();
+		size_t j = 0;
+		while (numEdges > numVerts) {
+			SubsetHandler::traits<Edge>::iterator eit = sel.begin<Edge>();
+			SubsetHandler::traits<Edge>::iterator end = sel.end<Edge>();
+			number bestLength = -1;
+			Edge* eBest = NULL;
+			for (; eit != end; ++eit) {
+				const Edge* ee = *eit;
+				Vertex* const* verts = ee->vertices();
+				if (bestLength == -1) {
+					bestLength = VecDistance(aaPos[verts[0]], aaPos[verts[1]]);
+					eBest = *eit;
+				} else {
+					number length = VecDistance(aaPos[verts[0]], aaPos[verts[1]]);
+					if (length < bestLength) {
+						eBest = *eit;
+						bestLength = length;
+					}
+				}
+			}
+			CollapseEdge(g, eBest, eBest->vertex(0));
+			numEdges--;
+			j++;
+		}
+
+		UG_LOGN("Collapsing done");
+
+
+		std::vector<ug::vector3> vertices;
+		Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
+		Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
+		UG_LOGN("Pushing vertices");
+		for (; vit != vit_end; ++vit) {
+			vertices.push_back(aaPos[*vit]);
+		}
+
+		UG_LOGN("Number of vertices: " << vertices.size());
+		ug::vector3 centerOut;
+		CalculateCenter(centerOut, &vertices[0], sel.num<ug::Vertex>());
+		UG_LOGN("centerOut: " << centerOut);
+		centers.push_back(centerOut);
+	}
+	return centers;
+	}
+
+
 	/**
 	 * @brief connects neurites to soma
 	 * TODO: Find suitable parameters for tangential smooth and resolve intersection
@@ -2852,6 +2931,7 @@ namespace neuro_collection {
     	return;
     }
 
+
     // Now create dendrite to the next branching point and iterate this process.
     // We want to create each of the segments with approx. the same aspect ratio.
     // To that end, we first calculate the length of the section to be created (in units of radius)
@@ -3120,6 +3200,11 @@ namespace neuro_collection {
 			if (!forcePositions) shrink_quadrilateral(vVrtInner, g, aaPos, neurite.scaleER);
 			lastPos = curPos;
     	}
+
+    	UG_LOGN("After extruding...")
+    	SaveGridToFile(g, "shit.ugx");
+
+
 
 
 		vector3 currentDir;
@@ -3804,6 +3889,42 @@ namespace neuro_collection {
 	    lines = lineCnt;
 	}
 
+	void get_closest_vertices_on_soma
+	(
+		const std::vector<ug::vector3>& vPos,
+		std::vector<ug::Vertex*>& vPointsSomaSurface, Grid& g,
+		Grid::VertexAttachmentAccessor<APosition>& aaPos,
+		SubsetHandler& sh,
+		size_t si
+	) {
+		UG_LOGN("finding now: " << vPos.size());
+				for (size_t i = 0; i < vPos.size(); i++) {
+					const ug::vector3* pointSet = &vPos[i];
+					ug::vector3 centerOut;
+					CalculateCenter(centerOut, pointSet, 1);
+					Selector sel(g);
+					SelectSubsetElements<Vertex>(sel, sh, si, true);
+					UG_LOGN("selected vertices: " << sel.num<Vertex>());
+					Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
+					Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
+					number best = -1;
+					ug::Vertex* best_vertex = NULL;
+					for (; vit != vit_end; ++vit) {
+						number dist = VecDistance(aaPos[*vit], centerOut);
+						if (best == -1) {
+							best = dist;
+							best_vertex = *vit;
+						} else if (dist < best) {
+							best = dist;
+							best_vertex = *vit;
+						}
+					}
+					UG_COND_THROW(!best_vertex, "No best vertex found for root neurite >>" << i << "<<.");
+					vPointsSomaSurface.push_back(best_vertex);
+				}
+
+	}
+
 	/**
 	 * @brief get the closest surface point on soma surface based on triangulation
 	 */
@@ -3841,6 +3962,79 @@ namespace neuro_collection {
 			UG_COND_THROW(!best_vertex, "No best vertex found for root neurite >>" << i << "<<.");
 			vPointsSomaSurface.push_back(aaPos[best_vertex]);
 		}
+	}
+
+	void replace_first_root_neurite_vertex_in_swc
+	(
+		const size_t& lines,
+		const std::string& fn_precond,
+		const std::string& fn_precond_with_soma,
+		const std::vector<ug::vector3>& vPointsSomaSurface
+	) {
+
+		std::ifstream inFile(fn_precond.c_str());
+	    UG_COND_THROW(!inFile, "SWC input file '" << fn_precond << "' could not be opened for reading.");
+		std::ofstream outFile(fn_precond_with_soma.c_str());
+	    UG_COND_THROW(!outFile, "SWC output file '" << fn_precond_with_soma << "' could not be opened for reading.");
+
+	    size_t lineCnt = 1;
+	    std::string line;
+	    int somaIndex;
+	    std::vector<SWCPoint> swcPoints;
+        std::vector<number> rads;
+        size_t j = 0;
+	    while (std::getline(inFile, line)) {
+	       // trim whitespace
+		   line = TrimString(line);
+
+		   // ignore anything from possible '#' onwards
+		   size_t nChar = line.size();
+		   for (size_t i = 0; i < nChar; ++i)
+		   {
+		     if (line.at(i) == '#')
+		     {
+		        line = line.substr(0, i);
+		         break;
+		     }
+		   }
+
+			// empty lines can be ignored
+			if (line.empty()) continue;
+
+			// split the line into tokens
+			std::istringstream buf(line);
+			std::istream_iterator<std::string> beg(buf), end;
+			std::vector<std::string> strs(beg, end);
+
+			// assert number of tokens is correct
+			 UG_COND_THROW(strs.size() != 7, "Error reading SWC file '" << fn_precond
+			          << "': Line " << lineCnt << " does not contain exactly 7 values.");
+
+			 // type
+			 if (boost::lexical_cast<int>(strs[6]) == -1) {
+				   somaIndex = boost::lexical_cast<int>(strs[0]);
+				    outFile << strs[0] << " " << strs[1] << " " << strs[2] << " "
+				        		<< strs[3] << " " << strs[4] << " " << strs[5] << " "
+				        		<< strs[6] << std::endl;
+			 } else {
+				 int index = boost::lexical_cast<int>(strs[6]);
+			     if (index == somaIndex) {
+			        	number rad = boost::lexical_cast<number>(strs[5]);
+			        	outFile << lineCnt << " 3 " << vPointsSomaSurface[j].x() << " "
+			        			<< vPointsSomaSurface[j].y() << " " << vPointsSomaSurface[j].z()
+			        			<< " " << rad << " " << somaIndex << std::endl;
+			        	///lineCnt++;
+			        	j++;
+			     } else {
+			    	 int newIndex = boost::lexical_cast<int>(strs[6]);
+			    	 outFile << lineCnt << " " << strs[1] << " " << strs[2] << " "
+ 	 					   		<< strs[3] << " " << strs[4] << " " << strs[5] << " "
+   	 					   		<< newIndex << std::endl;
+			     }
+			   }
+			 lineCnt++;
+	    }
+
 	}
 
 	/**
@@ -3976,12 +4170,16 @@ namespace neuro_collection {
     std::vector<ug::vector3> vPointSomaSurface;
     std::vector<SWCPoint> somaPoint = vSomaPoints;
     /// In new implementation radius can be scaled with 1.0, not 1.05, since vertices are merged
-    somaPoint[0].radius *= 1.0;
+    somaPoint[0].radius *= 1.00;
     create_soma(somaPoint, g, aaPos, sh, 1);
     UG_LOGN("created soma!")
-    get_closest_points_on_soma(vPosSomaClosest, vPointSomaSurface, g, aaPos, sh, 1);
+    ///get_closest_points_on_soma(vPosSomaClosest, vPointSomaSurface, g, aaPos, sh, 1);
+    std::vector<ug::Vertex*> vPointSomaSurface2;
+    get_closest_vertices_on_soma(vPosSomaClosest, vPointSomaSurface2, g, aaPos, sh, 1);
     UG_LOGN("got closest points on soma: " << vPointSomaSurface.size());
-    add_soma_surface_to_swc(lines, fn_precond, fn_precond_with_soma, vPointSomaSurface);
+    ///add_soma_surface_to_swc(lines, fn_precond, fn_precond_with_soma, vPointSomaSurface);
+    std::vector<ug::vector3> newVerts = find_quad_verts_on_soma(g, aaPos, vPointSomaSurface2, vRad, 1, sh, 1.0, vPos.size());
+    replace_first_root_neurite_vertex_in_swc(lines, fn_precond, fn_precond_with_soma, newVerts);
     UG_LOGN("added soma points to swc")
     g.clear_geometry();
     import_swc(fn_precond_with_soma, vPoints, correct, 1.0);
@@ -4029,6 +4227,7 @@ namespace neuro_collection {
     SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
     sel.clear();
 
+
     /// Outer soma
     /// Note: axisVectors (outer soma) and axisVectorsInner (inner soma) save the cylinder center, diameter and length parameters for the CylinderProjectors
     UG_LOGN("Creating soma!")
@@ -4044,10 +4243,11 @@ namespace neuro_collection {
     std::vector<std::vector<ug::Edge*> > connectingEdgesInner(vRootNeuriteIndsOut.size());
     connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRads, outQuadsInner, 1, sh, fileName, 1.0, axisVectors, vNeurites, connectingVertices, connectingVerticesInner, connectingEdges, connectingEdgesInner,true);
 
-    for (size_t i = 0; i < 2; i++) {
+    /*for (size_t i = 0; i < 2; i++) {
     	reorder_connecting_elements(connectingVertices[i], connectingEdges[i]);
     	reorder_connecting_elements(connectingVerticesInner[i], connectingEdgesInner[i]);
     }
+    */
 
     /// delete old vertices from incorrect neurite starts
     g.erase(outVerts.begin(), outVerts.end());
@@ -4059,11 +4259,9 @@ namespace neuro_collection {
     sh.set_default_subset_index(0);
     UG_LOGN("generating neurites")
 
-    ///for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
-    for (size_t i = 0; i < 2; ++i) {
-    	create_neurite_general(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, false, &connectingVertices[i], &connectingEdges[i], &connectingVerticesInner[i], &connectingEdgesInner[i], &outVerts, &outVertsInner, &outRads, &outRadsInner, true);
-    	///break;
-    	///create_neurite_general(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, false, NULL, NULL, NULL, NULL, &outVerts, &outVertsInner, &outRads, &outRadsInner, false);
+    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
+    	///create_neurite_general(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, false, &connectingVertices[i], &connectingEdges[i], &connectingVerticesInner[i], &connectingEdgesInner[i], &outVerts, &outVertsInner, &outRads, &outRadsInner, false);
+    	create_neurite_general(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, false, NULL, NULL, NULL, NULL, &outVerts, &outVertsInner, &outRads, &outRadsInner, false);
     }
 
     /// connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRads, outQuadsInner, 1, sh, fileName, 1.0, axisVectors, vNeurites, connectingVertices, connectingVerticesInner, connectingEdges, connectingEdgesInner,true);
