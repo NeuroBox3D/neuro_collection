@@ -1107,6 +1107,7 @@ namespace neuro_collection {
 	}
 
 
+
 	/**
 	 * @brief calculates angle offset
 	 */
@@ -1122,6 +1123,13 @@ namespace neuro_collection {
 		UG_LOGN("acos(" << x << ")");
 
 		return rad_to_deg(acos(x));
+	}
+
+	/**
+	 * @brief calculates angles from [-180, 180] interval to [0, 360]
+	 */
+	static float deg_to_full_range(float angle) {
+		return fmod(angle+360, 360);
 	}
 
 	/**
@@ -1266,6 +1274,8 @@ namespace neuro_collection {
 		/// Projiziere Neuritenstartknoten ebenso darauf. Finde kleinsten Winkel, dann merge diese Vertices!
 
 		std::vector<std::vector<number> > allAngles;
+		std::vector<std::vector<number> > allAnglesInner;
+		size_t j = 1;
 		for (std::vector<std::vector<ug::vector3> >::const_iterator it = projected.begin(); it != projected.end(); ++it) {
 			ug::vector3 centerOut;
 			std::vector<number> angles;
@@ -1273,6 +1283,19 @@ namespace neuro_collection {
 			///calculate_angles(centerOut, *it, angles);
 			calculate_angles(centerOut, *it, angles, normals);
 			allAngles.push_back(angles);
+
+			sel.clear();
+			std::vector<number> angles2;
+			SelectSubsetElements<Vertex>(sel, sh, somaIndex+j, true);
+			vit = sel.vertices_begin();
+			vit_end = sel.vertices_end();
+			std::vector<ug::vector3> verts;
+			for (; vit != vit_end; ++vit) {
+				verts.push_back(aaPos[*vit]);
+			}
+			calculate_angles(centerOut, verts, angles2, normals);
+			allAnglesInner.push_back(angles2);
+			j++;
 		}
 
 		for (std::vector<std::vector<number> >::const_iterator it = allAngles.begin(); it != allAngles.end(); ++it) {
@@ -1282,6 +1305,100 @@ namespace neuro_collection {
 			}
 			UG_LOGN("---");
 		}
+
+		for (std::vector<std::vector<number> >::const_iterator it = allAnglesInner.begin(); it != allAnglesInner.end(); ++it) {
+			UG_LOGN("Quad angles inner...");
+			for (std::vector<number>::const_iterator it2 = it->begin(); it2 != it->end(); ++it2) {
+				UG_LOGN(*it2);
+			}
+			UG_LOGN("---");
+		}
+
+		std::vector<std::vector<std::pair<size_t, size_t > > > pairs;
+		for (size_t k = 0; k < numQuads; k++) {
+			std::vector<std::pair<size_t, size_t> > pair;
+			for (size_t i = 0; i < allAngles[k].size(); i++) {
+				number dist = 1000;
+				size_t smallest = 0;
+				for (size_t j = 0 ; j < allAnglesInner[k].size(); j++) {
+					number altDist = allAnglesInner[k][j] - allAngles[k][i];
+					altDist += (altDist>180) ? -360 : (altDist<-180) ? 360 : 0;
+					altDist = std::abs(altDist);
+					if (altDist < dist) {
+						dist = altDist;
+						smallest = j;
+					}
+				}
+				pair.push_back(make_pair<size_t, size_t>(i, smallest));
+			}
+			pairs.push_back(pair);
+		}
+
+		for (std::vector<std::vector<std::pair<size_t, size_t > > >::const_iterator it = pairs.begin(); it != pairs.end(); ++it) {
+			UG_LOGN("***");
+			for (std::vector<std::pair<size_t, size_t> >::const_iterator it2 = it->begin(); it2 != it->end(); ++it2) {
+				UG_LOGN("Pair " << it2->first << " -> " << it2->second);
+			}
+			UG_LOGN("***");
+		}
+
+		/// TODO: angle is not calculate correctly: why? because two calls to calculate_angles, but REFERENCE point, has to be precisely the same to make sense....
+
+
+		/// find closest vertex
+		j = 1;
+		std::vector<std::vector<std::pair<ug::vector3, ug::vector3> > > myPairs;
+		for (size_t i = 0; i < projected.size(); i++) { /// each outer quad projected vertices (now on inner soma)
+			sel.clear();
+			SelectSubsetElements<Vertex>(sel, sh, somaIndex+j, true);
+			vit = sel.vertices_begin();
+			vit_end = sel.vertices_end();
+			std::vector<ug::vector3> vertsInner; /// each inner quad vertices
+			for (; vit != vit_end; ++vit) {
+				vertsInner.push_back(aaPos[*vit]);
+			}
+
+			std::vector<std::pair<ug::vector3, ug::vector3> > pair;
+			for (size_t k = 0; k < projected[i].size(); k++) {
+				number dist = std::numeric_limits<number>::infinity();
+				ug::vector3 p1;
+				ug::vector3 p2;
+				for (size_t l = 0; l < vertsInner.size(); l++) {
+					number altDist = VecDistance(projected[i][k], vertsInner[l]);
+					if (altDist < dist) {
+						dist = altDist;
+						p1 = projected[i][k];
+						p2 = vertsInner[l];
+					}
+				}
+				pair.push_back(make_pair(p1, p2));
+			}
+			myPairs.push_back(pair);
+
+			j++;
+		}
+
+		UG_LOGN("vector pairs...");
+		for (std::vector<std::vector<std::pair<ug::vector3, ug::vector3 > > >::const_iterator it = myPairs.begin(); it != myPairs.end(); ++it) {
+			UG_LOGN("***");
+			for (std::vector<std::pair<ug::vector3, ug::vector3> >::const_iterator it2 = it->begin(); it2 != it->end(); ++it2) {
+				UG_LOGN("Pair " << it2->first << " -> " << it2->second);
+			}
+			UG_LOGN("***");
+		}
+
+
+		/// Nachdem vertices paare gefunden sind, müssen diese gemerkt werden welcher original vertex projiziert wurde.
+		/// TODO: dann findet man die edges des inneren somas jeweils und für die edges die korrepsoniderten projizierten vertices => create face!
+		/// Note: Winkelstrategie müsste anders behandelt werden wie oben beschrieben
+
+		/// Kleinsten winkel finden: nicht nach 360 grad konvertieren und dann (angle1-angle2)%360 -> das ist der kleinste winkel offset dann
+
+
+		/// Man kann zusätzlich auch die inneren Vertices auf die Ebene projizieren... und die projizierten äußeren Soma ER Quad verts auf das Zentrum vershieben
+
+
+
 
 		SaveGridToFile(g, "after_projections_inner.ugx");
 			/*
