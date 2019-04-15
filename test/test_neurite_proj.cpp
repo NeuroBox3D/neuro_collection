@@ -1,5 +1,5 @@
 /*
- *
+ * Test run: ../bin/ugshell -call "test_import_swc_general(\"smith.swc\", false, 0.5, true)"
  * test_neurite_proj.cpp
  *
  *  Created on: 27.12.2016
@@ -1082,8 +1082,7 @@ namespace neuro_collection {
 	AssignSelectionToSubset(sel, sh, si);
 }
 
-
-	static void connect_inner_neurites_to_inner_soma
+	static void connect_inner_soma_with_ER_by_projection
 	(
 			size_t somaIndex, /// inner soma index: beginning of quads is somaIndex+1
 			size_t numQuads, /// number of quads
@@ -1091,38 +1090,207 @@ namespace neuro_collection {
 		    Grid::VertexAttachmentAccessor<APosition>& aaPos,
 		    SubsetHandler& sh
 	) {
-		size_t numNeighborHood = 6; /// if the neighborhood is 5 vertices + current vertex we are at the boundary away from soma
-		size_t numVerts = 4;
-		UG_LOGN("Soma index...: " << somaIndex)
-		size_t si = somaIndex+1;
-		for (size_t i = 0; i < numQuads; i++) {
-			std::vector<ug::vector3> temp;
-			std::vector<ug::vector3> foo;
-			std::vector<ug::vector3> foo2;
-			std::vector<Vertex*> temp2;
 
-			/// Get vertices attached to inner soma
-			Selector sel(g);
-			SelectSubsetElements<Vertex>(sel, sh, si+i, true);
-			Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
-			Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
-			UG_LOGN("selected vertices attached to inner soma: " << sel.num());
-			for (; vit != vit_end; ++vit) {
-				Selector sel2(g);
-				sel2.select(*vit);
-				ExtendSelection(sel2, 1, true);
-				if (sel2.num() == numNeighborHood) {
-					temp.push_back(aaPos[*vit]);
-					foo.push_back(aaPos[*vit]);
+	}
+
+
+	static float calculate_angle(const vector3& pos, const vector3& origin, const vector3& point, const vector3& n) {
+		vector3 v1, v2;
+		VecSubtract(v1, point, pos);
+		VecSubtract(v2, origin, pos);
+		number dot = VecDot(v1, v2);
+		vector3 cross, normal;
+		VecCross(cross, v1, v2);
+		VecNormalize(normal, n);
+		number det = VecDot(normal, cross);
+		return rad_to_deg(std::atan2(det, dot));
+	}
+
+
+	/**
+	 * @brief calculates angle offset
+	 */
+	static float calculate_angle(const vector3& pos, const vector3& origin, const vector3& point) {
+		vector3 v1, v2;
+		VecSubtract(v1, point, pos);
+		VecSubtract(v2, origin, pos);
+		number dot = VecDot(v1, v2);
+		number v1_len = VecLengthSq(v1);
+		number v2_len = VecLengthSq(v2);
+
+		number x = (dot / (std::sqrt(v1_len*v2_len)));
+		UG_LOGN("acos(" << x << ")");
+
+		return rad_to_deg(acos(x));
+	}
+
+	/**
+	 * @brief calculates the angles according to a center/origin vertex
+	 */
+	static void calculate_angles(const vector3& originCenter, const std::vector<ug::vector3>& points, std::vector<number>& angles, size_t refIndex=-1) {
+		/// reference point
+		ug::vector3	ref = points[(refIndex > points.size() ? 0 : refIndex)];
+
+		/// calculate each angle
+		for (std::vector<ug::vector3>::const_iterator it = points.begin(); it != points.end(); ++it) {
+			angles.push_back(calculate_angle(originCenter, ref, *it));
+		}
+	}
+
+	/**
+	 * @brief calculates the angles according to a center/origin vertex
+	 */
+	static void calculate_angles(const vector3& originCenter, const std::vector<ug::vector3>& points, std::vector<number>& angles, std::vector<ug::vector3>& normals, size_t refIndex=-1) {
+		/// reference point
+		ug::vector3	ref = points[(refIndex > points.size() ? 0 : refIndex)];
+
+		size_t i = 0;
+		/// calculate each angle
+		for (std::vector<ug::vector3>::const_iterator it = points.begin(); it != points.end(); ++it) {
+			angles.push_back(calculate_angle(originCenter, ref, *it, normals[i]));
+			i++;
+		}
+	}
+
+
+
+	static void connect_inner_neurites_to_inner_soma
+	(
+			size_t somaIndex, /// inner soma index: beginning of inner quads is somaIndex+1, outer quads (ER) is somaIndex-numQuads-1
+			size_t numQuads, /// number of quads
+		    Grid& g,
+		    Grid::VertexAttachmentAccessor<APosition>& aaPos,
+		    SubsetHandler& sh
+	) {
+		///UG_COND_THROW(somaIndex != 10, "Soma index needs to be 10!");
+		Selector::traits<Vertex>::iterator vit;
+		Selector::traits<Vertex>::iterator vit_end;
+		Selector::traits<Edge>::iterator eit;
+		Selector::traits<Edge>::iterator eit_end;
+		Selector sel(g);
+
+		std::vector<std::vector<ug::vector3> > projected;
+		std::vector<ug::vector3> normals;
+		projected.resize(numQuads);
+		SaveGridToFile(g, "before_projections_inner.ugx");
+		for (size_t i = 1; i < numQuads+1; i++) {
+			UG_LOGN("Selecting now subset: " << somaIndex+i);
+			sel.clear();
+			/// Select inner soma quad
+			SelectSubsetElements<Vertex>(sel, sh, somaIndex+i, true);
+			ug::Vertex* v0 = *(sel.vertices_begin());
+			UG_LOGN("First vertex of subset: " << aaPos[v0]);
+			SelectSubsetElements<Edge>(sel, sh, somaIndex+i, true);
+			eit = sel.edges_begin();
+			eit_end = sel.edges_end();
+			std::vector<std::pair<ug::Vertex*, ug::Vertex*> > es;
+			size_t count = 0;
+
+			UG_LOGN("Trying to find edges...");
+			for (; eit != eit_end; ++eit) {
+				Edge* e = *eit;
+				UG_LOGN("trying e->vertex(0)");
+				std::pair<ug::Vertex*, ug::Vertex*> p;
+				if (e->vertex(0) == v0) {
+					p.first = v0;
+					p.second = e->vertex(1);
+					count++;
+					es.push_back(p);
+				}
+
+				UG_LOGN("trying e->vertex(1)");
+				if (e->vertex(1) == v0) {
+					p.first = e->vertex(0);
+					p.second = v0;
+					es.push_back(p);
+					count++;
 				}
 			}
+			UG_LOGN("Found edges");
 
+			UG_COND_THROW(count != 2, "Number of edges has to be two!");
+
+			ug::vector3 v1, v2;
+			VecSubtract(v1, aaPos[es[0].first], aaPos[es[0].second]);
+			UG_LOGN("Subtracted v1");
+			VecSubtract(v2, aaPos[es[1].first], aaPos[es[1].second]);
+			UG_LOGN("Subtracted v2");
+			ug::vector3 normal;
+			VecCross(normal, v1, v2);
+			VecNormalize(normal, normal);
 			sel.clear();
-			UG_LOGN("temp.size(): " << temp.size());
-			UG_LOGN("foo.size(): " << foo.size());
 
+			UG_LOGN("calculated cross product");
+
+			ug::vector3 vProjected;
+			SelectSubsetElements<Vertex>(sel, sh, somaIndex-numQuads+i-1, true);
+			vit = sel.vertices_begin();
+			vit_end = sel.vertices_end();
+			for (; vit != vit_end; ++vit) {
+				ug::vector3 v;
+				VecSubtract(v, aaPos[*vit], v1);
+				number dot = VecDot(v, normal);
+				vProjected = aaPos[*vit];
+				VecScaleAdd(vProjected, 1.0, vProjected, dot, normal);
+				ug::Vertex* projVert = *g.create<ug::RegularVertex>();
+				const ug::vector3& n = -normal;
+				ProjectPointToPlane(vProjected, aaPos[*vit], aaPos[es[0].first], n);
+				aaPos[projVert] = vProjected;
+				projected[i-1].push_back(vProjected);
+			}
+
+			normals.push_back(normal);
+			UG_LOGN("First projection!");
+		}
+
+		/// TODO: now can also project other vertices to plane (the points on teh inner soma). then all ppoints in the plane. remember which points correspond to unprojected points by a list of pairs
+		/// TODO: then can find the minimal angle offset between them and merge them...
+		/// TODO: or/and can move the inner soma vertices to the projected vertices... and then connect/merge
+		/// TODO: comment code !!!!!!!!! split up and clean
+		/// TODO: Could also calculate an averaged plane, e.g. calculate two plane normals average them, also average two points in plane to construct the averaged plane's normal
+		/// TODO: could get normal not from the two points in plane on innser soma but define the normal to be the axis (center of outer to inner soma for the ER quads!)
+		/// TODO: then move points on inner soma to the projected points!
+
+		/// Note: Strategie für innere Verbindungen
+		/// 1. Berechne normale (Axis) durch den Mittelpunkt der beiden Oberflächenquads (inner soma und äußeres soma) für den ER Teil
+		/// 2. Projiziere äußere soma quad vertices des ER auf inneres Soma quad ebene definiert durch normal und mittelpunkt
+		/// 3. Projiziere innere soma quad vertices des ER auf inneres soma quad ebene definiert durch normal und mittelpunkt
+		/// 4. Zentriere projizierte äußere soma quad vertices des er um den mittelpunkt des quads auf innerem soma
+		/// 5. Berechne winkel und finde paare mit minimalem winkel offset (oder closest distance geht evt. auch)
+		/// 6. Move die alten inneren soma quad vertices auf die position der projizierten vertices von äußerem soma quad
+		/// 7. merke die paare von projizierten vertices, starte mit jewiels 2 paaren (2 projizierte vertices auf innerem soma , 2 bewegte vertices auf dem inneren soma)
+		/// 8. builde faces für 4 vertices immer -> hexaeder. ==> Verbindungshexaeder muss dann gespeichert werden für refinement! ebenso soma radien für beide branching point anschlüsse!!!
+
+		/// Note: Strategie für äußere Verbindungen
+		/// Projiziere ebenso auf ebene, jetzt aber auf den äußeren quad vertices des ERs (äußeres Soma)
+		/// Projiziere Neuritenstartknoten ebenso darauf. Finde kleinsten Winkel, dann merge diese Vertices!
+
+		std::vector<std::vector<number> > allAngles;
+		for (std::vector<std::vector<ug::vector3> >::const_iterator it = projected.begin(); it != projected.end(); ++it) {
+			ug::vector3 centerOut;
+			std::vector<number> angles;
+			CalculateCenter(centerOut, &(*it)[0], it->size());
+			///calculate_angles(centerOut, *it, angles);
+			calculate_angles(centerOut, *it, angles, normals);
+			allAngles.push_back(angles);
+		}
+
+		for (std::vector<std::vector<number> >::const_iterator it = allAngles.begin(); it != allAngles.end(); ++it) {
+			UG_LOGN("Quad angles projected from outer to inner...");
+			for (std::vector<number>::const_iterator it2 = it->begin(); it2 != it->end(); ++it2) {
+				UG_LOGN(*it2);
+			}
+			UG_LOGN("---");
+		}
+
+		SaveGridToFile(g, "after_projections_inner.ugx");
+			/*
+			/// Get vertices attached to inner soma
+			SelectSubsetElements<Vertex>(sel, sh, somaIndex+i, true);
+			Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
+			Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
 			/// select inner vertices connected to outer soma (start vertices of ER)
-			SelectSubsetElements<Vertex>(sel, sh, somaIndex-numQuads+i, true);
+
 			vit = sel.vertices_begin();
 			vit_end = sel.vertices_end();
 			UG_LOGN("selected inner vertices attached to outer soma: " << sel.num());
@@ -1149,6 +1317,7 @@ namespace neuro_collection {
 				gen_face(temp, temp2, g, sh, si+i, aaPos);
 			#endif
 		}
+		*/
 	}
 
 	static std::vector<ug::vector3> find_quad_verts_on_soma
@@ -2725,20 +2894,8 @@ namespace neuro_collection {
 	}
 
 
-	/**
-	 * @brief calculates angle offset
-	 */
-	static float calculate_angle(const vector3& pos, const vector3& origin, const vector3 point) {
-		vector3 v1, v2;
-		VecSubtract(v1, point, pos);
-		VecSubtract(v2, origin, pos);
 
-		number dot = VecDot(v1, v2);
-		number v1_len = VecLength(v1);
-		number v2_len = VecLength(v2);
 
-		return acos(dot / (v1_len*v2_len));
-	}
 
 	 /**
 	 * @brief creates neurites with one inner layer
@@ -4306,8 +4463,8 @@ namespace neuro_collection {
     /// Double Vertices might occur (during Qhull gen faces) -> remove these here to be sure
     RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aaPos, 0.0001);
 
-    /// connect now inner soma to neurites
-    connect_inner_neurites_to_inner_soma(newSomaIndex, vRootNeuriteIndsOut.size(), g, aaPos, sh);
+    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_not_forced_without_doubles.ugx");
+
     EraseEmptySubsets(sh);
     AssignSubsetColors(sh);
     for (size_t i = newSomaIndex+vRootNeuriteIndsOut.size(); i < sh.num_subsets(); i++) {
@@ -4315,7 +4472,11 @@ namespace neuro_collection {
      	ss << "inter-soma-connex #" << i;
      	sh.set_subset_name(ss.str().c_str(), i);
     }
+
+    /// connect now inner soma to neurites (This is the old strategy: Neew strategy is to project)
+    connect_inner_neurites_to_inner_soma(newSomaIndex, vRootNeuriteIndsOut.size(), g, aaPos, sh);
     SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
+    return;
 
     // Note: At branching points, we have not computed the correct positions yet.
     // By adding new edges (point, point) which collapse into a vertex we force a
@@ -4993,7 +5154,6 @@ namespace neuro_collection {
         try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
         UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
 
-        //GridWriterUGX ugxWriter;
         //ugxWriter.add_grid(g, "defGrid", aPosition);
         //ugxWriter.add_subset_handler(sh, "defSH", 0);
         //ugxWriter.add_projection_handler(projHandler, "defPH", 0);
