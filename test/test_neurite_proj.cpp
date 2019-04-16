@@ -1160,6 +1160,21 @@ namespace neuro_collection {
 		}
 	}
 
+    static void connect_outer_and_inner_root_neurites_to_outer_soma
+    (
+		size_t somaIndex,
+		size_t numQuads,
+	    Grid& g,
+	    Grid::VertexAttachmentAccessor<APosition>& aaPos,
+	    SubsetHandler& sh,
+	    std::vector<std::vector<ug::Vertex*> >& rootNeurites
+	    std::vector<std::vector<ug::Vertex*> >& rootNeuritesInner
+    )
+    {
+    	/// TODO: implement
+    	/// Project root neurite vertices to outer soma surface
+    	/// Find minimal angle vertices... and merge them at outer soma surface (don't need to introduce factor 1.05 for outer soma, can let at 1.00)
+    }
 
 
 	static void connect_inner_neurites_to_inner_soma
@@ -4476,7 +4491,7 @@ namespace neuro_collection {
     std::vector<ug::vector3> vPointSomaSurface;
     std::vector<SWCPoint> somaPoint = vSomaPoints;
     /// In new implementation radius can be scaled with 1.0, not 1.05, since vertices are merged
-    somaPoint[0].radius *= 1.00;
+    somaPoint[0].radius *= 1.05;
     create_soma(somaPoint, g, aaPos, sh, 1);
     UG_LOGN("created soma!")
     ///get_closest_points_on_soma(vPosSomaClosest, vPointSomaSurface, g, aaPos, sh, 1);
@@ -4624,6 +4639,9 @@ namespace neuro_collection {
 
     /// connect now inner soma to neurites (This is the old strategy: Neew strategy is to project)
     connect_inner_neurites_to_inner_soma(newSomaIndex, vRootNeuriteIndsOut.size(), g, aaPos, sh);
+
+    /// connect now outer soma to root neurites
+    connect_outer_and_inner_root_neurites_to_outer_soma(2, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, outVertsInner);
     SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
     return;
 
