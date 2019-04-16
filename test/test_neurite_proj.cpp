@@ -1146,7 +1146,19 @@ namespace neuro_collection {
 	}
 
 	/**
-	 * @brief calculates the angles according to a center/origin vertex
+	 * @brief calculates teh angles according to a center/origin vertex specified
+	 */
+	static void calculate_angles(const vector3& originCenter, const std::vector<ug::vector3>& points,  std::vector<number>& angles, std::vector<ug::vector3>& normals, const ug::vector3& ref) {
+		size_t i = 0;
+		/// calculate each angle
+		for (std::vector<ug::vector3>::const_iterator it = points.begin(); it != points.end(); ++it) {
+			angles.push_back(calculate_angle(originCenter, ref, *it, normals[i]));
+			i++;
+		}
+	}
+
+	/**
+	 * @brief calculates the angles according to a center/origin vertex specified implicilty
 	 */
 	static void calculate_angles(const vector3& originCenter, const std::vector<ug::vector3>& points, std::vector<number>& angles, std::vector<ug::vector3>& normals, size_t refIndex=-1) {
 		/// reference point
@@ -1160,6 +1172,21 @@ namespace neuro_collection {
 		}
 	}
 
+	/**
+	 * sorts a vector values and stores the original indices
+	 */
+	static void sortIndices(const std::vector<number>& values, std::vector<size_t>& indices) {
+		std::vector<std::pair<size_t, size_t> > a;
+		for (size_t i = 0 ; i < values.size() ; i++) {
+		    a.push_back(make_pair(values[i], i));
+		}
+
+		std::sort(a.begin(), a.end());
+		for (size_t i = 0; i < a.size(); i++) {
+			indices.push_back(a[i].second);
+		}
+	}
+
     static void connect_outer_and_inner_root_neurites_to_outer_soma
     (
 		size_t somaIndex,
@@ -1167,13 +1194,206 @@ namespace neuro_collection {
 	    Grid& g,
 	    Grid::VertexAttachmentAccessor<APosition>& aaPos,
 	    SubsetHandler& sh,
-	    std::vector<std::vector<ug::Vertex*> >& rootNeurites
-	    std::vector<std::vector<ug::Vertex*> >& rootNeuritesInner
+	    std::vector<ug::Vertex*>& rootNeurites, /// TODO: is just one single array => need to iterate by stride 4
+	    std::vector<ug::Vertex*>& rootNeuritesInner
     )
     {
+		Selector::traits<Edge>::iterator eit;
+		Selector::traits<Edge>::iterator eit_end;
+		Selector sel(g);
     	/// TODO: implement
     	/// Project root neurite vertices to outer soma surface
     	/// Find minimal angle vertices... and merge them at outer soma surface (don't need to introduce factor 1.05 for outer soma, can let at 1.00)
+
+		std::vector<std::vector<ug::Vertex*> > projectedVertices;
+		std::vector<std::vector<ug::vector3> > projected;
+		std::vector<ug::vector3> normals;
+		projected.resize(numQuads);
+		projectedVertices.resize(numQuads);
+    	for (size_t i = 1; i < numQuads+1; i++) {
+    		UG_LOGN("Selecting now subset: " << somaIndex+i);
+    		sel.clear();
+    		/// Select outer soma inner quad
+    		SelectSubsetElements<Vertex>(sel, sh, somaIndex+i, true);
+ 			ug::Vertex* v0 = *(sel.vertices_begin());
+ 			UG_LOGN("First vertex of subset: " << aaPos[v0]);
+    		SelectSubsetElements<Edge>(sel, sh, somaIndex+i, true);
+    		eit = sel.edges_begin();
+    		eit_end = sel.edges_end();
+    		std::vector<std::pair<ug::Vertex*, ug::Vertex*> > es;
+    		size_t count = 0;
+
+			UG_LOGN("Trying to find edges...");
+			for (; eit != eit_end; ++eit) {
+				Edge* e = *eit;
+				UG_LOGN("trying e->vertex(0)");
+				std::pair<ug::Vertex*, ug::Vertex*> p;
+				if (e->vertex(0) == v0) {
+					p.first = v0;
+					p.second = e->vertex(1);
+					count++;
+					es.push_back(p);
+				}
+
+				UG_LOGN("trying e->vertex(1)");
+				if (e->vertex(1) == v0) {
+					p.first = e->vertex(0);
+					p.second = v0;
+					es.push_back(p);
+					count++;
+				}
+			}
+			UG_LOGN("Found edges");
+
+			UG_COND_THROW(count != 2, "Number of edges has to be two!");
+
+			ug::vector3 v1, v2;
+			VecSubtract(v1, aaPos[es[0].first], aaPos[es[0].second]);
+			UG_LOGN("Subtracted v1");
+			VecSubtract(v2, aaPos[es[1].first], aaPos[es[1].second]);
+			UG_LOGN("Subtracted v2");
+			ug::vector3 normal;
+			VecCross(normal, v1, v2);
+			VecNormalize(normal, normal);
+			sel.clear();
+
+			UG_LOGN("calculated cross product");
+
+			size_t numVerts = 4;
+			ug::vector3 vProjected;
+			for (size_t l = 0; l < numVerts; l++) {
+				ug::Vertex* vit = rootNeurites[(i-1)*numVerts+l];
+				ug::vector3 v;
+				VecSubtract(v, aaPos[vit], v1);
+				number dot = VecDot(v, normal);
+				vProjected = aaPos[vit];
+				VecScaleAdd(vProjected, 1.0, vProjected, dot, normal);
+				ug::Vertex* projVert = *g.create<ug::RegularVertex>();
+				const ug::vector3& n = -normal;
+				ProjectPointToPlane(vProjected, aaPos[vit], aaPos[es[0].first], n);
+				aaPos[projVert] = vProjected;
+				projected[i-1].push_back(vProjected);
+				projectedVertices[i-1].push_back(vit); /// save original vertex from which we proojected
+			}
+
+			normals.push_back(normal);
+			UG_LOGN("First projection!");
+
+    	}
+
+    	/// TODO: find the corresponding vertices
+
+		std::vector<std::vector<number> > allAngles;
+		std::vector<std::vector<number> > allAnglesInner;
+
+		Selector::traits<Vertex>::iterator vit;
+		Selector::traits<Vertex>::iterator vit_end;
+		size_t j = 1;
+		for (std::vector<std::vector<ug::vector3> >::const_iterator it = projected.begin(); it != projected.end(); ++it) {
+			ug::vector3 centerOut;
+			std::vector<number> angles;
+			CalculateCenter(centerOut, &(*it)[0], it->size());
+			///calculate_angles(centerOut, *it, angles);
+			calculate_angles(centerOut, *it, angles, normals, (*it)[0]);
+			allAngles.push_back(angles);
+
+			sel.clear();
+			std::vector<number> angles2;
+			SelectSubsetElements<Vertex>(sel, sh, somaIndex+j, true);
+			vit = sel.vertices_begin();
+			vit_end = sel.vertices_end();
+			std::vector<ug::vector3> verts;
+			for (; vit != vit_end; ++vit) {
+				verts.push_back(aaPos[*vit]);
+			}
+			calculate_angles(centerOut, verts, angles2, normals, (*it)[0]);
+			allAnglesInner.push_back(angles2);
+			j++;
+		}
+
+		UG_LOGN("Found angles");
+
+		/// TODO: angles dont calculate from same reference point... use different calculate_angle method above: used but in range -180 to 180
+
+		/// TODO: convert from -180,180 to 0,360 -> then sort array again based on this: angle360 = (a>180) ? -360 : (a<-180) ? 360 : 0
+
+
+		/// TODO: sort both angle pairs angles and anglesInner -> then can use indices and connect the appropriate ug::Vertex* p1 and p2...
+		std::vector<std::vector<size_t> >indices;
+		std::vector<std::vector<size_t> >indices2;
+		indices.resize(allAngles.size());
+		indices2.resize(allAnglesInner.size());
+		for (size_t i = 0; i < allAngles.size(); i++) {
+			std::vector<number> angleCopy = allAngles[i];
+			std::vector<number> angleCopy2 = allAnglesInner[i];
+			sortIndices(angleCopy, indices[i]);
+			sortIndices(angleCopy2, indices2[i]);
+		}
+
+		UG_LOGN("sorted angles");
+
+		for (size_t i = 0; i < numQuads; i++) {
+			sel.clear();
+			SelectSubsetElements<Vertex>(sel, sh, somaIndex+1+i, true);
+			vit = sel.vertices_begin();
+			vit_end = sel.vertices_end();
+			std::vector<ug::Vertex*> vertsInnerVtx;
+
+			for (; vit != vit_end; ++vit) {
+				vertsInnerVtx.push_back(*vit);
+			}
+
+			for (size_t j = 0; j < 4; j++) {
+				ug::Vertex* p1 = rootNeurites[(i*4)+indices2[i][j]];
+				ug::Vertex* p2 = vertsInnerVtx[indices[i][j]];
+				ug::Edge* e = *g.create<RegularEdge>(EdgeDescriptor(p1, p2));
+			}
+		}
+		UG_LOGN("created edges !!!")
+
+		/*
+		std::vector<std::vector<std::pair<size_t, size_t > > > pairs;
+				for (size_t k = 0; k < numQuads; k++) {
+					std::vector<std::pair<size_t, size_t> > pair;
+					for (size_t i = 0; i < allAngles[k].size(); i++) {
+						number dist = std::numeric_limits<number>::infinity();
+						size_t smallest = 0;
+						for (size_t j = 0 ; j < allAnglesInner[k].size(); j++) {
+							number altDist = allAnglesInner[k][j] - allAngles[k][i];
+							altDist += (altDist>180) ? -360 : (altDist<-180) ? 360 : 0;
+							altDist = std::abs(altDist);
+							if (altDist < dist) {
+								dist = altDist;
+								smallest = j;
+							}
+						}
+						pair.push_back(make_pair<size_t, size_t>(indices[k][i], indices2[k][smallest])); /// TODO: use indices from above to map
+					}
+					pairs.push_back(pair);
+				}
+
+			UG_LOGN("found pairs");
+			for (size_t i = 0; i < pairs.size(); i++) {
+				sel.clear();
+				SelectSubsetElements<Vertex>(sel, sh, somaIndex+1+i, true);
+				vit = sel.vertices_begin();
+				vit_end = sel.vertices_end();
+				std::vector<ug::Vertex*> vertsInnerVtx;
+
+				for (; vit != vit_end; ++vit) {
+					vertsInnerVtx.push_back(*vit);
+				}
+
+				const std::vector<std::pair<size_t, size_t > >& temp = pairs[i]; // first quad
+				for (size_t j = 0; j < temp.size(); j++) {
+					const std::pair<size_t, size_t >& pair = temp[j]; // get a pair
+					ug::Vertex* p1 = rootNeurites[(i*4)+pair.first];
+					ug::Vertex* p2 = vertsInnerVtx[pair.second];
+					ug::Edge* e = *g.create<RegularEdge>(EdgeDescriptor(p1, p2));
+				}
+			}
+			*/
+
     }
 
 
@@ -4641,7 +4861,7 @@ namespace neuro_collection {
     connect_inner_neurites_to_inner_soma(newSomaIndex, vRootNeuriteIndsOut.size(), g, aaPos, sh);
 
     /// connect now outer soma to root neurites
-    connect_outer_and_inner_root_neurites_to_outer_soma(2, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, outVertsInner);
+    connect_outer_and_inner_root_neurites_to_outer_soma(1, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, outVertsInner);
     SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
     return;
 
