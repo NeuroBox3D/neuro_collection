@@ -1178,8 +1178,10 @@ namespace neuro_collection {
 		Selector sel(g);
 
 		std::vector<std::vector<ug::vector3> > projected;
+		std::vector<std::vector<ug::Vertex*> > projectedVertices;
 		std::vector<ug::vector3> normals;
 		projected.resize(numQuads);
+		projectedVertices.resize(numQuads);
 		SaveGridToFile(g, "before_projections_inner.ugx");
 		for (size_t i = 1; i < numQuads+1; i++) {
 			UG_LOGN("Selecting now subset: " << somaIndex+i);
@@ -1245,6 +1247,7 @@ namespace neuro_collection {
 				ProjectPointToPlane(vProjected, aaPos[*vit], aaPos[es[0].first], n);
 				aaPos[projVert] = vProjected;
 				projected[i-1].push_back(vProjected);
+				projectedVertices[i-1].push_back(*vit); /// save original vertex from which we proojected
 			}
 
 			normals.push_back(normal);
@@ -1318,7 +1321,7 @@ namespace neuro_collection {
 		for (size_t k = 0; k < numQuads; k++) {
 			std::vector<std::pair<size_t, size_t> > pair;
 			for (size_t i = 0; i < allAngles[k].size(); i++) {
-				number dist = 1000;
+				number dist = std::numeric_limits<number>::infinity();
 				size_t smallest = 0;
 				for (size_t j = 0 ; j < allAnglesInner[k].size(); j++) {
 					number altDist = allAnglesInner[k][j] - allAngles[k][i];
@@ -1348,33 +1351,42 @@ namespace neuro_collection {
 		/// find closest vertex
 		j = 1;
 		std::vector<std::vector<std::pair<ug::vector3, ug::vector3> > > myPairs;
+		std::map<Vertex*, Vertex*> myPairs2;
 		for (size_t i = 0; i < projected.size(); i++) { /// each outer quad projected vertices (now on inner soma)
 			sel.clear();
 			SelectSubsetElements<Vertex>(sel, sh, somaIndex+j, true);
 			vit = sel.vertices_begin();
 			vit_end = sel.vertices_end();
 			std::vector<ug::vector3> vertsInner; /// each inner quad vertices
+			std::vector<ug::Vertex*> vertsInnerVtx; /// each inner quad vertices
+
 			for (; vit != vit_end; ++vit) {
 				vertsInner.push_back(aaPos[*vit]);
+				vertsInnerVtx.push_back(*vit);
 			}
 
 			std::vector<std::pair<ug::vector3, ug::vector3> > pair;
+			std::vector<std::pair<ug::Vertex*, ug::Vertex*> > pair2;
 			for (size_t k = 0; k < projected[i].size(); k++) {
 				number dist = std::numeric_limits<number>::infinity();
 				ug::vector3 p1;
 				ug::vector3 p2;
+				size_t p1i;
+				size_t p2i;
 				for (size_t l = 0; l < vertsInner.size(); l++) {
 					number altDist = VecDistance(projected[i][k], vertsInner[l]);
 					if (altDist < dist) {
 						dist = altDist;
 						p1 = projected[i][k];
 						p2 = vertsInner[l];
+						p1i = k;
+						p2i = l;
 					}
 				}
 				pair.push_back(make_pair(p1, p2));
+				myPairs2[vertsInnerVtx[p2i]] = projectedVertices[i][p1i];
 			}
 			myPairs.push_back(pair);
-
 			j++;
 		}
 
@@ -1388,6 +1400,7 @@ namespace neuro_collection {
 		}
 
 
+
 		/// Nachdem vertices paare gefunden sind, müssen diese gemerkt werden welcher original vertex projiziert wurde.
 		/// TODO: dann findet man die edges des inneren somas jeweils und für die edges die korrepsoniderten projizierten vertices => create face!
 		/// Note: Winkelstrategie müsste anders behandelt werden wie oben beschrieben
@@ -1397,8 +1410,27 @@ namespace neuro_collection {
 
 		/// Man kann zusätzlich auch die inneren Vertices auf die Ebene projizieren... und die projizierten äußeren Soma ER Quad verts auf das Zentrum vershieben
 
+		for (size_t i = 1; i < numQuads+1; i++) {
+			sel.clear();
+			UG_LOGN("Selecting now subset: " << somaIndex+i);
+			/// Select inner soma quad
+			SelectSubsetElements<Edge>(sel, sh, somaIndex+i, true);
+			eit = sel.edges_begin();
+			eit_end = sel.edges_end();
+			for (; eit != eit_end; ++eit) {
+				UG_LOGN("Edge!");
+				Edge* e = *eit;
+				ug::Vertex* p1 = e->vertex(0);
+				ug::Vertex* p2 = e->vertex(1);
+				ug::Vertex* p3 = myPairs2[e->vertex(0)];
+				ug::Vertex* p4 = myPairs2[e->vertex(1)];
+	    		ug::Face* f = *g.create<Quadrilateral>(QuadrilateralDescriptor(p1, p3, p4, p2));
+			}
+		}
+		/// TODO: vor dem verbinden, verschiebe inner quad vertices auf die projizierten positionen von äußerem quad wo projiziert wurde...
 
 
+		/// TODO gleiche strategie um neuriten zu verbinden impementiren!
 
 		SaveGridToFile(g, "after_projections_inner.ugx");
 			/*
