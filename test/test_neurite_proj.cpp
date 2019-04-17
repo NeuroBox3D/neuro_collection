@@ -1187,6 +1187,11 @@ namespace neuro_collection {
 		}
 	}
 
+	/**
+	 * @brief this connects the outer soma surface with the root neurites vertices ER (smaller quad) and PM (larger quad)
+	 * First the root neurite vertices are projected to the outer sphere / soma surface. Then the smallest angle pairs
+	 * are calculated and then the associated unprojected vertices are connected with the small and large quad soma sphere vertices
+	 */
     static void connect_outer_and_inner_root_neurites_to_outer_soma
     (
 		size_t somaIndex,
@@ -1194,17 +1199,17 @@ namespace neuro_collection {
 	    Grid& g,
 	    Grid::VertexAttachmentAccessor<APosition>& aaPos,
 	    SubsetHandler& sh,
-	    std::vector<ug::Vertex*>& rootNeurites, /// TODO: is just one single array => need to iterate by stride 4
-	    std::vector<ug::Vertex*>& rootNeuritesInner
+	    std::vector<ug::Vertex*>& rootNeurites, /// Note: is just one single array => need to iterate by stride 4
+	    std::vector<ug::Vertex*>& rootNeuritesInner, /// TODO: Implement the same projection and connection method for innerRootNeurites vertices
     )
     {
 		Selector::traits<Edge>::iterator eit;
 		Selector::traits<Edge>::iterator eit_end;
 		Selector sel(g);
-    	/// TODO: implement
-    	/// Project root neurite vertices to outer soma surface
-    	/// Find minimal angle vertices... and merge them at outer soma surface (don't need to introduce factor 1.05 for outer soma, can let at 1.00)
 
+    	/// TODO Project root neurite vertices to outer soma surface
+    	/// Find minimal angle vertices... and merge them at outer soma surface
+		/// (don't need to introduce factor 1.05 for outer soma, can let at 1.00)
 		std::vector<std::vector<ug::Vertex*> > projectedVertices;
 		std::vector<std::vector<ug::vector3> > projected;
 		std::vector<ug::vector3> normals;
@@ -1281,8 +1286,7 @@ namespace neuro_collection {
 
     	}
 
-    	/// TODO: find the corresponding vertices
-
+    	/// TODO: find the corresponding vertices (See comments below how to do it)
 		std::vector<std::vector<number> > allAngles;
 		std::vector<std::vector<number> > allAnglesInner;
 
@@ -1313,16 +1317,18 @@ namespace neuro_collection {
 
 		UG_LOGN("Found angles");
 
-		/// TODO: angles dont calculate from same reference point... use different calculate_angle method above: used but in range -180 to 180
-
+		/// TODO: Maybe have to center the projected vertices around the soma sphere's large respectively small surface quad center
+		/// TODO: angles haven't been calculate from same reference point... use different calculate_angle method above: used but in range -180 to 180
 		/// TODO: convert from -180,180 to 0,360 -> then sort array again based on this: angle360 = (a>180) ? -360 : (a<-180) ? 360 : 0
 
-
-		/// TODO: sort both angle pairs angles and anglesInner -> then can use indices and connect the appropriate ug::Vertex* p1 and p2...
 		std::vector<std::vector<size_t> >indices;
 		std::vector<std::vector<size_t> >indices2;
 		indices.resize(allAngles.size());
 		indices2.resize(allAnglesInner.size());
+		/// Sort angles to determine the pairs: Pair the smallest angle, then the second smallest angle, and so forth...
+		/// This will be used to connect neurite root vertices with the vertices on the outer soma -> same strategy
+		/// as before: We remember pairs of unprojected and projected vertices and connect unprojected vertices with
+		/// the vertices which correspond to the minimum angle pairs we found below by using the projected vertices
 		for (size_t i = 0; i < allAngles.size(); i++) {
 			std::vector<number> angleCopy = allAngles[i];
 			std::vector<number> angleCopy2 = allAnglesInner[i];
@@ -1397,27 +1403,38 @@ namespace neuro_collection {
     }
 
 
+    /**
+     * @brief This connects the inner neurites (ER) to the inner sphere's (ER) surface quads
+     * Projected vertices to the inner sphere's quad plane will correspond to an unprojected outer sphere's quad vertex.
+     * The projected vertices are used to find the vertices with smallest angle difference between the inner sphere's quad vertices and the projected vertices onto that plane
+     * Then the unprojected vertices and the corresponding vertex on the inner sphere's quad are connected by edges and faces.
+     * For connecting inner neurites to inner soma / ER it is also possible to compare distances...
+     */
 	static void connect_inner_neurites_to_inner_soma
 	(
-			size_t somaIndex, /// inner soma index: beginning of inner quads is somaIndex+1, outer quads (ER) is somaIndex-numQuads-1
-			size_t numQuads, /// number of quads
+			size_t somaIndex, /// inner soma index: beginning of inner sphere's quads (ER) is somaIndex+1, outer sphere's quads (ER) is somaIndex-numQuads-1
+			size_t numQuads, /// number of total surface quads or neurites to connect to
 		    Grid& g,
 		    Grid::VertexAttachmentAccessor<APosition>& aaPos,
 		    SubsetHandler& sh
 	) {
-		///UG_COND_THROW(somaIndex != 10, "Soma index needs to be 10!");
+		/// For the test geometry this has to be 10
+		/// UG_COND_THROW(somaIndex != 10, "Soma index needs to be 10!");
 		Selector::traits<Vertex>::iterator vit;
 		Selector::traits<Vertex>::iterator vit_end;
 		Selector::traits<Edge>::iterator eit;
 		Selector::traits<Edge>::iterator eit_end;
 		Selector sel(g);
 
+		/// the projected vertices coordinates as a vector3 and the corresponding grid vertices
 		std::vector<std::vector<ug::vector3> > projected;
 		std::vector<std::vector<ug::Vertex*> > projectedVertices;
 		std::vector<ug::vector3> normals;
 		projected.resize(numQuads);
 		projectedVertices.resize(numQuads);
 		SaveGridToFile(g, "before_projections_inner.ugx");
+
+		/// find all edges for each inner sphere's surface quad - take two starting at the same vertex to get two edges for normal calculation
 		for (size_t i = 1; i < numQuads+1; i++) {
 			UG_LOGN("Selecting now subset: " << somaIndex+i);
 			sel.clear();
@@ -1451,10 +1468,12 @@ namespace neuro_collection {
 					count++;
 				}
 			}
+
+			/// Two edges found starting in same vertex
 			UG_LOGN("Found edges");
+			UG_COND_THROW(count != 2, "Number of edges has to be two to calculate a normal");
 
-			UG_COND_THROW(count != 2, "Number of edges has to be two!");
-
+			/// Now calculate the normal for this plane / inner sphere's quad
 			ug::vector3 v1, v2;
 			VecSubtract(v1, aaPos[es[0].first], aaPos[es[0].second]);
 			UG_LOGN("Subtracted v1");
@@ -1464,9 +1483,9 @@ namespace neuro_collection {
 			VecCross(normal, v1, v2);
 			VecNormalize(normal, normal);
 			sel.clear();
-
 			UG_LOGN("calculated cross product");
 
+			/// Project each of the outer sphere's quad (ER) to the plane described by the normal of the inner sphere's quad
 			ug::vector3 vProjected;
 			SelectSubsetElements<Vertex>(sel, sh, somaIndex-numQuads+i-1, true);
 			vit = sel.vertices_begin();
@@ -1484,18 +1503,16 @@ namespace neuro_collection {
 				projected[i-1].push_back(vProjected);
 				projectedVertices[i-1].push_back(*vit); /// save original vertex from which we proojected
 			}
-
 			normals.push_back(normal);
 			UG_LOGN("First projection!");
 		}
 
-		/// TODO: now can also project other vertices to plane (the points on teh inner soma). then all ppoints in the plane. remember which points correspond to unprojected points by a list of pairs
-		/// TODO: then can find the minimal angle offset between them and merge them...
-		/// TODO: or/and can move the inner soma vertices to the projected vertices... and then connect/merge
-		/// TODO: comment code !!!!!!!!! split up and clean
-		/// TODO: Could also calculate an averaged plane, e.g. calculate two plane normals average them, also average two points in plane to construct the averaged plane's normal
-		/// TODO: could get normal not from the two points in plane on innser soma but define the normal to be the axis (center of outer to inner soma for the ER quads!)
-		/// TODO: then move points on inner soma to the projected points!
+		/// TODO: comment code
+		/// TODO: cleanup Code
+		/// TODO: split up large file
+
+		/// TODO: Could also calculate an averaged plane, e.g. calculate two plane normals for each quad, average them
+		/// TODO: Should get normal not from the two points of each inner quad but define the normal to be the edge through the center of the inner sphere's quad (ER) and outer sphere's quad (ER) part
 
 		/// Note: Strategie für innere Verbindungen
 		/// 1. Berechne normale (Axis) durch den Mittelpunkt der beiden Oberflächenquads (inner soma und äußeres soma) für den ER Teil
@@ -1511,6 +1528,7 @@ namespace neuro_collection {
 		/// Projiziere ebenso auf ebene, jetzt aber auf den äußeren quad vertices des ERs (äußeres Soma)
 		/// Projiziere Neuritenstartknoten ebenso darauf. Finde kleinsten Winkel, dann merge diese Vertices!
 
+		/// Calculate all angles with respect to a reference point for the projected outer sphere's quad (ER) vertices to the inner sphere's quad and the inner sphere's vertices
 		std::vector<std::vector<number> > allAngles;
 		std::vector<std::vector<number> > allAnglesInner;
 		size_t j = 1;
@@ -1552,6 +1570,7 @@ namespace neuro_collection {
 			UG_LOGN("---");
 		}
 
+		/// Remember pairs: For each projected vertices to the inner sphere's quad plane a corresponding vertices we projected from the outer sphere's quad exist these have to be connected by edges / faces to create a hexaeder
 		std::vector<std::vector<std::pair<size_t, size_t > > > pairs;
 		for (size_t k = 0; k < numQuads; k++) {
 			std::vector<std::pair<size_t, size_t> > pair;
@@ -1579,11 +1598,9 @@ namespace neuro_collection {
 			}
 			UG_LOGN("***");
 		}
+		/// TODO: The angle is not calculate correctly: why? Because two calls to calculate_angles, but the REFERENCE point differs. Has to be precisely the same to make sense.
 
-		/// TODO: angle is not calculate correctly: why? because two calls to calculate_angles, but REFERENCE point, has to be precisely the same to make sense....
-
-
-		/// find closest vertex
+		/// find closest vertex instead of minimum angle difference: this should be save for the inner sphere and outer sphere ER part connection
 		j = 1;
 		std::vector<std::vector<std::pair<ug::vector3, ug::vector3> > > myPairs;
 		std::map<Vertex*, Vertex*> myPairs2;
@@ -1633,18 +1650,16 @@ namespace neuro_collection {
 			}
 			UG_LOGN("***");
 		}
-
-
-
 		/// Nachdem vertices paare gefunden sind, müssen diese gemerkt werden welcher original vertex projiziert wurde.
 		/// TODO: dann findet man die edges des inneren somas jeweils und für die edges die korrepsoniderten projizierten vertices => create face!
 		/// Note: Winkelstrategie müsste anders behandelt werden wie oben beschrieben
 
-		/// Kleinsten winkel finden: nicht nach 360 grad konvertieren und dann (angle1-angle2)%360 -> das ist der kleinste winkel offset dann
+		/// TODO Man kann zusätzlich auch die inneren Vertices auf die Ebene projizieren die zuvor definiert wurde
+		/// (denn nicht alle liegen in der Ebene nur die zwei punkte die genommen wurden um die Normale zu berechnen)...
+		/// und die projizierten äußeren Soma ER Quad verts auf das Zentrum verschieben siehe unten
 
-
-		/// Man kann zusätzlich auch die inneren Vertices auf die Ebene projizieren... und die projizierten äußeren Soma ER Quad verts auf das Zentrum vershieben
-
+		/// Iterate over all neurite connections (numQuads) and get the vertices of the inner sphere's quad edge each and find the corresponding unprojected (outer sphere's quad vertices) and form a face
+		/// It is also possible to do the same procedure with the sorted angle differences above to create these faces
 		for (size_t i = 1; i < numQuads+1; i++) {
 			sel.clear();
 			UG_LOGN("Selecting now subset: " << somaIndex+i);
@@ -1662,13 +1677,19 @@ namespace neuro_collection {
 	    		ug::Face* f = *g.create<Quadrilateral>(QuadrilateralDescriptor(p1, p3, p4, p2));
 			}
 		}
-		/// TODO: vor dem verbinden, verschiebe inner quad vertices auf die projizierten positionen von äußerem quad wo projiziert wurde...
 
-
-		/// TODO gleiche strategie um neuriten zu verbinden impementiren!
+		/// TODO: Vor dem verbinden, verschiebe inner quad vertices auf die
+		/// projizierten positionen auf innerem Soma welche das Resultat sind
+		/// von der Projektion der äußeren Quad Soma vertices: Sollte nicht nötig
+		/// für gutgeartete innere Quads - benötigt falls projiziertes Quad weit
+		/// entfernt von dem inneren Quad ist - insebsondere um minimales Angle
+		/// Differenz oder minimale Entfernung zu berechnen um Vertices zu verbinden
 
 		SaveGridToFile(g, "after_projections_inner.ugx");
-			/*
+
+
+		/// Old strategy with quickhull
+		/*
 			/// Get vertices attached to inner soma
 			SelectSubsetElements<Vertex>(sel, sh, somaIndex+i, true);
 			Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
