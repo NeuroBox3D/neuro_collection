@@ -1146,7 +1146,7 @@ namespace neuro_collection {
 	}
 
 	/**
-	 * @brief calculates teh angles according to a center/origin vertex specified
+	 * @brief calculates the angles according to a center/origin vertex specified
 	 */
 	static void calculate_angles(const vector3& originCenter, const std::vector<ug::vector3>& points,  std::vector<number>& angles, std::vector<ug::vector3>& normals, const ug::vector3& ref) {
 		size_t i = 0;
@@ -1213,7 +1213,7 @@ namespace neuro_collection {
 		std::vector<std::vector<ug::Vertex*> > projectedVertices;
 		std::vector<std::vector<ug::Vertex*> > projectedVertices2;
 		std::vector<std::vector<ug::vector3> > projected;
-		std::vector<ug::vector3> normals;
+		std::vector<std::vector<ug::vector3> > allNormals;
 		projected.resize(numQuads);
 		projectedVertices.resize(numQuads);
 		projectedVertices2.resize(numQuads);
@@ -1268,6 +1268,7 @@ namespace neuro_collection {
 
 			size_t numVerts = 4;
 			ug::vector3 vProjected;
+			std::vector<ug::vector3> normals;
 			for (size_t l = 0; l < numVerts; l++) {
 				ug::Vertex* vit = rootNeurites[(i-1)*numVerts+l];
 				ug::vector3 v;
@@ -1282,9 +1283,10 @@ namespace neuro_collection {
 				projected[i-1].push_back(vProjected);
 				projectedVertices[i-1].push_back(vit); /// save original vertex from which we projected (root neurite)
 				projectedVertices2[i-1].push_back(projVert); /// the actual projected vertex on the soma surface
+				normals.push_back(normal);
 			}
+			allNormals.push_back(normals);
 
-			normals.push_back(normal);
 			UG_LOGN("First projection!");
 
     	}
@@ -1301,7 +1303,7 @@ namespace neuro_collection {
 			std::vector<number> angles;
 			CalculateCenter(centerOut, &(*it)[0], it->size());
 			///calculate_angles(centerOut, *it, angles);
-			calculate_angles(centerOut, *it, angles, normals, (*it)[0]);
+			calculate_angles(centerOut, *it, angles, allNormals[j-1], (*it)[0]);
 			allAngles.push_back(angles);
 
 			sel.clear();
@@ -1313,7 +1315,7 @@ namespace neuro_collection {
 			for (; vit != vit_end; ++vit) {
 				verts.push_back(aaPos[*vit]);
 			}
-			calculate_angles(centerOut, verts, angles2, normals, (*it)[0]);
+			calculate_angles(centerOut, verts, angles2, allNormals[j-1], (*it)[0]);
 			allAnglesInner.push_back(angles2);
 			j++;
 		}
@@ -1417,24 +1419,63 @@ namespace neuro_collection {
 			}
 
 			/// this should connect the projected vertices with unprojected root neurites
+
+			std::vector<std::pair<ug::Vertex*, number> > anglesOfProjectedInnerVertices;
+			std::vector<std::pair<ug::Vertex*, number> > anglesOfOrginalSomaInnerVertices;
+
+			/// calculate angles for inner original soma vertices and projected vertices (projectedVertices is ug::Vertex*)
+			ug::vector3 centerOut;
+			std::vector<number> angles;
+			CalculateCenter(centerOut, &projected[i][0], 4);
+			calculate_angles(centerOut, projected[i], angles, allNormals[i], projected[i][0]);
+			for (size_t n = 0; n < 4; n++) {
+				anglesOfProjectedInnerVertices.push_back(make_pair(projectedVertices[i][n], angles[n]));
+			}
+
+			sel.clear();
+			std::vector<number> angles2;
+			SelectSubsetElements<Vertex>(sel, sh, somaIndex+i+1, true);
+			vit = sel.vertices_begin();
+			vit_end = sel.vertices_end();
+			std::vector<ug::vector3> verts;
+			std::vector<ug::Vertex*> vertsVtx;
+			for (; vit != vit_end; ++vit) {
+				verts.push_back(aaPos[*vit]);
+				vertsVtx.push_back(*vit);
+			}
+			calculate_angles(centerOut, verts, angles2, allNormals[i], projected[i][0]);
+			for (size_t n = 0; n < 4; n++) {
+				anglesOfOrginalSomaInnerVertices.push_back(make_pair(vertsVtx[n], angles2[n]));
+			}
+
+			/// Store: Projected vertex on soma surface to unprojected vertex (root neurite vertices)
+			std::map<ug::Vertex*, ug::Vertex*> projectedToUnprojected;
 			for (size_t l = 0; l < 4; l++) {
-				/// TODO: build the map (*) used below
+				projectedToUnprojected[projectedVertices[i][l]] = rootNeurites[(i)*4+l];
+			}
+
+			/// TODO: sort both vector lists: angleOfProjectedInnerVertices and anglesOfOriginalSomaInnerVertices by value
+
+			for (size_t l = 0; l < anglesOfOrginalSomaInnerVertices.size(); l++) {
+				Vertex* p1 = anglesOfOrginalSomaInnerVertices[l].first; // original soma vertex
+				Vertex* temp = anglesOfProjectedInnerVertices[l].first; // projected vertex on somasurface
+				Vertex* p2 = projectedToUnprojected[temp]; // look up the unprojected vertex (root neurite vertex)
+
+				UG_COND_THROW(!p1, "P1 not found!");
+				UG_COND_THROW(!p2, "P2 not found!");
+
+				innerToOuter[p1] = p2;
+			}
+
+			/*
+			/// NOTE: if we run through the original soma quad vertices -> we don't know which order -> thus the projectedVertices2 zuordnung is always not determined...
+			/// Old strategy: Find closest vertex based on angle
+			for (size_t l = 0; l < 4; l++) {
 				ug::Vertex* vit = rootNeurites[(i)*4+l]; /// from root neurite outer (Unprojected vertex) i's l's vertex to ...
 				innerToOuter[vit] = projectedVertices2[i][l]; /// the corresponding projected vertex on soma surface's quad i with vertex l
 				/// TODO: for each vit do a loop with the projectedVertices corresponding to this -> find the smallest distance
-
-				/// NOTE: if we run through the original soma quad vertices -> we don't know which order -> thus the projectedVertices2 zuordnung is always not determined...
-				/// Idea for angle: get original vertices for quad i on soma surface -> calculate angles for quad i original and projected vertices:
-				/// save these angles in a list: list<pair <vertex* projectedInnervertex, angle>> and list<pair <vertex* originalSomaVertex, angle>>
-				/// --> sort both maps for angle ... -> then this is used to form pairs of smallest angles (starting with angles 0, 0... etc)
-				/// --> look up the original neurite root / unprojected outer vertex up in a map (*) by using map<vertex* projected, vertex* unprojectedOuter>
 			}
-
-			/// this should connect the original vertices with the unprojected root neurites
-			for (size_t l = 0; l < 4; l++) {
-			//	ug::Vertex* vit = rootNeurites[i*4+indices2[i][l]];
-			//	innerToOuter[vit] = projectedVertices[i][indices[i][l]];
-			}
+			*/
 		}
 
 		/*
@@ -1452,20 +1493,17 @@ namespace neuro_collection {
 			UG_LOGN("angles[i] (sorted): " << allAnglesInner[j][indices2[j][i]]);
 			}
 		}
-		*/
 
 		UG_LOGN("sorted angles");
+		*/
 
-
-		int count = 0;
 		for (std::map<ug::Vertex*, ug::Vertex*>::iterator it = innerToOuter.begin(); it != innerToOuter.end(); ++it) {
 			ug::Vertex* p1 = it->first;
 			ug::Vertex* p2 = it->second;
 			ug::Edge* e = *g.create<RegularEdge>(EdgeDescriptor(p1, p2));
-			count++;
 		}
 
-		UG_LOGN("created edges !!! for outer done")
+		UG_LOGN("created edges !!! for outer done !!! might be screwed because angles not sorted.")
 
 		/*
 		for (size_t i = 0; i < 1; i++) {
