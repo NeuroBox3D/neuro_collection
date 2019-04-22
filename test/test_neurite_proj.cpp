@@ -1231,7 +1231,8 @@ namespace neuro_collection {
 	    Grid& g,
 	    Grid::VertexAttachmentAccessor<APosition>& aaPos,
 	    SubsetHandler& sh,
-	    std::vector<ug::Vertex*>& rootNeurites /// Note: is just one single array => need to iterate by stride 4
+	    std::vector<ug::Vertex*>& rootNeurites, /// Note: is just one single array => need to iterate by stride 4
+	    std::vector<ug::Vertex*>& rootNeuritesInner /// Note: is just one single array => need to iterate by stride 4
     )
     {
 		Selector::traits<Edge>::iterator eit;
@@ -1431,6 +1432,7 @@ namespace neuro_collection {
 
 		/// get mapping of outer vertices to inner (Unprojected) vertices
 		std::map<Vertex*, Vertex*> innerToOuter;
+		std::map<Vertex*, Vertex*> innerToOuter2;
 		for (size_t i = 0 ; i < projected.size(); i++) {
 			/// calculate angles for inner original soma vertices and projected vertices (projectedVertices is ug::Vertex*)
 			std::vector<std::pair<ug::Vertex*, number> > anglesOfProjectedInnerVertices;
@@ -1465,8 +1467,12 @@ namespace neuro_collection {
 
 			/// Store: A mapping of the projected vertices on soma surface to unprojected vertices (root neurite vertices)
 			std::map<ug::Vertex*, ug::Vertex*> projectedToUnprojected;
+			std::map<ug::Vertex*, ug::Vertex*> projectedToUnprojectedInner;
 			for (size_t l = 0; l < 4; l++) {
 				projectedToUnprojected[projectedVertices[i][l]] = rootNeurites[(i)*4+l];
+				projectedToUnprojectedInner[projectedVertices[i][l]] = rootNeuritesInner[(i)*4+l];
+
+				UG_COND_THROW(!rootNeuritesInner[(i)*4+l], "Root neurite inner vertex not available");
 			}
 
 			std::sort(anglesOfOrginalSomaInnerVertices.begin(), anglesOfOrginalSomaInnerVertices.end(), sortbysec);
@@ -1481,7 +1487,22 @@ namespace neuro_collection {
 				UG_COND_THROW(!p2, "P2 not found!");
 
 				innerToOuter[p1] = p2;
+
+				/// find soma inner quads to root neurites inner quads for the first neurite i
+				sel.clear();
+				SelectSubsetElements<ug::Vertex>(sel, sh, somaIndex+1+numQuads+i, true);
+				vit = sel.begin<Vertex>();
+				vit_end = sel.end<Vertex>();
+				std::vector<Vertex*> array;
+				for (; vit != vit_end; ++vit) { array.push_back(*vit); }
+				int index = FindClosestVertexInArray(array, aaPos[p1], aaPos, 10); /// closest soma vertex of inner quad to outer soma quad
+
+				UG_COND_THROW(!array[index], "Not found!");
+				UG_COND_THROW(!projectedToUnprojectedInner[p2], "Not found!");
+
+				innerToOuter2[array[index]] = projectedToUnprojectedInner[projectedToUnprojected[temp]]; /// soma inner quad vertex => rootneurite inner vertex
 			}
+
 
 			/*
 			/// NOTE: if we run through the original soma quad vertices -> we don't know which order -> thus the projectedVertices2 zuordnung is always not determined...
@@ -1513,13 +1534,34 @@ namespace neuro_collection {
 		UG_LOGN("sorted angles");
 		*/
 
+
+		/// connect outer quad with outer neurite
 		for (std::map<ug::Vertex*, ug::Vertex*>::iterator it = innerToOuter.begin(); it != innerToOuter.end(); ++it) {
-			ug::Vertex* p1 = it->first;
-			ug::Vertex* p2 = it->second;
-			MergeVertices(g, p1, p2);
-			aaPos[p1] = aaPos[p2];
-			//ug::Edge* e = *g.create<RegularEdge>(EdgeDescriptor(p1, p2));
+			/// outer quads to outer neurite
+			ug::Vertex* p1 = it->first; /// soma vertex
+			ug::Vertex* p2 = it->second; /// neurite vertex
+
+			/// Merge
+			//MergeVertices(g, p1, p2);
+			//aaPos[p2] = aaPos[p1]; /// p1 = p2 => merge at neurite, p2 = p1 => merge at soma surface
+
+			/// TODO: beides mal ist die zuordnung der inneren vertices nicht gesicht wenn man die angles nicht für beide quads inner und außen mit gleicher referenz berechnet, bzgl. EINS mittelpunktes und EINER normalen, dann muss es gecentered werden um diesen mittelpunkt: einfacher oben die zuordnung treffen und diese methode nur 1 mal nutzen hier bzw. diese methode oben erweitern!
+			/// Just edge for debggging
+			ug::Edge* e1 = *g.create<RegularEdge>(EdgeDescriptor(p1, p2));
 		}
+
+		for (std::map<ug::Vertex*, ug::Vertex*>::iterator it = innerToOuter2.begin(); it != innerToOuter2.end(); ++it) {
+			/// inner quads to inner neurite
+			ug::Vertex* p1 = it->first; /// soma vertex
+			ug::Vertex* p2 = it->second; /// neurite vertex
+
+			ug::Edge* e1 = *g.create<RegularEdge>(EdgeDescriptor(p1, p2));
+		}
+
+		UG_LOGN("Inner done!");
+
+
+
 
 		UG_LOGN("created edges !!! for outer done !!! might be screwed because angles not sorted... looks good")
 		UG_LOGN("Next merge these vertices from above!");
@@ -5069,7 +5111,7 @@ namespace neuro_collection {
     connect_inner_neurites_to_inner_soma(newSomaIndex, vRootNeuriteIndsOut.size(), g, aaPos, sh);
 
     /// connect now outer soma to root neurites
-    connect_outer_and_inner_root_neurites_to_outer_soma(1, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts);
+    connect_outer_and_inner_root_neurites_to_outer_soma(1, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, outVertsInner);
     ///connect_outer_and_inner_root_neurites_to_outer_soma(5, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner);
     SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
     return;
