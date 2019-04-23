@@ -6,7 +6,7 @@
  * TODO: add unit tests for the current version
  *
  *  Created on: Apr 22, 2019
- *      Author: stephan
+ *      Author: Stephan Grein
  */
 
 #ifndef UG__PLUGINS__NEURO_COLLECTION__TEST__NEURITE_UTIL_H
@@ -19,6 +19,8 @@
 #include "common/math/ugmath_types.h"
 #include "lib_grid/algorithms/subset_color_util.h"
 #include "lib_grid/algorithms/remeshing/resolve_intersections.h"
+#include "lib_grid/refinement/projectors/neurite_projector.h"
+#include "test_neurite_proj.h"
 
 namespace ug {
 	namespace neuro_collection {
@@ -230,6 +232,99 @@ namespace ug {
 		   SubsetHandler& sh,
 		   number rimSnapThresholdFactor,
 		   size_t numQuads
+		);
+
+		/*!
+		 * \brief connects neurites to soma
+		 * \param[in] g
+		 * \param[in] aaPos
+		 * TODO: Find suitable parameters for tangential smooth and resolve intersection
+		 */
+		void connect_neurites_with_soma
+		(
+		   Grid& g,
+		   Grid::VertexAttachmentAccessor<APosition>& aaPos,
+		   Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+		   std::vector<Vertex*> outVerts,
+		   std::vector<Vertex*> outVertsInner,
+		   std::vector<number> outRads,
+		   std::vector<Vertex*>& smallerQuadVerts,
+		   size_t si,
+		   SubsetHandler& sh,
+		   const std::string& fileName,
+		   number rimSnapThresholdFactor,
+		   std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > >& axisVectors,
+		   std::vector<NeuriteProjector::Neurite>& vNeurites,
+		   std::vector<std::vector<ug::Vertex*> >& connectingVertices,
+		   std::vector<std::vector<ug::Vertex*> >& connectingVerticesInner,
+		   std::vector<std::vector<ug::Edge*> >& connectingEdges,
+	       std::vector<std::vector<ug::Edge*> >& connectingEdgesInner,
+		   bool createInner=true,
+		   number alpha=0.01,
+		   int numIterations=10,
+		   number resolveThreshold=0.00001,
+		   number scale=0.5
+		);
+
+		/*!
+		 * \brief shrinks a quadrilateral and creates a copy of the smaller
+		 * \param[in] vVrt
+		 * \param[out] outvVrt
+		 * \param[in] oldVertices
+		 * \param[out] outvEdge
+		 * \param[in] g
+		 * \param[in] aaPos
+		 * \param[in] percentage
+		 * \param[in] createFacs
+		 * \param[in] outSel
+		 * \param[in] currentDir
+		 */
+		void shrink_quadrilateral_copy
+		(
+			const std::vector<Vertex*>& vVrt,
+			std::vector<Vertex*>& outvVrt,
+			const std::vector<Vertex*>& oldVertices,
+			std::vector<Edge*>& outvEdge,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			number percentage,
+			bool createFaces=true,
+			ISelector* outSel = NULL,
+			ug::vector3* currentDir = NULL
+		);
+
+		/*!
+		 * \brief shrinks quadrilateral and overwrites old quadrilateral's vertices
+		 * \param[in] vVrt
+		 * \param[in] g
+		 * \param[in] aaPos
+		 * \param[in] percentage
+		 */
+		void shrink_quadrilateral
+		(
+			std::vector<Vertex*> vVrt,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			number percentage
+		);
+
+		/*!
+		 * \brief creates the soma
+		 * \param[in] somaPts
+		 * \param[in] g
+		 * \param[in] aaPos
+		 * \param[in] sh
+		 * \param[in] si
+		 * \param[in] numRefs
+		 */
+		void create_soma
+		(
+				const std::vector<SWCPoint>& somaPts,
+				Grid& g,
+				Grid::VertexAttachmentAccessor<APosition>& aaPos,
+				SubsetHandler& sh,
+				size_t si,
+				size_t numRefs = 2
 		);
 	}
 }

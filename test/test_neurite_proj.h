@@ -21,6 +21,7 @@ namespace ug {
 namespace neuro_collection {
 
 
+/// TODO: Move these to a types class / file
 enum swc_type
 {
     SWC_UNDF = 0,

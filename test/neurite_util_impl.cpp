@@ -909,5 +909,631 @@ namespace ug {
 			}
 		return centers;
 		}
+
+	////////////////////////////////////////////////////////////////////////
+	/// connect_neurites_with_soma
+	////////////////////////////////////////////////////////////////////////
+	void connect_neurites_with_soma
+(
+	   Grid& g,
+	   Grid::VertexAttachmentAccessor<APosition>& aaPos,
+	   Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+	   std::vector<Vertex*> outVerts,
+	   std::vector<Vertex*> outVertsInner,
+	   std::vector<number> outRads,
+	   std::vector<Vertex*>& smallerQuadVerts,
+	   size_t si,
+	   SubsetHandler& sh,
+	   const std::string& fileName,
+	   number rimSnapThresholdFactor,
+	   std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > >& axisVectors,
+	   std::vector<NeuriteProjector::Neurite>& vNeurites,
+	   std::vector<std::vector<ug::Vertex*> >& connectingVertices,
+	   std::vector<std::vector<ug::Vertex*> >& connectingVerticesInner,
+	   std::vector<std::vector<ug::Edge*> >& connectingEdges,
+       std::vector<std::vector<ug::Edge*> >& connectingEdgesInner,
+	   bool createInner,
+	   number alpha,
+	   int numIterations,
+	   number resolveThreshold,
+	   number scale
+) {
+	UG_LOGN("1. Find the vertices representing dendrite connection to soma.");
+	/// 1. Finde die 4 Vertices die den Dendritenanschluss darstellen zum Soma
+	std::vector<std::vector<ug::vector3> > quads;
+	std::vector<number> quadsRadii;
+	size_t numVerts = 4;
+	size_t numQuads = outVerts.size()/numVerts;
+
+	for (size_t i = 0; i < numQuads; i++) {
+		std::vector<ug::vector3> temp;
+		for (size_t j = 0; j < numVerts; j++) {
+			temp.push_back(aaPos[outVerts[(i*4)+j]]);
+		}
+		UG_LOGN("push a quad!");
+		quads.push_back(temp);
+	}
+
+	UG_LOGN("2. Calculate center of each quad, find next surface vertex on soma.")
+	/// 2. Berechne den Schwerpunkt jedes Quads und finde den nächstgelegenen
+	///    Vertex des Oberflächengitters vom Soma
+	std::vector<ug::vector3> centerOuts;
+	std::vector<ug::vector3> centerOuts2;
+	std::vector<Vertex*> bestVertices;
+	for (size_t i = 0; i < numQuads; i++) {
+		const ug::vector3* pointSet = &(quads[i][0]);
+		ug::vector3 centerOut;
+		CalculateCenter(centerOut, pointSet, numVerts);
+		centerOuts.push_back(centerOut);
+		Selector sel(g);
+		SelectSubsetElements<Vertex>(sel, sh, si, true);
+		Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
+		Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
+		number best = -1;
+		ug::Vertex* best_vertex = NULL;
+		for (; vit != vit_end; ++vit) {
+			number dist = VecDistance(aaPos[*vit], centerOut);
+			if (best == -1) {
+				best = dist;
+				best_vertex = *vit;
+			} else if (dist < best) {
+				best = dist;
+				best_vertex = *vit;
+			}
+		}
+		UG_COND_THROW(!best_vertex, "No best vertex found for quad >>" << i << "<<.");
+		bestVertices.push_back(best_vertex);
+	}
+
+	UG_LOGN("3. AdaptSurfaceGridToCylinder")
+	/// 3. Für jeden Vertex v führe AdaptSurfaceGridToCylinder mit Radius entsprechend
+	///    dem anzuschließenden Dendritenende aus. Dadurch entsteht auf der Icosphere
+	///    um jedes v ein trianguliertes 6- bzw. 5-Eck.
+	Selector sel(g);
+	for (size_t i = 0; i < bestVertices.size(); i++) {
+		sel.clear();
+		ug::vector3 normal;
+		CalculateVertexNormal(normal, g, bestVertices[i], aaPos);
+		number radius = outRads[i];
+		AdaptSurfaceGridToCylinder(sel, g, bestVertices[i], normal, radius, 1.0*rimSnapThresholdFactor, aPosition);
+	}
+
+	AssignSubsetColors(sh);
+	std::stringstream ss;
+	ss << fileName << "_before_deleting_center_vertices.ugx";
+	SaveGridToFile(g, sh, ss.str().c_str());
+	ss.str(""); ss.clear();
+
+	UG_LOGN("5. MergeVertices")
+	/// 5. Wandle die stückweise linearen Ringe um die Anschlusslöcher per
+	///    MergeVertices zu Vierecken um.
+	sel.clear();
+	for (std::vector<Vertex*>::iterator it = bestVertices.begin(); it != bestVertices.end(); ++it) {
+		sel.select(*it);
+		ExtendSelection(sel, 1, true);
+		CloseSelection(sel);
+		AssignSelectionToSubset(sel, sh, sh.num_subsets()+1);
+		sel.clear();
+	}
+
+	AssignSubsetColors(sh);
+	ss << fileName << "_before_getting_neighborhoods.ugx";
+	SaveGridToFile(g, sh, ss.str().c_str());
+	ss.str(""); ss.clear();
+
+	UG_LOGN("4. Remove each vertex. Creates holes in soma")
+	/// 4. Lösche jedes v, sodass im Soma Anschlusslöcher für die Dendriten entstehen.
+	sel.clear();
+	for (std::vector<Vertex*>::iterator it = bestVertices.begin(); it != bestVertices.end(); ++it) {
+		sel.select(*it);
+	}
+
+	size_t numSubsets = sh.num_subsets();
+	AssignSelectionToSubset(sel, sh, numSubsets);
+	EraseElements<Vertex>(g, sh.begin<Vertex>(numSubsets), sh.end<Vertex>(numSubsets));
+	EraseEmptySubsets(sh);
+	AssignSubsetColors(sh);
+	ss << fileName << "_after_deleting_center_vertices.ugx";
+	SaveGridToFile(g, sh, ss.str().c_str());
+	ss.str(""); ss.clear();
+
+	/// Collapse now edges and take smallest edges first
+	size_t beginningOfQuads = si+1; // subset index where quads are stored in
+	for (size_t i = 0; i < numQuads; i++) {
+		size_t si = beginningOfQuads+i;
+		size_t numEdges = sh.num<Edge>(si);
+		size_t j = 0;
+		while (numEdges > numVerts) {
+			SubsetHandler::traits<Edge>::iterator eit = sh.begin<Edge>(si);
+			SubsetHandler::traits<Edge>::iterator end = sh.end<Edge>(si);
+			number bestLength = -1;
+			Edge* eBest = NULL;
+			for (; eit != end; ++eit) {
+				const Edge* ee = *eit;
+				Vertex* const* verts = ee->vertices();
+				if (bestLength == -1) {
+					bestLength = VecDistance(aaPos[verts[0]], aaPos[verts[1]]);
+					eBest = *eit;
+				} else {
+					number length = VecDistance(aaPos[verts[0]], aaPos[verts[1]]);
+					if (length < bestLength) {
+						eBest = *eit;
+						bestLength = length;
+					}
+				}
+			}
+			CollapseEdge(g, eBest, eBest->vertex(0));
+			numEdges--;
+			j++;
+			std::stringstream ss;
+			ss << fileName << "_after_collapse_number_" << j << "_for_quad_" << i << ".ugx";
+			SaveGridToFile(g, sh, ss.str().c_str());
+		}
+
+		SubsetHandler::traits<Vertex>::iterator vit = sh.begin<Vertex>(si);
+		SubsetHandler::traits<Vertex>::iterator vend = sh.end<Vertex>(si);
+
+		/// Outer Soma is assumed to start at -5 * outRads[i] of corresponding neurite and inner soma is assumed to start at -1
+		for (; vit != vend; ++vit) {
+			aaSurfParams[*vit].soma = true;
+			if (createInner)
+				aaSurfParams[*vit].axial = -5 * outRads[i];
+			else
+				aaSurfParams[*vit].axial = -1;
+		}
+	}
+
+	if (createInner) {
+		/// Shrink each quad on the outer soma surface
+		for (size_t i = 0; i < numQuads; i++) {
+			sel.clear();
+			size_t si = beginningOfQuads+i;
+
+			SelectSubsetElements<Vertex>(sel, sh, si, true);
+			std::vector<Vertex*> vrts;
+			sel.clear();
+			UG_LOGN("verts size: " << vrts.size());
+
+			std::vector<Edge*> edges;
+			SelectSubsetElements<Edge>(sel, sh, si, true);
+			edges.assign(sel.edges_begin(), sel.edges_end());
+			sel.clear();
+
+			UG_LOGN("edges size: " << edges.size());
+
+			vrts.push_back(edges[0]->vertex(0));
+			vrts.push_back(edges[0]->vertex(1));
+
+			Vertex* prevVertex = edges[0]->vertex(1);
+			size_t numIterations = edges.size()-1;
+			std::vector<size_t> indices;
+			edges.erase(edges.begin());
+			UG_LOGN("number of edges: " << edges.size());
+			while (!edges.empty()) {
+				UG_LOGN("Still running: edges.size(): " << edges.size());
+				for (size_t i = 0; i < edges.size(); i++) {
+					Edge* nextEdge = edges[i];
+					if (nextEdge->vertex(0) == prevVertex) {
+						UG_LOGN("push first if");
+						vrts.push_back(nextEdge->vertex(1));
+						prevVertex = nextEdge->vertex(1);
+						edges.erase(edges.begin()+i);
+						break;
+					}
+					UG_LOGN("in between");
+					if (nextEdge->vertex(1) == prevVertex) {
+						UG_LOGN("push second if")
+		            		vrts.push_back(nextEdge->vertex(0));
+						prevVertex = nextEdge->vertex(0);
+						edges.erase(edges.begin()+i);
+						break;
+					}
+				}
+			}
+
+			vrts.erase(vrts.end()-1);
+
+			std::vector<ug::Edge*> vEdgeOut;
+			std::vector<ug::Vertex*> vVrtOut;
+
+			Selector selToAssign(g);
+			UG_COND_THROW(vrts.size() != 4, "Non-quadrilateral encountered. Cannot shrink a non-quadrilateral!");
+			shrink_quadrilateral_copy(vrts, vVrtOut, vVrtOut, vEdgeOut, g, aaPos, -scale, false, &selToAssign, NULL);
+			for (std::vector<Vertex*>::const_iterator it = vVrtOut.begin(); it != vVrtOut.end(); ++it) {
+				smallerQuadVerts.push_back(*it);
+			}
+			AssignSelectionToSubset(selToAssign, sh, si+numQuads);
+			sel.clear();
+			selToAssign.clear();
+
+			SubsetHandler::traits<Vertex>::iterator vit = sh.begin<Vertex>(si);
+			SubsetHandler::traits<Vertex>::iterator vend = sh.end<Vertex>(si);
+
+			/// Inner soma is assumed to start at -5 * outRads[i] of corresponding neurite too
+			for (; vit != vend; ++vit) {
+				aaSurfParams[*vit].soma = true;
+				aaSurfParams[*vit].axial =  -5 * outRads[i];
+				vNeurites[i].somaStart = 5 * outRads[i];
+			}
+		}
+	}
+
+	EraseEmptySubsets(sh);
+	AssignSubsetColors(sh);
+
+	ss << fileName << "_after_merging_cylinder_vertices.ugx";
+	SaveGridToFile(g, sh, ss.str().c_str());
+	ss.str(""); ss.clear();
+
+	UG_LOGN("8. TangentialSmooth");
+	/// Note: TangentialSmooth -> alpha has to be corrected for different geometries.
+	/// TangentialSmooth(g, g.vertices_begin(), g.vertices_end(), aaPos, alpha, numIterations);
+
+	ss << fileName << "_after_merging_cylinder_vertices_and_tangential_smooth.ugx";
+	SaveGridToFile(g, sh, ss.str().c_str());
+	ss.str(""); ss.clear();
+
+	UG_LOGN("6. Extrude rings along normal")
+	/// 6. Extrudiere die Ringe entlang ihrer Normalen mit Höhe 0 (Extrude mit
+	///    aktivierter create faces Option).
+	sel.clear();
+	std::vector<std::vector<Vertex*> > somaVerts;
+	std::vector<std::vector<Vertex*> > allVerts;
+
+	std::vector<std::vector<Vertex*> > somaVertsInner;
+	std::vector<std::vector<Vertex*> > allVertsInner;
+
+
+	for (size_t i = 0; i < numQuads; i++) {
+		size_t si = beginningOfQuads+i;
+		ug::vector3 normal;
+		CalculateVertexNormal(normal, g, *sh.begin<Vertex>(si), aaPos);
+		UG_LOGN("normal (outer): " << normal);
+		ug::vector3 axisVector;
+		CalculateCenter(sh.begin<Vertex>(si), sh.end<Vertex>(si), aaPos);
+		/// indicate soma posiiton
+		/*for (SubsetHandler::traits<Vertex>::iterator it = sh.begin<Vertex>(si); it != sh.end<Vertex>(si); ++it) {
+			UG_LOGN("setting axial to -1!");
+			aaSurfParams[*it].axial = -1;
+		}*/
+
+		VecAdd(axisVector, axisVector, normal);
+		std::vector<Edge*> edges;
+		std::vector<Vertex*> vertices;
+
+		for (SubsetHandler::traits<Edge>::const_iterator it = sh.begin<Edge>(si); it != sh.end<Edge>(si); ++it) {
+			edges.push_back(*it);
+		}
+
+		for (SubsetHandler::traits<Vertex>::const_iterator it = sh.begin<Vertex>(si); it != sh.end<Vertex>(si); ++it) {
+			vertices.push_back(*it);
+		}
+
+		if (createInner) {
+			for (SubsetHandler::traits<Edge>::const_iterator it = sh.begin<Edge>(si+numQuads); it != sh.end<Edge>(si+numQuads); ++it) {
+				edges.push_back(*it);
+			}
+			for (SubsetHandler::traits<Vertex>::const_iterator it = sh.begin<Vertex>(si+numQuads); it != sh.end<Vertex>(si+numQuads); ++it) {
+				vertices.push_back(*it);
+			}
+		}
+
+		SelectSubsetElements<Vertex>(sel, sh, si, true);
+		std::vector<Vertex*> temp;
+		temp.assign(sel.vertices_begin(), sel.vertices_end());
+		somaVerts.push_back(temp);
+		sel.clear();
+		temp.clear();
+
+		if (createInner) {
+			SelectSubsetElements<Vertex>(sel, sh, si+numQuads, true);
+			temp.assign(sel.vertices_begin(), sel.vertices_end());
+			somaVertsInner.push_back(temp);
+			sel.clear();
+			temp.clear();
+		}
+
+		SelectSubsetElements<Vertex>(sel, sh, si, true);
+
+		if (createInner) {
+			SelectSubsetElements<Vertex>(sel, sh, si+numQuads, true);
+		}
+
+		///Extrude(g, &vertices, &edges, NULL, normal, aaPos, EO_CREATE_FACES, NULL);
+
+		/// store found soma vertices as connectingvertices for initial neurite vertices (used in create_neurite_general)
+		for (size_t j= 0; j < vertices.size(); j++) {
+			if (sh.get_subset_index(vertices[j]) == si) {
+				connectingVertices[i].push_back(vertices[j]);
+			}
+			if (sh.get_subset_index(vertices[j]) == si+numQuads) {
+				connectingVerticesInner[i].push_back(vertices[j]);
+			}
+		}
+
+		/// store found soma edges as connectingedges for initial neurite vertices (used in create_neurite_general)
+		for (size_t j= 0; j < edges.size(); j++) {
+			if (sh.get_subset_index(edges[j]) == si) {
+				connectingEdges[i].push_back(edges[j]);
+			}
+			if (sh.get_subset_index(edges[j]) == si+numQuads) {
+				connectingEdgesInner[i].push_back(edges[j]);
+			}
+		}
+
+		ug::vector3 centerOut2 = CalculateCenter(vertices.begin(), vertices.end(), aaPos);
+		centerOuts2.push_back(centerOut2);
+		sel.clear();
+
+		/// indicate start of neurite with axial 0 and soma false explicitly: neurite start is 0 for outer soma and for inner soma it is -1 + radOut[i] * 5;
+		for (std::vector<Vertex*>::iterator it = vertices.begin(); it != vertices.end(); ++it) {
+			aaSurfParams[*it].axial = -1 + 5 * outRads[i];
+			vNeurites[i].somaStart = 5 * outRads[i];
+			aaSurfParams[*it].soma = false;
+		}
+
+		SelectSubsetElements<Vertex>(sel, sh, si, true);
+		std::vector<Vertex*> temp2;
+		temp2.assign(sel.vertices_begin(), sel.vertices_end());
+		allVerts.push_back(temp2);
+		sel.clear();
+		temp2.clear();
+
+		if (createInner) {
+			SelectSubsetElements<Vertex>(sel, sh, si+numQuads, true);
+			temp2.assign(sel.vertices_begin(), sel.vertices_end());
+			allVertsInner.push_back(temp2);
+			sel.clear();
+			temp2.clear();
+		}
+
+		ug::vector3 cylinderCenter = CalculateCenter(sh.begin<Vertex>(si), sh.end<Vertex>(si), aaPos);
+		axisVectors.push_back(make_pair(si, make_pair(axisVector, cylinderCenter)));
+	}
+
+	ss << fileName << "_after_extruding_cylinders_before_removing_common_vertices.ugx";
+	SaveGridToFile(g, sh, ss.str().c_str());
+	ss.str(""); ss.clear();
+
+	/// delete common vertices, thus keep only newly extruded vertices (used in next step 7.)
+	for (size_t i = 0; i < numQuads; i++) {
+		size_t numSomaVerts = somaVerts[i].size();
+		for (size_t j = 0; j < numSomaVerts; j++) {
+			allVerts[i].erase(std::remove(allVerts[i].begin(), allVerts[i].end(), somaVerts[i][j]), allVerts[i].end());
+		}
+	}
+
+	if (createInner) {
+		/// delete common vertices, thus keep only newly extruded vertices (used in next step 7.)
+		for (size_t i = 0; i < numQuads; i++) {
+			size_t numSomaVerts = somaVertsInner[i].size();
+			for (size_t j = 0; j < numSomaVerts; j++) {
+				allVertsInner[i].erase(std::remove(allVertsInner[i].begin(), allVertsInner[i].end(), somaVertsInner[i][j]), allVertsInner[i].end());
+			}
+		}
+	}
+
+	ss << fileName << "_after_extruding_cylinders.ugx";
+	SaveGridToFile(g, sh, ss.str().c_str());
+	ss.str(""); ss.clear();
+
+
+	UG_LOGN("7. Calculate convex hull and connect")
+	/// 7. Vereine per MergeVertices die Vertices der in 6. extrudierten Ringe jeweils
+	///    mit den zu ihnen nächstgelegenen Vertices des entsprechenden Dendritenendes.
+	si = beginningOfQuads;
+	sel.clear();
+	/*
+	for (size_t i = 0; i < numQuads; i++) {
+		std::vector<ug::vector3> temp;
+		std::vector<ug::vector3> foo;
+		std::vector<ug::vector3> foo2;
+		std::vector<Vertex*> temp2;
+		for (size_t j = 0; j < numVerts; j++) {
+			temp.push_back(aaPos[outVerts[i*4+j]]);
+			foo.push_back(aaPos[outVerts[i*4+j]]);
+		}
+		for (size_t j = 0; j < numVerts; j++) {
+			temp.push_back(aaPos[allVerts[i][j]]);
+			foo2.push_back(aaPos[allVerts[i][j]]);
+		}
+
+		UG_COND_THROW(temp.size() != 8, "Need 8 vertices for calculating all faces.");
+		#ifdef NC_WITH_QHULL
+			using ug::neuro_collection::convexhull::gen_face;
+			using ug::neuro_collection::convexhull::erase_face;
+			gen_face(temp, g, sh, si+i, aaPos);
+			erase_face(g, sh, si+i, aaPos, foo);
+			erase_face(g, sh, si+i, aaPos, foo2);
+		#else
+			using ug::neuro_collection::quickhull::gen_face;
+			gen_face(temp, temp2, g, sh, si+i, aaPos);
+		#endif
+		ug::vector3 center;
+		center = CalculateCenter(sh.begin<Vertex>(si+i+1000), sh.end<Vertex>(si+i+1000), aaPos);
+		ug::vector3 axis;
+		VecSubtract(axis, centerOuts2[i], centerOuts[i]);
+		axisVectors.push_back(make_pair(si+i+numQuads*2, make_pair(axis, center)));
+		/// numQuads*2 is required: n-inner quads and n-outer quads -> these quads here are the connecting quads
+		/// i.e. first come all outer quads, then all inner quads, then the connecting outer quads, then the connecting inner quads
+	}
+	*/
+
+	/*
+	if (!createInner) {
+		si = beginningOfQuads+numQuads;
+		sel.clear();
+		for (size_t i = 0; i < numQuads; i++) {
+			UG_LOGN("First quad to connect...: " << i);
+			std::vector<ug::vector3> temp;
+			std::vector<Vertex*> temp2;
+			std::vector<ug::vector3> foo;
+			std::vector<ug::vector3> foo2;
+			UG_LOGN("Accessing outVertsInner...; " << i);
+			for (size_t j = 0; j < numVerts; j++) {
+				temp.push_back(aaPos[outVertsInner[i*4+j]]);
+				foo.push_back(aaPos[outVertsInner[i*4+j]]);
+			}
+			UG_LOGN("Accessing allVertsInner...; " << i);
+			for (size_t j = 0; j < numVerts; j++) {
+				temp.push_back(aaPos[allVertsInner[i][j]]);
+				foo2.push_back(aaPos[allVertsInner[i][j]]);
+			}
+
+			UG_LOGN("Checking consistency of temp...");
+			UG_COND_THROW(temp.size() != 8, "Need 8 vertices for calculating all faces.");
+			#ifdef NC_WITH_QHULL
+				UG_LOGN("Trying to use convexhull...");
+				using ug::neuro_collection::convexhull::gen_face;
+				using ug::neuro_collection::convexhull::erase_face;
+				gen_face(temp, g, sh, si+i, aaPos);
+				erase_face(g, sh, si+i, aaPos, foo);
+				erase_face(g, sh, si+i, aaPos, foo2);
+			#else
+				UG_LOGN("Trying to use quickhull... ")
+				using ug::neuro_collection::quickhull::gen_face;
+				gen_face(temp, temp2, g, sh, si+i, aaPos);
+			#endif
+				UG_LOGN("Done with quickhull/convexhull...");
+		}
+	}
+	*/
+
+	EraseEmptySubsets(sh);
+	AssignSubsetColors(sh);
+	ss << fileName << "_after_extruding_cylinders_and_merging.ugx";
+	SaveGridToFile(g, sh, ss.str().c_str());
+	ss.str(""); ss.clear();
+
+	UG_LOGN("9. Resolve potentially generated intersection(s)")
+	ResolveTriangleIntersections(g, g.begin<ug::Triangle>(), g.end<ug::Triangle>(), resolveThreshold, aPosition);
+
+	ss << fileName << "_final.ugx";
+	SaveGridToFile(g, sh, ss.str().c_str());
+
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// shrink_quadrilateral_copy
+		////////////////////////////////////////////////////////////////////////
+		void shrink_quadrilateral_copy
+		(
+			const std::vector<Vertex*>& vVrt,
+			std::vector<Vertex*>& outvVrt,
+			const std::vector<Vertex*>& oldVertices,
+			std::vector<Edge*>& outvEdge,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			number percentage,
+			bool createFaces,
+			ISelector* outSel,
+			ug::vector3* currentDir
+		)
+		{
+			Selector sel(g);
+	    	for (size_t i = 0; i < 4; ++i) {
+	    		sel.select(vVrt[i]);
+			}
+
+	    	ug::vector3 center;
+	    	center = CalculateBarycenter(sel.vertices_begin(), sel.vertices_end(), aaPos);
+	    	sel.clear();
+	    	for (size_t i = 0; i < 4; ++i)
+	    	{
+	    	ug::Vertex* v = *g.create<RegularVertex>();
+	       	   aaPos[v] = aaPos[vVrt[i]];
+	       	   ug::vector3 dir;
+	       	   VecSubtract(dir, aaPos[vVrt[i]], center);
+
+	       	   /// TODO: Add the correct shrinkage into a prescribed direction
+	       	   if (currentDir) {
+	    	   	   /// 1. get Edge e starting from i % 4 to i+1 % 4
+	    	   	   /// 2. Check if e is parallel or anti-parallel to currentDir
+	    	   	   /// 3. If true then calculate dir1, dir2 from vertex i, i+1 to center
+	    	   	   /// 4. Project dir1 to edge e if e was parallel to currentDir
+	    	   	   ///    otherwise project dir1 to edge -e if e was antiparallel to currentDir
+	    	   	   /// 5. Project dir2 to edge -e if e was parallel to currentDir
+	    	   	   ///    otherwise project dir2 to edge e if e was antiparallel to currentDir
+	       	   }
+
+	       	   UG_LOGN("dir:" << dir)
+	       	   VecScaleAdd(aaPos[v], 1.0, aaPos[v], percentage, dir);
+
+	       	   if (percentage > 1) {
+	       		   UG_WARNING("Moving vertex beyond center. Will create degenerated elements." << std::endl);
+	       	   }
+	       	   outvVrt.push_back(v);
+	       	   if (outSel) outSel->select<ug::Vertex>(v);
+	    	}
+
+	    	/// create new edges in new (small) quad
+	    	for (size_t i = 0; i < 4; ++i) {
+	    	ug::Edge* e = *g.create<RegularEdge>(EdgeDescriptor(outvVrt[i], outvVrt[(i+1)%4]));
+	       	   outvEdge.push_back(e);
+	       	   if (outSel) outSel->select<ug::Edge>(e);
+	    	}
+
+	    	if (createFaces) {
+	    		/// create new faces
+	    		for (size_t i = 0; i < 4; ++i) {
+	    			ug::Face* f = *g.create<Quadrilateral>(QuadrilateralDescriptor(outvVrt[i], outvVrt[(i+1)%4], oldVertices[(i+1)%4], oldVertices[i]));
+	    			/// Note: Do we need to flip faces here to wrt radial vector?
+	    		}
+	    	}
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// shrink_quadrilateral
+		////////////////////////////////////////////////////////////////////////
+		void shrink_quadrilateral
+		(
+			std::vector<Vertex*> vVrt,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			number percentage
+		)
+		{
+			Selector sel(g);
+			vVrt.resize(4);
+			for (size_t i = 0; i < 4; ++i) {
+				sel.select(vVrt[i]);
+			}
+
+			ug::vector3 center;
+			/// Note: Using barycenter, could also use vertex or area centroid for this:
+			/// https://en.wikipedia.org/wiki/Quadrilateral#Remarkable_points_and_lines_in_a_convex_quadrilateral
+			center = CalculateBarycenter(sel.vertices_begin(), sel.vertices_end(), aaPos);
+			sel.clear();
+
+			for (size_t i = 0; i < 4; ++i)
+			{
+				ug::vector3 dir;
+				VecSubtract(dir, aaPos[vVrt[i]], center);
+				UG_LOGN("dir:" << dir)
+				VecScaleAdd(aaPos[vVrt[i]], 1.0, aaPos[vVrt[i]], percentage, dir);
+				if (percentage > 1) {
+					UG_WARNING("Moving vertex beyond center. Will create degenerated elements." << std::endl);
+				}
+			}
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// create_soma
+		////////////////////////////////////////////////////////////////////////
+		void create_soma
+		(
+				const std::vector<SWCPoint>& somaPts,
+				Grid& g,
+				Grid::VertexAttachmentAccessor<APosition>& aaPos,
+				SubsetHandler& sh,
+				size_t si,
+				size_t numRefs
+		)
+		{
+			UG_COND_THROW(somaPts.size() != 1, "Currently only one soma point is allowed by this implementation");
+			Selector sel(g);
+			GenerateIcosphere(g, somaPts.front().coords, somaPts.front().radius, numRefs, aPosition, &sel);
+			AssignSelectionToSubset(sel, sh, si);
+		}
 	}
 }
