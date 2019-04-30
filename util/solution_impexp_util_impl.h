@@ -13,7 +13,7 @@
 
 
 #ifdef NC_WITH_MPM
-	#include "../plugins/MembranePotentialMapping/vm2ug_rework.h"
+	#include "../../plugins/MembranePotentialMapping/vm2ug_rework.h"
 #endif
 
 

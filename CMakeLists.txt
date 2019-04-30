@@ -68,7 +68,6 @@ message(STATUS "${QHULL_LIB_CPP}")
 message(STATUS "${QHULL_LIB_STATIC}")
 
 include_directories(${QHULL}/src/libqhullcpp/ ${QHULL}/src/libqhull/ ${QHULL}/src/libqhull_r/ ${QHULL}/src/)
->>>>>>> fixing_connections
 
 if (MembranePotentialMapping)
 	set(NC_WITH_MPM 1)

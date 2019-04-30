@@ -36,6 +36,8 @@
 #include "lib_grid/algorithms/remeshing/resolve_intersections.h" // ResolveTriangleIntersection
 #include <boost/geometry.hpp>
 #include "../../ElementQualityStatistics/element_quality_statistics.h"
+#include "lib_grid/grid/neighborhood_util.h"
+#include "common/util/file_util.h"
 
 #include <boost/lexical_cast.hpp>
 
@@ -51,7 +53,7 @@
 #include <vector>
 
 // configuration file for compile options
-#include "config.h"
+#include "nc_config.h"
 
 /// use our implementation quickhull but prefer qhull.org if available
 #ifdef NC_WITH_QHULL
@@ -64,11 +66,124 @@
 namespace ug {
 namespace neuro_collection {
 
+/// Note: Method exists already in util impl should refactor this TODO
+static void create_soma
+(
+		const std::vector<SWCPoint>& somaPts,
+		Grid& g,
+		Grid::VertexAttachmentAccessor<APosition>& aaPos
+)
+{
+	if (somaPts.size() == 1) {
+		// create soma as icosahedron
+		GenerateIcosahedron(g, somaPts[0].coords, somaPts[0].radius, aPosition);
+	} else {
+		// TODO: generalize this: can take recipe from here to geerate a deformated icosahedron:
+		// http://blog.andreaskahler.com/2009/06/creating-icosphere-mesh-in-code.html
+		UG_THROW("Currently only one soma point is allowed by this implementation.");
+	}
+}
+
+static void import_swc
+(
+    const std::string& fileName,
+    std::vector<SWCPoint>& vPointsOut,
+	number scale=1.0
+
+)
+{
+    vPointsOut.clear();
+
+    std::string inFileName = FindFileInStandardPaths(fileName.c_str());
+
+    std::ifstream inFile(inFileName.c_str());
+    UG_COND_THROW(!inFile, "SWC input file '" << fileName << "' could not be opened for reading.");
+
+    // read line by line
+    std::string line;
+    size_t lineCnt = 0;
+    size_t curInd = 0;
+    std::map<int, size_t> indexMap;
+    while (std::getline(inFile, line))
+    {
+        ++lineCnt;
+
+        // trim whitespace
+        line = TrimString(line);
+
+        // ignore anything from possible '#' onwards
+        size_t nChar = line.size();
+        for (size_t i = 0; i < nChar; ++i)
+        {
+            if (line.at(i) == '#')
+            {
+                line = line.substr(0, i);
+                break;
+            }
+        }
+
+        // empty lines can be ignored
+        if (line.empty()) continue;
+
+        // split the line into tokens
+        std::istringstream buf(line);
+        std::istream_iterator<std::string> beg(buf), end;
+        std::vector<std::string> strs(beg, end);
+
+        // assert number of tokens is correct
+        UG_COND_THROW(strs.size() != 7, "Error reading SWC file '" << inFileName
+            << "': Line " << lineCnt << " does not contain exactly 7 values.");
+
+        // collect data for SWC point
+        vPointsOut.resize(vPointsOut.size()+1);
+        SWCPoint& pt = vPointsOut.back();
+
+        // get index from file and map to our index
+        indexMap[boost::lexical_cast<int>(strs[0])] = curInd;
+
+        // type
+        int type = boost::lexical_cast<int>(strs[1]);
+        switch (type)
+        {
+            case 1: pt.type = SWC_SOMA; break;
+            case 2: pt.type = SWC_AXON; break;
+            case 3: pt.type = SWC_DEND; break;
+            case 4: pt.type = SWC_APIC; break;
+            default: pt.type = SWC_UNDF;
+        }
+
+        // coordinates
+        pt.coords.x() = boost::lexical_cast<number>(strs[2]) * scale;
+        pt.coords.y() = boost::lexical_cast<number>(strs[3]) * scale;
+        pt.coords.z() = boost::lexical_cast<number>(strs[4]) * scale;
+
+        // radius
+        pt.radius = boost::lexical_cast<number>(strs[5]) * scale;
+
+        // connections
+        int conn = boost::lexical_cast<int>(strs[6]);
+        if (conn >= 0)
+        {
+            std::map<int, size_t>::const_iterator it = indexMap.find(conn);
+            UG_COND_THROW(it == indexMap.end(), "Error reading SWC file '" << inFileName
+                << "': Line " << lineCnt << " refers to unknown parent index " << conn << ".");
+
+            size_t parentID = indexMap[conn];
+            pt.conns.push_back(parentID);
+            vPointsOut[parentID].conns.push_back(curInd);
+        }
+
+        // increase current point index
+        ++curInd;
+    }
+}
+
+
 
 	/**
 	 * @brief imports a SWC file
 	 */
-	void import_swc
+	void import_swc_old
 (
     const std::string& fileName,
     std::vector<SWCPoint>& vPointsOut,
@@ -1155,7 +1270,7 @@ void calculate_segment_axial_positions
     		// i.e., the axial position of the intersection of the branching neurite's
     		// spline with the surface of the current neurite
     		// this is necessary esp. when the branching angle is very small
-    		const std::vector<size_t>& vBranchInd = brit->bp->vNid;
+    		const std::vector<size_t> vBranchInd ; // TODO: refactor const std::vector<size_t>& vBranchInd = brit->bp->vNid;
     		size_t nBranches = vBranchInd.size();
 
     		for (size_t br = 1; br < nBranches; ++br)
@@ -1166,7 +1281,7 @@ void calculate_segment_axial_positions
     			const number brRadSeg1 = vR[brInd][0];
 
     			// get position and radius of branching point
-    			const number bpTPos = 0.5 * (brit->tend + brit->tstart);
+    			const number bpTPos = 0; // TODO: refactor 0.5 * (brit->tend + brit->tstart);
     			size_t brSec = curSec;
     			for (; brSec < nSec; ++brSec)
     			{
@@ -2124,7 +2239,7 @@ void calculate_segment_axial_positions
     		// i.e., the axial position of the intersection of the branching neurite's
     		// spline with the surface of the current neurite
     		// this is necessary esp. when the branching angle is very small
-    		const std::vector<size_t>& vBranchInd = brit->bp->vNid;
+    		const std::vector<size_t> vBranchInd; // TODO Refactor const std::vector<size_t> vBranchInd = brit->bp->vNid; brit->bp->vNid;
     		size_t nBranches = vBranchInd.size();
 
     		for (size_t br = 1; br < nBranches; ++br)
@@ -2135,7 +2250,7 @@ void calculate_segment_axial_positions
     			const number brRadSeg1 = vR[brInd][0];
 
     			// get position and radius of branching point
-    			const number bpTPos = 0.5 * (brit->tend + brit->tstart);
+    			const number bpTPos = 0; // TODO: refactor 0.5 * (brit->tend + brit->tstart);
     			size_t brSec = curSec;
     			for (; brSec < nSec; ++brSec)
     			{
@@ -5016,13 +5131,46 @@ void swc_points_to_grid
 }
 
 
+void test_smoothing(const std::string& fileName, size_t n, number h, number gamma)
+{
+	std::vector<SWCPoint> vPoints;
+	import_swc(fileName, vPoints);
+
+	// export original cell to ugx
+	Grid g;
+	SubsetHandler sh(g);
+	swc_points_to_grid(vPoints, g, sh);
+
+	std::string fn_noext = FilenameWithoutExtension(fileName);
+	std::string fn = fn_noext + "_orig.ugx";
+	export_to_ugx(g, sh, fn);
+
+	// smoothing
+	smoothing(vPoints, n, h, gamma);
+
+	// export smoothed cell to ugx
+	g.clear_geometry();
+	swc_points_to_grid(vPoints, g, sh);
+	fn = fn_noext + "_smooth.ugx";
+	export_to_ugx(g, sh, fn);
+
+	// collapse short edges
+	collapse_short_edges(g, sh);
+
+	// export collapsed edges cell to ugx and swc
+	fn = fn_noext + "_collapse.ugx";
+	export_to_ugx(g, sh, fn);
+	fn = fn_noext + "_precond.swc";
+	export_to_swc(g, sh, fn);
+}
+
 	/**
 	 * @brief test function to test smoothing
 	 */
-	void test_smoothing(const std::string& fileName, size_t n, number h, number gamma, number scale=1.0)
+	void test_smoothing_old(const std::string& fileName, size_t n, number h, number gamma, number scale=1.0)
 {
 	std::vector<SWCPoint> vPoints;
-	import_swc(fileName, vPoints, false, scale);
+	import_swc_old(fileName, vPoints, false, scale);
 
 
 	// export original cell to ugx
@@ -5059,14 +5207,14 @@ void swc_points_to_grid
 	void test_import_swc_old(const std::string& fileName, bool correct)
 {
 	// preconditioning
-    test_smoothing(fileName, 5, 1.0, 1.0);
+    test_smoothing_old(fileName, 5, 1.0, 1.0);
 
 	// read in file to intermediate structure
     std::vector<SWCPoint> vPoints;
     std::vector<SWCPoint> vSomaPoints;
     std::string fn_noext = FilenameWithoutExtension(fileName);
     std::string fn_precond = fn_noext + "_precond.swc";
-    import_swc(fn_precond, vPoints, correct, 1.0);
+    import_swc_old(fn_precond, vPoints, correct, 1.0);
 
     // convert intermediate structure to neurite data
     std::vector<std::vector<vector3> > vPos;
@@ -5114,8 +5262,9 @@ void swc_points_to_grid
     //        pointers inside still point to our vNeurites array.
     //        If we destroy it, we're in for some pretty EXC_BAD_ACCESSes.
     UG_LOGN("add neurites")
-    for (size_t i = 0; i < vNeurites.size(); ++i)
-        neuriteProj->add_neurite(vNeurites[i]);
+    for (size_t i = 0; i < vNeurites.size(); ++i) {
+     /// TODO refactor   neuriteProj->add_neurite(vNeurites[i]);
+    }
     UG_LOGN("done");
 
     for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
@@ -5502,7 +5651,7 @@ void test_import_swc_surf(const std::string& fileName)
 	sh.set_default_subset_index(0);
 
 	// connect soma with neurites
-	connect_neurites_with_soma();
+	// TODO: refactor my connecting method (neurite without volumes) to use MB's code consistently
 
 	// refinement
 	AssignSubsetColors(sh);
@@ -6227,7 +6376,7 @@ void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuritePr
 	UG_LOGN("scaling ER (inner layer) to: " << scaleER);
 	UG_COND_THROW(scaleER == 1.0, "scaling to the same size as outer layer is NOT allowed.");
 	// preconditioning
-    test_smoothing(fileName, 5, 1.0, 1.0);
+    test_smoothing_old(fileName, 5, 1.0, 1.0);
 
 	// read in file to intermediate structure
     std::vector<SWCPoint> vPoints;
@@ -6265,7 +6414,7 @@ void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuritePr
     std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
     std::vector<size_t> vRootNeuriteIndsOut;
 
-    import_swc(fn_precond, vPoints, correct, 1.0);
+    import_swc_old(fn_precond, vPoints, correct, 1.0);
     convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
     UG_LOGN("converted to neuritelist 1!")
 
@@ -6284,7 +6433,7 @@ void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuritePr
     replace_first_root_neurite_vertex_in_swc(lines, fn_precond, fn_precond_with_soma, newVerts);
     UG_LOGN("added soma points to swc")
     g.clear_geometry();
-    import_swc(fn_precond_with_soma, vPoints, correct, 1.0);
+    import_swc_old(fn_precond_with_soma, vPoints, correct, 1.0);
 
     UG_LOGN("converted to neuritelist 2!")
     convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
@@ -6317,8 +6466,9 @@ void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuritePr
     //        pointers inside still point to our vNeurites array.
     //        If we destroy it, we're in for some pretty EXC_BAD_ACCESSes.
     UG_LOGN("add neurites")
-    for (size_t i = 0; i < vNeurites.size(); ++i)
-        neuriteProj->add_neurite(vNeurites[i]);
+    for (size_t i = 0; i < vNeurites.size(); ++i) {
+      /// TODO: refactor   neuriteProj->add_neurite(vNeurites[i]);
+    }
     UG_LOGN("done");
 
     UG_LOGN("generating neurites")
@@ -6478,14 +6628,14 @@ void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuritePr
 	UG_LOGN("scaling ER (inner layer) to: " << scaleER);
 	UG_COND_THROW(scaleER == 1.0, "scaling to the same size as outer layer is NOT allowed.");
 	// preconditioning
-    test_smoothing(fileName, 5, 1.0, 1.0);
+    test_smoothing_old(fileName, 5, 1.0, 1.0);
 
 	// read in file to intermediate structure
     std::vector<SWCPoint> vPoints;
     std::vector<SWCPoint> vSomaPoints;
     std::string fn_noext = FilenameWithoutExtension(fileName);
     std::string fn_precond = fn_noext + "_precond.swc";
-    import_swc(fn_precond, vPoints, correct, 1.0);
+    import_swc_old(fn_precond, vPoints, correct, 1.0);
 
     // convert intermediate structure to neurite data
     std::vector<std::vector<vector3> > vPos;
@@ -6549,8 +6699,9 @@ void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuritePr
     //        pointers inside still point to our vNeurites array.
     //        If we destroy it, we're in for some pretty EXC_BAD_ACCESSes.
     UG_LOGN("add neurites")
-    for (size_t i = 0; i < vNeurites.size(); ++i)
-        neuriteProj->add_neurite(vNeurites[i]);
+    for (size_t i = 0; i < vNeurites.size(); ++i) {
+     /// TODO: refactor   neuriteProj->add_neurite(vNeurites[i]);
+    }
     UG_LOGN("done");
 
     UG_LOGN("generating neurites")
@@ -6608,14 +6759,14 @@ void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuritePr
 	void test_import_swc_scale(const std::string& fileName, bool correct, number scale)
 {
 	// preconditioning
-    test_smoothing(fileName, 5, 1.0, 1.0, 1.0);
+    test_smoothing_old(fileName, 5, 1.0, 1.0, 1.0);
 
 	// read in file to intermediate structure
     std::vector<SWCPoint> vPoints;
     std::vector<SWCPoint> vSomaPoints;
     std::string fn_noext = FilenameWithoutExtension(fileName);
     std::string fn_precond = fn_noext + "_precond.swc";
-    import_swc(fn_precond, vPoints, correct, 1.0);
+    import_swc_old(fn_precond, vPoints, correct, 1.0);
 
     // convert intermediate structure to neurite data
     std::vector<std::vector<vector3> > vPos;
@@ -6664,8 +6815,9 @@ void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuritePr
     projHandler.set_projector(0, neuriteProj);
 
     UG_LOGN("add neurites")
-    for (size_t i = 0; i < vNeurites.size(); ++i)
-        neuriteProj->add_neurite(vNeurites[i]);
+    for (size_t i = 0; i < vNeurites.size(); ++i) {
+     /// TODO: refactor   neuriteProj->add_neurite(vNeurites[i]);
+    }
     UG_LOGN("done");
 
     UG_LOGN("generating neurites")
