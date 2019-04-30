@@ -979,7 +979,7 @@ static void Common(Registry& reg, string grp)
 	{
 		reg.add_function("MarkNeuriteForAxialRefinement", &MarkNeuriteForAxialRefinement, grp.c_str(), "", "refiner#domain", "");
 	}
-		reg.add_function("test_import_swc", &test_import_swc, "", "file name#correction", "");
+		reg.add_function("test_import_swc_old", &test_import_swc_old, "", "file name#correction", "");
 		reg.add_function("test_import_swc_scale", &test_import_swc_scale, "", "file name#correction#scaleTotal", "");
 		reg.add_function("test_import_swc_general", &test_import_swc_general, "", "file name#correction#shrink [%]#withER", "");
 		reg.add_function("test_import_swc_general_smooth", &test_import_swc_general_smooth, "", "file name#correction#shrink [%]#withER", "");
