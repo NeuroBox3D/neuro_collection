@@ -16,7 +16,6 @@
 namespace ug {
 namespace neuro_collection {
 
-
 /**
  * @brief Refinement mark adjuster for anisotropic refinement of neurites
  * This refinement adjuster, unless disabled, will make refinement anisotropic along neurites.
@@ -28,7 +27,7 @@ namespace neuro_collection {
  * At some point, the original anisotropy of the neurite mesh will have been "refined out"
  * and this refinement mark adjuster can be switched off using disable().
  *
- * @todo: Have the refinement mark adjuster decide on when it switches itself off.
+ * TODO: Have the refinement mark adjuster decide on when it switches itself off.
  */
 class NeuriteRefMarkAdjuster
 : public IRefMarkAdjuster

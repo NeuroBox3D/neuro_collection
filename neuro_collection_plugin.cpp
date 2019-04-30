@@ -909,6 +909,7 @@ static void Common(Registry& reg, string grp)
                          "Generates a drosophila NMJ bouton volume grid.");
 	}
 
+<<<<<<< HEAD
 	// build spine
 	{
 		// TODO: Rename "BuildSpine", remove ineffective parameters
@@ -942,6 +943,8 @@ static void Common(Registry& reg, string grp)
 			.set_construct_as_smart_pointer(true);
 	}
 
+=======
+>>>>>>> fixing_connections
 #ifndef UG_FOR_VRL
 	// test neurite projector
 	{
@@ -975,6 +978,17 @@ static void Common(Registry& reg, string grp)
 	// mark for refinement functions
 	{
 		reg.add_function("MarkNeuriteForAxialRefinement", &MarkNeuriteForAxialRefinement, grp.c_str(), "", "refiner#domain", "");
+	}
+		reg.add_function("test_import_swc", &test_import_swc, "", "file name#correction", "");
+		reg.add_function("test_import_swc_scale", &test_import_swc_scale, "", "file name#correction#scaleTotal", "");
+		reg.add_function("test_import_swc_general", &test_import_swc_general, "", "file name#correction#shrink [%]#withER", "");
+		reg.add_function("test_import_swc_general_smooth", &test_import_swc_general_smooth, "", "file name#correction#shrink [%]#withER", "");
+		reg.add_function("test_shrink_geom", &test_shrink_geom, "", "shrink [%]", "");
+		reg.add_function("test_shrink_geom_copy", &test_shrink_geom_copy, "", "shrink [%]", "");
+		reg.add_function("test_split_geom", &test_split_geom, "", "shrink [%]", "");
+		//reg.add_function("apply_neurite_projector", &apply_neurite_projector, "", "multigrid, neurite projector", "");
+		reg.add_function("test_cylinder_volume_projector", &test_cylinder_volume_projector, "", "", "");
+		reg.add_function("test_neurite_projector_with_four_section_tube_and_branch_point", &test_neurite_projector_with_four_section_tube_and_branch_point, "", "", "");
 	}
 #endif
 }
@@ -1036,7 +1050,6 @@ InitUGPlugin_neuro_collection(Registry* reg, string grp)
 	GlobalAttachments::declare_attachment<ANumber>("diameter");
 	typedef Attachment<NeuriteProjector::SurfaceParams> NPSurfParam;
 	GlobalAttachments::declare_attachment<NPSurfParam>("npSurfParams", true);
-
 	try
 	{
 		RegisterCommon<Functionality>(*reg,grp);

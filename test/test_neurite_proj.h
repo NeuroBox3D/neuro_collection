@@ -21,6 +21,7 @@ namespace ug {
 namespace neuro_collection {
 
 
+/// TODO: Move these to a types class / file
 enum swc_type
 {
     SWC_UNDF = 0,
@@ -42,7 +43,8 @@ void import_swc
 (
     const std::string& fileName,
     std::vector<SWCPoint>& vPointsOut,
-	number scale = 1.0
+    bool correct,
+    number scale
 );
 
 // TODO: both need debugging!
@@ -70,8 +72,30 @@ void test_import_swc_with_er
 );
 void test_import_swc_surf(const std::string& fileName);
 void test_import_swc_1d(const std::string& fileName, number anisotropy = 2.0, size_t numRefs = 0, number scale = 1e-6);
+void shrink_quadrilateral_copy
+(
+		const std::vector<Vertex*>& vVrt,
+		std::vector<Vertex*>& outvVrt,
+		const std::vector<Vertex*>& oldVertices,
+		std::vector<Edge*>& outvEdge,
+		Grid& g,
+		Grid::VertexAttachmentAccessor<APosition>& aaPos,
+		number percentage,
+		bool createFaces,
+		ISelector* outSel,
+		ug::vector3* currentDir
+);
+
+void test_smoothing(const std::string& fileName, size_t n, number h, number gamma, number scale);
+void test_import_swc(const std::string& fileName, bool correct);
+void test_import_swc_scale(const std::string& fileName, bool correct, number scale);
+void test_import_swc_general(const std::string& fileName, bool correct, number shrinkPercentage, bool withER);
+void test_import_swc_general_smooth(const std::string& fileName, bool correct, number shrinkPercentage, bool withER);
 void test_neurite_projector_with_four_section_tube();
 void test_neurite_projector_with_four_section_tube_and_branch_point();
+void test_shrink_geom(number percentage);
+void test_shrink_geom_copy(number percentage);
+void test_split_geom(number percentage);
 
 void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuriteProj);
 

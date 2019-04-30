@@ -48,12 +48,27 @@ if (NOT buildForVRL)
 	set(SOURCES ${SOURCES}
 			   test/test_neurite_proj.cpp
 			   test/neurite_refMarkAdjuster.cpp
-       )
+			   test/neurite_util_impl.cpp
+      )
 endif (NOT buildForVRL)
 
+# use QHULL if available
+option(QHULL "Provide installation path to qhull implementation (build has to exist in given path)." OFF)
+find_library(QHULL_LIB_CPP NAMES qhullcpp PATHS ${QHULL}/build/)
+find_library(QHULL_LIB_STATIC NAMES qhullstatic PATHS ${QHULL}/build/)
 
-##message(STATUS "")
-##message(STATUS "Additional options for the neuro_collection plugin (-DNC for setting options):")
+if(${QHULL_LIB_CPP} STREQUAL "QHULL_LIB_CPP-NOTFOUND" OR ${QHULL_LIB_STATIC} STREQUAL "QHULL_LIB_CPP-NOTFOUND")
+	message(WARNING "WARN: Couldn't find Qhull.org in the specified path: " ${QHULL}/build/libqhull/)
+else(${QHULL_LIB_CPP} STREQUAL "QHULL_LIB_CPP-NOTFOUND" OR ${QHULL_LIB_STATIC} STREQUAL "QHULL_LIB_CPP-NOTFOUND")
+	message(STATUS "Qhull.org library API is on (by -QHULL=${QHULL}).")
+    message(STATUS "")
+    set(NC_WITH_QHULL 1)
+endif(${QHULL_LIB_CPP} STREQUAL "QHULL_LIB_CPP-NOTFOUND" OR ${QHULL_LIB_STATIC} STREQUAL "QHULL_LIB_CPP-NOTFOUND")
+message(STATUS "${QHULL_LIB_CPP}")
+message(STATUS "${QHULL_LIB_STATIC}")
+
+include_directories(${QHULL}/src/libqhullcpp/ ${QHULL}/src/libqhull/ ${QHULL}/src/libqhull_r/ ${QHULL}/src/)
+>>>>>>> fixing_connections
 
 if (MembranePotentialMapping)
 	set(NC_WITH_MPM 1)
@@ -102,7 +117,7 @@ else(buildEmbeddedPlugins)
 	
 	if (MembranePotentialMapping)
 		# make plugin link against MPM
-		set(linkLibraries MembranePotentialMapping ${linkLibraries})
+		set(linkLibraries MembranePotentialMapping ${linkLibraries} ${QHULL_LIB_CPP} ${QHULL_LIB_STATIC}) 
 	endif (MembranePotentialMapping)
 	
 	if (cable_neuron)
@@ -115,6 +130,6 @@ else(buildEmbeddedPlugins)
 		set(linkLibraries Parmetis ${linkLibraries})
 	endif (Parmetis)
 	
-	target_link_libraries (${pluginName} ug4 ${linkLibraries})
+	target_link_libraries (${pluginName} ug4 ${linkLibraries} ${QHULL_LIB_CPP} ${QHULL_LIB_STATIC}) 
 endif(buildEmbeddedPlugins)
 
