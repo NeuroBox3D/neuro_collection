@@ -1,9 +1,9 @@
 /*!
  * \file neurite_util.h
  *
- * TODO: more cleanup of the code and commenting of code
- * TODO: move more code out of test_neurite_proj.cpp class
- * TODO: add unit tests for the current version
+ * TODO: Cleanup and commenting of code - throw old legacy code before volumes
+ * TODO: Move all useful code out of testNeuriteProjector.cpp to the util class
+ * TODO: Add unit tests for the current code base
  *
  *  Created on: Apr 22, 2019
  *      Author: Stephan Grein
@@ -325,6 +325,19 @@ namespace ug {
 				SubsetHandler& sh,
 				size_t si,
 				size_t numRefs = 2
+		);
+
+		/*!
+		 * \brief creates the soma
+		 * \param[in] somaPts
+		 * \param[in] g
+		 * \param[in] aaPos
+		 */
+		void create_soma
+		(
+				const std::vector<SWCPoint>& somaPts,
+				Grid& g,
+				Grid::VertexAttachmentAccessor<APosition>& aaPos
 		);
 	}
 }

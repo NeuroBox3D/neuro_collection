@@ -1535,5 +1535,26 @@ namespace ug {
 			GenerateIcosphere(g, somaPts.front().coords, somaPts.front().radius, numRefs, aPosition, &sel);
 			AssignSelectionToSubset(sel, sh, si);
 		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// create_soma
+		////////////////////////////////////////////////////////////////////////
+		void create_soma
+		(
+			const std::vector<SWCPoint>& somaPts,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos
+		)
+		{
+			if (somaPts.size() == 1) {
+			// create soma as icosahedron
+			GenerateIcosahedron(g, somaPts[0].coords, somaPts[0].radius, aPosition);
+			} else {
+				// TODO: Gneralize this: can take recipe from here to generate a deformated icosahedron:
+				// http://blog.andreaskahler.com/2009/06/creating-icosphere-mesh-in-code.html
+				UG_THROW("Currently only one soma point is allowed by this implementation.");
+			}
+		}
+
 	}
 }

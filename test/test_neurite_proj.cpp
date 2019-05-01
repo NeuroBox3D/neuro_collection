@@ -66,23 +66,6 @@
 namespace ug {
 namespace neuro_collection {
 
-/// Note: Method exists already in util impl should refactor this TODO
-static void create_soma
-(
-		const std::vector<SWCPoint>& somaPts,
-		Grid& g,
-		Grid::VertexAttachmentAccessor<APosition>& aaPos
-)
-{
-	if (somaPts.size() == 1) {
-		// create soma as icosahedron
-		GenerateIcosahedron(g, somaPts[0].coords, somaPts[0].radius, aPosition);
-	} else {
-		// TODO: generalize this: can take recipe from here to geerate a deformated icosahedron:
-		// http://blog.andreaskahler.com/2009/06/creating-icosphere-mesh-in-code.html
-		UG_THROW("Currently only one soma point is allowed by this implementation.");
-	}
-}
 
 static void import_swc
 (
@@ -1270,18 +1253,18 @@ void calculate_segment_axial_positions
     		// i.e., the axial position of the intersection of the branching neurite's
     		// spline with the surface of the current neurite
     		// this is necessary esp. when the branching angle is very small
-    		const std::vector<size_t> vBranchInd ; // TODO: refactor const std::vector<size_t>& vBranchInd = brit->bp->vNid;
-    		size_t nBranches = vBranchInd.size();
+			const std::vector<uint32_t>& vBranchInd = brit->bp->vNid;
+			size_t nBranches = vBranchInd.size();
 
     		for (size_t br = 1; br < nBranches; ++br)
     		{
-    			size_t brInd = vBranchInd[br];
+    			uint32_t brInd = vBranchInd[br];
 
     			// get position and radius of first point of branch
     			const number brRadSeg1 = vR[brInd][0];
 
     			// get position and radius of branching point
-    			const number bpTPos = 0; // TODO: refactor 0.5 * (brit->tend + brit->tstart);
+    			const number bpTPos = brit->t;
     			size_t brSec = curSec;
     			for (; brSec < nSec; ++brSec)
     			{
@@ -2219,7 +2202,7 @@ void calculate_segment_axial_positions
     vector3 lastPos = pos[0];
     size_t curSec = 0;
 
-    /// TODO: change angle here too if we forced positions
+    /// Note: change angle here too if we forced positions
     while (true)
     {
     	t_start = t_end;
@@ -2239,18 +2222,19 @@ void calculate_segment_axial_positions
     		// i.e., the axial position of the intersection of the branching neurite's
     		// spline with the surface of the current neurite
     		// this is necessary esp. when the branching angle is very small
-    		const std::vector<size_t> vBranchInd; // TODO Refactor const std::vector<size_t> vBranchInd = brit->bp->vNid; brit->bp->vNid;
-    		size_t nBranches = vBranchInd.size();
+			const std::vector<uint32_t>& vBranchInd = brit->bp->vNid;
+			size_t nBranches = vBranchInd.size();
 
     		for (size_t br = 1; br < nBranches; ++br)
     		{
-    			size_t brInd = vBranchInd[br];
+    			uint32_t brInd = vBranchInd[br];
 
     			// get position and radius of first point of branch
     			const number brRadSeg1 = vR[brInd][0];
 
     			// get position and radius of branching point
-    			const number bpTPos = 0; // TODO: refactor 0.5 * (brit->tend + brit->tstart);
+    			const number bpTPos = brit->t;
+
     			size_t brSec = curSec;
     			for (; brSec < nSec; ++brSec)
     			{
@@ -2432,7 +2416,7 @@ void calculate_segment_axial_positions
 
 				/// correct angle offset
 				if (forcePositions) {
-					//aaPos[v] = aaPos[vVrt[j]]; /// TODO: This is wrong, aaPos[v] is wrong in the end because wrong angle used above...
+					//aaPos[v] = aaPos[vVrt[j]]; /// Note This is wrong, aaPos[v] is wrong in the end because wrong angle used above...
 					number angle = calculate_angle(curPos, aaPos[vVrt[0]], aaPos[vVrt[j]]) + angleOffset;
 					if (angle > 2*PI) angle -=2*PI;
 				}
@@ -5226,10 +5210,6 @@ void test_smoothing(const std::string& fileName, size_t n, number h, number gamm
     std::vector<Vertex*> outVerts;
     std::vector<number> outRads;
 
-    // create spline data
-    std::vector<NeuriteProjector::Neurite> vNeurites;
-    create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
-
     // create coarse grid
     Grid g;
     SubsetHandler sh(g);
@@ -5248,7 +5228,6 @@ void test_smoothing(const std::string& fileName, size_t n, number h, number gamm
     Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
     aaSurfParams.access(g, aSP);
 
-
     UG_LOGN("do projection handling and generate geom3d")
     ProjectionHandler projHandler(&sh);
     SmartPtr<IGeometry<3> > geom3d = MakeGeometry3d(g, aPosition);
@@ -5258,14 +5237,9 @@ void test_smoothing(const std::string& fileName, size_t n, number h, number gamm
     SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
     projHandler.set_projector(0, neuriteProj);
 
-    // Note:  This has to be improved: When neurites are copied,
-    //        pointers inside still point to our vNeurites array.
-    //        If we destroy it, we're in for some pretty EXC_BAD_ACCESSes.
-    UG_LOGN("add neurites")
-    for (size_t i = 0; i < vNeurites.size(); ++i) {
-     /// TODO refactor   neuriteProj->add_neurite(vNeurites[i]);
-    }
-    UG_LOGN("done");
+    // create spline data
+	std::vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
+    create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
 
     for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
     	create_neurite_old(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, NULL, NULL, &outVerts, &outRads, false);
@@ -6443,10 +6417,6 @@ void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuritePr
     std::vector<Vertex*> outVertsInner;
     std::vector<number> outRadsInner;
 
-    // create spline data
-    std::vector<NeuriteProjector::Neurite> vNeurites;
-    create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
-
     UG_LOGN("do projection handling and generate geom3d")
     ProjectionHandler projHandler(&sh);
     SmartPtr<IGeometry<3> > geom3d = MakeGeometry3d(g, aPosition);
@@ -6456,20 +6426,15 @@ void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuritePr
     SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
     projHandler.set_projector(0, neuriteProj);
 
+    // create spline data
+	std::vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
+    create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
+
     /// indicate scale and if ER is present
     for (std::vector<NeuriteProjector::Neurite>::iterator it = vNeurites.begin(); it != vNeurites.end(); ++it) {
     	it->bHasER = true;
     	it->scaleER = scaleER;
     }
-
-    // Note:  This has to be improved: When neurites are copied,
-    //        pointers inside still point to our vNeurites array.
-    //        If we destroy it, we're in for some pretty EXC_BAD_ACCESSes.
-    UG_LOGN("add neurites")
-    for (size_t i = 0; i < vNeurites.size(); ++i) {
-      /// TODO: refactor   neuriteProj->add_neurite(vNeurites[i]);
-    }
-    UG_LOGN("done");
 
     UG_LOGN("generating neurites")
     for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
@@ -6478,7 +6443,6 @@ void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuritePr
 
     SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
     sel.clear();
-
 
     /// Outer soma
     /// Note: axisVectors (outer soma) and axisVectorsInner (inner soma) save the cylinder center, diameter and length parameters for the CylinderProjectors
@@ -6677,8 +6641,6 @@ void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuritePr
 
     // create spline data
     convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
-    std::vector<NeuriteProjector::Neurite> vNeurites;
-    create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
 
     UG_LOGN("do projection handling and generate geom3d")
     ProjectionHandler projHandler(&sh);
@@ -6689,20 +6651,14 @@ void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuritePr
     SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
     projHandler.set_projector(0, neuriteProj);
 
+	std::vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
+    create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
+
     /// indicate scale and if ER is present
     for (std::vector<NeuriteProjector::Neurite>::iterator it = vNeurites.begin(); it != vNeurites.end(); ++it) {
     	it->bHasER = true;
     	it->scaleER = scaleER;
     }
-
-    // Note:  This has to be improved: When neurites are copied,
-    //        pointers inside still point to our vNeurites array.
-    //        If we destroy it, we're in for some pretty EXC_BAD_ACCESSes.
-    UG_LOGN("add neurites")
-    for (size_t i = 0; i < vNeurites.size(); ++i) {
-     /// TODO: refactor   neuriteProj->add_neurite(vNeurites[i]);
-    }
-    UG_LOGN("done");
 
     UG_LOGN("generating neurites")
     for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
@@ -6779,13 +6735,11 @@ void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuritePr
     std::vector<number> outRads;
 
     // create spline data (and scale radii before)
-    std::vector<NeuriteProjector::Neurite> vNeurites;
     for (std::vector<std::vector<number> >::iterator it = vRad.begin(); it != vRad.end(); ++it) {
          	for (std::vector<number>::iterator itRad = it->begin(); itRad != it->end(); ++itRad) {
           		*itRad = *itRad * scale;
          	}
        }
-    create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
 
     // create coarse grid
     Grid g;
@@ -6814,11 +6768,8 @@ void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuritePr
     SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
     projHandler.set_projector(0, neuriteProj);
 
-    UG_LOGN("add neurites")
-    for (size_t i = 0; i < vNeurites.size(); ++i) {
-     /// TODO: refactor   neuriteProj->add_neurite(vNeurites[i]);
-    }
-    UG_LOGN("done");
+	std::vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
+    create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
 
     UG_LOGN("generating neurites")
     for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
