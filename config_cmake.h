@@ -11,7 +11,5 @@
 #cmakedefine NC_WITH_CABLENEURON
 #cmakedefine NC_WITH_NEURON
 #cmakedefine NC_WITH_PARMETIS
-#cmakedefine NC_WITH_QHULL
-
 
 #endif // UG__PLUGINS__NEURO_COLLECTION__CONFIG_H

@@ -35,7 +35,6 @@
 #include "lib_grid/algorithms/smoothing/manifold_smoothing.h" // TangentialSmoothing
 #include "lib_grid/algorithms/remeshing/resolve_intersections.h" // ResolveTriangleIntersection
 #include <boost/geometry.hpp>
-#include "../../ElementQualityStatistics/element_quality_statistics.h"
 #include "lib_grid/grid/neighborhood_util.h"
 #include "common/util/file_util.h"
 
