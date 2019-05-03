@@ -54,14 +54,6 @@
 // configuration file for compile options
 #include "nc_config.h"
 
-/// use our implementation quickhull but prefer qhull.org if available
-#ifdef NC_WITH_QHULL
-	#include "qhull.cpp"
-#else
-	#include "quickhull.cpp"
-#endif
-
-
 namespace ug {
 namespace neuro_collection {
 
