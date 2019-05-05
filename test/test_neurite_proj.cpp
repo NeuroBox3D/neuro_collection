@@ -1865,12 +1865,12 @@ void calculate_segment_axial_positions
 		 aaSurfParams[newVertex1] = aaSurfParams[e1->vertex(0)];
 		 aaSurfParams[newVertex1].axial = aaSurfParams[e1->vertex(0)].axial + scale/2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
 		 aaSurfParams[newVertex1].neuriteID = aaSurfParams[e1->vertex(0)].neuriteID;
-		 aaSurfParams[newVertex1].scale = aaSurfParams[e1->vertex(0)].scale;
+		 //aaSurfParams[newVertex1].scale = aaSurfParams[e1->vertex(0)].scale;  // scale is never used
 		 VecScaleAdd(aaPos[newVertex2], 1.0, aaPos[newVertex2], -scale/2.0, dir);
 		 aaSurfParams[newVertex2] = aaSurfParams[e1->vertex(1)];
 		 aaSurfParams[newVertex2].axial = aaSurfParams[e1->vertex(1)].axial - scale/2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
 		 aaSurfParams[newVertex2].neuriteID = aaSurfParams[e1->vertex(1)].neuriteID;
-		 aaSurfParams[newVertex2].scale = aaSurfParams[e1->vertex(1)].scale;
+		 //aaSurfParams[newVertex2].scale = aaSurfParams[e1->vertex(1)].scale;  // scale is never used
 
 		 /// "top vertices of connecting inner face": e2->vertex(0) - newVertex3 - newVertex4 - e2->vertex(1)
 		 vector3 dir2;
@@ -1884,17 +1884,17 @@ void calculate_segment_axial_positions
 		 aaSurfParams[newVertex3] = aaSurfParams[e2->vertex(0)];
 		 aaSurfParams[newVertex3].axial =  aaSurfParams[e2->vertex(0)].axial + scale/2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
 		 aaSurfParams[newVertex3].neuriteID = aaSurfParams[e2->vertex(0)].neuriteID;
-		 aaSurfParams[newVertex3].scale = aaSurfParams[e2->vertex(0)].scale;
+		 //aaSurfParams[newVertex3].scale = aaSurfParams[e2->vertex(0)].scale;  // scale is never used
 		 VecScaleAdd(aaPos[newVertex4], 1.0, aaPos[newVertex4], -scale/2.0, dir);
 		 aaSurfParams[newVertex4] = aaSurfParams[e2->vertex(1)];
 		 aaSurfParams[newVertex4].axial = aaSurfParams[e2->vertex(1)].axial - scale/2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
 		 aaSurfParams[newVertex4].neuriteID = aaSurfParams[e2->vertex(1)].neuriteID;
-		 aaSurfParams[newVertex4].scale = aaSurfParams[e2->vertex(1)].scale;
+		 //aaSurfParams[newVertex4].scale = aaSurfParams[e2->vertex(1)].scale;  // scale is never used
 
 		 ug::RegularEdge* e31 = *g.create<RegularEdge>(EdgeDescriptor(newVertex1, newVertex3));
-		 ug::Quadrilateral* q1 = *g.create<Quadrilateral>(QuadrilateralDescriptor(e1->vertex(0), newVertex1, newVertex3, e2->vertex(0)));
+		 g.create<Quadrilateral>(QuadrilateralDescriptor(e1->vertex(0), newVertex1, newVertex3, e2->vertex(0)));
 		 ug::RegularEdge* e24 = *g.create<RegularEdge>(EdgeDescriptor(newVertex4, newVertex2));
-		 ug::Quadrilateral* q2 = *g.create<Quadrilateral>(QuadrilateralDescriptor(e1->vertex(1), newVertex2, newVertex4, e2->vertex(1)));
+		 g.create<Quadrilateral>(QuadrilateralDescriptor(e1->vertex(1), newVertex2, newVertex4, e2->vertex(1)));
 		 ug::RegularEdge* e12 =  *g.create<RegularEdge>(EdgeDescriptor(newVertex2, newVertex1));
 		 ug::RegularEdge* e43 =  *g.create<RegularEdge>(EdgeDescriptor(newVertex3, newVertex4));
 
@@ -2159,7 +2159,7 @@ void calculate_segment_axial_positions
         			aaSurfParams[v].neuriteID = nid;
         			aaSurfParams[v].axial = 0.0;
         			aaSurfParams[v].angular = angle;
-        			aaSurfParams[v].scale = neurite.scaleER;
+        			//aaSurfParams[v].scale = neurite.scaleER;  // scale is never used
         			outVertsInner->push_back(v);
         			UG_LOGN("aaPos[v]: " << aaPos[v]);
         			if (forcePositions) {
@@ -2430,7 +2430,7 @@ void calculate_segment_axial_positions
 					aaSurfParams[v].neuriteID = nid;
 					aaSurfParams[v].axial = segAxPos;
 					aaSurfParams[v].angular = angle;
-					aaSurfParams[v].scale = neurite.scaleER;
+					//aaSurfParams[v].scale = neurite.scaleER;  // scale is never used
 
 					Grid::traits<Face>::secure_container faceCont;
 					g.associated_elements(faceCont, vEdgeInner[j]);  // faceCont must contain exactly one face
@@ -2555,7 +2555,7 @@ void calculate_segment_axial_positions
 			bestProd = 0.0;
 			fit = sel2.faces_begin();
 			fit_end = sel2.faces_end();
-			ug::vector3 hexCenter = CalculateCenter(fit, fit_end, aaPos);
+			//ug::vector3 hexCenter = CalculateCenter(fit, fit_end, aaPos);  // unused
 
 			std::vector<Vertex*> vrtsOpposing;
 			for (; fit != fit_end; ++fit)
@@ -2697,7 +2697,7 @@ void calculate_segment_axial_positions
     aaSurfParams[vInner].neuriteID = nid;
     aaSurfParams[vInner].axial = 2.0;
     aaSurfParams[vInner].angular = 0.0;
-    aaSurfParams[vInner].scale = neurite.scaleER;
+    // aaSurfParams[vInner].scale = neurite.scaleER;  // scale never used
 }
 
 
@@ -6485,10 +6485,10 @@ void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuritePr
     std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectorsInner;
     connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRadsInner, outQuadsInner2, newSomaIndex, sh, fileName, scaleER, axisVectorsInner, vNeurites, connectingVertices, connectingVerticesInner, connectingEdges, connectingEdgesInner, false);
 
-    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
-    	vNeurites[i].somaRadius = somaPoint.front().radius;
-    	vNeurites[i].somaPt = somaPoint.front().coords;
-    }
+    //for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
+    //	vNeurites[i].somaRadius = somaPoint.front().radius;  // somaRadius never used
+    //	vNeurites[i].somaPt = somaPoint.front().coords;  // somaPt never used
+    //}
 
     // save after connecting and assign subsets
     EraseEmptySubsets(sh);
@@ -6503,7 +6503,7 @@ void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuritePr
 
 
     sh.set_subset_name("soma (inner)", newSomaIndex);
-    for (size_t i = newSomaIndex+1; i < sh.num_subsets(); i++) {
+    for (int i = newSomaIndex+1; i < sh.num_subsets(); i++) {
     	std::stringstream ss;
      	ss << "inner-connex #" << i;
      	sh.set_subset_name(ss.str().c_str(), i);
@@ -6517,7 +6517,7 @@ void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuritePr
 
     EraseEmptySubsets(sh);
     AssignSubsetColors(sh);
-    for (size_t i = newSomaIndex+vRootNeuriteIndsOut.size(); i < sh.num_subsets(); i++) {
+    for (size_t i = newSomaIndex+vRootNeuriteIndsOut.size(); i < (size_t)sh.num_subsets(); i++) {
     	std::stringstream ss;
      	ss << "inter-soma-connex #" << i;
      	sh.set_subset_name(ss.str().c_str(), i);

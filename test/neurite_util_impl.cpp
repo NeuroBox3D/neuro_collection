@@ -922,7 +922,7 @@ namespace ug {
 	   std::vector<Vertex*> outVertsInner,
 	   std::vector<number> outRads,
 	   std::vector<Vertex*>& smallerQuadVerts,
-	   size_t si,
+	   int si,
 	   SubsetHandler& sh,
 	   const std::string& fileName,
 	   number rimSnapThresholdFactor,
@@ -1038,9 +1038,9 @@ namespace ug {
 	ss.str(""); ss.clear();
 
 	/// Collapse now edges and take smallest edges first
-	size_t beginningOfQuads = si+1; // subset index where quads are stored in
+	int beginningOfQuads = si+1; // subset index where quads are stored in
 	for (size_t i = 0; i < numQuads; i++) {
-		size_t si = beginningOfQuads+i;
+		int si = beginningOfQuads+i;
 		size_t numEdges = sh.num<Edge>(si);
 		size_t j = 0;
 		while (numEdges > numVerts) {
@@ -1075,7 +1075,7 @@ namespace ug {
 
 		/// Outer Soma is assumed to start at -5 * outRads[i] of corresponding neurite and inner soma is assumed to start at -1
 		for (; vit != vend; ++vit) {
-			aaSurfParams[*vit].soma = true;
+			// aaSurfParams[*vit].soma = true;  // soma is never used
 			if (createInner)
 				aaSurfParams[*vit].axial = -5 * outRads[i];
 			else
@@ -1087,7 +1087,7 @@ namespace ug {
 		/// Shrink each quad on the outer soma surface
 		for (size_t i = 0; i < numQuads; i++) {
 			sel.clear();
-			size_t si = beginningOfQuads+i;
+			int si = beginningOfQuads+i;
 
 			SelectSubsetElements<Vertex>(sel, sh, si, true);
 			std::vector<Vertex*> vrts;
@@ -1105,7 +1105,7 @@ namespace ug {
 			vrts.push_back(edges[0]->vertex(1));
 
 			Vertex* prevVertex = edges[0]->vertex(1);
-			size_t numIterations = edges.size()-1;
+			//size_t numIterations = edges.size()-1;  // unused
 			std::vector<size_t> indices;
 			edges.erase(edges.begin());
 			UG_LOGN("number of edges: " << edges.size());
@@ -1151,9 +1151,9 @@ namespace ug {
 
 			/// Inner soma is assumed to start at -5 * outRads[i] of corresponding neurite too
 			for (; vit != vend; ++vit) {
-				aaSurfParams[*vit].soma = true;
+				// aaSurfParams[*vit].soma = true;  // soma is never used
 				aaSurfParams[*vit].axial =  -5 * outRads[i];
-				vNeurites[i].somaStart = 5 * outRads[i];
+				//vNeurites[i].somaStart = 5 * outRads[i];  // somaStart is never used
 			}
 		}
 	}
@@ -1185,7 +1185,7 @@ namespace ug {
 
 
 	for (size_t i = 0; i < numQuads; i++) {
-		size_t si = beginningOfQuads+i;
+		int si = beginningOfQuads+i;
 		ug::vector3 normal;
 		CalculateVertexNormal(normal, g, *sh.begin<Vertex>(si), aaPos);
 		UG_LOGN("normal (outer): " << normal);
@@ -1246,7 +1246,7 @@ namespace ug {
 			if (sh.get_subset_index(vertices[j]) == si) {
 				connectingVertices[i].push_back(vertices[j]);
 			}
-			if (sh.get_subset_index(vertices[j]) == si+numQuads) {
+			if (sh.get_subset_index(vertices[j]) == si+(int)numQuads) {
 				connectingVerticesInner[i].push_back(vertices[j]);
 			}
 		}
@@ -1256,7 +1256,7 @@ namespace ug {
 			if (sh.get_subset_index(edges[j]) == si) {
 				connectingEdges[i].push_back(edges[j]);
 			}
-			if (sh.get_subset_index(edges[j]) == si+numQuads) {
+			if (sh.get_subset_index(edges[j]) == si+(int)numQuads) {
 				connectingEdgesInner[i].push_back(edges[j]);
 			}
 		}
@@ -1268,8 +1268,8 @@ namespace ug {
 		/// indicate start of neurite with axial 0 and soma false explicitly: neurite start is 0 for outer soma and for inner soma it is -1 + radOut[i] * 5;
 		for (std::vector<Vertex*>::iterator it = vertices.begin(); it != vertices.end(); ++it) {
 			aaSurfParams[*it].axial = -1 + 5 * outRads[i];
-			vNeurites[i].somaStart = 5 * outRads[i];
-			aaSurfParams[*it].soma = false;
+			//vNeurites[i].somaStart = 5 * outRads[i];  // somaStart is never used
+			//aaSurfParams[*it].soma = false;  // soma is never used
 		}
 
 		SelectSubsetElements<Vertex>(sel, sh, si, true);
@@ -1280,7 +1280,7 @@ namespace ug {
 		temp2.clear();
 
 		if (createInner) {
-			SelectSubsetElements<Vertex>(sel, sh, si+numQuads, true);
+			SelectSubsetElements<Vertex>(sel, sh, si+(int)numQuads, true);
 			temp2.assign(sel.vertices_begin(), sel.vertices_end());
 			allVertsInner.push_back(temp2);
 			sel.clear();
@@ -1476,7 +1476,7 @@ namespace ug {
 	    	if (createFaces) {
 	    		/// create new faces
 	    		for (size_t i = 0; i < 4; ++i) {
-	    			ug::Face* f = *g.create<Quadrilateral>(QuadrilateralDescriptor(outvVrt[i], outvVrt[(i+1)%4], oldVertices[(i+1)%4], oldVertices[i]));
+	    			g.create<Quadrilateral>(QuadrilateralDescriptor(outvVrt[i], outvVrt[(i+1)%4], oldVertices[(i+1)%4], oldVertices[i]));
 	    			/// Note: Do we need to flip faces here to wrt radial vector?
 	    		}
 	    	}

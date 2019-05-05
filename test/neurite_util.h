@@ -249,7 +249,7 @@ namespace ug {
 		   std::vector<Vertex*> outVertsInner,
 		   std::vector<number> outRads,
 		   std::vector<Vertex*>& smallerQuadVerts,
-		   size_t si,
+		   int si,
 		   SubsetHandler& sh,
 		   const std::string& fileName,
 		   number rimSnapThresholdFactor,
