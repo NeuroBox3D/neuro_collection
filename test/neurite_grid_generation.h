@@ -23,7 +23,20 @@ namespace ug {
 	namespace neuro_collection {
 		/*!
 		 * \brief creates neurites with ER
-		 * TODO: document parameters
+		 * \param[in] vNeurites
+		 * \param[in] vPos
+		 * \param[in] vR
+		 * \param[in] nid
+		 * \param[in] erScaleFactor
+		 * \param[in] anisotropy
+		 * \param[in] g
+		 * \param[in] aaPos
+		 * \param[in] aaSurfParams
+		 * \param[in] sh
+		 * \param[in] connectingVrts
+		 * \param[in] connectingEdges
+		 * \param[in] connectingFaces
+		 * \param[in] initialOffset
 		 */
 		void create_neurite_with_er
 		(
@@ -46,12 +59,23 @@ namespace ug {
 
 		/*!
 		 * \brief creates neurite surface
-		 * TODO: document parameters
+		 * \param[in] vNeurites
+		 * \param[in] vPos
+		 * \param[in] vR
+		 * \param[in] nid
+		 * \param[in] g
+		 * \param[in] aaPos
+		 * \param[in] aaSurfParams
+		 * \param[in] sh
+		 * \param[in] connectingVrts
+		 * \param[in] connectingEdges
+		 * \param[in] initialOffset
 		 */
 		void create_neurite_surf(
 			const std::vector<NeuriteProjector::Neurite>& vNeurites,
 			const std::vector<std::vector<vector3> >& vPos,
-			const std::vector<std::vector<number> >& vR, size_t nid,
+			const std::vector<std::vector<number> >& vR,
+			size_t nid,
 			number anisotropy, Grid& g,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			Grid::VertexAttachmentAccessor<
@@ -63,7 +87,10 @@ namespace ug {
 
 		/*!
 		 * \brief calculate length over radius
-		 * TODO: document parameters
+		 * \param[in] t_start
+		 * \param[in] t_end
+		 * \param[in] neurite
+		 * \param[in] startSec
 		 */
 		number calculate_length_over_radius
 		(
@@ -76,7 +103,12 @@ namespace ug {
 
 		/*!
 		 * \brief calculates segment axial positions
-		 * TODO: document parameters
+		 * \param[in] segAxPosOut
+		 * \param[in] t_start
+		 * \param[in] t_end
+		 * \param[in] neurite
+		 * \param[in] startSec
+		 * \param[in] segLength
 		 */
 		void calculate_segment_axial_positions
 		(
@@ -90,12 +122,21 @@ namespace ug {
 
 		/*!
 		 * \brief create neurite 1d
-		 * TODO: document parameters
+		 * \param[in] vNeurites
+		 * \param[in] vPos
+		 * \param[in] vR
+		 * \param[in] nid
+		 * \param[in] g
+		 * \param[in] aaPos
+		 * \param[in] aaSurfParams
+		 * \param[in] aaDiam
+		 * \param[in] connectingVrts
 		 */
 		 void create_neurite_1d(
 			const std::vector<NeuriteProjector::Neurite>& vNeurites,
 			const std::vector<std::vector<vector3> >& vPos,
-			const std::vector<std::vector<number> >& vR, size_t nid,
+			const std::vector<std::vector<number> >& vR,
+			size_t nid,
 			number anisotropy, Grid& g,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			Grid::VertexAttachmentAccessor<

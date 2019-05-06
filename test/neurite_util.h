@@ -426,7 +426,13 @@ namespace ug {
 		/*!
 		 * \brief Correcting inner branching points of neurites
 		 * Note: In case of very small shrinkage factor might result in intersections
-		 * TODO: Document parameters
+		 * \param[in] verts
+		 * \param[in] edges
+		 * \param[in] oldVertsSorted
+		 * \param[in] aaSurfParams
+		 * \param[in] g
+		 * \param[in] aaPos
+		 * \param[in] scale
 		 */
 		void correct_edges
 		(
@@ -440,8 +446,15 @@ namespace ug {
 		);
 
 		/*!
-		 * @brief helper method to correct one side of the quadrilateral
-		 * TODO: Document parameters
+		 * \brief helper method to correct one side of the quadrilateral
+		 * \param[in] verts
+		 * \param[in] vertsOpp,
+		 * \param[in] edges
+		 * \param[in] edgesOpp
+		 * \param[in] aaSurfParams
+		 * \param[in] g
+		 * \param[in] aaPos
+		 * \param[in] scale
 		 */
 		void correct_edges_all
 		(
@@ -456,10 +469,13 @@ namespace ug {
 		);
 
 		/*!
-		 * @brief corrects the axial offset at the inner branching points
+		 * \brief corrects the axial offset at the inner branching points
 		 * This means, we move the points with smaller axial value further down
 		 * the current neurite and the larger axial values further back
-		 * TODO: document parameters
+		 * \param[in] verts
+		 * \param[in] aaSurfParams
+		 * \param[in] aaPos
+		 * \param[in] scale
 		 */
 		void correct_axial_offset
 		(
