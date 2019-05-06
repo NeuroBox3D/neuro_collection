@@ -49,6 +49,7 @@ if (NOT buildForVRL)
 			   test/test_neurite_proj.cpp
 			   test/neurite_refMarkAdjuster.cpp
 			   test/neurite_util_impl.cpp
+			   test/neurite_grid_generation_impl.cpp
       )
 endif (NOT buildForVRL)
 

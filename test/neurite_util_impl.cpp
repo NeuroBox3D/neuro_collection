@@ -1556,5 +1556,276 @@ namespace ug {
 			}
 		}
 
+		////////////////////////////////////////////////////////////////////////
+		/// split_quadrilateral_along_edges
+		////////////////////////////////////////////////////////////////////////
+		void split_quadrilateral_along_edges
+		(
+			std::vector<Vertex*> vVrt,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			number percentage,
+			ug::vector3 vecDir,
+			std::vector<ug::Vertex*>& vertices,
+			std::vector<ug::Edge*>& edges,
+			bool conservative
+		)
+		{
+			/// "middle edges"
+			std::vector<ug::Vertex*> from;
+			std::vector<ug::Vertex*> to;
+			Selector sel(g);
+			vVrt.resize(4);
+			size_t numPar = 0;
+			for (size_t i = 0; i < 4; ++i) {
+				ug::vector3 diffVec;
+				VecSubtract(diffVec, aaPos[vVrt[i]], aaPos[vVrt[(i+1)%4]]);
+				VecNormalize(diffVec, diffVec);
+				VecNormalize(vecDir, vecDir);
+				UG_LOGN("Parallel? " << VecDot(vecDir, diffVec));
+				if (abs(VecDot(vecDir, diffVec)) > (1-0.1)) {
+					numPar++;
+					UG_LOGN("Parallel:" << VecDot(vecDir, diffVec));
+					Edge* e = g.get_edge(vVrt[i], vVrt[(i+1)%4]);
+					ug::RegularVertex* newVertex = SplitEdge<ug::RegularVertex>(g, e, conservative);
+					ug::vector3 dir;
+					VecSubtract(dir, aaPos[vVrt[i]], aaPos[vVrt[(i+1)%4]]);
+					VecScaleAdd(aaPos[newVertex], 1.0, aaPos[vVrt[i]], percentage, dir);
+					e = g.get_edge(newVertex, vVrt[(i+1)%4]);
+					ug::RegularVertex* newVertex2 = SplitEdge<ug::RegularVertex>(g, e, conservative);
+					VecScaleAdd(aaPos[newVertex2], 1.0, aaPos[vVrt[(i+1)%4]], -percentage, dir);
+					from.push_back(newVertex);
+					to.push_back(newVertex2);
+				}
+			}
+
+			/// Note: Verify this is correct - seems okay.
+			edges.push_back(g.get_edge(to[0], from[0]));
+			ug::RegularEdge* e1 = *g.create<RegularEdge>(EdgeDescriptor(to[0], from[1]));
+			edges.push_back(e1);
+			edges.push_back(g.get_edge(to[1], from[1]));
+			ug::RegularEdge* e2 = *g.create<RegularEdge>(EdgeDescriptor(to[1], from[0]));
+			edges.push_back(e2);
+			vertices.push_back(from[0]);
+			vertices.push_back(to[0]);
+			vertices.push_back(from[1]);
+			vertices.push_back(to[1]);
+			UG_COND_THROW(numPar != 2, "Shrinking of connecting quadrilateral failed!");
+		}
+
+
+		////////////////////////////////////////////////////////////////////////
+		/// shrink_quadrilateral_center
+		////////////////////////////////////////////////////////////////////////
+		void shrink_quadrilateral_center
+		(
+			std::vector<Vertex*>& vVrt,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			number percentage,
+			ug::vector3& center
+		)
+		{
+			for (size_t i = 0; i < 4; ++i)
+		    {
+		       ug::vector3 dir;
+		       VecSubtract(dir, aaPos[vVrt[i]], center);
+
+		       UG_LOGN("dir:" << dir)
+		       VecScaleAdd(aaPos[vVrt[i]], 1.0, aaPos[vVrt[i]], percentage, dir);
+
+		       if (percentage > 1) {
+		          UG_WARNING("Moving vertex beyond center. Will create degenerated elements." << std::endl);
+		       }
+		    }
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// reorder_connecting_elements
+		////////////////////////////////////////////////////////////////////////
+		void reorder_connecting_elements
+		(
+			std::vector<ug::Vertex*>& v,
+			std::vector<ug::Edge*> e
+		) {
+			std::vector<ug::Vertex*> sorted;
+			sorted.push_back(v[0]);
+
+			for (size_t j = 1; j < v.size(); ++j) {
+				Vertex* next = v[j];
+				for (size_t i = 0; i < e.size(); i++) {
+					if ( (e[i]->vertex(0) == next && e[i]->vertex(1) == sorted[j-1]) ||
+							(e[i]->vertex(1) == next && e[i]->vertex(0) == sorted[j-1])) {
+						sorted.push_back(next);
+						break;
+					}
+				}
+			}
+			UG_COND_THROW(sorted.size() != 4, "Did not find vertices to sort...");
+			v = sorted;
+		}
+
+	/**
+	 * @brief Correcting inner branching points of neurites
+	 * Note: In case of very small shrinkage factor might result in intersections
+	 */
+	void correct_edges
+	(
+		std::vector<ug::Vertex*>& verts,
+		std::vector<ug::Edge*>& edges,
+		std::vector<ug::Vertex*>& oldVertsSorted,
+		Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+		Grid& g,
+		Grid::VertexAttachmentAccessor<APosition>& aaPos,
+		number scale
+	)
+	{
+		 sort(verts.begin(), verts.end(), CompareBy< &NeuriteProjector::SurfaceParams::axial >(aaSurfParams) );
+		 oldVertsSorted = verts;
+
+		 Edge* e1 = g.get_edge(verts[0], verts[2]);
+		 if (!e1) e1 = g.get_edge(verts[0], verts[3]);
+		 Edge* e2 = g.get_edge(verts[1], verts[2]);
+		 if (!e2) e2 = g.get_edge(verts[1], verts[3]);
+
+		 /// "bottom vertices of connecting inner face": e1->vertex(0) - newVertex1 - newVertex2 - e1->vertex(1)
+		 vector3 dir;
+		 VecSubtract(dir, aaPos[e1->vertex(1)], aaPos[e1->vertex(0)]);
+		 ug::RegularVertex* newVertex1 = *g.create<ug::RegularVertex>();
+		 ug::RegularVertex* newVertex2 = *g.create<ug::RegularVertex>();
+		 aaPos[newVertex1] = aaPos[e1->vertex(0)];
+		 aaPos[newVertex2] = aaPos[e1->vertex(1)];
+		 VecScaleAdd(aaPos[newVertex1], 1.0, aaPos[newVertex1], scale/2.0, dir);
+		 aaSurfParams[newVertex1] = aaSurfParams[e1->vertex(0)];
+		 aaSurfParams[newVertex1].axial = aaSurfParams[e1->vertex(0)].axial + scale/2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
+		 aaSurfParams[newVertex1].neuriteID = aaSurfParams[e1->vertex(0)].neuriteID;
+		 //aaSurfParams[newVertex1].scale = aaSurfParams[e1->vertex(0)].scale;  // scale is never used
+		 VecScaleAdd(aaPos[newVertex2], 1.0, aaPos[newVertex2], -scale/2.0, dir);
+		 aaSurfParams[newVertex2] = aaSurfParams[e1->vertex(1)];
+		 aaSurfParams[newVertex2].axial = aaSurfParams[e1->vertex(1)].axial - scale/2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
+		 aaSurfParams[newVertex2].neuriteID = aaSurfParams[e1->vertex(1)].neuriteID;
+		 //aaSurfParams[newVertex2].scale = aaSurfParams[e1->vertex(1)].scale;  // scale is never used
+
+		 /// "top vertices of connecting inner face": e2->vertex(0) - newVertex3 - newVertex4 - e2->vertex(1)
+		 vector3 dir2;
+		 VecSubtract(dir, aaPos[e2->vertex(1)], aaPos[e2->vertex(0)]);
+		 VecSubtract(dir2, aaPos[e2->vertex(1)], aaPos[e2->vertex(0)]);
+		 ug::RegularVertex* newVertex3 = *g.create<ug::RegularVertex>();
+		 ug::RegularVertex* newVertex4 = *g.create<ug::RegularVertex>();
+		 aaPos[newVertex3] = aaPos[e2->vertex(0)];
+		 aaPos[newVertex4] = aaPos[e2->vertex(1)];
+		 VecScaleAdd(aaPos[newVertex3], 1.0, aaPos[newVertex3], scale/2.0, dir);
+		 aaSurfParams[newVertex3] = aaSurfParams[e2->vertex(0)];
+		 aaSurfParams[newVertex3].axial =  aaSurfParams[e2->vertex(0)].axial + scale/2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
+		 aaSurfParams[newVertex3].neuriteID = aaSurfParams[e2->vertex(0)].neuriteID;
+		 //aaSurfParams[newVertex3].scale = aaSurfParams[e2->vertex(0)].scale;  // scale is never used
+		 VecScaleAdd(aaPos[newVertex4], 1.0, aaPos[newVertex4], -scale/2.0, dir);
+		 aaSurfParams[newVertex4] = aaSurfParams[e2->vertex(1)];
+		 aaSurfParams[newVertex4].axial = aaSurfParams[e2->vertex(1)].axial - scale/2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
+		 aaSurfParams[newVertex4].neuriteID = aaSurfParams[e2->vertex(1)].neuriteID;
+		 //aaSurfParams[newVertex4].scale = aaSurfParams[e2->vertex(1)].scale;  // scale is never used
+
+		 ug::RegularEdge* e31 = *g.create<RegularEdge>(EdgeDescriptor(newVertex1, newVertex3));
+		 g.create<Quadrilateral>(QuadrilateralDescriptor(e1->vertex(0), newVertex1, newVertex3, e2->vertex(0)));
+		 ug::RegularEdge* e24 = *g.create<RegularEdge>(EdgeDescriptor(newVertex4, newVertex2));
+		 g.create<Quadrilateral>(QuadrilateralDescriptor(e1->vertex(1), newVertex2, newVertex4, e2->vertex(1)));
+		 ug::RegularEdge* e12 =  *g.create<RegularEdge>(EdgeDescriptor(newVertex2, newVertex1));
+		 ug::RegularEdge* e43 =  *g.create<RegularEdge>(EdgeDescriptor(newVertex3, newVertex4));
+
+		 /// Verify edges are quasi parallel (should never happen but you never know)
+		 VecNormalize(dir, dir);
+		 VecNormalize(dir2, dir2);
+		 number dotProd = VecDot(dir, dir2) / (VecLength(dir) * VecLength(dir2));
+		 UG_COND_THROW( !( fabs(dotProd-1) < SMALL), "Edges need to be quasi parallel during splitting a hexaeder: " << dotProd);
+
+		 /// erase old edges
+		 g.erase(e1);
+		 g.erase(e2);
+
+		 /// set new face vertices for connection
+		 verts.clear();
+		 verts.push_back(newVertex1);
+		 verts.push_back(newVertex3);
+		 verts.push_back(newVertex4);
+		 verts.push_back(newVertex2);
+
+		 /// set new edge vertices for connection
+		 edges.clear();
+		 edges.push_back(e31);
+		 edges.push_back(e43);
+		 edges.push_back(e24);
+		 edges.push_back(e12);
+	}
+
+	////////////////////////////////////////////////////////////////////////
+	/// correct_edges_all
+	////////////////////////////////////////////////////////////////////////
+	void correct_edges_all
+	(
+		std::vector<ug::Vertex*>& verts,
+		std::vector<ug::Vertex*>& vertsOpp,
+		std::vector<ug::Edge*>& edges,
+		std::vector<ug::Edge*>& edgesOpp,
+		Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+		Grid& g,
+		Grid::VertexAttachmentAccessor<APosition>& aaPos,
+		number scale
+	)
+	{
+		/// the connecting vertices are needed later
+		UG_LOGN("correcting edges connecting...")
+		std::vector<ug::Vertex*> oldVertsSorted;
+		correct_edges(verts, edges, oldVertsSorted, aaSurfParams, g, aaPos, scale);
+		UG_LOGN("correcting edges opposing...")
+
+		/// backside not needed
+		std::vector<ug::Vertex*> oldVertsSortedOpp;
+		correct_edges(vertsOpp, edgesOpp, oldVertsSortedOpp, aaSurfParams, g, aaPos, scale);
+		g.create<Quadrilateral>(QuadrilateralDescriptor(vertsOpp[0], vertsOpp[1], vertsOpp[2], vertsOpp[3]));
+
+		// connect the sides of splitted edges and fill top center and bottom center holes
+		g.create<RegularEdge>(EdgeDescriptor(verts[0], vertsOpp[1]));
+		g.create<RegularEdge>(EdgeDescriptor(verts[1], vertsOpp[0]));
+		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[0], verts[3], vertsOpp[2], vertsOpp[1]));
+		g.create<RegularEdge>(EdgeDescriptor(verts[2], vertsOpp[3]));
+		g.create<RegularEdge>(EdgeDescriptor(verts[3], vertsOpp[2]));
+		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[1], verts[2], vertsOpp[3], vertsOpp[0]));
+
+		/// fill 4 more holes to the left and right on top and left and right on bottom
+		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[0], vertsOpp[1], oldVertsSortedOpp[1], oldVertsSorted[0]));
+		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[1], vertsOpp[0], oldVertsSortedOpp[0], oldVertsSorted[1]));
+		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[2], vertsOpp[3], oldVertsSortedOpp[3], oldVertsSorted[2]));
+		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[3], vertsOpp[2], oldVertsSortedOpp[2], oldVertsSorted[3]));
+	}
+
+	/**
+	 * @brief corrects the axial offset at the inner branching points
+	 * This means, we move the points with smaller axial value further down
+	 * the current neurite and the larger axial values further back
+	 */
+
+	////////////////////////////////////////////////////////////////////////
+	/// correct_axial_offset
+	////////////////////////////////////////////////////////////////////////
+	void correct_axial_offset
+	(
+		std::vector<ug::Vertex*>& verts,
+		Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+		Grid::VertexAttachmentAccessor<APosition>& aaPos,
+		number scale
+	)
+	{
+		// check for consistency
+		UG_COND_THROW(verts.size() != 4, "Exactly 4 vertices are necessary on coarse grid level.");
+		// sort to find min and max axial values
+		sort(verts.begin(), verts.end(), CompareBy< &NeuriteProjector::SurfaceParams::axial >(aaSurfParams) );
+		number length = aaSurfParams[verts[2]].axial - aaSurfParams[verts[0]].axial;
+		UG_LOGN("length TIMES scale/2: " << length*scale/2)
+		// update surface parameters
+		aaSurfParams[verts[0]].axial = aaSurfParams[verts[0]].axial + length*scale/2;
+		aaSurfParams[verts[1]].axial = aaSurfParams[verts[1]].axial + length*scale/2;
+		aaSurfParams[verts[2]].axial = aaSurfParams[verts[2]].axial - length*scale/2;
+		aaSurfParams[verts[3]].axial = aaSurfParams[verts[3]].axial - length*scale/2;
+	}
 	}
 }

@@ -20,6 +20,12 @@
 namespace ug {
 namespace neuro_collection {
 
+/// Edge comparable
+struct EdgeLengthCompare
+{
+	bool operator()(const std::pair<Edge*, number> e1, const std::pair<Edge*, number> e2)
+	{return e1.second > e2.second;}
+};
 
 /// TODO: Move these to a types class / file
 enum swc_type
@@ -39,6 +45,9 @@ struct SWCPoint
     std::vector<size_t> conns;
 };
 
+/*!
+ * \brief import an SWC file
+ */
 void import_swc
 (
     const std::string& fileName,

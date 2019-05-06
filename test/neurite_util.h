@@ -3,7 +3,7 @@
  *
  * TODO: Cleanup and commenting of code - throw old legacy code before volumes
  * TODO: Move all useful code out of testNeuriteProjector.cpp to the util class
- * TODO: Add unit tests for the current code base
+ * TODO: Add unit tests for the current code base and add const correctness
  *
  *  Created on: Apr 22, 2019
  *      Author: Stephan Grein
@@ -24,6 +24,37 @@
 
 namespace ug {
 	namespace neuro_collection {
+		/*!
+		 * \brief generic comparator for SurfaceParams
+		 */
+		typedef float (NeuriteProjector::SurfaceParams::*membervar);
+		template< membervar m > struct CompareBy {
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> > m_aaSurfParams;
+			bool operator()( const ug::Vertex* a, const ug::Vertex* b ) const {
+				return m_aaSurfParams[a].*m < m_aaSurfParams[b].*m ;
+			}
+			CompareBy(const Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams) {
+				m_aaSurfParams = aaSurfParams;
+			}
+		};
+
+		/*!
+		 * \brief comparator for elements in vector
+		 */
+		template <typename TElem>
+		struct ExistsInVector
+		{
+			ExistsInVector(const std::vector<TElem>& vec) : m_vec(vec) {
+			}
+
+			bool operator() (TElem elem) {
+				return (std::find(m_vec.begin(), m_vec.end(), elem) != m_vec.end());
+			}
+		private:
+			const std::vector<TElem>& m_vec;
+		};
+
+
 		/*!
 		 * \brief calculates the angle enclosed by the points point and origin
 		 * The calculation is relative to pos and the points are supposed to be
@@ -339,6 +370,105 @@ namespace ug {
 				Grid& g,
 				Grid::VertexAttachmentAccessor<APosition>& aaPos
 		);
+
+		/*!
+		 * \brief split a quadrilateral along its edges
+		 * \param[in] vVrt
+		 * \param[in] g
+		 * \param[in] aaPos
+		 * \param[in] percentage
+		 * \param[in] vecDir
+		 * \param[out] vertices
+		 * \param[out] edges
+		 * \param[in] conservative
+		 */
+		void split_quadrilateral_along_edges
+		(
+			std::vector<Vertex*> vVrt,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			number percentage,
+			ug::vector3 vecDir,
+			std::vector<ug::Vertex*>& vertices,
+			std::vector<ug::Edge*>& edges,
+			bool conservative = true
+		);
+
+
+		/*!
+		 * \brief shrink a quadrilateral towards its center
+		 * \param[in] vVrt
+		 * \param[in] g
+		 * \param[in] aaPOs
+		 * \param[in] percentage
+		 * \param[in] center
+		 */
+		void shrink_quadrilateral_center
+		(
+			std::vector<Vertex*>& vVrt,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			number percentage,
+			ug::vector3& center
+		);
+
+		/*!
+		 * \brief reorders the vertices accordingly
+		 * \param[in] v
+		 * \param[in] e
+		 */
+		void reorder_connecting_elements
+		(
+			std::vector<ug::Vertex*>& v,
+			std::vector<ug::Edge*> e
+		);
+
+		/*!
+		 * \brief Correcting inner branching points of neurites
+		 * Note: In case of very small shrinkage factor might result in intersections
+		 * TODO: Document parameters
+		 */
+		void correct_edges
+		(
+			std::vector<ug::Vertex*>& verts,
+			std::vector<ug::Edge*>& edges,
+			std::vector<ug::Vertex*>& oldVertsSorted,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			number scale
+		);
+
+		/*!
+		 * @brief helper method to correct one side of the quadrilateral
+		 * TODO: Document parameters
+		 */
+		void correct_edges_all
+		(
+			std::vector<ug::Vertex*>& verts,
+			std::vector<ug::Vertex*>& vertsOpp,
+			std::vector<ug::Edge*>& edges,
+			std::vector<ug::Edge*>& edgesOpp,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			number scale
+		);
+
+		/*!
+		 * @brief corrects the axial offset at the inner branching points
+		 * This means, we move the points with smaller axial value further down
+		 * the current neurite and the larger axial values further back
+		 * TODO: document parameters
+		 */
+		void correct_axial_offset
+		(
+			std::vector<ug::Vertex*>& verts,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			number scale
+		);
+
 	}
 }
 
