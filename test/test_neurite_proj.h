@@ -1,5 +1,6 @@
 /*!
  * test_neurite_proj.h
+ * How to run: ugshell -call  "test_import_swc(\"smith.swc\", false, 0.5\")
  *
  *  Created on: 27.12.2016
  *      Author: mbreit
