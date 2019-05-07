@@ -1,4 +1,4 @@
-/*
+/*!
  * test_neurite_proj.h
  *
  *  Created on: 27.12.2016
@@ -8,7 +8,7 @@
 #ifndef UG__PLUGINS__NEURO_COLLECTION__TEST__TEST_NEURITE_PROJ_H
 #define UG__PLUGINS__NEURO_COLLECTION__TEST__TEST_NEURITE_PROJ_H
 
-#include "common/math/ugmath_types.h"   // vector3
+#include "common/math/ugmath_types.h"
 #include "common/util/smart_pointer.h"
 #include "lib_grid/multi_grid.h"
 #include "lib_grid/refinement/projectors/neurite_projector.h"
@@ -27,7 +27,7 @@ struct EdgeLengthCompare
 	{return e1.second > e2.second;}
 };
 
-/// TODO: Move these to a types class / file
+/// SWC types
 enum swc_type
 {
     SWC_UNDF = 0,
@@ -37,6 +37,7 @@ enum swc_type
     SWC_APIC = 4
 };
 
+/// SWC point
 struct SWCPoint
 {
     vector3 coords;
@@ -46,7 +47,11 @@ struct SWCPoint
 };
 
 /*!
- * \brief import an SWC file
+ * \brief import a SWC file
+ * \param[in] fileName
+ * \param[out] vPointsOut
+ * \param[in] correct
+ * \param[in] scale
  */
 void import_swc
 (
@@ -56,10 +61,36 @@ void import_swc
     number scale
 );
 
-// TODO: both need debugging!
-void smoothing(std::vector<SWCPoint>& vPointsInOut, size_t n, number h, number gamma);
-void collapse_short_edges(Grid& g, SubsetHandler& sh);
+/*!
+ * \brief smoothing
+ * TODO: Needs debugging
+ * \param[inout] vPointsInOut
+ * \param[in] n
+ * \param[in] h
+ * \param[in] gamma
+ */
+void smoothing
+(
+	std::vector<SWCPoint>& vPointsInOut,
+	size_t n,
+	number h,
+	number gamma
+);
 
+/*!
+ * \brief collapse short edges
+ * TODO: Needs debugging
+ */
+void collapse_short_edges
+(
+	Grid& g,
+	SubsetHandler& sh
+);
+
+/*!
+ * \brief converts pointlist to a neuritelist
+ * TODO: Document parameters
+ */
 void convert_pointlist_to_neuritelist
 (
     const std::vector<SWCPoint>& vPoints,
@@ -69,8 +100,33 @@ void convert_pointlist_to_neuritelist
     std::vector<size_t>& vRootNeuriteIndsOut
 );
 
-void test_smoothing(const std::string& fileName, size_t n, number h, number gamma);
-void test_import_swc(const std::string& fileName, number anisotropy = 2.0, size_t numRefs = 0);
+/*!
+ * \brief test smoothing
+ * TODO: Document parameters
+ */
+void test_smoothing
+(
+	const std::string& fileName,
+	size_t n,
+	number h,
+	number gamma
+);
+
+/*!
+ * \brief test import swc
+ * TODO: Document parameters
+ */
+void test_import_swc
+(
+	const std::string& fileName,
+	number anisotropy = 2.0,
+	size_t numRefs = 0
+);
+
+/*!
+ * \brief test import swc with er
+ * TODO: Document parameters
+ */
 void test_import_swc_with_er
 (
 	const std::string& fileNameIn,
@@ -79,34 +135,152 @@ void test_import_swc_with_er
 	number anisotropy = 2.0,
 	size_t numRefs = 0
 );
-void test_import_swc_surf(const std::string& fileName);
-void test_import_swc_1d(const std::string& fileName, number anisotropy = 2.0, size_t numRefs = 0, number scale = 1e-6);
-void shrink_quadrilateral_copy
+
+/*!
+ * \brief test import swc surf
+ * TODO: Document parameters
+ */
+void test_import_swc_surf
 (
-		const std::vector<Vertex*>& vVrt,
-		std::vector<Vertex*>& outvVrt,
-		const std::vector<Vertex*>& oldVertices,
-		std::vector<Edge*>& outvEdge,
-		Grid& g,
-		Grid::VertexAttachmentAccessor<APosition>& aaPos,
-		number percentage,
-		bool createFaces,
-		ISelector* outSel,
-		ug::vector3* currentDir
+	const std::string& fileName
 );
 
-void test_smoothing(const std::string& fileName, size_t n, number h, number gamma, number scale);
-void test_import_swc(const std::string& fileName, bool correct);
-void test_import_swc_scale(const std::string& fileName, bool correct, number scale);
-void test_import_swc_general(const std::string& fileName, bool correct, number shrinkPercentage, bool withER);
-void test_import_swc_general_smooth(const std::string& fileName, bool correct, number shrinkPercentage, bool withER);
-void test_neurite_projector_with_four_section_tube();
-void test_neurite_projector_with_four_section_tube_and_branch_point();
-void test_shrink_geom(number percentage);
-void test_shrink_geom_copy(number percentage);
-void test_split_geom(number percentage);
+/*!
+ * \brief test import swc 1d
+ * TODO: Document parameters
+ */
+void test_import_swc_1d
+(
+	const std::string& fileName,
+	number anisotropy = 2.0,
+	size_t numRefs = 0,
+	number scale = 1e-6
+);
 
-void apply_neurite_projector(MultiGrid& mg, SmartPtr<NeuriteProjector> neuriteProj);
+/*!
+ * \brief shrink quadrilateral copy
+ * TODO: Document parameters
+ */
+void shrink_quadrilateral_copy
+(
+	const std::vector<Vertex*>& vVrt,
+	std::vector<Vertex*>& outvVrt,
+	const std::vector<Vertex*>& oldVertices,
+	std::vector<Edge*>& outvEdge,
+	Grid& g,
+	Grid::VertexAttachmentAccessor<APosition>& aaPos,
+	number percentage,
+	bool createFaces,
+	ISelector* outSel,
+	ug::vector3* currentDir
+);
+
+/*!
+ * \brief test smoothing
+ * TODO: Document parameters
+ */
+void test_smoothing
+(
+	const std::string& fileName,
+	size_t n,
+	number h,
+	number gamma,
+	number scale
+);
+
+/*!
+ * \brief test import swc
+ * TODO: Document parameters
+ */
+void test_import_swc
+(
+	const std::string& fileName,
+	bool correct
+);
+
+/*!
+ * \brief test import swc scale
+ * TODO: Document parameters
+ */
+void test_import_swc_scale
+(
+	const std::string& fileName,
+	bool correct,
+	number scale
+);
+
+/*!
+ * \brief test import swc general
+ * TODO: Document parameters
+ */
+void test_import_swc_general
+(
+	const std::string& fileName,
+	bool correct,
+	number shrinkPercentage,
+	bool withER
+);
+
+/*!
+ * \brief test import swc general smooth
+ * TODO: Document parameters
+ */
+void test_import_swc_general_smooth
+(
+	const std::string& fileName,
+	bool correct,
+	number shrinkPercentage,
+	bool withER
+);
+
+/*!
+ * \brief test neurite projector with four section tube
+ * TODO: Document parameters
+ */
+void test_neurite_projector_with_four_section_tube();
+
+/*!
+ * \brief test neurite projector with four section tube and branch point
+ * TODO: Document parameters
+ */
+void test_neurite_projector_with_four_section_tube_and_branch_point();
+
+/*!
+ * \brief test shrink geometry
+ * TODO: Document parameters
+ */
+void test_shrink_geom
+(
+	number percentage
+);
+
+/*!
+ * \brief test shrink geom copy
+ * TODO: Document parameters
+ */
+void test_shrink_geom_copy
+(
+	number percentage
+);
+
+/*!
+ * \brief test split geom
+ * TODO: Document parameters
+ */
+void test_split_geom
+(
+	number percentage
+);
+
+/*!
+ * \brief apply neurite projector
+ * TODO: Document parameters
+ */
+void apply_neurite_projector
+(
+	MultiGrid& mg,
+	SmartPtr<NeuriteProjector> neuriteProj
+);
 
 } // namespace neuro_collection
 } // namespace ug

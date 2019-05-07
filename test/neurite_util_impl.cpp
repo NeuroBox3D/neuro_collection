@@ -6,11 +6,12 @@
  */
 
 #include "neurite_util.h"
-#include <cmath>
 #include "common/log.h"
 #include "common/error.h"
-#include "../../ugcore/ugbase/bridge/domain_bridges/selection_bridge.h"
+#include "bridge/domain_bridges/selection_bridge.h"
 #include "lib_grid/algorithms/remeshing/grid_adaption.h"
+#include <cmath>
+#include <boost/lexical_cast.hpp>
 
 namespace ug {
 	namespace neuro_collection {
@@ -1798,12 +1799,6 @@ namespace ug {
 		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[3], vertsOpp[2], oldVertsSortedOpp[2], oldVertsSorted[3]));
 	}
 
-	/**
-	 * @brief corrects the axial offset at the inner branching points
-	 * This means, we move the points with smaller axial value further down
-	 * the current neurite and the larger axial values further back
-	 */
-
 	////////////////////////////////////////////////////////////////////////
 	/// correct_axial_offset
 	////////////////////////////////////////////////////////////////////////
@@ -1826,6 +1821,297 @@ namespace ug {
 		aaSurfParams[verts[1]].axial = aaSurfParams[verts[1]].axial + length*scale/2;
 		aaSurfParams[verts[2]].axial = aaSurfParams[verts[2]].axial - length*scale/2;
 		aaSurfParams[verts[3]].axial = aaSurfParams[verts[3]].axial - length*scale/2;
+	}
+
+
+	////////////////////////////////////////////////////////////////////////
+	/// add_soma_surface_to_swc
+	////////////////////////////////////////////////////////////////////////
+	void add_soma_surface_to_swc
+	(
+		const size_t& lines,
+		const std::string& fn_precond,
+		const std::string& fn_precond_with_soma,
+		const std::vector<ug::vector3>& vPointsSomaSurface
+	)
+	{
+		std::ifstream inFile(fn_precond.c_str());
+	    UG_COND_THROW(!inFile, "SWC input file '" << fn_precond << "' could not be opened for reading.");
+		std::ofstream outFile(fn_precond_with_soma.c_str());
+	    UG_COND_THROW(!outFile, "SWC output file '" << fn_precond_with_soma << "' could not be opened for reading.");
+
+	    size_t lineCnt = 1;
+	    std::string line;
+	    int somaIndex;
+	    std::vector<SWCPoint> swcPoints;
+        std::vector<number> rads;
+        size_t j = 0;
+	    while (std::getline(inFile, line)) {
+	       // trim whitespace
+		   line = TrimString(line);
+
+		   // ignore anything from possible '#' onwards
+		   size_t nChar = line.size();
+		   for (size_t i = 0; i < nChar; ++i)
+		   {
+		     if (line.at(i) == '#')
+		     {
+		        line = line.substr(0, i);
+		         break;
+		     }
+		   }
+
+			// empty lines can be ignored
+			if (line.empty()) continue;
+
+			// split the line into tokens
+			std::istringstream buf(line);
+			std::istream_iterator<std::string> beg(buf), end;
+			std::vector<std::string> strs(beg, end);
+
+			// assert number of tokens is correct
+			 UG_COND_THROW(strs.size() != 7, "Error reading SWC file '" << fn_precond
+			          << "': Line " << lineCnt << " does not contain exactly 7 values.");
+
+			 // type
+			 if (boost::lexical_cast<int>(strs[6]) == -1) {
+				   somaIndex = boost::lexical_cast<int>(strs[0]);
+				    outFile << strs[0] << " " << strs[1] << " " << strs[2] << " "
+				        		<< strs[3] << " " << strs[4] << " " << strs[5] << " "
+				        		<< strs[6] << std::endl;
+			 } else {
+				 int index = boost::lexical_cast<int>(strs[6]);
+			     if (index == somaIndex) {
+			        	number rad = boost::lexical_cast<number>(strs[5]);
+			        	outFile << lineCnt << " 3 " << vPointsSomaSurface[j].x() << " "
+			        			<< vPointsSomaSurface[j].y() << " " << vPointsSomaSurface[j].z()
+			        			<< " " << rad << " " << somaIndex << std::endl;
+			        	outFile << lineCnt+1 << " " << strs[1] << " " << strs[2] << " "
+					   		<< strs[3] << " " << strs[4] << " " << strs[5] << " "
+					   		<< lineCnt << std::endl;
+			        	lineCnt++;
+			        	j++;
+			     } else {
+			    	 int newIndex = boost::lexical_cast<int>(strs[6])+j;
+			    	 outFile << lineCnt << " " << strs[1] << " " << strs[2] << " "
+ 	 					   		<< strs[3] << " " << strs[4] << " " << strs[5] << " "
+   	 					   		<< newIndex << std::endl;
+			     }
+			   }
+			 lineCnt++;
+	    }
+	}
+
+	////////////////////////////////////////////////////////////////////////
+	/// get_closest_poins_to_soma
+	////////////////////////////////////////////////////////////////////////
+	void get_closest_points_to_soma
+	(
+		const std::string& fn_precond,
+		std::vector<ug::vector3>& vPos,
+		size_t& lines
+	)
+	{
+		std::ifstream inFile(fn_precond.c_str());
+	    UG_COND_THROW(!inFile, "SWC input file '" << fn_precond << "' could not be opened for reading.");
+
+	    size_t lineCnt = 0;
+	    std::string line;
+	    int somaIndex;
+	    std::vector<SWCPoint> swcPoints;
+	    while (std::getline(inFile, line)) {
+	    	lineCnt++;
+	    	// trim whitespace
+	        line = TrimString(line);
+
+	        // ignore anything from possible '#' onwards
+	        size_t nChar = line.size();
+	        for (size_t i = 0; i < nChar; ++i)
+	        {
+	            if (line.at(i) == '#')
+	            {
+	                line = line.substr(0, i);
+	                break;
+	            }
+	        }
+
+	        // empty lines can be ignored
+		    if (line.empty()) continue;
+
+		    // split the line into tokens
+		    std::istringstream buf(line);
+		    std::istream_iterator<std::string> beg(buf), end;
+		    std::vector<std::string> strs(beg, end);
+
+		    // assert number of tokens is correct
+		    UG_COND_THROW(strs.size() != 7, "Error reading SWC file '" << fn_precond
+		           << "': Line " << lineCnt << " does not contain exactly 7 values.");
+
+		   // type
+		   if (boost::lexical_cast<int>(strs[6]) == -1) {
+			   somaIndex = boost::lexical_cast<int>(strs[0]);
+		   } else {
+		        if (boost::lexical_cast<int>(strs[6]) == somaIndex) {
+		        	number x = boost::lexical_cast<number>(strs[2]);
+		        	number y = boost::lexical_cast<number>(strs[3]);
+		        	number z = boost::lexical_cast<number>(strs[4]);
+		        	vPos.push_back(ug::vector3(x, y, z));
+		        }
+		   }
+	    }
+	    lines = lineCnt;
+	}
+
+	////////////////////////////////////////////////////////////////////////
+	/// get_closet_vertices_on_soma
+	////////////////////////////////////////////////////////////////////////
+	void get_closest_vertices_on_soma
+	(
+		const std::vector<ug::vector3>& vPos,
+		std::vector<ug::Vertex*>& vPointsSomaSurface, Grid& g,
+		Grid::VertexAttachmentAccessor<APosition>& aaPos,
+		SubsetHandler& sh,
+		size_t si
+	) {
+		UG_LOGN("Finding now: " << vPos.size());
+		for (size_t i = 0; i < vPos.size(); i++) {
+			const ug::vector3* pointSet = &vPos[i];
+			ug::vector3 centerOut;
+			CalculateCenter(centerOut, pointSet, 1);
+			Selector sel(g);
+			SelectSubsetElements<Vertex>(sel, sh, si, true);
+			UG_LOGN("selected vertices: " << sel.num<Vertex>());
+			Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
+			Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
+			number best = -1;
+			ug::Vertex* best_vertex = NULL;
+			for (; vit != vit_end; ++vit) {
+				number dist = VecDistance(aaPos[*vit], centerOut);
+				if (best == -1) {
+					best = dist;
+					best_vertex = *vit;
+				} else if (dist < best) {
+					best = dist;
+					best_vertex = *vit;
+				}
+			}
+			UG_COND_THROW(!best_vertex, "No best vertex found for root neurite >>" << i << "<<.");
+			vPointsSomaSurface.push_back(best_vertex);
+		}
+	}
+
+	////////////////////////////////////////////////////////////////////////
+	/// replace_first_root_neurite_vertex_in_swc
+	////////////////////////////////////////////////////////////////////////
+	void get_closest_points_on_soma
+	(
+		const std::vector<ug::vector3>& vPos,
+		std::vector<ug::vector3>& vPointsSomaSurface, Grid& g,
+		Grid::VertexAttachmentAccessor<APosition>& aaPos,
+		SubsetHandler& sh,
+		size_t si
+	)
+	{
+		UG_LOGN("finding now: " << vPos.size());
+		for (size_t i = 0; i < vPos.size(); i++) {
+			const ug::vector3* pointSet = &vPos[i];
+			ug::vector3 centerOut;
+			CalculateCenter(centerOut, pointSet, 1);
+			Selector sel(g);
+			SelectSubsetElements<Vertex>(sel, sh, si, true);
+			UG_LOGN("selected vertices: " << sel.num<Vertex>());
+			Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
+			Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
+			number best = -1;
+			ug::Vertex* best_vertex = NULL;
+			for (; vit != vit_end; ++vit) {
+				number dist = VecDistance(aaPos[*vit], centerOut);
+				if (best == -1) {
+					best = dist;
+					best_vertex = *vit;
+				} else if (dist < best) {
+					best = dist;
+					best_vertex = *vit;
+				}
+			}
+			UG_COND_THROW(!best_vertex, "No best vertex found for root neurite >>" << i << "<<.");
+			vPointsSomaSurface.push_back(aaPos[best_vertex]);
+		}
+	}
+
+	////////////////////////////////////////////////////////////////////////
+	/// replace_first_root_neurite_vertex_in_swc
+	////////////////////////////////////////////////////////////////////////
+	void replace_first_root_neurite_vertex_in_swc
+	(
+		const size_t& lines,
+		const std::string& fn_precond,
+		const std::string& fn_precond_with_soma,
+		const std::vector<ug::vector3>& vPointsSomaSurface
+	) {
+
+		std::ifstream inFile(fn_precond.c_str());
+	    UG_COND_THROW(!inFile, "SWC input file '" << fn_precond << "' could not be opened for reading.");
+		std::ofstream outFile(fn_precond_with_soma.c_str());
+	    UG_COND_THROW(!outFile, "SWC output file '" << fn_precond_with_soma << "' could not be opened for reading.");
+
+	    size_t lineCnt = 1;
+	    std::string line;
+	    int somaIndex;
+	    std::vector<SWCPoint> swcPoints;
+        std::vector<number> rads;
+        size_t j = 0;
+	    while (std::getline(inFile, line)) {
+	       // trim whitespace
+		   line = TrimString(line);
+
+		   // ignore anything from possible '#' onwards
+		   size_t nChar = line.size();
+		   for (size_t i = 0; i < nChar; ++i)
+		   {
+		     if (line.at(i) == '#')
+		     {
+		        line = line.substr(0, i);
+		         break;
+		     }
+		   }
+
+			// empty lines can be ignored
+			if (line.empty()) continue;
+
+			// split the line into tokens
+			std::istringstream buf(line);
+			std::istream_iterator<std::string> beg(buf), end;
+			std::vector<std::string> strs(beg, end);
+
+			// assert number of tokens is correct
+			 UG_COND_THROW(strs.size() != 7, "Error reading SWC file '" << fn_precond
+			          << "': Line " << lineCnt << " does not contain exactly 7 values.");
+
+			 // type
+			 if (boost::lexical_cast<int>(strs[6]) == -1) {
+				   somaIndex = boost::lexical_cast<int>(strs[0]);
+				    outFile << strs[0] << " " << strs[1] << " " << strs[2] << " "
+				        		<< strs[3] << " " << strs[4] << " " << strs[5] << " "
+				        		<< strs[6] << std::endl;
+			 } else {
+				 int index = boost::lexical_cast<int>(strs[6]);
+			     if (index == somaIndex) {
+			        	number rad = boost::lexical_cast<number>(strs[5]);
+			        	outFile << lineCnt << " 3 " << vPointsSomaSurface[j].x() << " "
+			        			<< vPointsSomaSurface[j].y() << " " << vPointsSomaSurface[j].z()
+			        			<< " " << rad << " " << somaIndex << std::endl;
+			        	///lineCnt++;
+			        	j++;
+			     } else {
+			    	 int newIndex = boost::lexical_cast<int>(strs[6]);
+			    	 outFile << lineCnt << " " << strs[1] << " " << strs[2] << " "
+ 	 					   		<< strs[3] << " " << strs[4] << " " << strs[5] << " "
+   	 					   		<< newIndex << std::endl;
+			     }
+			   }
+			 lineCnt++;
+	    }
 	}
 	}
 }

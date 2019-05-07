@@ -1,8 +1,7 @@
 /*!
  * \file neurite_util.h
  *
- * TODO: Cleanup and commenting of code - throw old legacy code before volumes
- * TODO: Move all useful code out of testNeuriteProjector.cpp to the util class
+ * TODO: Cleanup and commenting of code - discard old legacy code after testing volume code
  * TODO: Add unit tests for the current code base and add const correctness
  *
  *  Created on: Apr 22, 2019
@@ -11,16 +10,16 @@
 
 #ifndef UG__PLUGINS__NEURO_COLLECTION__TEST__NEURITE_UTIL_H
 #define UG__PLUGINS__NEURO_COLLECTION__TEST__NEURITE_UTIL_H
+#include "test_neurite_proj.h"
 #include "lib_grid/grid/grid.h"
 #include "lib_grid/file_io/file_io_ugx.h"
 #include "lib_grid/file_io/file_io.h"
 #include "lib_grid/grid/geometry.h"
 #include "lib_grid/global_attachments.h"
-#include "common/math/ugmath_types.h"
 #include "lib_grid/algorithms/subset_color_util.h"
 #include "lib_grid/algorithms/remeshing/resolve_intersections.h"
 #include "lib_grid/refinement/projectors/neurite_projector.h"
-#include "test_neurite_proj.h"
+#include "common/math/ugmath_types.h"
 
 namespace ug {
 	namespace neuro_collection {
@@ -483,6 +482,89 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			number scale
+		);
+
+		/*!
+		 * \brief add the new soma surface points to the precondioned swc file.
+		 * Note that we assume every dendrite is connected to the ROOT soma point,
+		 * and this might, depending on the reconstruction of the SWC file not be true.
+		 * \param[in] lines
+		 * \param[in] fn_precond
+		 * \param[in] fn_precond_with_soma
+		 * \param[in] vPointsSomaSurface
+		 */
+		void add_soma_surface_to_swc
+		(
+			const size_t& lines,
+			const std::string& fn_precond,
+			const std::string& fn_precond_with_soma,
+			const std::vector<ug::vector3>& vPointsSomaSurface
+		);
+
+		/*!
+		 * \brief get closest points to soma
+		 * \param[in] fn_precond
+		 * \param[in] vPos
+		 * \param[in] lines
+		 */
+		void get_closest_points_to_soma
+		(
+			const std::string& fn_precond,
+			std::vector<ug::vector3>& vPos,
+			size_t& lines
+		);
+
+		/*!
+		 * \brief get closest vertices on soma
+		 * \param[in] vPos
+		 * \param[in] vPointsSomaSurface
+		 * \param[in] g
+		 * \param[in] aaPos
+		 * \param[in] sh
+		 * \param[in] si
+		 */
+		void get_closest_vertices_on_soma
+		(
+			const std::vector<ug::vector3>& vPos,
+			std::vector<ug::Vertex*>& vPointsSomaSurface,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			SubsetHandler& sh,
+			size_t si
+		);
+
+		/*!
+		 * \brief get closest points on soma
+		 * \param[in] vPos
+		 * \param[in] vPointsSomaSurface
+		 * \param[in] g
+		 * \param[in] aaPos
+		 * \param[in] sh
+		 * \param[in] si
+		 */
+		void get_closest_points_on_soma
+		(
+			const std::vector<ug::vector3>& vPos,
+			std::vector<ug::vector3>& vPointsSomaSurface,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			SubsetHandler& sh,
+			size_t si
+		);
+
+		/*!
+		 * \brief replace first root neurite vertex in swc
+		 * \param[in] lines
+		 * \param[in] fn_precond
+		 * \param[in] fn_precond_with_soma
+		 * \param[in] vPointsSomaSurface
+		 */
+		void replace_first_root_neurite_vertex_in_swc
+		(
+			const size_t& lines,
+			const std::string& fn_precond,
+			const std::string& fn_precond_with_soma,
+			const std::vector<ug::vector3>& vPointsSomaSurface
 		);
 
 	}
