@@ -1,5 +1,5 @@
 /*!
- * \file neurite_util.cpp
+connect_inner_neurites_to_inner_soma * \file neurite_util.cpp
  *
  *  Created on: Apr 22, 2019
  *      Author: stephan

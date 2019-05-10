@@ -97,9 +97,7 @@ namespace ug {
 			std::vector<Vertex*>* outVertsInner,
 			std::vector<number>* outRads,
 			std::vector<number>* outRadsInner
-		) {
-			create_neurite_with_er(vNeurites, vPos, vR, nid, erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, NULL, NULL, NULL, 0, outVerts, outVertsInner, outRads, outRadsInner);
-		}
+		);
 
 
 		/*!

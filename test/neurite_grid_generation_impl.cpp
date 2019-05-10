@@ -1,4 +1,5 @@
-/*
+/*!
+ * connect_outer_and_inner_root_neurites_to_outer_soma
  * neurite_grid_generation_impl.cpp
  *
  *  Created on: May 6, 2019
@@ -1985,6 +1986,30 @@ void calculate_segment_axial_positions
 
 	UG_ASSERT(seg == nSeg, "seg = " << seg << " != " << nSeg << " = nSeg");
 }
+
+////////////////////////////////////////////////////////////////////////
+/// create_neurite_with_er
+////////////////////////////////////////////////////////////////////////
+	void create_neurite_with_er
+		(
+			const std::vector<NeuriteProjector::Neurite>& vNeurites,
+			const std::vector<std::vector<vector3> >& vPos,
+			const std::vector<std::vector<number> >& vR,
+			size_t nid,
+			number erScaleFactor,
+			number anisotropy,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			SubsetHandler& sh,
+			std::vector<Vertex*>* outVerts,
+			std::vector<Vertex*>* outVertsInner,
+			std::vector<number>* outRads,
+			std::vector<number>* outRadsInner
+		)
+		{
+			create_neurite_with_er(vNeurites, vPos, vR, nid, erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, NULL, NULL, NULL, 0, outVerts, outVertsInner, outRads, outRadsInner);
+		}
 
 
 
