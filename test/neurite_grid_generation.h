@@ -37,6 +37,10 @@ namespace ug {
 		 * \param[in] connectingEdges
 		 * \param[in] connectingFaces
 		 * \param[in] initialOffset
+		 * \param[out] outVerts
+		 * \param[out] outVertsInner
+		 * \param[out] outRads
+		 * \param[out] outRadsInner
 		 */
 		void create_neurite_with_er
 		(
@@ -53,8 +57,49 @@ namespace ug {
 			std::vector<Vertex*>* connectingVrts = NULL,
 			std::vector<Edge*>* connectingEdges = NULL,
 			std::vector<Face*>* connectingFaces = NULL,
-			number initialOffset = 0.0
+			number initialOffset = 0.0,
+			std::vector<Vertex*>* outVerts = NULL,
+			std::vector<Vertex*>* outVertsInner = NULL,
+			std::vector<number>* outRads = NULL,
+			std::vector<number>* outRadsInner = NULL
 		);
+
+		/*!
+		 * \brief creates neurites with ER
+		 * \param[in] vNeurites
+		 * \param[in] vPos
+		 * \param[in] vR
+		 * \param[in] nid
+		 * \param[in] erScaleFactor
+		 * \param[in] anisotropy
+		 * \param[in] g
+		 * \param[in] aaPos
+		 * \param[in] aaSurfParams
+		 * \param[in] sh
+		 * \param[out] outVerts
+		 * \param[out] outVertsInner
+		 * \param[out] outRads
+		 * \param[out] outRadsInner
+		 */
+		void create_neurite_with_er
+		(
+			const std::vector<NeuriteProjector::Neurite>& vNeurites,
+			const std::vector<std::vector<vector3> >& vPos,
+			const std::vector<std::vector<number> >& vR,
+			size_t nid,
+			number erScaleFactor,
+			number anisotropy,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			SubsetHandler& sh,
+			std::vector<Vertex*>* outVerts,
+			std::vector<Vertex*>* outVertsInner,
+			std::vector<number>* outRads,
+			std::vector<number>* outRadsInner
+		) {
+			create_neurite_with_er(vNeurites, vPos, vR, nid, erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, NULL, NULL, NULL, 0, outVerts, outVertsInner, outRads, outRadsInner);
+		}
 
 
 		/*!

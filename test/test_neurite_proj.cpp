@@ -3385,7 +3385,7 @@ void create_spline_data_for_neurites
 	// create coarse grid
 	for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i)
 		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
-			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, NULL, NULL);
+			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh);
 
 	// at branching points, we have not computed the correct positions yet,
 	// so project the complete geometry using the projector

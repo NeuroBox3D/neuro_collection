@@ -27,7 +27,12 @@ void create_neurite_with_er(
 		SubsetHandler& sh, std::vector<Vertex*>* connectingVrts,
 		std::vector<Edge*>* connectingEdges,
 		std::vector<Face*>* connectingFaces,
-		number initialOffset) {
+		number initialOffset,
+		std::vector<Vertex*>* outVerts,
+		std::vector<Vertex*>* outVertsInner,
+		std::vector<number>* outRads,
+		std::vector<number>* outRadsInner
+) {
 	const NeuriteProjector::Neurite& neurite = vNeurites[nid];
 	const std::vector<vector3>& pos = vPos[nid];
 	const std::vector<number>& r = vR[nid];
@@ -138,6 +143,9 @@ void create_neurite_with_er(
 			aaSurfParams[v].angular = angle;
 			aaSurfParams[v].radial = erScaleFactor;
 			sh.assign_subset(v, 3);
+			if (outVertsInner) {
+				outVertsInner->push_back(v);
+			}
 		}
 
 		for (size_t i = 0; i < 12; ++i) {
@@ -152,6 +160,9 @@ void create_neurite_with_er(
 			aaSurfParams[v].angular = angle;
 			aaSurfParams[v].radial = 1.0;
 			sh.assign_subset(v, 2);
+			if (outVerts) {
+				outVerts->push_back(v);
+			}
 		}
 
 		// edges
@@ -1137,7 +1148,7 @@ void create_neurite_with_er(
 				create_neurite_with_er(vNeurites, vPos, vR, child_nid,
 						erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh,
 						&vBranchVrts, &vBranchEdges, &vBranchFaces,
-						branchOffset[1]);
+						branchOffset[1], NULL, NULL, NULL, NULL);
 			}
 
 			lastPos = curPos;
