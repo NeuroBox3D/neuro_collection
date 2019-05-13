@@ -4005,8 +4005,8 @@ void create_spline_data_for_neurites
 		std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
 		std::vector<size_t> vRootNeuriteIndsOut;
 	    std::vector<ug::vector3> vPointSomaSurface;
-	    std::vector<SWCPoint> somaPoint = vSomaPoints;
 		convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+	    std::vector<SWCPoint> somaPoint = vSomaPoints;
 
 		// prepare grid and projector
 		Grid g;
@@ -4014,11 +4014,22 @@ void create_spline_data_for_neurites
 		sh.set_default_subset_index(0);
 		g.attach_to_vertices(aPosition);
 		Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+		UG_LOGN("After convert to neuritelist...");
+
+		Selector sel(g);
+	    typedef NeuriteProjector::SurfaceParams NPSP;
+	    UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
+	            "GlobalAttachment 'npSurfParams' not declared.");
+	    Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
+	    if (!g.has_vertex_attachment(aSP))
+	        g.attach_to_vertices(aSP);
+	    Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
+	    aaSurfParams.access(g, aSP);
 
 		/// In new implementation radius can be scaled with 1.0, not 1.05, since vertices are merged in the end
 	    somaPoint[0].radius *= 1.05;
 	    create_soma(somaPoint, g, aaPos, sh, 1);
-	    UG_LOGN("Created soma!")
+	    UG_LOGN("Created soma...");
 	    ///get_closest_points_on_soma(vPosSomaClosest, vPointSomaSurface, g, aaPos, sh, 1);
 	    std::vector<ug::Vertex*> vPointSomaSurface2;
 	    get_closest_vertices_on_soma(vPosSomaClosest, vPointSomaSurface2, g, aaPos, sh, 1);
@@ -4031,16 +4042,6 @@ void create_spline_data_for_neurites
 	    import_swc_old(fn_precond_with_soma, vPoints, correct, 1.0);
 	    UG_LOGN("converted to neuritelist 2!")
 	    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
-
-		typedef NeuriteProjector::SurfaceParams NPSP;
-		UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
-				"GlobalAttachment 'npSurfParams' not declared.");
-		Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
-		if (!g.has_vertex_attachment(aSP))
-			g.attach_to_vertices(aSP);
-
-		Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
-		aaSurfParams.access(g, aSP);
 
 		SubsetHandler psh(g);
 		psh.set_default_subset_index(0);

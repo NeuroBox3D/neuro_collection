@@ -139,13 +139,13 @@ namespace ug {
 		////////////////////////////////////////////////////////////////////////
 		void connect_outer_and_inner_root_neurites_to_outer_soma
 		(
-				size_t somaIndex,
-				size_t numQuads,
-				Grid& g,
-				Grid::VertexAttachmentAccessor<APosition>& aaPos,
-				SubsetHandler& sh,
-				std::vector<ug::Vertex*>& rootNeurites, /// Note: is just one single array => need to iterate by stride 4
-				std::vector<ug::Vertex*>& rootNeuritesInner /// Note: is just one single array => need to iterate by stride 4
+			size_t somaIndex,
+			size_t numQuads,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			SubsetHandler& sh,
+			std::vector<ug::Vertex*>& rootNeurites, /// Note: is just one single array => need to iterate by stride 4
+			std::vector<ug::Vertex*>& rootNeuritesInner /// Note: is just one single array => need to iterate by stride 4
 		)
 		{
 			Selector::traits<Edge>::iterator eit;
@@ -319,23 +319,6 @@ namespace ug {
 				}
 			}
 
-			/*
-			std::vector<std::vector<size_t> >indices;
-			std::vector<std::vector<size_t> >indices2;
-			indices.resize(allAngles.size());
-			indices2.resize(allAnglesInner.size());
-			/// Sort angles to determine the pairs: Pair the smallest angle, then the second smallest angle, and so forth...
-			/// This will be used to connect neurite root vertices with the vertices on the outer soma -> same strategy
-			/// as before: We remember pairs of unprojected and projected vertices and connect unprojected vertices with
-			/// the vertices which correspond to the minimum angle pairs we found below by using the projected vertices
-			for (size_t i = 0; i < allAngles.size(); i++) {
-				std::vector<number> angleCopy = allAngles[i];
-				std::vector<number> angleCopy2 = allAnglesInner[i];
-				sortIndices(angleCopy, indices[i]);
-				sortIndices(angleCopy2, indices2[i]);
-			}
-			*/
-
 			/// get mapping of outer vertices to inner (Unprojected) vertices
 			std::map<Vertex*, Vertex*> innerToOuter;
 			std::map<Vertex*, Vertex*> innerToOuter2;
@@ -407,25 +390,6 @@ namespace ug {
 				}
 			}
 
-			/*
-			UG_LOGN("Sorted indices:")
-			for (size_t j = 0; j < 1; j++) {
-				for (size_t i = 0; i < indices[j].size(); i++) {
-					UG_LOGN("i (indices):" << indices[j][i]);
-					UG_LOGN("angles[i] (sorted): " << allAngles[j][indices[j][i]]);
-				}
-			}
-
-			for (size_t j = 0; j < 1; j++) {
-				for (size_t i = 0; i < indices2[j].size(); i++) {
-					UG_LOGN("i (indices):" << indices2[j][i]);
-					UG_LOGN("angles[i] (sorted): " << allAnglesInner[j][indices2[j][i]]);
-				}
-			}
-
-			UG_LOGN("sorted angles");
-			 */
-
 			/// connect outer quad with outer neurite
 			for (std::map<ug::Vertex*, ug::Vertex*>::iterator it = innerToOuter.begin(); it != innerToOuter.end(); ++it) {
 				/// outer quads to outer neurite
@@ -454,69 +418,6 @@ namespace ug {
 			UG_LOGN("Inner done!");
 			UG_LOGN("created edges !!! for outer done !!! might be screwed because angles not sorted... looks good")
 			UG_LOGN("Next merge these vertices from above!");
-
-		/*
-		for (size_t i = 0; i < 1; i++) {
-			sel.clear();
-			SelectSubsetElements<Vertex>(sel, sh, somaIndex+1+i, true);
-			vit = sel.vertices_begin();
-			vit_end = sel.vertices_end();
-			std::vector<ug::Vertex*> vertsInnerVtx;
-
-			for (; vit != vit_end; ++vit) {
-				vertsInnerVtx.push_back(*vit);
-			}
-
-			for (size_t j = 0; j < 2; j++) {
-				ug::Vertex* p1 = rootNeurites[(i*4)+indices2[i][j]];
-				ug::Vertex* p2 = vertsInnerVtx[indices[i][j]];
-				ug::Edge* e = *g.create<RegularEdge>(EdgeDescriptor(p1, p2));
-			}
-		}
-		*/
-
-		/*
-		std::vector<std::vector<std::pair<size_t, size_t > > > pairs;
-				for (size_t k = 0; k < numQuads; k++) {
-					std::vector<std::pair<size_t, size_t> > pair;
-					for (size_t i = 0; i < allAngles[k].size(); i++) {
-						number dist = std::numeric_limits<number>::infinity();
-						size_t smallest = 0;
-						for (size_t j = 0 ; j < allAnglesInner[k].size(); j++) {
-							number altDist = allAnglesInner[k][j] - allAngles[k][i];
-							altDist += (altDist>180) ? -360 : (altDist<-180) ? 360 : 0;
-							altDist = std::abs(altDist);
-							if (altDist < dist) {
-								dist = altDist;
-								smallest = j;
-							}
-						}
-						pair.push_back(make_pair<size_t, size_t>(indices[k][i], indices2[k][smallest])); /// TODO: use indices from above to map
-					}
-					pairs.push_back(pair);
-				}
-
-			UG_LOGN("found pairs");
-			for (size_t i = 0; i < pairs.size(); i++) {
-				sel.clear();
-				SelectSubsetElements<Vertex>(sel, sh, somaIndex+1+i, true);
-				vit = sel.vertices_begin();
-				vit_end = sel.vertices_end();
-				std::vector<ug::Vertex*> vertsInnerVtx;
-
-				for (; vit != vit_end; ++vit) {
-					vertsInnerVtx.push_back(*vit);
-				}
-
-				const std::vector<std::pair<size_t, size_t > >& temp = pairs[i]; // first quad
-				for (size_t j = 0; j < temp.size(); j++) {
-					const std::pair<size_t, size_t >& pair = temp[j]; // get a pair
-					ug::Vertex* p1 = rootNeurites[(i*4)+pair.first];
-					ug::Vertex* p2 = vertsInnerVtx[pair.second];
-					ug::Edge* e = *g.create<RegularEdge>(EdgeDescriptor(p1, p2));
-				}
-			}
-			*/
 		}
 
    		////////////////////////////////////////////////////////////////////////
@@ -794,114 +695,116 @@ namespace ug {
 			/// entfernt von dem inneren Quad ist - insebsondere um minimales Angle
 			/// Differenz oder minimale Entfernung zu berechnen um Vertices zu verbinden
 			SaveGridToFile(g, "after_projections_inner.ugx");
-	}
-
-	////////////////////////////////////////////////////////////////////////
-	/// find_quad_verts_on_soma
-	////////////////////////////////////////////////////////////////////////
-	std::vector<ug::vector3> find_quad_verts_on_soma
-	(
-	   Grid& g,
-	   Grid::VertexAttachmentAccessor<APosition>& aaPos,
-	   std::vector<ug::Vertex*> verticesOld,
-	   std::vector<std::vector<number> > outRads,
-	   size_t si,
-	   SubsetHandler& sh,
-	   number rimSnapThresholdFactor,
-	   size_t numQuads
-	) {
-		size_t numVerts = 4;
-		std::vector<ug::vector3> centers;
-		UG_LOGN("3. AdaptSurfaceGridToCylinder")
-		Selector sel(g);
-		for (size_t i = 0; i < verticesOld.size(); i++) {
-			sel.clear();
-			ug::vector3 normal;
-			CalculateVertexNormal(normal, g, verticesOld[i], aaPos);
-			number radius = outRads[i][0];
-			AdaptSurfaceGridToCylinder(sel, g, verticesOld[i], normal, radius, 1.0*rimSnapThresholdFactor, aPosition);
-			UG_LOGN("Adaption done");
-
-			sel.clear();
-			sel.select(verticesOld[i]);
-			ExtendSelection(sel, 1, true);
-			CloseSelection(sel);
-			sel.deselect(verticesOld[i]);
-			g.erase(verticesOld[i]);
-
-			UG_LOGN("num edges: " << sel.num<Edge>());
-			size_t numEdges = sel.num<Edge>();
-			size_t j = 0;
-			while (numEdges > numVerts) {
-				SubsetHandler::traits<Edge>::iterator eit = sel.begin<Edge>();
-				SubsetHandler::traits<Edge>::iterator end = sel.end<Edge>();
-				number bestLength = -1;
-				Edge* eBest = NULL;
-				for (; eit != end; ++eit) {
-					const Edge* ee = *eit;
-					Vertex* const* verts = ee->vertices();
-					if (bestLength == -1) {
-						bestLength = VecDistance(aaPos[verts[0]], aaPos[verts[1]]);
-						eBest = *eit;
-					} else {
-						number length = VecDistance(aaPos[verts[0]], aaPos[verts[1]]);
-						if (length < bestLength) {
-							eBest = *eit;
-							bestLength = length;
-						}
-					}
-				}
-				CollapseEdge(g, eBest, eBest->vertex(0));
-				numEdges--;
-				j++;
-			}
-			UG_LOGN("Collapsing done");
-
-			std::vector<ug::vector3> vertices;
-			Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
-			Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
-			UG_LOGN("Pushing vertices");
-			for (; vit != vit_end; ++vit) {
-				vertices.push_back(aaPos[*vit]);
-			}
-
-			UG_LOGN("Number of vertices: " << vertices.size());
-			ug::vector3 centerOut;
-			CalculateCenter(centerOut, &vertices[0], sel.num<ug::Vertex>());
-			UG_LOGN("centerOut: " << centerOut);
-			centers.push_back(centerOut);
-			}
-		return centers;
 		}
 
-	////////////////////////////////////////////////////////////////////////
-	/// connect_neurites_with_soma
-	////////////////////////////////////////////////////////////////////////
-	void connect_neurites_with_soma
-(
-	   Grid& g,
-	   Grid::VertexAttachmentAccessor<APosition>& aaPos,
-	   Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
-	   std::vector<Vertex*> outVerts,
-	   std::vector<Vertex*> outVertsInner,
-	   std::vector<number> outRads,
-	   std::vector<Vertex*>& smallerQuadVerts,
-	   int si,
-	   SubsetHandler& sh,
-	   const std::string& fileName,
-	   number rimSnapThresholdFactor,
-	   std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > >& axisVectors,
-	   std::vector<NeuriteProjector::Neurite>& vNeurites,
-	   std::vector<std::vector<ug::Vertex*> >& connectingVertices,
-	   std::vector<std::vector<ug::Vertex*> >& connectingVerticesInner,
-	   std::vector<std::vector<ug::Edge*> >& connectingEdges,
-       std::vector<std::vector<ug::Edge*> >& connectingEdgesInner,
-	   bool createInner,
-	   number alpha,
-	   int numIterations,
-	   number resolveThreshold,
-	   number scale
-) {
+		////////////////////////////////////////////////////////////////////////
+		/// find_quad_verts_on_soma
+		////////////////////////////////////////////////////////////////////////
+		std::vector<ug::vector3> find_quad_verts_on_soma
+		(
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			std::vector<ug::Vertex*> verticesOld,
+			std::vector<std::vector<number> > outRads,
+			size_t si,
+	   	   SubsetHandler& sh,
+	   	   number rimSnapThresholdFactor,
+	   	   size_t numQuads
+		)
+		{
+			size_t numVerts = 4;
+			std::vector<ug::vector3> centers;
+			UG_LOGN("3. AdaptSurfaceGridToCylinder")
+			Selector sel(g);
+			for (size_t i = 0; i < verticesOld.size(); i++) {
+				sel.clear();
+				ug::vector3 normal;
+				CalculateVertexNormal(normal, g, verticesOld[i], aaPos);
+				number radius = outRads[i][0];
+				AdaptSurfaceGridToCylinder(sel, g, verticesOld[i], normal, radius, 1.0*rimSnapThresholdFactor, aPosition);
+				UG_LOGN("Adaption done");
+
+				sel.clear();
+				sel.select(verticesOld[i]);
+				ExtendSelection(sel, 1, true);
+				CloseSelection(sel);
+				sel.deselect(verticesOld[i]);
+				g.erase(verticesOld[i]);
+
+				UG_LOGN("num edges: " << sel.num<Edge>());
+				size_t numEdges = sel.num<Edge>();
+				size_t j = 0;
+				while (numEdges > numVerts) {
+					SubsetHandler::traits<Edge>::iterator eit = sel.begin<Edge>();
+					SubsetHandler::traits<Edge>::iterator end = sel.end<Edge>();
+					number bestLength = -1;
+					Edge* eBest = NULL;
+					for (; eit != end; ++eit) {
+						const Edge* ee = *eit;
+						Vertex* const* verts = ee->vertices();
+						if (bestLength == -1) {
+							bestLength = VecDistance(aaPos[verts[0]], aaPos[verts[1]]);
+							eBest = *eit;
+						} else {
+							number length = VecDistance(aaPos[verts[0]], aaPos[verts[1]]);
+							if (length < bestLength) {
+								eBest = *eit;
+								bestLength = length;
+							}
+						}
+					}
+					CollapseEdge(g, eBest, eBest->vertex(0));
+					numEdges--;
+					j++;
+				}
+				UG_LOGN("Collapsing done");
+
+				std::vector<ug::vector3> vertices;
+				Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
+				Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
+				UG_LOGN("Pushing vertices");
+				for (; vit != vit_end; ++vit) {
+					vertices.push_back(aaPos[*vit]);
+				}
+
+				UG_LOGN("Number of vertices: " << vertices.size());
+				ug::vector3 centerOut;
+				CalculateCenter(centerOut, &vertices[0], sel.num<ug::Vertex>());
+				UG_LOGN("centerOut: " << centerOut);
+				centers.push_back(centerOut);
+				}
+			return centers;
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// connect_neurites_with_soma
+		////////////////////////////////////////////////////////////////////////
+		void connect_neurites_with_soma
+		(
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			std::vector<Vertex*> outVerts,
+			std::vector<Vertex*> outVertsInner,
+			std::vector<number> outRads,
+			std::vector<Vertex*>& smallerQuadVerts,
+			int si,
+			SubsetHandler& sh,
+			const std::string& fileName,
+			number rimSnapThresholdFactor,
+			std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > >& axisVectors,
+			std::vector<NeuriteProjector::Neurite>& vNeurites,
+			std::vector<std::vector<ug::Vertex*> >& connectingVertices,
+			std::vector<std::vector<ug::Vertex*> >& connectingVerticesInner,
+			std::vector<std::vector<ug::Edge*> >& connectingEdges,
+			std::vector<std::vector<ug::Edge*> >& connectingEdgesInner,
+			bool createInner,
+			number alpha,
+			int numIterations,
+			number resolveThreshold,
+			number scale
+		)
+		{
 	UG_LOGN("1. Find the vertices representing dendrite connection to soma.");
 	/// 1. Finde die 4 Vertices die den Dendritenanschluss darstellen zum Soma
 	std::vector<std::vector<ug::vector3> > quads;
@@ -1287,81 +1190,6 @@ namespace ug {
 	///    mit den zu ihnen nächstgelegenen Vertices des entsprechenden Dendritenendes.
 	si = beginningOfQuads;
 	sel.clear();
-	/*
-	for (size_t i = 0; i < numQuads; i++) {
-		std::vector<ug::vector3> temp;
-		std::vector<ug::vector3> foo;
-		std::vector<ug::vector3> foo2;
-		std::vector<Vertex*> temp2;
-		for (size_t j = 0; j < numVerts; j++) {
-			temp.push_back(aaPos[outVerts[i*4+j]]);
-			foo.push_back(aaPos[outVerts[i*4+j]]);
-		}
-		for (size_t j = 0; j < numVerts; j++) {
-			temp.push_back(aaPos[allVerts[i][j]]);
-			foo2.push_back(aaPos[allVerts[i][j]]);
-		}
-
-		UG_COND_THROW(temp.size() != 8, "Need 8 vertices for calculating all faces.");
-		#ifdef NC_WITH_QHULL
-			using ug::neuro_collection::convexhull::gen_face;
-			using ug::neuro_collection::convexhull::erase_face;
-			gen_face(temp, g, sh, si+i, aaPos);
-			erase_face(g, sh, si+i, aaPos, foo);
-			erase_face(g, sh, si+i, aaPos, foo2);
-		#else
-			using ug::neuro_collection::quickhull::gen_face;
-			gen_face(temp, temp2, g, sh, si+i, aaPos);
-		#endif
-		ug::vector3 center;
-		center = CalculateCenter(sh.begin<Vertex>(si+i+1000), sh.end<Vertex>(si+i+1000), aaPos);
-		ug::vector3 axis;
-		VecSubtract(axis, centerOuts2[i], centerOuts[i]);
-		axisVectors.push_back(make_pair(si+i+numQuads*2, make_pair(axis, center)));
-		/// numQuads*2 is required: n-inner quads and n-outer quads -> these quads here are the connecting quads
-		/// i.e. first come all outer quads, then all inner quads, then the connecting outer quads, then the connecting inner quads
-	}
-	*/
-
-	/*
-	if (!createInner) {
-		si = beginningOfQuads+numQuads;
-		sel.clear();
-		for (size_t i = 0; i < numQuads; i++) {
-			UG_LOGN("First quad to connect...: " << i);
-			std::vector<ug::vector3> temp;
-			std::vector<Vertex*> temp2;
-			std::vector<ug::vector3> foo;
-			std::vector<ug::vector3> foo2;
-			UG_LOGN("Accessing outVertsInner...; " << i);
-			for (size_t j = 0; j < numVerts; j++) {
-				temp.push_back(aaPos[outVertsInner[i*4+j]]);
-				foo.push_back(aaPos[outVertsInner[i*4+j]]);
-			}
-			UG_LOGN("Accessing allVertsInner...; " << i);
-			for (size_t j = 0; j < numVerts; j++) {
-				temp.push_back(aaPos[allVertsInner[i][j]]);
-				foo2.push_back(aaPos[allVertsInner[i][j]]);
-			}
-
-			UG_LOGN("Checking consistency of temp...");
-			UG_COND_THROW(temp.size() != 8, "Need 8 vertices for calculating all faces.");
-			#ifdef NC_WITH_QHULL
-				UG_LOGN("Trying to use convexhull...");
-				using ug::neuro_collection::convexhull::gen_face;
-				using ug::neuro_collection::convexhull::erase_face;
-				gen_face(temp, g, sh, si+i, aaPos);
-				erase_face(g, sh, si+i, aaPos, foo);
-				erase_face(g, sh, si+i, aaPos, foo2);
-			#else
-				UG_LOGN("Trying to use quickhull... ")
-				using ug::neuro_collection::quickhull::gen_face;
-				gen_face(temp, temp2, g, sh, si+i, aaPos);
-			#endif
-				UG_LOGN("Done with quickhull/convexhull...");
-		}
-	}
-	*/
 
 	EraseEmptySubsets(sh);
 	AssignSubsetColors(sh);
@@ -1486,15 +1314,15 @@ namespace ug {
 		////////////////////////////////////////////////////////////////////////
 		void create_soma
 		(
-				const std::vector<SWCPoint>& somaPts,
-				Grid& g,
-				Grid::VertexAttachmentAccessor<APosition>& aaPos,
-				SubsetHandler& sh,
-				size_t si,
-				size_t numRefs
+			const std::vector<SWCPoint>& somaPts,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			SubsetHandler& sh,
+			size_t si,
+			size_t numRefs
 		)
 		{
-			UG_COND_THROW(somaPts.size() != 1, "Currently only one soma point is allowed by this implementation");
+			UG_COND_WARNING(somaPts.size() != 1, "Currently only one soma point is allowed by this implementation");
 			Selector sel(g);
 			GenerateIcosphere(g, somaPts.front().coords, somaPts.front().radius, numRefs, aPosition, &sel);
 			AssignSelectionToSubset(sel, sh, si);
@@ -1629,220 +1457,219 @@ namespace ug {
 			v = sorted;
 		}
 
-	/**
-	 * @brief Correcting inner branching points of neurites
-	 * Note: In case of very small shrinkage factor might result in intersections
-	 */
-	void correct_edges
-	(
-		std::vector<ug::Vertex*>& verts,
-		std::vector<ug::Edge*>& edges,
-		std::vector<ug::Vertex*>& oldVertsSorted,
-		Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
-		Grid& g,
-		Grid::VertexAttachmentAccessor<APosition>& aaPos,
-		number scale
-	)
-	{
-		 sort(verts.begin(), verts.end(), CompareBy< &NeuriteProjector::SurfaceParams::axial >(aaSurfParams) );
-		 oldVertsSorted = verts;
+		////////////////////////////////////////////////////////////////////////
+		/// correct_edges
+		////////////////////////////////////////////////////////////////////////
+		void correct_edges
+		(
+			std::vector<ug::Vertex*>& verts,
+			std::vector<ug::Edge*>& edges,
+			std::vector<ug::Vertex*>& oldVertsSorted,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			number scale
+		)
+		{
+			sort(verts.begin(), verts.end(), CompareBy< &NeuriteProjector::SurfaceParams::axial >(aaSurfParams) );
+			oldVertsSorted = verts;
 
-		 Edge* e1 = g.get_edge(verts[0], verts[2]);
-		 if (!e1) e1 = g.get_edge(verts[0], verts[3]);
-		 Edge* e2 = g.get_edge(verts[1], verts[2]);
-		 if (!e2) e2 = g.get_edge(verts[1], verts[3]);
+			Edge* e1 = g.get_edge(verts[0], verts[2]);
+			if (!e1) e1 = g.get_edge(verts[0], verts[3]);
+			Edge* e2 = g.get_edge(verts[1], verts[2]);
+			if (!e2) e2 = g.get_edge(verts[1], verts[3]);
 
-		 /// "bottom vertices of connecting inner face": e1->vertex(0) - newVertex1 - newVertex2 - e1->vertex(1)
-		 vector3 dir;
-		 VecSubtract(dir, aaPos[e1->vertex(1)], aaPos[e1->vertex(0)]);
-		 ug::RegularVertex* newVertex1 = *g.create<ug::RegularVertex>();
-		 ug::RegularVertex* newVertex2 = *g.create<ug::RegularVertex>();
-		 aaPos[newVertex1] = aaPos[e1->vertex(0)];
-		 aaPos[newVertex2] = aaPos[e1->vertex(1)];
-		 VecScaleAdd(aaPos[newVertex1], 1.0, aaPos[newVertex1], scale/2.0, dir);
-		 aaSurfParams[newVertex1] = aaSurfParams[e1->vertex(0)];
-		 aaSurfParams[newVertex1].axial = aaSurfParams[e1->vertex(0)].axial + scale/2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
-		 aaSurfParams[newVertex1].neuriteID = aaSurfParams[e1->vertex(0)].neuriteID;
-		 //aaSurfParams[newVertex1].scale = aaSurfParams[e1->vertex(0)].scale;  // scale is never used
-		 VecScaleAdd(aaPos[newVertex2], 1.0, aaPos[newVertex2], -scale/2.0, dir);
-		 aaSurfParams[newVertex2] = aaSurfParams[e1->vertex(1)];
-		 aaSurfParams[newVertex2].axial = aaSurfParams[e1->vertex(1)].axial - scale/2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
-		 aaSurfParams[newVertex2].neuriteID = aaSurfParams[e1->vertex(1)].neuriteID;
-		 //aaSurfParams[newVertex2].scale = aaSurfParams[e1->vertex(1)].scale;  // scale is never used
+			/// "bottom vertices of connecting inner face": e1->vertex(0) - newVertex1 - newVertex2 - e1->vertex(1)
+			vector3 dir;
+			VecSubtract(dir, aaPos[e1->vertex(1)], aaPos[e1->vertex(0)]);
+			ug::RegularVertex* newVertex1 = *g.create<ug::RegularVertex>();
+			ug::RegularVertex* newVertex2 = *g.create<ug::RegularVertex>();
+			aaPos[newVertex1] = aaPos[e1->vertex(0)];
+			aaPos[newVertex2] = aaPos[e1->vertex(1)];
+			VecScaleAdd(aaPos[newVertex1], 1.0, aaPos[newVertex1], scale/2.0, dir);
+			aaSurfParams[newVertex1] = aaSurfParams[e1->vertex(0)];
+			aaSurfParams[newVertex1].axial = aaSurfParams[e1->vertex(0)].axial + scale/2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
+			aaSurfParams[newVertex1].neuriteID = aaSurfParams[e1->vertex(0)].neuriteID;
+			//aaSurfParams[newVertex1].scale = aaSurfParams[e1->vertex(0)].scale;  // scale is never used
+			VecScaleAdd(aaPos[newVertex2], 1.0, aaPos[newVertex2], -scale/2.0, dir);
+			aaSurfParams[newVertex2] = aaSurfParams[e1->vertex(1)];
+			aaSurfParams[newVertex2].axial = aaSurfParams[e1->vertex(1)].axial - scale/2*(aaSurfParams[e1->vertex(1)].axial - aaSurfParams[e1->vertex(0)].axial);
+			aaSurfParams[newVertex2].neuriteID = aaSurfParams[e1->vertex(1)].neuriteID;
+			//aaSurfParams[newVertex2].scale = aaSurfParams[e1->vertex(1)].scale;  // scale is never used
 
-		 /// "top vertices of connecting inner face": e2->vertex(0) - newVertex3 - newVertex4 - e2->vertex(1)
-		 vector3 dir2;
-		 VecSubtract(dir, aaPos[e2->vertex(1)], aaPos[e2->vertex(0)]);
-		 VecSubtract(dir2, aaPos[e2->vertex(1)], aaPos[e2->vertex(0)]);
-		 ug::RegularVertex* newVertex3 = *g.create<ug::RegularVertex>();
-		 ug::RegularVertex* newVertex4 = *g.create<ug::RegularVertex>();
-		 aaPos[newVertex3] = aaPos[e2->vertex(0)];
-		 aaPos[newVertex4] = aaPos[e2->vertex(1)];
-		 VecScaleAdd(aaPos[newVertex3], 1.0, aaPos[newVertex3], scale/2.0, dir);
-		 aaSurfParams[newVertex3] = aaSurfParams[e2->vertex(0)];
-		 aaSurfParams[newVertex3].axial =  aaSurfParams[e2->vertex(0)].axial + scale/2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
-		 aaSurfParams[newVertex3].neuriteID = aaSurfParams[e2->vertex(0)].neuriteID;
-		 //aaSurfParams[newVertex3].scale = aaSurfParams[e2->vertex(0)].scale;  // scale is never used
-		 VecScaleAdd(aaPos[newVertex4], 1.0, aaPos[newVertex4], -scale/2.0, dir);
-		 aaSurfParams[newVertex4] = aaSurfParams[e2->vertex(1)];
-		 aaSurfParams[newVertex4].axial = aaSurfParams[e2->vertex(1)].axial - scale/2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
-		 aaSurfParams[newVertex4].neuriteID = aaSurfParams[e2->vertex(1)].neuriteID;
-		 //aaSurfParams[newVertex4].scale = aaSurfParams[e2->vertex(1)].scale;  // scale is never used
+			/// "top vertices of connecting inner face": e2->vertex(0) - newVertex3 - newVertex4 - e2->vertex(1)
+			vector3 dir2;
+			VecSubtract(dir, aaPos[e2->vertex(1)], aaPos[e2->vertex(0)]);
+			VecSubtract(dir2, aaPos[e2->vertex(1)], aaPos[e2->vertex(0)]);
+			ug::RegularVertex* newVertex3 = *g.create<ug::RegularVertex>();
+			ug::RegularVertex* newVertex4 = *g.create<ug::RegularVertex>();
+			aaPos[newVertex3] = aaPos[e2->vertex(0)];
+			aaPos[newVertex4] = aaPos[e2->vertex(1)];
+			VecScaleAdd(aaPos[newVertex3], 1.0, aaPos[newVertex3], scale/2.0, dir);
+			aaSurfParams[newVertex3] = aaSurfParams[e2->vertex(0)];
+			aaSurfParams[newVertex3].axial =  aaSurfParams[e2->vertex(0)].axial + scale/2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
+			aaSurfParams[newVertex3].neuriteID = aaSurfParams[e2->vertex(0)].neuriteID;
+			//aaSurfParams[newVertex3].scale = aaSurfParams[e2->vertex(0)].scale;  // scale is never used
+			VecScaleAdd(aaPos[newVertex4], 1.0, aaPos[newVertex4], -scale/2.0, dir);
+			aaSurfParams[newVertex4] = aaSurfParams[e2->vertex(1)];
+			aaSurfParams[newVertex4].axial = aaSurfParams[e2->vertex(1)].axial - scale/2*(aaSurfParams[e2->vertex(1)].axial - aaSurfParams[e2->vertex(0)].axial);
+			aaSurfParams[newVertex4].neuriteID = aaSurfParams[e2->vertex(1)].neuriteID;
+			//aaSurfParams[newVertex4].scale = aaSurfParams[e2->vertex(1)].scale;  // scale is never used
 
-		 ug::RegularEdge* e31 = *g.create<RegularEdge>(EdgeDescriptor(newVertex1, newVertex3));
-		 g.create<Quadrilateral>(QuadrilateralDescriptor(e1->vertex(0), newVertex1, newVertex3, e2->vertex(0)));
-		 ug::RegularEdge* e24 = *g.create<RegularEdge>(EdgeDescriptor(newVertex4, newVertex2));
-		 g.create<Quadrilateral>(QuadrilateralDescriptor(e1->vertex(1), newVertex2, newVertex4, e2->vertex(1)));
-		 ug::RegularEdge* e12 =  *g.create<RegularEdge>(EdgeDescriptor(newVertex2, newVertex1));
-		 ug::RegularEdge* e43 =  *g.create<RegularEdge>(EdgeDescriptor(newVertex3, newVertex4));
+			ug::RegularEdge* e31 = *g.create<RegularEdge>(EdgeDescriptor(newVertex1, newVertex3));
+			g.create<Quadrilateral>(QuadrilateralDescriptor(e1->vertex(0), newVertex1, newVertex3, e2->vertex(0)));
+			ug::RegularEdge* e24 = *g.create<RegularEdge>(EdgeDescriptor(newVertex4, newVertex2));
+			g.create<Quadrilateral>(QuadrilateralDescriptor(e1->vertex(1), newVertex2, newVertex4, e2->vertex(1)));
+			ug::RegularEdge* e12 =  *g.create<RegularEdge>(EdgeDescriptor(newVertex2, newVertex1));
+			ug::RegularEdge* e43 =  *g.create<RegularEdge>(EdgeDescriptor(newVertex3, newVertex4));
 
-		 /// Verify edges are quasi parallel (should never happen but you never know)
-		 VecNormalize(dir, dir);
-		 VecNormalize(dir2, dir2);
-		 number dotProd = VecDot(dir, dir2) / (VecLength(dir) * VecLength(dir2));
-		 UG_COND_THROW( !( fabs(dotProd-1) < SMALL), "Edges need to be quasi parallel during splitting a hexaeder: " << dotProd);
+			/// Verify edges are quasi parallel (should never happen but you never know)
+			VecNormalize(dir, dir);
+			VecNormalize(dir2, dir2);
+			number dotProd = VecDot(dir, dir2) / (VecLength(dir) * VecLength(dir2));
+			UG_COND_THROW( !( fabs(dotProd-1) < SMALL), "Edges need to be quasi parallel during splitting a hexaeder: " << dotProd);
 
-		 /// erase old edges
-		 g.erase(e1);
-		 g.erase(e2);
+			/// erase old edges
+			g.erase(e1);
+			g.erase(e2);
 
-		 /// set new face vertices for connection
-		 verts.clear();
-		 verts.push_back(newVertex1);
-		 verts.push_back(newVertex3);
-		 verts.push_back(newVertex4);
-		 verts.push_back(newVertex2);
+			/// set new face vertices for connection
+			verts.clear();
+		 	verts.push_back(newVertex1);
+		 	verts.push_back(newVertex3);
+		 	verts.push_back(newVertex4);
+		 	verts.push_back(newVertex2);
 
-		 /// set new edge vertices for connection
-		 edges.clear();
-		 edges.push_back(e31);
-		 edges.push_back(e43);
-		 edges.push_back(e24);
-		 edges.push_back(e12);
-	}
+		 	/// set new edge vertices for connection
+		 	edges.clear();
+		 	edges.push_back(e31);
+		 	edges.push_back(e43);
+		 	edges.push_back(e24);
+		 	edges.push_back(e12);
+		}
 
-	////////////////////////////////////////////////////////////////////////
-	/// correct_edges_all
-	////////////////////////////////////////////////////////////////////////
-	void correct_edges_all
-	(
-		std::vector<ug::Vertex*>& verts,
-		std::vector<ug::Vertex*>& vertsOpp,
-		std::vector<ug::Edge*>& edges,
-		std::vector<ug::Edge*>& edgesOpp,
-		Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
-		Grid& g,
-		Grid::VertexAttachmentAccessor<APosition>& aaPos,
-		number scale
-	)
-	{
-		/// the connecting vertices are needed later
-		UG_LOGN("correcting edges connecting...")
-		std::vector<ug::Vertex*> oldVertsSorted;
-		correct_edges(verts, edges, oldVertsSorted, aaSurfParams, g, aaPos, scale);
-		UG_LOGN("correcting edges opposing...")
+		////////////////////////////////////////////////////////////////////////
+		/// correct_edges_all
+		////////////////////////////////////////////////////////////////////////
+		void correct_edges_all
+		(
+			std::vector<ug::Vertex*>& verts,
+			std::vector<ug::Vertex*>& vertsOpp,
+			std::vector<ug::Edge*>& edges,
+			std::vector<ug::Edge*>& edgesOpp,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			number scale
+		)
+		{
+			/// the connecting vertices are needed later
+			UG_LOGN("correcting edges connecting...")
+				std::vector<ug::Vertex*> oldVertsSorted;
+			correct_edges(verts, edges, oldVertsSorted, aaSurfParams, g, aaPos, scale);
+			UG_LOGN("correcting edges opposing...")
 
-		/// backside not needed
-		std::vector<ug::Vertex*> oldVertsSortedOpp;
-		correct_edges(vertsOpp, edgesOpp, oldVertsSortedOpp, aaSurfParams, g, aaPos, scale);
-		g.create<Quadrilateral>(QuadrilateralDescriptor(vertsOpp[0], vertsOpp[1], vertsOpp[2], vertsOpp[3]));
+			/// backside not needed
+			std::vector<ug::Vertex*> oldVertsSortedOpp;
+			correct_edges(vertsOpp, edgesOpp, oldVertsSortedOpp, aaSurfParams, g, aaPos, scale);
+			g.create<Quadrilateral>(QuadrilateralDescriptor(vertsOpp[0], vertsOpp[1], vertsOpp[2], vertsOpp[3]));
 
-		// connect the sides of splitted edges and fill top center and bottom center holes
-		g.create<RegularEdge>(EdgeDescriptor(verts[0], vertsOpp[1]));
-		g.create<RegularEdge>(EdgeDescriptor(verts[1], vertsOpp[0]));
-		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[0], verts[3], vertsOpp[2], vertsOpp[1]));
-		g.create<RegularEdge>(EdgeDescriptor(verts[2], vertsOpp[3]));
-		g.create<RegularEdge>(EdgeDescriptor(verts[3], vertsOpp[2]));
-		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[1], verts[2], vertsOpp[3], vertsOpp[0]));
+			// connect the sides of splitted edges and fill top center and bottom center holes
+			g.create<RegularEdge>(EdgeDescriptor(verts[0], vertsOpp[1]));
+			g.create<RegularEdge>(EdgeDescriptor(verts[1], vertsOpp[0]));
+			g.create<Quadrilateral>(QuadrilateralDescriptor(verts[0], verts[3], vertsOpp[2], vertsOpp[1]));
+			g.create<RegularEdge>(EdgeDescriptor(verts[2], vertsOpp[3]));
+			g.create<RegularEdge>(EdgeDescriptor(verts[3], vertsOpp[2]));
+			g.create<Quadrilateral>(QuadrilateralDescriptor(verts[1], verts[2], vertsOpp[3], vertsOpp[0]));
 
-		/// fill 4 more holes to the left and right on top and left and right on bottom
-		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[0], vertsOpp[1], oldVertsSortedOpp[1], oldVertsSorted[0]));
-		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[1], vertsOpp[0], oldVertsSortedOpp[0], oldVertsSorted[1]));
-		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[2], vertsOpp[3], oldVertsSortedOpp[3], oldVertsSorted[2]));
-		g.create<Quadrilateral>(QuadrilateralDescriptor(verts[3], vertsOpp[2], oldVertsSortedOpp[2], oldVertsSorted[3]));
-	}
+			/// fill 4 more holes to the left and right on top and left and right on bottom
+			g.create<Quadrilateral>(QuadrilateralDescriptor(verts[0], vertsOpp[1], oldVertsSortedOpp[1], oldVertsSorted[0]));
+			g.create<Quadrilateral>(QuadrilateralDescriptor(verts[1], vertsOpp[0], oldVertsSortedOpp[0], oldVertsSorted[1]));
+			g.create<Quadrilateral>(QuadrilateralDescriptor(verts[2], vertsOpp[3], oldVertsSortedOpp[3], oldVertsSorted[2]));
+			g.create<Quadrilateral>(QuadrilateralDescriptor(verts[3], vertsOpp[2], oldVertsSortedOpp[2], oldVertsSorted[3]));
+		}
 
-	////////////////////////////////////////////////////////////////////////
-	/// correct_axial_offset
-	////////////////////////////////////////////////////////////////////////
-	void correct_axial_offset
-	(
-		std::vector<ug::Vertex*>& verts,
-		Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
-		Grid::VertexAttachmentAccessor<APosition>& aaPos,
-		number scale
-	)
-	{
-		// check for consistency
-		UG_COND_THROW(verts.size() != 4, "Exactly 4 vertices are necessary on coarse grid level.");
-		// sort to find min and max axial values
-		sort(verts.begin(), verts.end(), CompareBy< &NeuriteProjector::SurfaceParams::axial >(aaSurfParams) );
-		number length = aaSurfParams[verts[2]].axial - aaSurfParams[verts[0]].axial;
-		UG_LOGN("length TIMES scale/2: " << length*scale/2)
-		// update surface parameters
-		aaSurfParams[verts[0]].axial = aaSurfParams[verts[0]].axial + length*scale/2;
-		aaSurfParams[verts[1]].axial = aaSurfParams[verts[1]].axial + length*scale/2;
-		aaSurfParams[verts[2]].axial = aaSurfParams[verts[2]].axial - length*scale/2;
-		aaSurfParams[verts[3]].axial = aaSurfParams[verts[3]].axial - length*scale/2;
-	}
+		////////////////////////////////////////////////////////////////////////
+		/// correct_axial_offset
+		////////////////////////////////////////////////////////////////////////
+		void correct_axial_offset
+		(
+			std::vector<ug::Vertex*>& verts,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			number scale
+		)
+		{
+			// check for consistency
+			UG_COND_THROW(verts.size() != 4, "Exactly 4 vertices are necessary on coarse grid level.");
+			// sort to find min and max axial values
+			sort(verts.begin(), verts.end(), CompareBy< &NeuriteProjector::SurfaceParams::axial >(aaSurfParams) );
+			number length = aaSurfParams[verts[2]].axial - aaSurfParams[verts[0]].axial;
+			UG_LOGN("length TIMES scale/2: " << length*scale/2)
+			// update surface parameters
+			aaSurfParams[verts[0]].axial = aaSurfParams[verts[0]].axial + length*scale/2;
+			aaSurfParams[verts[1]].axial = aaSurfParams[verts[1]].axial + length*scale/2;
+			aaSurfParams[verts[2]].axial = aaSurfParams[verts[2]].axial - length*scale/2;
+			aaSurfParams[verts[3]].axial = aaSurfParams[verts[3]].axial - length*scale/2;
+		}
 
 
-	////////////////////////////////////////////////////////////////////////
-	/// add_soma_surface_to_swc
-	////////////////////////////////////////////////////////////////////////
-	void add_soma_surface_to_swc
-	(
-		const size_t& lines,
-		const std::string& fn_precond,
-		const std::string& fn_precond_with_soma,
-		const std::vector<ug::vector3>& vPointsSomaSurface
-	)
-	{
-		std::ifstream inFile(fn_precond.c_str());
-	    UG_COND_THROW(!inFile, "SWC input file '" << fn_precond << "' could not be opened for reading.");
-		std::ofstream outFile(fn_precond_with_soma.c_str());
-	    UG_COND_THROW(!outFile, "SWC output file '" << fn_precond_with_soma << "' could not be opened for reading.");
+		////////////////////////////////////////////////////////////////////////
+		/// add_soma_surface_to_swc
+		////////////////////////////////////////////////////////////////////////
+		void add_soma_surface_to_swc
+		(
+			const size_t& lines,
+			const std::string& fn_precond,
+			const std::string& fn_precond_with_soma,
+			const std::vector<ug::vector3>& vPointsSomaSurface
+		)
+		{
+			std::ifstream inFile(fn_precond.c_str());
+			UG_COND_THROW(!inFile, "SWC input file '" << fn_precond << "' could not be opened for reading.");
+			std::ofstream outFile(fn_precond_with_soma.c_str());
+			UG_COND_THROW(!outFile, "SWC output file '" << fn_precond_with_soma << "' could not be opened for reading.");
 
-	    size_t lineCnt = 1;
-	    std::string line;
-	    int somaIndex;
-	    std::vector<SWCPoint> swcPoints;
-        std::vector<number> rads;
-        size_t j = 0;
-	    while (std::getline(inFile, line)) {
-	       // trim whitespace
-		   line = TrimString(line);
+			size_t lineCnt = 1;
+			std::string line;
+			int somaIndex;
+			std::vector<SWCPoint> swcPoints;
+			std::vector<number> rads;
+			size_t j = 0;
+			while (std::getline(inFile, line)) {
+				// trim whitespace
+				line = TrimString(line);
 
-		   // ignore anything from possible '#' onwards
-		   size_t nChar = line.size();
-		   for (size_t i = 0; i < nChar; ++i)
-		   {
-		     if (line.at(i) == '#')
-		     {
-		        line = line.substr(0, i);
-		         break;
-		     }
-		   }
+				// ignore anything from possible '#' onwards
+				size_t nChar = line.size();
+				for (size_t i = 0; i < nChar; ++i)
+				{
+					if (line.at(i) == '#')
+					{
+						line = line.substr(0, i);
+						break;
+					}
+				}
 
-			// empty lines can be ignored
-			if (line.empty()) continue;
+				// empty lines can be ignored
+				if (line.empty()) continue;
 
-			// split the line into tokens
-			std::istringstream buf(line);
-			std::istream_iterator<std::string> beg(buf), end;
-			std::vector<std::string> strs(beg, end);
+				// split the line into tokens
+				std::istringstream buf(line);
+				std::istream_iterator<std::string> beg(buf), end;
+				std::vector<std::string> strs(beg, end);
 
-			// assert number of tokens is correct
-			 UG_COND_THROW(strs.size() != 7, "Error reading SWC file '" << fn_precond
+				// assert number of tokens is correct
+				UG_COND_THROW(strs.size() != 7, "Error reading SWC file '" << fn_precond
 			          << "': Line " << lineCnt << " does not contain exactly 7 values.");
 
-			 // type
-			 if (boost::lexical_cast<int>(strs[6]) == -1) {
+				// type
+				if (boost::lexical_cast<int>(strs[6]) == -1) {
 				   somaIndex = boost::lexical_cast<int>(strs[0]);
 				    outFile << strs[0] << " " << strs[1] << " " << strs[2] << " "
 				        		<< strs[3] << " " << strs[4] << " " << strs[5] << " "
 				        		<< strs[6] << std::endl;
-			 } else {
+				} else {
 				 int index = boost::lexical_cast<int>(strs[6]);
 			     if (index == somaIndex) {
 			        	number rad = boost::lexical_cast<number>(strs[5]);
@@ -1862,202 +1689,203 @@ namespace ug {
 			     }
 			   }
 			 lineCnt++;
-	    }
-	}
-
-	////////////////////////////////////////////////////////////////////////
-	/// get_closest_poins_to_soma
-	////////////////////////////////////////////////////////////////////////
-	void get_closest_points_to_soma
-	(
-		const std::string& fn_precond,
-		std::vector<ug::vector3>& vPos,
-		size_t& lines
-	)
-	{
-		std::ifstream inFile(fn_precond.c_str());
-	    UG_COND_THROW(!inFile, "SWC input file '" << fn_precond << "' could not be opened for reading.");
-
-	    size_t lineCnt = 0;
-	    std::string line;
-	    int somaIndex;
-	    std::vector<SWCPoint> swcPoints;
-	    while (std::getline(inFile, line)) {
-	    	lineCnt++;
-	    	// trim whitespace
-	        line = TrimString(line);
-
-	        // ignore anything from possible '#' onwards
-	        size_t nChar = line.size();
-	        for (size_t i = 0; i < nChar; ++i)
-	        {
-	            if (line.at(i) == '#')
-	            {
-	                line = line.substr(0, i);
-	                break;
-	            }
-	        }
-
-	        // empty lines can be ignored
-		    if (line.empty()) continue;
-
-		    // split the line into tokens
-		    std::istringstream buf(line);
-		    std::istream_iterator<std::string> beg(buf), end;
-		    std::vector<std::string> strs(beg, end);
-
-		    // assert number of tokens is correct
-		    UG_COND_THROW(strs.size() != 7, "Error reading SWC file '" << fn_precond
-		           << "': Line " << lineCnt << " does not contain exactly 7 values.");
-
-		   // type
-		   if (boost::lexical_cast<int>(strs[6]) == -1) {
-			   somaIndex = boost::lexical_cast<int>(strs[0]);
-		   } else {
-		        if (boost::lexical_cast<int>(strs[6]) == somaIndex) {
-		        	number x = boost::lexical_cast<number>(strs[2]);
-		        	number y = boost::lexical_cast<number>(strs[3]);
-		        	number z = boost::lexical_cast<number>(strs[4]);
-		        	vPos.push_back(ug::vector3(x, y, z));
-		        }
-		   }
-	    }
-	    lines = lineCnt;
-	}
-
-	////////////////////////////////////////////////////////////////////////
-	/// get_closet_vertices_on_soma
-	////////////////////////////////////////////////////////////////////////
-	void get_closest_vertices_on_soma
-	(
-		const std::vector<ug::vector3>& vPos,
-		std::vector<ug::Vertex*>& vPointsSomaSurface, Grid& g,
-		Grid::VertexAttachmentAccessor<APosition>& aaPos,
-		SubsetHandler& sh,
-		size_t si
-	) {
-		UG_LOGN("Finding now: " << vPos.size());
-		for (size_t i = 0; i < vPos.size(); i++) {
-			const ug::vector3* pointSet = &vPos[i];
-			ug::vector3 centerOut;
-			CalculateCenter(centerOut, pointSet, 1);
-			Selector sel(g);
-			SelectSubsetElements<Vertex>(sel, sh, si, true);
-			UG_LOGN("selected vertices: " << sel.num<Vertex>());
-			Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
-			Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
-			number best = -1;
-			ug::Vertex* best_vertex = NULL;
-			for (; vit != vit_end; ++vit) {
-				number dist = VecDistance(aaPos[*vit], centerOut);
-				if (best == -1) {
-					best = dist;
-					best_vertex = *vit;
-				} else if (dist < best) {
-					best = dist;
-					best_vertex = *vit;
-				}
 			}
-			UG_COND_THROW(!best_vertex, "No best vertex found for root neurite >>" << i << "<<.");
-			vPointsSomaSurface.push_back(best_vertex);
 		}
-	}
 
-	////////////////////////////////////////////////////////////////////////
-	/// replace_first_root_neurite_vertex_in_swc
-	////////////////////////////////////////////////////////////////////////
-	void get_closest_points_on_soma
-	(
-		const std::vector<ug::vector3>& vPos,
-		std::vector<ug::vector3>& vPointsSomaSurface, Grid& g,
-		Grid::VertexAttachmentAccessor<APosition>& aaPos,
-		SubsetHandler& sh,
-		size_t si
-	)
-	{
-		UG_LOGN("finding now: " << vPos.size());
-		for (size_t i = 0; i < vPos.size(); i++) {
-			const ug::vector3* pointSet = &vPos[i];
-			ug::vector3 centerOut;
-			CalculateCenter(centerOut, pointSet, 1);
-			Selector sel(g);
-			SelectSubsetElements<Vertex>(sel, sh, si, true);
-			UG_LOGN("selected vertices: " << sel.num<Vertex>());
-			Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
-			Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
-			number best = -1;
-			ug::Vertex* best_vertex = NULL;
-			for (; vit != vit_end; ++vit) {
-				number dist = VecDistance(aaPos[*vit], centerOut);
-				if (best == -1) {
-					best = dist;
-					best_vertex = *vit;
-				} else if (dist < best) {
-					best = dist;
-					best_vertex = *vit;
+		////////////////////////////////////////////////////////////////////////
+		/// get_closest_poins_to_soma
+		////////////////////////////////////////////////////////////////////////
+		void get_closest_points_to_soma
+		(
+			const std::string& fn_precond,
+			std::vector<ug::vector3>& vPos,
+			size_t& lines
+		)
+		{
+			std::ifstream inFile(fn_precond.c_str());
+			UG_COND_THROW(!inFile, "SWC input file '" << fn_precond << "' could not be opened for reading.");
+
+	    	size_t lineCnt = 0;
+	    	std::string line;
+	    	int somaIndex;
+	    	std::vector<SWCPoint> swcPoints;
+	    	while (std::getline(inFile, line)) {
+	    		lineCnt++;
+	    		// trim whitespace
+	        	line = TrimString(line);
+
+	        	// ignore anything from possible '#' onwards
+	        	size_t nChar = line.size();
+	        	for (size_t i = 0; i < nChar; ++i)
+	        	{
+	        		if (line.at(i) == '#')
+	            	{
+	            		line = line.substr(0, i);
+	                	break;
+	            	}
+	        	}
+
+	        	// empty lines can be ignored
+		    	if (line.empty()) continue;
+
+		    	// split the line into tokens
+		    	std::istringstream buf(line);
+		    	std::istream_iterator<std::string> beg(buf), end;
+		    	std::vector<std::string> strs(beg, end);
+
+		    	// assert number of tokens is correct
+		    	UG_COND_THROW(strs.size() != 7, "Error reading SWC file '" << fn_precond
+		    		<< "': Line " << lineCnt << " does not contain exactly 7 values.");
+
+		      // type
+		      if (boost::lexical_cast<int>(strs[6]) == -1) {
+			   	   somaIndex = boost::lexical_cast<int>(strs[0]);
+		   	   } else {
+		        	if (boost::lexical_cast<int>(strs[6]) == somaIndex) {
+		        		number x = boost::lexical_cast<number>(strs[2]);
+		        		number y = boost::lexical_cast<number>(strs[3]);
+		        		number z = boost::lexical_cast<number>(strs[4]);
+		        		vPos.push_back(ug::vector3(x, y, z));
+		        	}
+		   	   }
+	    	}
+	    	lines = lineCnt;
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// get_closet_vertices_on_soma
+		////////////////////////////////////////////////////////////////////////
+		void get_closest_vertices_on_soma
+		(
+			const std::vector<ug::vector3>& vPos,
+			std::vector<ug::Vertex*>& vPointsSomaSurface, Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			SubsetHandler& sh,
+			size_t si
+		)
+		{
+			UG_LOGN("Finding now: " << vPos.size());
+			for (size_t i = 0; i < vPos.size(); i++) {
+				const ug::vector3* pointSet = &vPos[i];
+				ug::vector3 centerOut;
+				CalculateCenter(centerOut, pointSet, 1);
+				Selector sel(g);
+				SelectSubsetElements<Vertex>(sel, sh, si, true);
+				UG_LOGN("selected vertices: " << sel.num<Vertex>());
+				Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
+				Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
+				number best = -1;
+				ug::Vertex* best_vertex = NULL;
+				for (; vit != vit_end; ++vit) {
+					number dist = VecDistance(aaPos[*vit], centerOut);
+					if (best == -1) {
+						best = dist;
+						best_vertex = *vit;
+					} else if (dist < best) {
+						best = dist;
+						best_vertex = *vit;
+					}
 				}
+				UG_COND_THROW(!best_vertex, "No best vertex found for root neurite >>" << i << "<<.");
+				vPointsSomaSurface.push_back(best_vertex);
 			}
-			UG_COND_THROW(!best_vertex, "No best vertex found for root neurite >>" << i << "<<.");
-			vPointsSomaSurface.push_back(aaPos[best_vertex]);
 		}
-	}
 
-	////////////////////////////////////////////////////////////////////////
-	/// replace_first_root_neurite_vertex_in_swc
-	////////////////////////////////////////////////////////////////////////
-	void replace_first_root_neurite_vertex_in_swc
-	(
-		const size_t& lines,
-		const std::string& fn_precond,
-		const std::string& fn_precond_with_soma,
-		const std::vector<ug::vector3>& vPointsSomaSurface
-	) {
+		////////////////////////////////////////////////////////////////////////
+		/// replace_first_root_neurite_vertex_in_swc
+		////////////////////////////////////////////////////////////////////////
+		void get_closest_points_on_soma
+		(
+			const std::vector<ug::vector3>& vPos,
+			std::vector<ug::vector3>& vPointsSomaSurface, Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			SubsetHandler& sh,
+			size_t si
+		)
+		{
+			UG_LOGN("finding now: " << vPos.size());
+			for (size_t i = 0; i < vPos.size(); i++) {
+				const ug::vector3* pointSet = &vPos[i];
+				ug::vector3 centerOut;
+				CalculateCenter(centerOut, pointSet, 1);
+				Selector sel(g);
+				SelectSubsetElements<Vertex>(sel, sh, si, true);
+				UG_LOGN("selected vertices: " << sel.num<Vertex>());
+				Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
+				Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
+				number best = -1;
+				ug::Vertex* best_vertex = NULL;
+				for (; vit != vit_end; ++vit) {
+					number dist = VecDistance(aaPos[*vit], centerOut);
+					if (best == -1) {
+						best = dist;
+						best_vertex = *vit;
+					} else if (dist < best) {
+						best = dist;
+						best_vertex = *vit;
+					}
+				}
+				UG_COND_THROW(!best_vertex, "No best vertex found for root neurite >>" << i << "<<.");
+				vPointsSomaSurface.push_back(aaPos[best_vertex]);
+			}
+		}
 
-		std::ifstream inFile(fn_precond.c_str());
-	    UG_COND_THROW(!inFile, "SWC input file '" << fn_precond << "' could not be opened for reading.");
-		std::ofstream outFile(fn_precond_with_soma.c_str());
-	    UG_COND_THROW(!outFile, "SWC output file '" << fn_precond_with_soma << "' could not be opened for reading.");
+		////////////////////////////////////////////////////////////////////////
+		/// replace_first_root_neurite_vertex_in_swc
+		////////////////////////////////////////////////////////////////////////
+		void replace_first_root_neurite_vertex_in_swc
+		(
+			const size_t& lines,
+			const std::string& fn_precond,
+			const std::string& fn_precond_with_soma,
+			const std::vector<ug::vector3>& vPointsSomaSurface
+		)
+		{
+			std::ifstream inFile(fn_precond.c_str());
+			UG_COND_THROW(!inFile, "SWC input file '" << fn_precond << "' could not be opened for reading.");
+			std::ofstream outFile(fn_precond_with_soma.c_str());
+	    	UG_COND_THROW(!outFile, "SWC output file '" << fn_precond_with_soma << "' could not be opened for reading.");
 
-	    size_t lineCnt = 1;
-	    std::string line;
-	    int somaIndex;
-	    std::vector<SWCPoint> swcPoints;
-        std::vector<number> rads;
-        size_t j = 0;
-	    while (std::getline(inFile, line)) {
-	       // trim whitespace
-		   line = TrimString(line);
+	    	size_t lineCnt = 1;
+	    	std::string line;
+	    	int somaIndex;
+	    	std::vector<SWCPoint> swcPoints;
+	    	std::vector<number> rads;
+	    	size_t j = 0;
+	    	while (std::getline(inFile, line)) {
+	    		// trim whitespace
+	    		line = TrimString(line);
 
-		   // ignore anything from possible '#' onwards
-		   size_t nChar = line.size();
-		   for (size_t i = 0; i < nChar; ++i)
-		   {
-		     if (line.at(i) == '#')
-		     {
-		        line = line.substr(0, i);
-		         break;
-		     }
-		   }
+	    		// ignore anything from possible '#' onwards
+	    		size_t nChar = line.size();
+	    		for (size_t i = 0; i < nChar; ++i)
+	    		{
+	    			if (line.at(i) == '#')
+	    			{
+	    				line = line.substr(0, i);
+	    				break;
+	    			}
+	    		}
 
-			// empty lines can be ignored
-			if (line.empty()) continue;
+	    		// empty lines can be ignored
+	    		if (line.empty()) continue;
 
-			// split the line into tokens
-			std::istringstream buf(line);
-			std::istream_iterator<std::string> beg(buf), end;
-			std::vector<std::string> strs(beg, end);
+	    		// split the line into tokens
+	    		std::istringstream buf(line);
+	    		std::istream_iterator<std::string> beg(buf), end;
+	    		std::vector<std::string> strs(beg, end);
 
-			// assert number of tokens is correct
-			 UG_COND_THROW(strs.size() != 7, "Error reading SWC file '" << fn_precond
+	    		// assert number of tokens is correct
+	    		UG_COND_THROW(strs.size() != 7, "Error reading SWC file '" << fn_precond
 			          << "': Line " << lineCnt << " does not contain exactly 7 values.");
 
-			 // type
-			 if (boost::lexical_cast<int>(strs[6]) == -1) {
+	    		// type
+	    		if (boost::lexical_cast<int>(strs[6]) == -1) {
 				   somaIndex = boost::lexical_cast<int>(strs[0]);
 				    outFile << strs[0] << " " << strs[1] << " " << strs[2] << " "
 				        		<< strs[3] << " " << strs[4] << " " << strs[5] << " "
 				        		<< strs[6] << std::endl;
-			 } else {
+	    		} else {
 				 int index = boost::lexical_cast<int>(strs[6]);
 			     if (index == somaIndex) {
 			        	number rad = boost::lexical_cast<number>(strs[5]);
@@ -2074,7 +1902,7 @@ namespace ug {
 			     }
 			   }
 			 lineCnt++;
-	    }
-	}
+	    	}
+		}
 	}
 }
