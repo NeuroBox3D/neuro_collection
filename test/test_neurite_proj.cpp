@@ -3983,7 +3983,7 @@ void create_spline_data_for_neurites
 		number erScaleFactor,
 		bool withER,
 		number anisotropy,
-		uint numRefs) {
+		size_t numRefs) {
 	{
 		// read in file to intermediate structure
 		std::vector<SWCPoint> vPoints;

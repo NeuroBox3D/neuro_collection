@@ -1,5 +1,5 @@
 /*!
-connect_inner_neurites_to_inner_soma * \file neurite_util.cpp
+ * \file neurite_util_impl.cpp
  *
  *  Created on: Apr 22, 2019
  *      Author: stephan
@@ -794,43 +794,6 @@ namespace ug {
 			/// entfernt von dem inneren Quad ist - insebsondere um minimales Angle
 			/// Differenz oder minimale Entfernung zu berechnen um Vertices zu verbinden
 			SaveGridToFile(g, "after_projections_inner.ugx");
-
-
-		/// Old strategy with quickhull
-		/*
-			/// Get vertices attached to inner soma
-			SelectSubsetElements<Vertex>(sel, sh, somaIndex+i, true);
-			Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
-			Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
-			/// select inner vertices connected to outer soma (start vertices of ER)
-
-			vit = sel.vertices_begin();
-			vit_end = sel.vertices_end();
-			UG_LOGN("selected inner vertices attached to outer soma: " << sel.num());
-			for (; vit != vit_end; ++vit) {
-				Selector sel2(g);
-				sel2.select(*vit);
-				ExtendSelection(sel2, 1, true);
-				if (sel2.num() == numNeighborHood) {
-					temp.push_back(aaPos[*vit]);
-					foo2.push_back(aaPos[*vit]);
-				}
-			}
-			sel.clear();
-
-			UG_COND_THROW(temp.size() != 8, "Need 8 vertices for calculating all faces.");
-			#ifdef NC_WITH_QHULL
-				using ug::neuro_collection::convexhull::gen_face;
-				using ug::neuro_collection::convexhull::erase_face;
-				gen_face(temp, g, sh, si+i, aaPos);
-				erase_face(g, sh, si+i, aaPos, foo);
-				erase_face(g, sh, si+i, aaPos, foo2);
-			#else
-				using ug::neuro_collection::quickhull::gen_face;
-				gen_face(temp, temp2, g, sh, si+i, aaPos);
-			#endif
-		}
-		*/
 	}
 
 	////////////////////////////////////////////////////////////////////////

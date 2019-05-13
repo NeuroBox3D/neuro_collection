@@ -1,5 +1,5 @@
 /*!
- * test_neurite_proj.h
+ * \file test_neurite_proj.h
  * How to run: ugshell -call  "test_import_swc(\"smith.swc\", false, 0.5\")
  *
  *  Created on: 27.12.2016
@@ -64,11 +64,11 @@ void import_swc
 
 /*!
  * \brief smoothing
- * TODO: Needs debugging
  * \param[inout] vPointsInOut
  * \param[in] n
  * \param[in] h
  * \param[in] gamma
+ * Note:s Needs debugging.
  */
 void smoothing
 (
@@ -80,7 +80,9 @@ void smoothing
 
 /*!
  * \brief collapse short edges
- * TODO: Needs debugging
+ * \param[in] g
+ * \param[in] sh
+ * Note: Needs debugging
  */
 void collapse_short_edges
 (
@@ -90,7 +92,11 @@ void collapse_short_edges
 
 /*!
  * \brief converts pointlist to a neuritelist
- * TODO: Document parameters
+ * \param[in] vPoints
+ * \param[in] vPosOut
+ * \param[in] vRadOut
+ * \param[in] vBPInfoOut
+ * \param[in] vRootNeuriteIndsOut
  */
 void convert_pointlist_to_neuritelist
 (
@@ -103,7 +109,10 @@ void convert_pointlist_to_neuritelist
 
 /*!
  * \brief test smoothing
- * TODO: Document parameters
+ * \param[in] fileName
+ * \param[in] n
+ * \param[in] h
+ * \param[in] gamma
  */
 void test_smoothing
 (
@@ -115,7 +124,9 @@ void test_smoothing
 
 /*!
  * \brief test import swc
- * TODO: Document parameters
+ * \param[in] fileName
+ * \param[in] anisotropy
+ * \param[in] numRefs
  */
 void test_import_swc
 (
@@ -126,7 +137,11 @@ void test_import_swc
 
 /*!
  * \brief test import swc with er
- * TODO: Document parameters
+ * \param[in] fileName
+ * \param[in] correct
+ * \param[in] erScaleFactor
+ * \param[in] anisotropy
+ * \param[in] numRefs
  */
 void test_import_swc_with_er
 (
@@ -139,7 +154,7 @@ void test_import_swc_with_er
 
 /*!
  * \brief test import swc surf
- * TODO: Document parameters
+ * \param[in] fileName
  */
 void test_import_swc_surf
 (
@@ -148,7 +163,10 @@ void test_import_swc_surf
 
 /*!
  * \brief test import swc 1d
- * TODO: Document parameters
+ * \param[in] fileName
+ * \param[in] anisotropy
+ * \param[in] numRefs
+ * \param[in] scale
  */
 void test_import_swc_1d
 (
@@ -160,7 +178,16 @@ void test_import_swc_1d
 
 /*!
  * \brief shrink quadrilateral copy
- * TODO: Document parameters
+ * \param[in] vVrt
+ * \param[out] outvVrt
+ * \param[in] oldVertices
+ * \param[out] outvEdge
+ * \param[in] g
+ * \param[in] aaPos
+ * \param[in] percentage
+ * \param[in] createFaces
+ * \param[in] outSel
+ * \param[in] currentDir
  */
 void shrink_quadrilateral_copy
 (
@@ -178,7 +205,11 @@ void shrink_quadrilateral_copy
 
 /*!
  * \brief test smoothing
- * TODO: Document parameters
+ * \param[in] fileName
+ * \param[in] n
+ * \param[in] h
+ * \param[in] gamma
+ * \param[in] scale
  */
 void test_smoothing
 (
@@ -191,7 +222,8 @@ void test_smoothing
 
 /*!
  * \brief test import swc
- * TODO: Document parameters
+ * \param[in] fileName
+ * \param[in] correct
  */
 void test_import_swc
 (
@@ -201,7 +233,9 @@ void test_import_swc
 
 /*!
  * \brief test import swc scale
- * TODO: Document parameters
+ * \param[in] fileName
+ * \param[in] correct
+ * \param[in] scale
  */
 void test_import_swc_scale
 (
@@ -212,7 +246,10 @@ void test_import_swc_scale
 
 /*!
  * \brief test import swc general
- * TODO: Document parameters
+ * \param[in] fileName
+ * \param[in] correct
+ * \param[in] shrinkPercentage
+ * \param[in] withER
  */
 void test_import_swc_general
 (
@@ -223,8 +260,29 @@ void test_import_swc_general
 );
 
 /*!
+ * \brief test import swc general
+ * \param[in] fileName
+ * \param[in] correct
+ * \param[in] erScaleFactor
+ * \param[in] anisotropy
+ * \param[in] numRefs
+ */
+void test_import_swc_general_new
+(
+	const std::string& fileName,
+	bool correct,
+	number erScaleFactor,
+	bool withER,
+	number anisotropy = 2.0,
+	size_t numRefs = 1
+);
+
+/*!
  * \brief test import swc general smooth
- * TODO: Document parameters
+ * \param[in] fileName
+ * \param[in] correct
+ * \param[in] shrinkPercentage
+ * \param[in] withER
  */
 void test_import_swc_general_smooth
 (
@@ -236,19 +294,17 @@ void test_import_swc_general_smooth
 
 /*!
  * \brief test neurite projector with four section tube
- * TODO: Document parameters
  */
 void test_neurite_projector_with_four_section_tube();
 
 /*!
  * \brief test neurite projector with four section tube and branch point
- * TODO: Document parameters
  */
 void test_neurite_projector_with_four_section_tube_and_branch_point();
 
 /*!
  * \brief test shrink geometry
- * TODO: Document parameters
+ * \param[in] percentage
  */
 void test_shrink_geom
 (
@@ -257,7 +313,7 @@ void test_shrink_geom
 
 /*!
  * \brief test shrink geom copy
- * TODO: Document parameters
+ * \param[in] percentage
  */
 void test_shrink_geom_copy
 (
@@ -266,7 +322,7 @@ void test_shrink_geom_copy
 
 /*!
  * \brief test split geom
- * TODO: Document parameters
+ * \param[in] percentage
  */
 void test_split_geom
 (
@@ -275,7 +331,8 @@ void test_split_geom
 
 /*!
  * \brief apply neurite projector
- * TODO: Document parameters
+ * \param[inout] mg
+ * \param[in] neuriteProj
  */
 void apply_neurite_projector
 (

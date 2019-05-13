@@ -1,6 +1,6 @@
 /*!
  * connect_outer_and_inner_root_neurites_to_outer_soma
- * neurite_grid_generation_impl.cpp
+ * \file neurite_grid_generation_impl.cpp
  *
  *  Created on: May 6, 2019
  *      Author: stephan
