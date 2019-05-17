@@ -147,6 +147,10 @@ void create_neurite_with_er(
 			if (outVertsInner) {
 				outVertsInner->push_back(v);
 			}
+
+			if (outRadsInner) {
+				outRadsInner->push_back(erScaleFactor * r[0]);
+			}
 		}
 
 		for (size_t i = 0; i < 12; ++i) {
@@ -163,6 +167,10 @@ void create_neurite_with_er(
 			sh.assign_subset(v, 2);
 			if (outVerts) {
 				outVerts->push_back(v);
+			}
+
+			if (outRads) {
+				outRads->push_back(r[0]);
 			}
 		}
 
@@ -2010,9 +2018,6 @@ void calculate_segment_axial_positions
 		{
 			create_neurite_with_er(vNeurites, vPos, vR, nid, erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, NULL, NULL, NULL, 0, outVerts, outVertsInner, outRads, outRadsInner);
 		}
-
-
-
-}
+	}
 }
 

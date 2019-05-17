@@ -293,7 +293,9 @@ namespace ug {
 		   number alpha=0.01,
 		   int numIterations=10,
 		   number resolveThreshold=0.00001,
-		   number scale=0.5
+		   number scale=0.5,
+		   size_t numVerts=4,
+		   size_t numQuads=1
 		);
 
 		/*!
@@ -567,6 +569,31 @@ namespace ug {
 			const std::vector<ug::vector3>& vPointsSomaSurface
 		);
 
+		/*!
+		 * \brief shrinks a polygon towards the barycenter
+		 * \param[in] vVrt
+		 * \param[out] outvVrt
+		 * \param[in] oldVertices
+		 * \param[out] outvEdge
+		 * \param[in] g
+		 * \param[in] aaPos
+		 * \param[in] percentage
+		 * \param[in] createFacs
+		 * \param[in] outSel
+
+		 */
+		void shrink_polygon_copy
+		(
+			const std::vector<Vertex*>& vVrt,
+			std::vector<Vertex*>& outvVrt,
+			const std::vector<Vertex*>& oldVertices,
+			std::vector<Edge*>& outvEdge,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			number percentage,
+			bool createFaces,
+			ISelector* outSel
+		);
 	}
 }
 

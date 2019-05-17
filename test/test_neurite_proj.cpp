@@ -25,7 +25,6 @@
 #include "lib_grid/algorithms/geom_obj_util/face_util.h" // CalculateNormal
 #include "lib_grid/algorithms/element_side_util.h" // GetOpposingSide
 #include "lib_grid/algorithms/grid_generation/icosahedron.h" // Icosahedron
-#include "lib_grid/algorithms/remeshing/grid_adaption.h" // AdaptSurfaceGridToCylinder
 #include "lib_grid/algorithms/smoothing/manifold_smoothing.h" // TangentialSmoothing
 #include "lib_grid/algorithms/remeshing/resolve_intersections.h" // ResolveTriangleIntersection
 #include "lib_grid/grid/neighborhood_util.h" // FindNeighborhood
@@ -3412,8 +3411,6 @@ void create_spline_data_for_neurites
 	if (!ugxWriter.write_to_file(outFileName.c_str()))
 		UG_THROW("Grid could not be written to file '" << outFileName << "'.");
 
-	if (numRefs == 0)
-		return;
 
 	// refinement
 	Domain3d dom;
@@ -3427,11 +3424,13 @@ void create_spline_data_for_neurites
 	try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
 	UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
 
+	if (numRefs == 0)
+		return;
+
 	GlobalMultiGridRefiner ref(*dom.grid(), dom.refinement_projector());
 	for (uint i = 0; i < numRefs; ++i)
 	{
 		ref.refine();
-
 		std::ostringstream oss;
 		oss << "_refined_" << i+1 << ".ugx";
 		curFileName = outFileName.substr(0, outFileName.size()-4) + oss.str();
@@ -3491,7 +3490,6 @@ void create_spline_data_for_neurites
 	Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
 	Selector sel(g);
 
-
 	typedef NeuriteProjector::SurfaceParams NPSP;
 	UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
 			"GlobalAttachment 'npSurfParams' not declared.");
@@ -3501,7 +3499,6 @@ void create_spline_data_for_neurites
 
 	Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
 	aaSurfParams.access(g, aSP);
-
 
 	ProjectionHandler projHandler(&sh);
 	SmartPtr<IGeometry<3> > geom3d = MakeGeometry3d(g, aPosition);
@@ -4065,7 +4062,8 @@ void create_spline_data_for_neurites
 	    UG_LOGN("generating neurites")
 
 		/// Could be improved to generate only first layer
-	    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
+	    for (size_t i = 0; i < 1; ++i) {
+	    ///for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 	    	create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 	    			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, &outVerts, &outVertsInner, &outRads, &outRadsInner);
 	    }
@@ -4077,7 +4075,7 @@ void create_spline_data_for_neurites
 	    UG_LOGN("Creating soma!")
 	    sh.set_default_subset_index(4); /// soma starts now at 4
 	    somaPoint = vSomaPoints;
-	    create_soma(somaPoint, g, aaPos, sh, 4);
+	    create_soma(somaPoint, g, aaPos, sh, 4, 3);
 	    UG_LOGN("Done with soma!");
 	    std::vector<Vertex*> outQuadsInner;
 	    std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectors;
@@ -4087,7 +4085,8 @@ void create_spline_data_for_neurites
 	    std::vector<std::vector<ug::Edge*> > connectingEdgesInner(vRootNeuriteIndsOut.size());
 
 	    /// connect soma with neurites (actually just finds the surface quads on the outer soma)
-	    connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRads, outQuadsInner, 4, sh, fileName, 1.0, axisVectors, vNeurites, connectingVertices, connectingVerticesInner, connectingEdges, connectingEdgesInner,true);
+	    connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRads, outQuadsInner, 4, sh, fileName, 1.0, axisVectors, vNeurites, connectingVertices, connectingVerticesInner, connectingEdges, connectingEdgesInner, true, 12);
+	    return;
 
 	    /// delete old vertices from incorrect neurite starts
 	    g.erase(outVerts.begin(), outVerts.end());
@@ -4099,7 +4098,8 @@ void create_spline_data_for_neurites
 	    sh.set_default_subset_index(0);
 	    UG_LOGN("generating neurites")
 
-	    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
+	    ///for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
+	    for (size_t i = 0; i < 1; ++i) {
 	    	create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 	    			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, &outVerts, &outVertsInner, &outRads, &outRadsInner);
 	    }
@@ -4115,7 +4115,7 @@ void create_spline_data_for_neurites
 	    std::vector<Vertex*> outQuadsInner2;
 	    UG_LOGN("Size of outQuadsInner: " << outQuadsInner.size())
 	    std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectorsInner;
-	    /// connect inner soma with neurites (actually just finds the surface quads on the inner soma)
+	    /// connect inner soma with neurites (actually just finds/creates the surface quads on the inner soma)
 	    connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRadsInner, outQuadsInner2, newSomaIndex, sh, fileName, scaleER, axisVectorsInner, vNeurites, connectingVertices, connectingVerticesInner, connectingEdges, connectingEdgesInner, false);
 
 		// at branching points, we have not computed the correct positions yet,
@@ -4159,9 +4159,9 @@ void create_spline_data_for_neurites
 	    /// TODO: adapt below methods to the MB's new strategy for volumes (creates 8 instead 4 vertices to be connected for each neurite with ER)
 
 	    /// connect now inner soma to neurites (This is the old strategy: Neew strategy is to project)
-	    connect_inner_neurites_to_inner_soma(newSomaIndex, vRootNeuriteIndsOut.size(), g, aaPos, sh);
+	    connect_inner_neurites_to_inner_soma(newSomaIndex, vRootNeuriteIndsOut.size(), g, aaPos, sh); /// TODO Nothing changes here
 
-	    /// connect now outer soma to root neurites
+	    /// connect now outer soma to root neurites (TODO: changes because numVerts is not the same for inner and outer!)
 	    connect_outer_and_inner_root_neurites_to_outer_soma(1, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, outVertsInner);
 
 	    ///connect_outer_and_inner_root_neurites_to_outer_soma(5, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner);

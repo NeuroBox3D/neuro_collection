@@ -802,20 +802,22 @@ namespace ug {
 			number alpha,
 			int numIterations,
 			number resolveThreshold,
-			number scale
+			number scale,
+			size_t numVerts,
+			size_t numQuads
 		)
 		{
 	UG_LOGN("1. Find the vertices representing dendrite connection to soma.");
 	/// 1. Finde die 4 Vertices die den Dendritenanschluss darstellen zum Soma
 	std::vector<std::vector<ug::vector3> > quads;
 	std::vector<number> quadsRadii;
-	size_t numVerts = 4;
-	size_t numQuads = outVerts.size()/numVerts;
+	numVerts = 12;
+	numQuads = 1;
 
 	for (size_t i = 0; i < numQuads; i++) {
 		std::vector<ug::vector3> temp;
 		for (size_t j = 0; j < numVerts; j++) {
-			temp.push_back(aaPos[outVerts[(i*4)+j]]);
+			temp.push_back(aaPos[outVerts[(i*12)+j]]);
 		}
 		UG_LOGN("push a quad!");
 		quads.push_back(temp);
@@ -832,18 +834,20 @@ namespace ug {
 		ug::vector3 centerOut;
 		CalculateCenter(centerOut, pointSet, numVerts);
 		centerOuts.push_back(centerOut);
+		/*
+    	ug::Vertex* v = *g.create<RegularVertex>();
+    	aaPos[v] = centerOut;
+    	sh.assign_subset(v, 100);
+    	*/
 		Selector sel(g);
 		SelectSubsetElements<Vertex>(sel, sh, si, true);
 		Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
 		Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
-		number best = -1;
+		number best = std::numeric_limits<number>::max();
 		ug::Vertex* best_vertex = NULL;
 		for (; vit != vit_end; ++vit) {
 			number dist = VecDistance(aaPos[*vit], centerOut);
-			if (best == -1) {
-				best = dist;
-				best_vertex = *vit;
-			} else if (dist < best) {
+			if (dist < best) {
 				best = dist;
 				best_vertex = *vit;
 			}
@@ -852,7 +856,19 @@ namespace ug {
 		bestVertices.push_back(best_vertex);
 	}
 
+	/*ug::Vertex* v = *g.create<RegularVertex>();
+	aaPos[v] = aaPos[bestVertices[0]];
+	sh.assign_subset(v, 101);
+	*/
+
+	AssignSubsetColors(sh);
+	std::stringstream ss;
+	ss << fileName << "_best_vertices.ugx";
+	SaveGridToFile(g, sh, ss.str().c_str());
+	ss.str(""); ss.clear();
+
 	UG_LOGN("3. AdaptSurfaceGridToCylinder")
+	UG_LOGN("Best vertices size: " << bestVertices.size());
 	/// 3. Für jeden Vertex v führe AdaptSurfaceGridToCylinder mit Radius entsprechend
 	///    dem anzuschließenden Dendritenende aus. Dadurch entsteht auf der Icosphere
 	///    um jedes v ein trianguliertes 6- bzw. 5-Eck.
@@ -866,7 +882,6 @@ namespace ug {
 	}
 
 	AssignSubsetColors(sh);
-	std::stringstream ss;
 	ss << fileName << "_before_deleting_center_vertices.ugx";
 	SaveGridToFile(g, sh, ss.str().c_str());
 	ss.str(""); ss.clear();
@@ -957,6 +972,8 @@ namespace ug {
 			int si = beginningOfQuads+i;
 
 			SelectSubsetElements<Vertex>(sel, sh, si, true);
+			UG_LOGN("Selecting subset index (si): " << si);
+			UG_LOGN("Number of vertices: " << sel.num<Vertex>(si));
 			std::vector<Vertex*> vrts;
 			sel.clear();
 			UG_LOGN("verts size: " << vrts.size());
@@ -1004,8 +1021,11 @@ namespace ug {
 			std::vector<ug::Vertex*> vVrtOut;
 
 			Selector selToAssign(g);
-			UG_COND_THROW(vrts.size() != 4, "Non-quadrilateral encountered. Cannot shrink a non-quadrilateral!");
-			shrink_quadrilateral_copy(vrts, vVrtOut, vVrtOut, vEdgeOut, g, aaPos, -scale, false, &selToAssign, NULL);
+			UG_LOGN("Vrts.size(): " << vrts.size());
+
+			//UG_COND_THROW(vrts.size() != 4, "Non-quadrilateral encountered. Cannot shrink a non-quadrilateral!");
+			///shrink_quadrilateral_copy(vrts, vVrtOut, vVrtOut, vEdgeOut, g, aaPos, -scale, false, &selToAssign, NULL);
+			shrink_polygon_copy(vrts, vVrtOut, vVrtOut, vEdgeOut, g, aaPos, -scale, false, &selToAssign);
 			for (std::vector<Vertex*>::const_iterator it = vVrtOut.begin(); it != vVrtOut.end(); ++it) {
 				smallerQuadVerts.push_back(*it);
 			}
@@ -1024,6 +1044,8 @@ namespace ug {
 			}
 		}
 	}
+
+	/// TODO: collapse inner polygon to a quad... if (createInner) { /// Collapse }
 
 	EraseEmptySubsets(sh);
 	AssignSubsetColors(sh);
@@ -1275,6 +1297,63 @@ namespace ug {
 		}
 
 		////////////////////////////////////////////////////////////////////////
+		/// shrink_polygon_copy
+		////////////////////////////////////////////////////////////////////////
+		void shrink_polygon_copy
+		(
+			const std::vector<Vertex*>& vVrt,
+			std::vector<Vertex*>& outvVrt,
+			const std::vector<Vertex*>& oldVertices,
+			std::vector<Edge*>& outvEdge,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			number percentage,
+			bool createFaces,
+			ISelector* outSel
+		)
+		{
+			Selector sel(g);
+	    	for (size_t i = 0; i < vVrt.size(); ++i) {
+	    		sel.select(vVrt[i]);
+			}
+
+	    	ug::vector3 center;
+	    	center = CalculateBarycenter(sel.vertices_begin(), sel.vertices_end(), aaPos);
+	    	sel.clear();
+	    	for (size_t i = 0; i < vVrt.size(); ++i)
+	    	{
+	    	   ug::Vertex* v = *g.create<RegularVertex>();
+	       	   aaPos[v] = aaPos[vVrt[i]];
+	       	   ug::vector3 dir;
+	       	   VecSubtract(dir, aaPos[vVrt[i]], center);
+
+	       	   UG_LOGN("dir:" << dir)
+	       	   VecScaleAdd(aaPos[v], 1.0, aaPos[v], percentage, dir);
+
+	       	   if (percentage > 1) {
+	       		   UG_WARNING("Moving vertex beyond center. Will create degenerated elements." << std::endl);
+	       	   }
+	       	   outvVrt.push_back(v);
+	       	   if (outSel) outSel->select<ug::Vertex>(v);
+		    	}
+
+			   	/// create new edges in new (small) quad
+			   	for (size_t i = 0; i < vVrt.size(); ++i) {
+			   		ug::Edge* e = *g.create<RegularEdge>(EdgeDescriptor(outvVrt[i], outvVrt[(i+1)%vVrt.size()]));
+			    	   outvEdge.push_back(e);
+			     	   if (outSel) outSel->select<ug::Edge>(e);
+			   	}
+
+			   	if (createFaces) {
+			   		/// create new faces
+			   		for (size_t i = 0; i < vVrt.size(); ++i) {
+			   			g.create<Quadrilateral>(QuadrilateralDescriptor(outvVrt[i], outvVrt[(i+1)%4], oldVertices[(i+1)%4], oldVertices[i]));
+			   			/// Note: Do we need to flip faces here to wrt radial vector?
+		   		}
+		   	}
+		}
+
+		////////////////////////////////////////////////////////////////////////
 		/// shrink_quadrilateral
 		////////////////////////////////////////////////////////////////////////
 		void shrink_quadrilateral
@@ -1342,7 +1421,7 @@ namespace ug {
 			// create soma as icosahedron
 			GenerateIcosahedron(g, somaPts[0].coords, somaPts[0].radius, aPosition);
 			} else {
-				// TODO: Gneralize this: can take recipe from here to generate a deformated icosahedron:
+				// TODO: Generalize this: can take recipe from here to generate a deformated icosahedron:
 				// http://blog.andreaskahler.com/2009/06/creating-icosphere-mesh-in-code.html
 				UG_THROW("Currently only one soma point is allowed by this implementation.");
 			}
