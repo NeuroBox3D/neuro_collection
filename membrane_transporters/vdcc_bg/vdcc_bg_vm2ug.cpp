@@ -89,7 +89,7 @@ void VDCC_BG_VM2UG<TDomain>::init(number time)
 				<< "It must contain exactly one placeholder (which has to convert a floating point number)"
 				<< "and must not produce an output string longer than 100 chars.");
 
-	try {m_vmProvider.build_tree(m_baseName + m_timeAsString + m_ext, " ");}
+	try {m_vmProvider.build_tree(m_baseName + m_timeAsString + m_ext);}
 	UG_CATCH_THROW("Underlying Vm2uG object could not build its tree on given file.\n"
 		<< "If this is due to an inappropriate point in time, you might consider\n"
 		"using set_file_times(fileInterval, fileOffset).");
@@ -116,9 +116,6 @@ void VDCC_BG_VM2UG<TDomain>::init(number time)
 			}
 			UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
 
-
-			this->m_aaMGate[*iter] = this->calc_gating_start(this->m_gpMGate, vm);
-			if (has_hGate()) this->m_aaHGate[*iter] = this->calc_gating_start(this->m_gpHGate, vm);
 			this->m_aaVm[*iter] = 0.001 * vm;
 		}
 	}
@@ -155,7 +152,7 @@ void VDCC_BG_VM2UG<TDomain>::update_time(number newTime)
 				<< "It must contain exactly one placeholder (which has to convert a floating point number)"
 				<< "and must not produce an output string longer than 100 chars.");
 
-	m_vmProvider.build_tree(m_baseName + m_timeAsString + m_ext, " ");
+	m_vmProvider.build_tree(m_baseName + m_timeAsString + m_ext);
 	this->m_oldTime = this->m_time;
 	this->m_time = newTime;
 }

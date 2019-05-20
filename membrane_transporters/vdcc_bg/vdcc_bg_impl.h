@@ -21,6 +21,9 @@ void VDCC_BG<TDomain>::set_channel_type()
 				 "Call set_channel_type() BEFORE init().");
 	}
 
+	m_channelType = TType;
+	check_supplied_functions();
+
 	switch (TType)
 	{
 		// - all gating params according to table 5, page 98 of the Borg-Graham article
@@ -61,6 +64,61 @@ void VDCC_BG<TDomain>::set_channel_type()
 			break;
 	}
 }
+
+
+
+template <typename TDomain>
+template <typename TVector>
+void VDCC_BG<TDomain>::calculate_steady_state(SmartPtr<TVector> u, number vm) const
+{
+	typedef typename DoFDistribution::traits<side_t>::const_iterator it_type;
+	ConstSmartPtr<ApproximationSpace<TDomain> > approxSpace = this->approx_space();
+	UG_COND_THROW(!approxSpace.valid(), "Approximation space not present in Borg-Graham VDCC discretization."
+		<< std::endl << " Did you forget to add it to the domain discretization?");
+	ConstSmartPtr<DoFDistribution> dd = approxSpace->dof_distribution(GridLevel(), false);
+
+	// get global fct index for our functions
+	FunctionGroup fctGrp(dd->dof_distribution_info());
+	fctGrp.add(IMembraneTransporter::m_vFct);
+	const size_t ind_m = fctGrp.unique_id(_M_ - m_localIndicesOffset);
+	size_t ind_h = 0;
+	if (has_hGate())
+		ind_h = fctGrp.unique_id(_H_ - m_localIndicesOffset);
+
+	// loop dof distro vertices of plasma membrane subsets
+	std::vector<DoFIndex> dofIndexM;
+	std::vector<DoFIndex> dofIndexH;
+
+	SubsetGroup ssg(approxSpace->domain()->subset_handler(), this->m_vSubset);
+	size_t si_sz = ssg.size();
+	for (size_t si = 0; si < si_sz; ++si)
+	{
+		it_type it = dd->begin<side_t>(ssg[si]);
+		it_type it_end = dd->end<side_t>(ssg[si]);
+		for (; it != it_end; ++it)
+		{
+			// get DoFs for all involved unknowns
+			dd->dof_indices(*it, ind_m, dofIndexM, true, true);
+			if (has_hGate())
+				dd->dof_indices(*it, ind_h, dofIndexH, true, true);
+
+			UG_COND_THROW(has_hGate() && dofIndexM.size() != dofIndexH.size(),
+				"Not the same number of DoFs on the same element for state variables m ("
+				<< dofIndexM.size() << ") and h (" << dofIndexH.size() << ") "
+				"for " << ElementDebugInfo(*approxSpace->domain()->grid(), *it));
+
+			// write equilibrium state probs to functions
+			const size_t sz = dofIndexM.size();
+			for (size_t i = 0; i < sz; ++i)
+			{
+				DoFRef(*u, dofIndexM[i]) = calc_gating_start(m_gpMGate, 1e3*vm);
+				if (has_hGate())
+					DoFRef(*u, dofIndexH[i]) = calc_gating_start(m_gpHGate, 1e3*vm);
+			}
+		}
+	}
+}
+
 
 } // neuro_collection
 } // namespace ug

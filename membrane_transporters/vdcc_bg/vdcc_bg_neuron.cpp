@@ -97,8 +97,6 @@ void VDCC_BG_VM2UG_NEURON<TDomain>::init(number time)
 			}
 			UG_CATCH_THROW("Vm2uG object failed to retrieve a membrane potential for the vertex.");
 
-			this->m_aaMGate[*iter] = this->calc_gating_start(this->m_gpMGate, vm);
-			if (has_hGate()) this->m_aaHGate[*iter] = this->calc_gating_start(this->m_gpHGate, vm);
 			this->m_aaVm[*iter] = 0.001 * vm; // mV -> V
 		}
 	}
