@@ -379,22 +379,38 @@ UG_LOGN("");
 
 
 
+template <typename TDomain>
+void RemoveAllNonDefaultRefinementProjectors(SmartPtr<TDomain> dom)
+{
+	SmartPtr<RefinementProjector> rp = dom->refinement_projector();
+	ProjectionHandler* ph = dynamic_cast<ProjectionHandler*>(rp.get());
+	UG_COND_THROW(!ph, "Domain refinement projector is not a projection handler.");
+
+	const size_t nProj = ph->num_projectors();
+	for (size_t i = 0; i < nProj; ++i)
+		ph->set_projector(i, ph->default_projector());
+}
+
+
 
 // explicit template specializations
 #ifdef UG_DIM_1
 	template void mark_global<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>);
 	template void mark_anisotropic<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>, number);
 	template void mark_anisotropic_onlyX<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>, number);
+	template void RemoveAllNonDefaultRefinementProjectors(SmartPtr<Domain1d>);
 #endif
 #ifdef UG_DIM_2
 	template void mark_global<Domain2d>(SmartPtr<IRefiner>, SmartPtr<Domain2d>);
 	template void mark_anisotropic<Domain2d>(SmartPtr<IRefiner>, SmartPtr<Domain2d>, number);
 	template void mark_anisotropic_onlyX<Domain2d>(SmartPtr<IRefiner>, SmartPtr<Domain2d>, number);
+	template void RemoveAllNonDefaultRefinementProjectors(SmartPtr<Domain2d>);
 #endif
 #ifdef UG_DIM_3
 	template void mark_global<Domain3d>(SmartPtr<IRefiner>, SmartPtr<Domain3d>);
 	template void mark_anisotropic<Domain3d>(SmartPtr<IRefiner>, SmartPtr<Domain3d>, number);
 	template void mark_anisotropic_onlyX<Domain3d>(SmartPtr<IRefiner>, SmartPtr<Domain3d>, number);
+	template void RemoveAllNonDefaultRefinementProjectors(SmartPtr<Domain3d>);
 #endif
 
 

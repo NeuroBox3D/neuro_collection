@@ -636,6 +636,8 @@ static void Domain(Registry& reg, string grp)
 					 "", "approxSpace#subsetNames", "outputs subset volumes");
 	reg.add_function("compute_volume_of_subset", static_cast<number (*) (ConstSmartPtr<ApproximationSpace<TDomain> >, int)>(&computeVolume<TDomain>), grp.c_str(),
 					 "volume of the subset", "approxSpace # subset index", "calculates subset volume");
+
+	reg.add_function("RemoveAllNonDefaultRefinementProjectors", &RemoveAllNonDefaultRefinementProjectors<TDomain>);
 }
 
 /**
