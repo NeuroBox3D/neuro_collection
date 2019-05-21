@@ -4127,7 +4127,6 @@ void create_spline_data_for_neurites
 	    			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, &outVerts, &outVertsInner, &outRads, &outRadsInner);
 	    }
 
-
 	    /// Inner soma
 	    UG_LOGN("Done with connecting neurites!");
 	    UG_LOGN("Creating soma inner!")

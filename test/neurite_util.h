@@ -145,7 +145,7 @@ namespace ug {
 			const vector3& originCenter,
 			const std::vector<ug::vector3>& points,
 			std::vector<number>& angles,
-			std::vector<ug::vector3>& normals,
+			const std::vector<ug::vector3>& normals,
 			size_t refIndex=-1
 		);
 
@@ -251,6 +251,7 @@ namespace ug {
 		 * \param[in] sh
 		 * \param[in] rimSnaptThresholdFactor
 		 * \param[in] numQuads
+		 * \param[in] numVerts
 		 */
 		std::vector<ug::vector3> find_quad_verts_on_soma
 		(
@@ -261,7 +262,8 @@ namespace ug {
 		   size_t si,
 		   SubsetHandler& sh,
 		   number rimSnapThresholdFactor,
-		   size_t numQuads
+		   size_t numQuads,
+		   size_t numVerts=4
 		);
 
 		/*!
