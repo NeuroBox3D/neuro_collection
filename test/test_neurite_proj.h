@@ -340,6 +340,15 @@ void apply_neurite_projector
 	SmartPtr<NeuriteProjector> neuriteProj
 );
 
+/*!
+ * \brief converts swc to ugx
+ * \param[in] fileName
+ */
+void test_convert_swc_to_ugx
+(
+	const std::string& fileName
+);
+
 } // namespace neuro_collection
 } // namespace ug
 

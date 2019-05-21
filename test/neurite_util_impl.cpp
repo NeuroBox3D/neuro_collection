@@ -10,6 +10,7 @@
 #include "common/error.h"
 #include "bridge/domain_bridges/selection_bridge.h"
 #include "lib_grid/algorithms/remeshing/grid_adaption.h"
+#include "lib_grid/refinement/regular_refinement.h"
 #include <cmath>
 #include <boost/lexical_cast.hpp>
 
@@ -420,6 +421,7 @@ namespace ug {
 			UG_LOGN("Next merge these vertices from above!");
 		}
 
+
    		////////////////////////////////////////////////////////////////////////
 		/// connect_inner_neurites_to_inner_soma
 		////////////////////////////////////////////////////////////////////////
@@ -538,15 +540,43 @@ namespace ug {
 			/// Projiziere Neuritenstartknoten ebenso darauf. Finde kleinsten Winkel, dann merge diese Vertices!
 
 			/// Calculate all angles with respect to a reference point for the projected outer sphere's quad (ER) vertices to the inner sphere's quad and the inner sphere's vertices
+			/// First move projected vertices to center of inner soma quad -> then do angle calculation accordingly or distance calculation
+			size_t j = 1;
+			for (std::vector<std::vector<ug::vector3> >::iterator it = projected.begin(); it != projected.end(); ++it) {
+				sel.clear();
+				SelectSubsetElements<Vertex>(sel, sh, somaIndex+j, true);
+				vit = sel.vertices_begin();
+				vit_end = sel.vertices_end();
+				std::vector<ug::vector3> verts;
+				for (; vit != vit_end; ++vit) {
+					verts.push_back(aaPos[*vit]);
+				}
+				ug::vector3 centerOut;
+				ug::vector3 centerOut2;
+				ug::vector3 dir;
+				CalculateCenter(centerOut, &(*it)[0], it->size()); // center of projected inner soma surface quad vertices
+				CalculateCenter(centerOut2, &(verts[0]), verts.size()); /// center of unprojected inner soma surface quad
+				VecSubtract(dir, centerOut, centerOut2);
+				UG_LOGN("Centerout: " << centerOut);
+				UG_LOGN("Centerout2: " << centerOut2);
+				for (std::vector<ug::vector3>::iterator it2 = it->begin(); it2 != it->end(); ++it2) {
+					/// center each projected vertex to center of inner soma quad
+					VecSubtract(*it2, *it2, dir);
+					UG_LOGN("new position: " << *it2);
+					ug::Vertex* newVtx = *g.create<ug::RegularVertex>();
+					aaPos[newVtx] = *it2;
+				}
+			}
+			SaveGridToFile(g, sh, "projection_after_centered.ugx");
+
 			std::vector<std::vector<number> > allAngles;
 			std::vector<std::vector<number> > allAnglesInner;
-			size_t j = 1;
+			j = 1;
 			for (std::vector<std::vector<ug::vector3> >::const_iterator it = projected.begin(); it != projected.end(); ++it) {
 				ug::vector3 centerOut;
 				std::vector<number> angles;
 				CalculateCenter(centerOut, &(*it)[0], it->size());
-				/// calculate_angles(centerOut, *it, angles);
-				calculate_angles(centerOut, *it, angles, normals);
+				calculate_angles(centerOut, *it, angles, normals, (*it)[0]);
 				allAngles.push_back(angles);
 
 				sel.clear();
@@ -558,7 +588,7 @@ namespace ug {
 				for (; vit != vit_end; ++vit) {
 					verts.push_back(aaPos[*vit]);
 				}
-				calculate_angles(centerOut, verts, angles2, normals);
+				calculate_angles(centerOut, verts, angles2, normals, (*it)[0]);
 				allAnglesInner.push_back(angles2);
 				j++;
 			}
@@ -579,7 +609,10 @@ namespace ug {
 				UG_LOGN("---");
 			}
 
-			/// Remember pairs: For each projected vertices to the inner sphere's quad plane a corresponding vertices we projected from the outer sphere's quad exist these have to be connected by edges / faces to create a hexaeder
+			/// TODO: Angle calculation here (Conversion from 0, 180 to 0, 360 interval) is wrong: use from connect_outer_* method to convert
+			/// Remember pairs: For each projected vertices to the inner sphere's quad
+			/// plane a corresponding vertices we projected from the outer sphere's quad
+			/// exist these have to be connected by edges / faces to create a hexaeder
 			std::vector<std::vector<std::pair<size_t, size_t > > > pairs;
 			for (size_t k = 0; k < numQuads; k++) {
 				std::vector<std::pair<size_t, size_t> > pair;
@@ -607,9 +640,8 @@ namespace ug {
 				}
 				UG_LOGN("***");
 			}
-			/// TODO: The angle is not calculate correctly: why? Because two calls to calculate_angles, but the REFERENCE point differs. Has to be precisely the same to make sense.
 
-			/// find closest vertex instead of minimum angle difference: this should be save for the inner sphere and outer sphere ER part connection
+			/// find closest vertex instead of minimum angle difference: this should be safe for the inner sphere and outer sphere ER part connection. Note reference point has to be the same to make sense.
 			j = 1;
 			std::vector<std::vector<std::pair<ug::vector3, ug::vector3> > > myPairs;
 			std::map<Vertex*, Vertex*> myPairs2;
@@ -669,6 +701,7 @@ namespace ug {
 
 			/// Iterate over all neurite connections (numQuads) and get the vertices of the inner sphere's quad edge each and find the corresponding unprojected (outer sphere's quad vertices) and form a face
 			/// It is also possible to do the same procedure with the sorted angle differences above to create these faces
+			SaveGridToFile(g, sh, "before_projections_inner_connections.ugx");
 			for (size_t i = 1; i < numQuads+1; i++) {
 				sel.clear();
 				UG_LOGN("Selecting now subset: " << somaIndex+i);
@@ -683,18 +716,18 @@ namespace ug {
 					ug::Vertex* p2 = e->vertex(1);
 					ug::Vertex* p3 = myPairs2[e->vertex(0)];
 					ug::Vertex* p4 = myPairs2[e->vertex(1)];
+					UG_COND_THROW( ! ((p1 != p2) && (p3 != p4)), "Non-unique vertices provided to create quadrilateral.");
 					ug::Face* f = *g.create<Quadrilateral>(QuadrilateralDescriptor(p1, p3, p4, p2));
 					UG_COND_THROW(!f, "Quadrilateral for connecting inner soma sphere (ER) with inner neurite conneting to outer sphere (PM)");
 				}
 			}
 
-			/// TODO: Vor dem verbinden, verschiebe inner quad vertices auf die
-			/// projizierten positionen auf innerem Soma welche das Resultat sind
-			/// von der Projektion der äußeren Quad Soma vertices: Sollte nicht nötig
-			/// für gutgeartete innere Quads - benötigt falls projiziertes Quad weit
-			/// entfernt von dem inneren Quad ist - insebsondere um minimales Angle
-			/// Differenz oder minimale Entfernung zu berechnen um Vertices zu verbinden
-			SaveGridToFile(g, "after_projections_inner.ugx");
+			SaveGridToFile(g, sh, "after_projections_inner.ugx");
+
+			/// TODO: Verdrehung kann beseitigt werden wenn man die Knoten des inneren Soma Oberflächenquads
+			/// auf die Ebene projiziert welche durch das Oberflächenquads (innere) des äußeren Somas projiziert
+			/// werden, evt. muss dann nach der Projektion auf das Zentrum des äußeren Somaoberflächen Quads
+			/// zentriert werden, oder auf den Mittelpunkt des äußeren Quads des äußeren Somas
 		}
 
 		////////////////////////////////////////////////////////////////////////
@@ -811,7 +844,6 @@ namespace ug {
 	/// 1. Finde die 4 Vertices die den Dendritenanschluss darstellen zum Soma
 	std::vector<std::vector<ug::vector3> > quads;
 	std::vector<number> quadsRadii;
-	numVerts = 12;
 	numQuads = 1;
 
 	for (size_t i = 0; i < numQuads; i++) {
@@ -1045,7 +1077,52 @@ namespace ug {
 		}
 	}
 
-	/// TODO: collapse inner polygon to a quad... if (createInner) { /// Collapse }
+	/// Collapses only inner polygon to a quadrilateral - outer polygon needs to have 12 vertices
+	if (createInner) {
+		/// Collapse now edges and take smallest edges first
+		int beginningOfQuads = si+1+numQuads; // subset index where inner quads are stored in
+		for (size_t i = 0; i < numQuads; i++) {
+			int si = beginningOfQuads+i;
+			size_t numEdges = sh.num<Edge>(si);
+			size_t j = 0;
+			while (numEdges > 4) { // while more than 4 edges available
+				SubsetHandler::traits<Edge>::iterator eit = sh.begin<Edge>(si);
+				SubsetHandler::traits<Edge>::iterator end = sh.end<Edge>(si);
+				number bestLength = -1;
+				Edge* eBest = NULL;
+				for (; eit != end; ++eit) {
+					const Edge* ee = *eit;
+					Vertex* const* verts = ee->vertices();
+					if (bestLength == -1) {
+					bestLength = VecDistance(aaPos[verts[0]], aaPos[verts[1]]);
+						eBest = *eit;
+					} else {
+						number length = VecDistance(aaPos[verts[0]], aaPos[verts[1]]);
+						if (length < bestLength) {
+							eBest = *eit;
+							bestLength = length;
+						}
+					}
+				}
+				CollapseEdge(g, eBest, eBest->vertex(0));
+				numEdges--;
+				j++;
+				std::stringstream ss;
+				ss << fileName << "_after_collapse_number_" << j << "_for_quad_" << i << ".ugx";
+				SaveGridToFile(g, sh, ss.str().c_str());
+			}
+		}
+
+		/// refine outer polygon once to get 12 vertices
+		beginningOfQuads = si+1; // subset index where outer quads are stored
+		for (size_t i = 0; i < numQuads; i++) {
+			int si = beginningOfQuads+i;
+			sel.clear();
+			SelectSubsetElements<Vertex>(sel, sh, si, true);
+			SelectSubsetElements<Edge>(sel, sh, si, true);
+			Refine(g, sel, NULL, false);
+		}
+	}
 
 	EraseEmptySubsets(sh);
 	AssignSubsetColors(sh);
@@ -1259,9 +1336,9 @@ namespace ug {
 	       	   ug::vector3 dir;
 	       	   VecSubtract(dir, aaPos[vVrt[i]], center);
 
-	       	   /// TODO: Add the correct shrinkage into a prescribed direction
+	       	   /// TODO: Shrink towards predscribed direction (currentDir) - otherwise shrink towards barycenter
 	       	   if (currentDir) {
-	    	   	   /// 1. get Edge e starting from i % 4 to i+1 % 4
+	    	   	   /// 1. Get Edge e starting from i % 4 to i+1 % 4
 	    	   	   /// 2. Check if e is parallel or anti-parallel to currentDir
 	    	   	   /// 3. If true then calculate dir1, dir2 from vertex i, i+1 to center
 	    	   	   /// 4. Project dir1 to edge e if e was parallel to currentDir
@@ -1421,7 +1498,8 @@ namespace ug {
 			// create soma as icosahedron
 			GenerateIcosahedron(g, somaPts[0].coords, somaPts[0].radius, aPosition);
 			} else {
-				// TODO: Generalize this: can take recipe from here to generate a deformated icosahedron:
+				// TODO: Generalize this: Could take recipe from the following link to define
+				/// and generate a discrete deformated icosphere respectively icosahedron:
 				// http://blog.andreaskahler.com/2009/06/creating-icosphere-mesh-in-code.html
 				UG_THROW("Currently only one soma point is allowed by this implementation.");
 			}

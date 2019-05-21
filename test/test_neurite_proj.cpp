@@ -3000,6 +3000,25 @@ void create_spline_data_for_neurites
 
 
 	////////////////////////////////////////////////////////////////////////
+	/// read_swc
+	///////////////////////////////////////////////////////////////////////
+	void test_convert_swc_to_ugx(
+		const std::string& fileName
+	)
+	{
+		std::vector<SWCPoint> vPoints;
+		import_swc(fileName, vPoints);
+
+		// export original cell to ugx
+		Grid g;
+		SubsetHandler sh(g);
+		swc_points_to_grid(vPoints, g, sh);
+		std::string fn_noext = FilenameWithoutExtension(fileName);
+		std::string fn = fn_noext + "_orig.ugx";
+		export_to_ugx(g, sh, fn);
+	}
+
+	////////////////////////////////////////////////////////////////////////
 	/// test_smoothing
 	///////////////////////////////////////////////////////////////////////
 	void test_smoothing(
@@ -3965,8 +3984,11 @@ void create_spline_data_for_neurites
 			UG_ASSERT(par, "Object with base object id FACE is not a face.");
 			neuriteProj->new_vertex(*vrtIter, par);
 		}
-
-		// TODO: treat the volume case!
+		else if (go->base_object_id() == VOLUME) {
+			Volume* par = dynamic_cast<Volume*>(go);
+			UG_ASSERT(par, "Object with base object id VOLUME is not a volume.");
+			// TODO: treat the volume case!
+		}
 	}
 }
 
@@ -4023,7 +4045,7 @@ void create_spline_data_for_neurites
 	    Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
 	    aaSurfParams.access(g, aSP);
 
-		/// In new implementation radius can be scaled with 1.0, not 1.05, since vertices are merged in the end
+		/// TODO In new implementation radius can be scaled with 1.0, not 1.05, since vertices are merged in the end
 	    somaPoint[0].radius *= 1.05;
 	    create_soma(somaPoint, g, aaPos, sh, 1);
 	    UG_LOGN("Created soma...");
@@ -4085,8 +4107,9 @@ void create_spline_data_for_neurites
 	    std::vector<std::vector<ug::Edge*> > connectingEdgesInner(vRootNeuriteIndsOut.size());
 
 	    /// connect soma with neurites (actually just finds the surface quads on the outer soma)
-	    connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRads, outQuadsInner, 4, sh, fileName, 1.0, axisVectors, vNeurites, connectingVertices, connectingVerticesInner, connectingEdges, connectingEdgesInner, true, 12);
-	    return;
+	    connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRads, outQuadsInner,
+	    		4, sh, fileName, 1.0, axisVectors, vNeurites, connectingVertices, connectingVerticesInner,
+	    		connectingEdges, connectingEdgesInner, true, 0.01, 10, 0.00001, 0.5, 12, 1);
 
 	    /// delete old vertices from incorrect neurite starts
 	    g.erase(outVerts.begin(), outVerts.end());
@@ -4104,6 +4127,7 @@ void create_spline_data_for_neurites
 	    			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, &outVerts, &outVertsInner, &outRads, &outRadsInner);
 	    }
 
+
 	    /// Inner soma
 	    UG_LOGN("Done with connecting neurites!");
 	    UG_LOGN("Creating soma inner!")
@@ -4118,12 +4142,6 @@ void create_spline_data_for_neurites
 	    /// connect inner soma with neurites (actually just finds/creates the surface quads on the inner soma)
 	    connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRadsInner, outQuadsInner2, newSomaIndex, sh, fileName, scaleER, axisVectorsInner, vNeurites, connectingVertices, connectingVerticesInner, connectingEdges, connectingEdgesInner, false);
 
-		// at branching points, we have not computed the correct positions yet,
-		// so project the complete geometry using the projector
-		VertexIterator vit = g.begin<Vertex>();
-		VertexIterator vit_end = g.end<Vertex>();
-		for (; vit != vit_end; ++vit)
-			neuriteProj->project(*vit);
 
 		// assign subset
 		AssignSubsetColors(sh);
@@ -4143,9 +4161,8 @@ void create_spline_data_for_neurites
 		 }
 		SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_renaming.ugx");
 
-		/// Double Vertices might occur (during Qhull gen faces) -> remove these here to be sure
-		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aaPos, 0.0001);
-
+		/// Double Vertices might occur during Qhull gen faces -> remove these here
+		/// RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aaPos, 0.0001);
 		SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_renaming_and_double_freed.ugx");
 
 	    EraseEmptySubsets(sh);
@@ -4156,15 +4173,27 @@ void create_spline_data_for_neurites
 	     	sh.set_subset_name(ss.str().c_str(), i);
 	    }
 
-	    /// TODO: adapt below methods to the MB's new strategy for volumes (creates 8 instead 4 vertices to be connected for each neurite with ER)
+	    UG_LOGN("Soma's inner index: " << newSomaIndex);
+	    /// connect now inner soma to neurites (This is the old strategy: New strategy is to project)
+	    /// TODO make sure this still works: should use angle not distance based criterion?
+	    connect_inner_neurites_to_inner_soma(newSomaIndex, 1, g, aaPos, sh);
+	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_inner_soma_to_outer_ER.ugx");
 
-	    /// connect now inner soma to neurites (This is the old strategy: Neew strategy is to project)
-	    connect_inner_neurites_to_inner_soma(newSomaIndex, vRootNeuriteIndsOut.size(), g, aaPos, sh); /// TODO Nothing changes here
+   		/// TODO Tested until here (projection destroys soma? need to address in neurite_projector.cpp)
+	    return;
+
+
+	    // at branching points, we have not computed the correct positions yet,
+		// so project the complete geometry using the projector
+		VertexIterator vit = g.begin<Vertex>();
+		VertexIterator vit_end = g.end<Vertex>();
+		for (; vit != vit_end; ++vit)
+			neuriteProj->project(*vit);
 
 	    /// connect now outer soma to root neurites (TODO: changes because numVerts is not the same for inner and outer!)
 	    connect_outer_and_inner_root_neurites_to_outer_soma(1, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, outVertsInner);
 
-	    ///connect_outer_and_inner_root_neurites_to_outer_soma(5, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner);
+	    /// connect_outer_and_inner_root_neurites_to_outer_soma(5, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner);
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
 
 		// output
