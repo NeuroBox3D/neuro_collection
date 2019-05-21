@@ -3987,7 +3987,7 @@ void create_spline_data_for_neurites
 		else if (go->base_object_id() == VOLUME) {
 			Volume* par = dynamic_cast<Volume*>(go);
 			UG_ASSERT(par, "Object with base object id VOLUME is not a volume.");
-			// TODO: treat the volume case!
+			// TODO: Treat the volume case
 		}
 	}
 }
@@ -4046,7 +4046,7 @@ void create_spline_data_for_neurites
 	    aaSurfParams.access(g, aSP);
 
 		/// TODO In new implementation radius can be scaled with 1.0, not 1.05, since vertices are merged in the end
-	    somaPoint[0].radius *= 1.05;
+	    somaPoint[0].radius *= 1.00;
 	    create_soma(somaPoint, g, aaPos, sh, 1);
 	    UG_LOGN("Created soma...");
 	    ///get_closest_points_on_soma(vPosSomaClosest, vPointSomaSurface, g, aaPos, sh, 1);

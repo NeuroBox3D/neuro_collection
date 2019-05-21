@@ -1,5 +1,5 @@
-/*
- * misc_util.cpp
+/*!
+ * \file misc_util.cpp
  *
  *  Created on: 2018-01-30
  *      Author: mbreit
@@ -16,6 +16,7 @@
 #include "lib_grid/refinement/projectors/neurite_projector.h"       // for NeuriteProjector
 #include "lib_grid/tools/grid_level.h"                              // for GridLevel
 #include "lib_grid/tools/surface_view.h"                            // for SurfaceView
+#include "lib_grid/refinement/projectors/projection_handler.h"      // for ProjectionHandler
 
 
 namespace ug {

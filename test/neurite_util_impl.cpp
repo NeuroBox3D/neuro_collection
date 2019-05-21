@@ -382,7 +382,7 @@ namespace ug {
 					vit_end = sel.end<Vertex>();
 					std::vector<Vertex*> array;
 					for (; vit != vit_end; ++vit) { array.push_back(*vit); }
-					int index = FindClosestVertexInArray(array, aaPos[p1], aaPos, 10); /// closest soma vertex of inner quad to outer soma quad
+					int index = FindClosestVertexInArray(array, aaPos[p1], aaPos, 10); /// closest soma vertex of inner quad to outer soma quad: this is safe if inner and outer quads have same number of vertices
 
 					UG_COND_THROW(!array[index], "Not found!");
 					UG_COND_THROW(!projectedToUnprojectedInner[p2], "Not found!");
@@ -435,8 +435,6 @@ namespace ug {
 		    Grid::VertexAttachmentAccessor<APosition>& aaPos,
 		    SubsetHandler& sh
 		) {
-			/// For the test geometry this has to be 10
-			/// UG_COND_THROW(somaIndex != 10, "Soma index needs to be 10!");
 			Selector::traits<Vertex>::iterator vit;
 			Selector::traits<Vertex>::iterator vit_end;
 			Selector::traits<Edge>::iterator eit;
