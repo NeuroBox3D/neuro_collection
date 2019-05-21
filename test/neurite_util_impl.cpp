@@ -1625,7 +1625,7 @@ namespace ug {
 			number scale
 		)
 		{
-			sort(verts.begin(), verts.end(), CompareBy< &NeuriteProjector::SurfaceParams::axial >(aaSurfParams) );
+			sort(verts.begin(), verts.end(), CompareBy<&NeuriteProjector::SurfaceParams::axial>(aaSurfParams));
 			oldVertsSorted = verts;
 
 			Edge* e1 = g.get_edge(verts[0], verts[2]);
@@ -1757,7 +1757,7 @@ namespace ug {
 			// check for consistency
 			UG_COND_THROW(verts.size() != 4, "Exactly 4 vertices are necessary on coarse grid level.");
 			// sort to find min and max axial values
-			sort(verts.begin(), verts.end(), CompareBy< &NeuriteProjector::SurfaceParams::axial >(aaSurfParams) );
+			sort(verts.begin(), verts.end(), CompareBy<&NeuriteProjector::SurfaceParams::axial>(aaSurfParams));
 			number length = aaSurfParams[verts[2]].axial - aaSurfParams[verts[0]].axial;
 			UG_LOGN("length TIMES scale/2: " << length*scale/2)
 			// update surface parameters

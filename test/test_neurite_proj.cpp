@@ -4045,8 +4045,8 @@ void create_spline_data_for_neurites
 	    Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
 	    aaSurfParams.access(g, aSP);
 
-		/// TODO In new implementation radius can be scaled with 1.0, not 1.05, since vertices are merged in the end
-	    somaPoint[0].radius *= 1.00;
+		/// FIXME: In new implementation radius should be possible to caled with 1.0 not 1.05 -> might create intersections which lead to segfault
+	    somaPoint[0].radius *= 1.05;
 	    create_soma(somaPoint, g, aaPos, sh, 1);
 	    UG_LOGN("Created soma...");
 	    ///get_closest_points_on_soma(vPosSomaClosest, vPointSomaSurface, g, aaPos, sh, 1);
@@ -4357,12 +4357,6 @@ void create_spline_data_for_neurites
     std::vector<std::vector<ug::Edge*> > connectingEdgesInner(vRootNeuriteIndsOut.size());
     connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRads, outQuadsInner, 1, sh, fileName, 1.0, axisVectors, vNeurites, connectingVertices, connectingVerticesInner, connectingEdges, connectingEdgesInner,true);
 
-    /*for (size_t i = 0; i < 2; i++) {
-    	reorder_connecting_elements(connectingVertices[i], connectingEdges[i]);
-    	reorder_connecting_elements(connectingVerticesInner[i], connectingEdgesInner[i]);
-    }
-    */
-
     /// delete old vertices from incorrect neurite starts
     g.erase(outVerts.begin(), outVerts.end());
     g.erase(outVertsInner.begin(), outVertsInner.end());
@@ -4374,11 +4368,9 @@ void create_spline_data_for_neurites
     UG_LOGN("generating neurites")
 
     for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
-    	///create_neurite_general(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, false, &connectingVertices[i], &connectingEdges[i], &connectingVerticesInner[i], &connectingEdgesInner[i], &outVerts, &outVertsInner, &outRads, &outRadsInner, false);
     	create_neurite_general(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i], g, aaPos, aaSurfParams, false, NULL, NULL, NULL, NULL, &outVerts, &outVertsInner, &outRads, &outRadsInner, false);
     }
 
-    /// connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRads, outQuadsInner, 1, sh, fileName, 1.0, axisVectors, vNeurites, connectingVertices, connectingVerticesInner, connectingEdges, connectingEdgesInner,true);
 
     /// Inner soma
     UG_LOGN("Done with connecting neurites!");
@@ -4392,11 +4384,6 @@ void create_spline_data_for_neurites
     std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectorsInner;
     connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRadsInner, outQuadsInner2, newSomaIndex, sh, fileName, scaleER, axisVectorsInner, vNeurites, connectingVertices, connectingVerticesInner, connectingEdges, connectingEdgesInner, false);
 
-    //for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
-    //	vNeurites[i].somaRadius = somaPoint.front().radius;  // somaRadius never used
-    //	vNeurites[i].somaPt = somaPoint.front().coords;  // somaPt never used
-    //}
-
     // save after connecting and assign subsets
     EraseEmptySubsets(sh);
     AssignSubsetColors(sh);
@@ -4407,7 +4394,6 @@ void create_spline_data_for_neurites
      	ss << "outer-connex #" << i;
      	sh.set_subset_name(ss.str().c_str(), i);
     }
-
 
     sh.set_subset_name("soma (inner)", newSomaIndex);
     for (int i = newSomaIndex+1; i < sh.num_subsets(); i++) {
@@ -4440,8 +4426,6 @@ void create_spline_data_for_neurites
 
     // Note: At branching points, we have not computed the correct positions yet.
     // By adding new edges (point, point) which collapse into a vertex we force a
-    // projection refinement on the initial geometry. This is a little hack.
-    // TODO: Provide proper method in NeuriteProjector to do this not here
     VertexIterator vit = sh.begin<Vertex>(0);
     VertexIterator vit_end = sh.end<Vertex>(0);
     for (; vit != vit_end; ++vit)
