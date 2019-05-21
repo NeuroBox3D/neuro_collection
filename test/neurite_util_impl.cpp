@@ -240,11 +240,11 @@ namespace ug {
 			Selector::traits<Vertex>::iterator vit;
 			Selector::traits<Vertex>::iterator vit_end;
 			size_t j = 1;
+			/// TODO: Projected vertices have to be centered around the outer soma's quads (ER and PM)
 			for (std::vector<std::vector<ug::vector3> >::const_iterator it = projected.begin(); it != projected.end(); ++it) {
 				ug::vector3 centerOut;
 				std::vector<number> angles;
 				CalculateCenter(centerOut, &(*it)[0], it->size());
-				/// calculate_angles(centerOut, *it, angles);
 				calculate_angles(centerOut, *it, angles, allNormals[j-1], (*it)[0]);
 				allAngles.push_back(angles);
 
@@ -275,12 +275,11 @@ namespace ug {
 				}
 			}
 
-			/// TODO: Maybe have to center the projected vertices around the soma sphere's large respectively small surface quad center
 			for (size_t i = 0; i < allAngles.size(); i++) {
 				for (size_t j = 0; j < allAngles[i].size(); j++) {
 					number a = allAngles[i][j];
 					number b = allAnglesInner[i][j];
-					/// Convert from -180,180 to 0,360 -> then sort array based on this
+					/// Convert from -180, 180 to 0,360 interval -> then sort array based on this
 					if (a > 180) {
 						a -= 360;
 					}
@@ -328,7 +327,7 @@ namespace ug {
 				std::vector<std::pair<ug::Vertex*, number> > anglesOfProjectedInnerVertices;
 				std::vector<std::pair<ug::Vertex*, number> > anglesOfOrginalSomaInnerVertices;
 
-				/// TODO: convert angles from -180, 180 to 0, 360 degree with deg360 -> check if works.
+				/// TODO: Convert angles from -180, 180 to 0, 360 degree interval with deg360 -> check if this method works.
 				/// these are the inner projected vertices
 				ug::vector3 centerOut;
 				std::vector<number> angles;
@@ -398,11 +397,15 @@ namespace ug {
 				ug::Vertex* p2 = it->second; /// neurite vertex
 
 				/// Merge
-				//MergeVertices(g, p1, p2);
-				//aaPos[p2] = aaPos[p1]; /// p1 = p2 => merge at neurite, p2 = p1 => merge at soma surface
+				// MergeVertices(g, p1, p2);
+				// aaPos[p2] = aaPos[p1]; /// p1 = p2 => merge at neurite, p2 = p1 => merge at soma surface
 
-				/// TODO: beides mal ist die zuordnung der inneren vertices nicht gesicht wenn man die angles nicht für beide quads inner und außen mit gleicher referenz berechnet, bzgl. EINS mittelpunktes und EINER normalen, dann muss es gecentered werden um diesen mittelpunkt: einfacher oben die zuordnung treffen und diese methode nur 1 mal nutzen hier bzw. diese methode oben erweitern!
-				/// Just edge for debggging
+				/// TODO: Beides mal ist die zuordnung der inneren vertices nicht gesichert
+				/// wenn man die angles nicht für beide quads inner und außen mit gleicher referenz berechnet,
+				/// bzgl. EINESS mittelpunktes und EINER normalen, dann muss es gecentered werden um diesen
+				/// mittelpunkt: einfacher oben die zuordnung treffen und diese methode nur 1 mal nutzen hier bzw.
+				/// diese methode oben erweitern!
+				/// Just edge for debuggging purposes
 				ug::Edge* e1 = *g.create<RegularEdge>(EdgeDescriptor(p1, p2));
 				UG_COND_THROW(!e1, "Edge (connecting inner quads with inner neurite) was not created");
 			}
@@ -417,7 +420,6 @@ namespace ug {
 			}
 
 			UG_LOGN("Inner done!");
-			UG_LOGN("created edges !!! for outer done !!! might be screwed because angles not sorted... looks good")
 			UG_LOGN("Next merge these vertices from above!");
 		}
 
@@ -516,14 +518,14 @@ namespace ug {
 					ProjectPointToPlane(vProjected, aaPos[*vit], aaPos[es[0].first], n);
 					aaPos[projVert] = vProjected;
 					projected[i-1].push_back(vProjected);
-					projectedVertices[i-1].push_back(*vit); /// save original vertex from which we proojected
+					projectedVertices[i-1].push_back(*vit); /// save original vertex from which we projected
 				}
 				normals.push_back(normal);
 				UG_LOGN("First projection!");
 			}
 
-			/// TODO: Could also calculate an averaged plane, e.g. calculate two plane normals for each quad, average them
-			/// TODO: Should get normal not from the two points of each inner quad but define the normal to be the edge through the center of the inner sphere's quad (ER) and outer sphere's quad (ER) part
+			/// Note: Could also calculate an averaged plane, e.g. calculate two plane normals for each quad, average them
+			/// Note: Should get normal not from the two points of each inner quad but define the normal to be the edge through the center of the inner sphere's quad (ER) and outer sphere's quad (ER) part
 
 			/// Note: Strategie für innere Verbindungen
 			/// 1. Berechne normale (Axis) durch den Mittelpunkt der beiden Oberflächenquads (inner soma und äußeres soma) für den ER Teil
@@ -539,7 +541,8 @@ namespace ug {
 			/// Projiziere ebenso auf ebene, jetzt aber auf den äußeren quad vertices des ERs (äußeres Soma)
 			/// Projiziere Neuritenstartknoten ebenso darauf. Finde kleinsten Winkel, dann merge diese Vertices!
 
-			/// Calculate all angles with respect to a reference point for the projected outer sphere's quad (ER) vertices to the inner sphere's quad and the inner sphere's vertices
+			/// Calculate all angles with respect to a reference point for the projected outer sphere's quad (ER)
+			/// vertices to the inner sphere's quad and the inner sphere's vertices
 			/// First move projected vertices to center of inner soma quad -> then do angle calculation accordingly or distance calculation
 			size_t j = 1;
 			for (std::vector<std::vector<ug::vector3> >::iterator it = projected.begin(); it != projected.end(); ++it) {
@@ -691,16 +694,12 @@ namespace ug {
 				}
 				UG_LOGN("***");
 			}
-			/// Nachdem vertices paare gefunden sind, müssen diese gemerkt werden welcher original vertex projiziert wurde.
-			/// TODO: dann findet man die edges des inneren somas jeweils und für die edges die korrepsoniderten projizierten vertices => create face!
-			/// Note: Winkelstrategie müsste anders behandelt werden wie oben beschrieben
 
-			/// TODO Man kann zusätzlich auch die inneren Vertices auf die Ebene projizieren die zuvor definiert wurde
-			/// (denn nicht alle liegen in der Ebene nur die zwei punkte die genommen wurden um die Normale zu berechnen)...
-			/// und die projizierten äußeren Soma ER Quad verts auf das Zentrum verschieben siehe unten
-
-			/// Iterate over all neurite connections (numQuads) and get the vertices of the inner sphere's quad edge each and find the corresponding unprojected (outer sphere's quad vertices) and form a face
-			/// It is also possible to do the same procedure with the sorted angle differences above to create these faces
+			/// Note: Could also project the inner soma's quad vertices onto the plane defined by two of the inner soma's quad vertices
+			/// (Since two points where taken from each inner soma's quad not all points lie in the plane defined by the normal and the mentioned points)
+			/// Iterate over all neurite connections (numQuads) and get the vertices of the
+			/// inner sphere's quad edge each and find the corresponding unprojected (outer sphere's quad vertices) and form a face
+			/// It is also possible to do the same procedure with the sorted angle differences above to create these faces if angles are correct
 			SaveGridToFile(g, sh, "before_projections_inner_connections.ugx");
 			for (size_t i = 1; i < numQuads+1; i++) {
 				sel.clear();

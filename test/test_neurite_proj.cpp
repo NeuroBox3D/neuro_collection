@@ -4182,7 +4182,6 @@ void create_spline_data_for_neurites
    		/// TODO Tested until here (projection destroys soma? need to address in neurite_projector.cpp)
 	    return;
 
-
 	    // at branching points, we have not computed the correct positions yet,
 		// so project the complete geometry using the projector
 		VertexIterator vit = g.begin<Vertex>();
