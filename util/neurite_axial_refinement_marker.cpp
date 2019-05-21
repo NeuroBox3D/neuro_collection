@@ -37,10 +37,11 @@ NeuriteAxialRefinementMarker::NeuriteAxialRefinementMarker(SmartPtr<Domain3d> do
 
 	// access neurite projector local coordinates attachment
 	UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
-			"GlobalAttachment 'npSurfParams' not declared.");
+		"GlobalAttachment 'npSurfParams' not declared.");
 	Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
-	Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
-	if (!mg->has_vertex_attachment(aSP))
+	UG_COND_THROW(mg->num_vertices() && !mg->has_vertex_attachment(aSP),  // make sure the attachment has been read from file
+		"npSurfParams attachment not attached.");
+	if (!mg->has_vertex_attachment(aSP))  // only the file reading proc MUST already have it attached
 		mg->attach_to_vertices(aSP);
 	m_aaSurfParams.access(*mg, aSP);
 }

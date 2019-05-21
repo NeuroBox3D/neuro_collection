@@ -9,6 +9,9 @@
 #define __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__VDCC_BG_H__
 
 #include "../membrane_transporter_interface.h"
+#include "lib_disc/spatial_disc/disc_util/fv1_geom.h"  // for FV1ManifoldGeometry
+#include "lib_disc/spatial_disc/disc_util/hfv1_geom.h"  // for HFV1ManifoldGeometry
+#include "lib_disc/spatial_disc/elem_disc/elem_disc_interface.h"  // for IElemDisc
 
 namespace ug{
 namespace neuro_collection{
@@ -61,12 +64,14 @@ namespace neuro_collection{
 **/
 
 template<typename TDomain>
-class VDCC_BG : public IMembraneTransporter
+class VDCC_BG
+: public IMembraneTransporter,
+  public IElemDisc<TDomain>
 {
 	public:
 		/// channel types N, L and T
 		enum {BG_Ntype, BG_Ltype, BG_Ttype};
-		enum{_CCYT_=0, _CEXT_};
+		enum{_CCYT_ = 0, _CEXT_, _M_, _H_};
 
 		static const int dim = TDomain::dim;	//!< world dimension
 
@@ -86,8 +91,8 @@ class VDCC_BG : public IMembraneTransporter
 		{
 			GatingParams(number _z, number _v, number _t) : z(_z), V_12(_v), tau_0(_t){};
 			number z;
-			number V_12;
-			number tau_0;
+			number V_12;  // in mV
+			number tau_0; // in ms
 		};
 
 	public:
@@ -188,30 +193,91 @@ class VDCC_BG : public IMembraneTransporter
 		 */
 		virtual void update_potential(side_t* elem) = 0;
 
-		/// updates the gating parameters
-		/**
-		 * This method needs to be called before calc_flux().
-		 * @param newTime new point in time
-		 */
-		void update_gating(side_t* elem);
-
 		/// updates internal time if necessary
 		virtual void update_time(number newTime);
+
+
+		// inheritances from IElemDisc
+	public:
+		/// type of trial space for each function used
+		virtual void prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid);
+
+		/// returns if hanging nodes are used
+		virtual bool use_hanging() const;
+#if 0
+		/// @copydoc IElemDisc::approximation_space_changed()
+		virtual void approximation_space_changed();
+#endif
+
+	// assembling functions
+	protected:
+		///	prepares the loop over all elements (of a type and subset)
+		template<typename TElem, typename TFVGeom>
+		void prep_elem_loop(const ReferenceObjectID roid, const int si);
+
+		///	prepares the element for assembling
+		template<typename TElem, typename TFVGeom>
+		void prep_elem(const LocalVector& u, GridObject* elem, const ReferenceObjectID roid, const MathVector<dim> vCornerCoords[]);
+
+		/// finishes the loop over all elements
+		template<typename TElem, typename TFVGeom>
+		void fsh_elem_loop();
+
+		///	assembles the local stiffness matrix
+		template<typename TElem, typename TFVGeom>
+		void add_jac_A_elem(LocalMatrix& J, const LocalVector& u, GridObject* elem, const MathVector<dim> vCornerCoords[]);
+
+		///	assembles the local mass matrix
+		template<typename TElem, typename TFVGeom>
+		void add_jac_M_elem(LocalMatrix& J, const LocalVector& u, GridObject* elem, const MathVector<dim> vCornerCoords[]);
+
+		///	assembles the stiffness part of the local defect
+		template<typename TElem, typename TFVGeom>
+		void add_def_A_elem(LocalVector& d, const LocalVector& u, GridObject* elem, const MathVector<dim> vCornerCoords[]);
+
+		///	assembles the mass part of the local defect
+		template<typename TElem, typename TFVGeom>
+		void add_def_M_elem(LocalVector& d, const LocalVector& u, GridObject* elem, const MathVector<dim> vCornerCoords[]);
+
+		///	assembles the local right hand side
+		template<typename TElem, typename TFVGeom>
+		void add_rhs_elem(LocalVector& rhs, GridObject* elem, const MathVector<dim> vCornerCoords[]);
+
+	protected:
+		void register_all_fv1_funcs();
+
+		struct RegisterFV1
+		{
+			RegisterFV1(VDCC_BG<TDomain>* pThis) : m_pThis(pThis){}
+			VDCC_BG<TDomain>* m_pThis;
+			template< typename TElem > void operator()(TElem&)
+			{
+				if (m_pThis->m_bNonRegularGrid)
+					m_pThis->register_fv1_func<TElem, HFV1ManifoldGeometry<TElem, dim> >();
+				else
+					m_pThis->register_fv1_func<TElem, FV1ManifoldGeometry<TElem, dim> >();
+			}
+		};
+
+		template <typename TElem, typename TFVGeom>
+		void register_fv1_func();
+
+	protected:
+		bool m_bNonRegularGrid;
+		bool m_bCurrElemIsHSlave;
+
 
 	protected:
 		/// calculates the equilibrium state of a gating "particle"
 		/** The calculation is done with respect to the given gating parameters set (which represents
 		 *	one gating "particle") and the given membrane potential (to be specified in [mV]!).
 		**/
-		number calc_gating_start(GatingParams& gp, number Vm);
+		number calc_gating_start(const GatingParams& gp, number Vm) const;
 
-		/// calculates the next state of a gating "particle"
-		/** The calculation is done with respect to the given gating parameters set (which represents
-		 *	one gating "particle"), the current value of this gating particle as well as the given membrane
-		 *	potential (to be specified in [mV]!). The new value represents the "particle" state
-		 *	at current time + dt (to be specified in [ms]!).
-		**/
-		void calc_gating_step(GatingParams& gp, number Vm, number dt, number& currVal);
+	public:
+		/// init gating variables to equilibrium
+		template <typename TVector> // this is supposed to be some algebra_type::vector_type
+		void calculate_steady_state(SmartPtr<TVector> u, number vm) const;
 
 	private:
 		void after_construction();
@@ -228,13 +294,9 @@ class VDCC_BG : public IMembraneTransporter
 		typename TDomain::position_accessor_type& m_aaPos;	//!< underlying position accessor
 
 		std::vector<std::string> m_vSubset;					//!< subsets this channel exists on
+		size_t m_localIndicesOffset;
 
-		ADouble m_MGate;							//!< activating gating "particle"
-		ADouble m_HGate;							//!< inactivating gating "particle"
 		ADouble m_Vm;								//!< membrane voltage (in Volt)
-
-		Grid::AttachmentAccessor<side_t, ADouble> m_aaMGate;	//!< accessor for activating gate
-		Grid::AttachmentAccessor<side_t, ADouble> m_aaHGate;	//!< accessor for inactivating gate
 		Grid::AttachmentAccessor<side_t, ADouble> m_aaVm;		//!< accessor for membrane potential
 
 		GatingParams m_gpMGate;						//!< gating parameter set for activating gate

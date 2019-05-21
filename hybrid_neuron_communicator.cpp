@@ -661,25 +661,24 @@ void HybridNeuronCommunicator<TDomain>::reinit_synapse_mapping()
 
 
 		// communicate local min dists back to original 1d-synapse holders
-		number* globMinPos = new number[nProcs * syn_coords_local.size()*dim];
+		const size_t nSyn1d = syn_coords_local.size();
+		number* globMinPos = new number[nProcs * nSyn1d * dim];
 		for (size_t p = 0; p < nProcs; ++p)
 		{
 			if (!vSizes[p]) continue;
-			com.gather((void*) &vLocNearestPos[vOffsets[p]*dim], vSizes[p]*dim, PCL_DT_DOUBLE, (void*) globMinPos, vSizes[p]*dim, PCL_DT_DOUBLE, (int) p);
+			com.gather((void*) &vLocNearestPos[vOffsets[p]*dim], vSizes[p]*dim, PCL_DT_DOUBLE,
+				(void*) globMinPos, vSizes[p]*dim, PCL_DT_DOUBLE, (int) p);
 		}
 
 		// compute minimizing proc for each 1d synapse
-		const size_t nSyn1d = syn_coords_local.size();
 		for (size_t s = 0; s < nSyn1d; ++s)
 		{
 			//size_t& minProc = vMinProc[s];
 			MathVector<dim>& minPos = m_mSynapse3dCoords[syn_ids_local[s]];
 			MathVector<dim> pos;
-			for (int d = 0; d < dim; ++d)
-				pos[d] = globMinPos[s*dim + d];
-			number minDistSq = VecDistanceSq(pos, syn_coords_local[s]);
+			number minDistSq = std::numeric_limits<number>::max();
 			minPos = pos;
-			for (size_t p = 1; p < nProcs; ++p)
+			for (size_t p = 0; p < nProcs; ++p)
 			{
 				for (int d = 0; d < dim; ++d)
 					pos[d] = globMinPos[p*nSyn1d*dim + s*dim + d];
@@ -691,7 +690,7 @@ void HybridNeuronCommunicator<TDomain>::reinit_synapse_mapping()
 					minPos = pos;
 				}
 			}
-			UG_COND_THROW(minDistSq == std::numeric_limits<typename posType::value_type>::quiet_NaN(),
+			UG_COND_THROW(minDistSq == std::numeric_limits<number>::max(),
 				"No 3d vertex in defined plasma membrane subset present on any proc.");
 		}
 
@@ -726,6 +725,7 @@ void HybridNeuronCommunicator<TDomain>::gather_synaptic_currents
 
 	vActSynPosOut.clear();
 	vSynCurrOut.clear();
+	vSynIDOut.clear();
 
 	// get locally active synapses
 	std::vector<synapse_id> vLocActSyn;

@@ -69,6 +69,9 @@ void mark_anisotropic_onlyX
 void MarkNeuriteForAxialRefinement(SmartPtr<IRefiner> refiner, SmartPtr<Domain3d> domain);
 
 
+template <typename TDomain>
+void RemoveAllNonDefaultRefinementProjectors(SmartPtr<TDomain> dom);
+
 
 
 ///@}

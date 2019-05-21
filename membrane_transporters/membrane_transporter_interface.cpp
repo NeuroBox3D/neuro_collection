@@ -145,7 +145,7 @@ size_t IMembraneTransporter::local_fct_index(const size_t i) const
 	std::map<size_t,size_t>::const_iterator it = m_mfInd.find(i);
 	if (it == m_mfInd.end())
 	{
-		UG_THROW("Requested local function index of a function that is not supplied.")
+		UG_THROW("Requested local function index of function " << i << ", which is not supplied.")
 	}
 
 	return it->second;

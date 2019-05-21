@@ -164,7 +164,7 @@ void importSolution
 	membrane_potential_mapping::Mapper<dim, number> valueProvider;
 
 	//try {valueProvider.buildTree("");}
-	try {valueProvider.build_tree(inFileName, " ");}
+	try {valueProvider.build_tree(inFileName);}
 	UG_CATCH_THROW("Underlying Vm2uG object could not build its tree on given file.");
 
 	// get subset group to be measured on

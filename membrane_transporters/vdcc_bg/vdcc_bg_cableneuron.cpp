@@ -164,7 +164,7 @@ void VDCC_BG_CN<TDomain>::init(number time)
 
     // todo: maybe have the user set a convergence check if needed for more flexibility
     SmartPtr<CompositeConvCheck<vec_t, TDomain> > linConvCheck
-       = make_sp(new CompositeConvCheck<vec_t, TDomain>(m_spApprox1d, 2, 1e-21, 1e-12));
+       (new CompositeConvCheck<vec_t, TDomain>(m_spApprox1d, 2, 1e-21, 1e-12));
     //linConvCheck->set_component_check("v", 1e-21, 1e-12);
     linConvCheck->set_verbose(m_bSolverVerboseOutput);
 

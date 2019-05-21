@@ -211,6 +211,31 @@ static void DomainAlgebra(Registry& reg, string grp)
 		UG_COND_THROW(i == numClasses, "No class with domain tag '" << GetDomainTag<TDomain>()
 			<< "' found in RyRImplicit_1drotsym class group to add algebra-dependent functionality to.");
 	}
+
+	// export all template realizations of VDCC_BG::calculate_steady_state()
+	{
+		typedef VDCC_BG<TDomain> T;
+		ClassGroupDesc* cgd = reg.get_class_group(std::string("VDCC_BG"));
+		size_t numClasses = cgd->num_classes();
+		size_t i = 0;
+		for (; i < numClasses; ++i)
+		{
+			std::string classTag = cgd->get_class_tag(i);
+			if (classTag == GetDomainTag<TDomain>())
+			{
+				ExportedClass<T>* expClass = dynamic_cast<ExportedClass<T>* >(cgd->get_class(i));
+				UG_COND_THROW(!expClass, "Exported class can not be cast to the correct type.");
+
+				expClass->add_method("calculate_steady_state",
+					&T::template calculate_steady_state<typename TAlgebra::vector_type>, "", "solution # equilibrium potential (V)", "");
+
+				break;
+			}
+		}
+		UG_COND_THROW(i == numClasses, "No class with domain tag '" << GetDomainTag<TDomain>()
+			<< "' found in VDCC_BG class group to add algebra-dependent functionality to.");
+	}
+
 }
 
 /**
@@ -488,9 +513,10 @@ static void Domain(Registry& reg, string grp)
 	// VDCC base type
 	{
 		typedef VDCC_BG<TDomain> T;
-		typedef IMembraneTransporter TBase;
+		typedef IMembraneTransporter TBase1;
+		typedef IElemDisc<TDomain> TBase2;
 		std::string name = std::string("VDCC_BG").append(suffix);
-		reg.add_class_<T, TBase>(name, grp)
+		reg.add_class_<T, TBase1, TBase2>(name, grp)
 			.add_method("set_channel_type_N", &T::template set_channel_type<T::BG_Ntype>,
 						"", "", "set the channel type to N")
 			.add_method("set_channel_type_L", &T::template set_channel_type<T::BG_Ltype>,
@@ -610,6 +636,8 @@ static void Domain(Registry& reg, string grp)
 					 "", "approxSpace#subsetNames", "outputs subset volumes");
 	reg.add_function("compute_volume_of_subset", static_cast<number (*) (ConstSmartPtr<ApproximationSpace<TDomain> >, int)>(&computeVolume<TDomain>), grp.c_str(),
 					 "volume of the subset", "approxSpace # subset index", "calculates subset volume");
+
+	reg.add_function("RemoveAllNonDefaultRefinementProjectors", &RemoveAllNonDefaultRefinementProjectors<TDomain>);
 }
 
 /**
