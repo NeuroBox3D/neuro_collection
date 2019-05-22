@@ -11,6 +11,7 @@
 #include "bridge/domain_bridges/selection_bridge.h"
 #include "lib_grid/algorithms/remeshing/grid_adaption.h"
 #include "lib_grid/refinement/regular_refinement.h"
+#include "lib_grid/grid/neighborhood_util.h" // FindNeighborhood
 #include <cmath>
 #include <boost/lexical_cast.hpp>
 
@@ -179,6 +180,90 @@ namespace ug {
 
 			return a;
 		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// connect_outer_and_inner_root_neurites_to_outer_soma_variant
+		////////////////////////////////////////////////////////////////////////
+		void connect_outer_and_inner_root_neurites_to_outer_soma_variant
+		(
+			size_t somaIndex,
+			size_t numQuads,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			SubsetHandler& sh,
+			std::vector<ug::Vertex*>& rootNeurites, /// Note: is just one single array => need to iterate by stride numVerts
+			size_t numVerts /// Note: Number of vertices for outer or inner soma's polygon (4 or 12 usually)
+		) {
+			Selector sel(g);
+			size_t size = rootNeurites.size();
+			Selector::traits<Vertex>::iterator vit;
+			std::vector<std::vector<Vertex*> > projectedVertices;
+			projectedVertices.resize(numQuads);
+			/// First project rootNeurite vertices onto outer soma's outer polygon plane
+			for (size_t i = 0; i < size/numVerts; i++) {
+				sel.clear();
+				SelectSubsetElements<Vertex>(sel, sh, somaIndex+i+1, true);
+				ug::vector3 v0 = CalculateCenter(sel.vertices_begin(), sel.vertices_end(), aaPos);
+				vit = sel.begin<Vertex>();
+				ug::vector3 v1 = aaPos[*vit];
+				vit++;
+				ug::vector3 v2 = aaPos[*vit];
+
+				ug::vector3 p1;
+				VecSubtract(p1, v1, v0);
+				ug::vector3 p2;
+				VecSubtract(p2, v2, v0);
+				ug::vector3 normal;
+				VecCross(normal, p1, p2);
+				VecNormalize(normal, normal);
+
+				ug::vector3 vProjected;
+				for (size_t l = 0; l < numVerts; l++) {
+					ug::Vertex* vit = rootNeurites[i*numVerts+l];
+					ug::vector3 v;
+					VecSubtract(v, aaPos[vit], p1);
+					number dot = VecDot(v, normal);
+					vProjected = aaPos[vit];
+					VecScaleAdd(vProjected, 1.0, vProjected, dot, normal);
+					ug::Vertex* projVert = *g.create<ug::RegularVertex>();
+					const ug::vector3& n = -normal;
+					ProjectPointToPlane(vProjected, aaPos[vit], v0, n);
+					aaPos[projVert] = vProjected;
+					sh.assign_subset(projVert, 100);
+					projectedVertices[i].push_back(projVert);
+				}
+			}
+
+			SaveGridToFile(g, sh, "after_projection_outer_variant.ugx");
+
+			/// Center projected vertices (projVert) around the inner soma's quad
+			for (size_t i = 0; i < size/numVerts; i++) {
+				sel.clear();
+				/// outer soma inner quad center
+				SelectSubsetElements<Vertex>(sel, sh, somaIndex+1+i, true);
+				ug::vector3 centerOut = CalculateCenter(sel.begin<Vertex>(), sel.end<Vertex>(), aaPos);
+
+				// projected neurite vertices center
+				ug::vector3 centerOut2 = CalculateCenter(projectedVertices[i].begin(), projectedVertices[i].end(), aaPos);
+
+				ug::vector3 dir;
+				VecSubtract(dir, centerOut2, centerOut);
+				UG_LOGN("dir: " << dir);
+
+				for (size_t j = 0; j < numVerts; j++) {
+					UG_LOGN("pos: " << aaPos[projectedVertices[i][j]]);
+					VecSubtract(aaPos[projectedVertices[i][j]], aaPos[projectedVertices[i][j]], dir);
+				}
+			}
+
+			/// TODO: find corresponding vertices by distance? or by angle? see connect_outer_* method below
+			///       or find one vertex pair and walk counter or counter clockwise around the polygons?
+			SaveGridToFile(g, sh, "after_connecting_outer_variant.ugx");
+
+
+			/// TODO: then merge vertices accordingly....
+		}
+
 
 		////////////////////////////////////////////////////////////////////////
 		/// connect_outer_and_inner_root_neurites_to_outer_soma
@@ -764,9 +849,8 @@ namespace ug {
 			SaveGridToFile(g, sh, "after_projections_inner.ugx");
 
 			/// TODO: Verdrehung kann beseitigt werden wenn man die Knoten des inneren Soma Oberflächenquads
-			/// auf die Ebene projiziert welche durch das Oberflächenquads (innere) des äußeren Somas projiziert
-			/// werden, evt. muss dann nach der Projektion auf das Zentrum des äußeren Somaoberflächen Quads
-			/// zentriert werden, oder auf den Mittelpunkt des äußeren Quads des äußeren Somas
+			/// auf die Ebene projiziert welche durch das innere Oberflächenquads des äußeren Somas definiert wird.
+			/// Evt. muss dann nach der Projektion die Vertices auf das Zentrum des äußeren/inneren Somaoberflächen Quads/Polygons zentrieren.
 		}
 
 		////////////////////////////////////////////////////////////////////////

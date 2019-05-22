@@ -27,7 +27,6 @@
 #include "lib_grid/algorithms/grid_generation/icosahedron.h" // Icosahedron
 #include "lib_grid/algorithms/smoothing/manifold_smoothing.h" // TangentialSmoothing
 #include "lib_grid/algorithms/remeshing/resolve_intersections.h" // ResolveTriangleIntersection
-#include "lib_grid/grid/neighborhood_util.h" // FindNeighborhood
 #include "lib_disc/function_spaces/error_elem_marking_strategy.h" // GlobalMarking
 #include "lib_disc/domain_util.h"   // LoadDomain
 #include "lib_disc/quadrature/gauss_legendre/gauss_legendre.h" // Gauss-Legendre
@@ -4178,18 +4177,23 @@ void create_spline_data_for_neurites
 	    connect_inner_neurites_to_inner_soma(newSomaIndex, 1, g, aaPos, sh);
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_inner_soma_to_outer_ER.ugx");
 
+
+	    /// Note: Call two times for inner and outer polygon on outer soma but use the same plane defined by the outer soma's inner quad vertices
+	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(5, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12);
+	    /// connect_outer_and_inner_root_neurites_to_outer_soma_variant(5, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4);
+
+   	    /// connect now outer soma to root neurites (TODO: change in this method because numVerts is not the same for inner and outer!)
+	    /// connect_outer_and_inner_root_neurites_to_outer_soma(1, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, outVertsInner);
+
    		/// TODO Tested until here (projection destroys soma? need to address in neurite_projector.cpp)
 	    return;
 
-	    // at branching points, we have not computed the correct positions yet,
+	     // at branching points, we have not computed the correct positions yet,
 		// so project the complete geometry using the projector
 		VertexIterator vit = g.begin<Vertex>();
 		VertexIterator vit_end = g.end<Vertex>();
 		for (; vit != vit_end; ++vit)
 			neuriteProj->project(*vit);
-
-	    /// connect now outer soma to root neurites (TODO: changes because numVerts is not the same for inner and outer!)
-	    connect_outer_and_inner_root_neurites_to_outer_soma(1, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, outVertsInner);
 
 	    /// connect_outer_and_inner_root_neurites_to_outer_soma(5, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner);
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");

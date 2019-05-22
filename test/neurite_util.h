@@ -249,7 +249,7 @@ namespace ug {
 		 * \param[in] outRads
 		 * \param[in] si
 		 * \param[in] sh
-		 * \param[in] rimSnaptThresholdFactor
+		 * \param[in] rimSnapThresholdFactor
 		 * \param[in] numQuads
 		 * \param[in] numVerts
 		 */
@@ -595,6 +595,24 @@ namespace ug {
 			number percentage,
 			bool createFaces,
 			ISelector* outSel
+		);
+
+		/*!
+		 * \brief connect oute rand inner root neurites to outer soma variant
+		 * \param[in] somaIndex
+		 * \param[in] numQuads
+		 * \param[in] g
+		 * \param[in] aaPos
+		 */
+		void connect_outer_and_inner_root_neurites_to_outer_soma_variant
+		(
+			size_t somaIndex,
+			size_t numQuads,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			SubsetHandler& sh,
+			std::vector<ug::Vertex*>& rootNeurites,
+			size_t numVerts
 		);
 	}
 }
