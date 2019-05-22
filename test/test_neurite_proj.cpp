@@ -4140,9 +4140,10 @@ void create_spline_data_for_neurites
 
 
 	    /// Note: Call two times for inner and outer polygon on outer soma but use the same plane defined by the outer soma's inner quad vertices
-	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(5, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12);
-	    /// connect_outer_and_inner_root_neurites_to_outer_soma_variant(5, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4);
+	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12);
+	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(5, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4);
 
+	    /// Note: Below method is probably not required anymore
    	    /// connect now outer soma to root neurites (TODO: change in this method because numVerts is not the same for inner and outer!)
 	    /// connect_outer_and_inner_root_neurites_to_outer_soma(1, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, outVertsInner);
 

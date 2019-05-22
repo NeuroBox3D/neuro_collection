@@ -11,6 +11,7 @@
 #include "bridge/domain_bridges/selection_bridge.h"
 #include "lib_grid/algorithms/remeshing/grid_adaption.h"
 #include "lib_grid/refinement/regular_refinement.h"
+#include "lib_grid/algorithms/remeshing/resolve_intersections.h"
 #include "lib_grid/grid/neighborhood_util.h" // FindNeighborhood
 #include <cmath>
 #include <boost/lexical_cast.hpp>
@@ -198,6 +199,7 @@ namespace ug {
 			Selector sel(g);
 			size_t size = rootNeurites.size();
 			Selector::traits<Vertex>::iterator vit;
+			Selector::traits<Vertex>::iterator vit_end;
 			std::vector<std::vector<Vertex*> > projectedVertices;
 			projectedVertices.resize(numQuads);
 			/// First project rootNeurite vertices onto outer soma's outer polygon plane
@@ -257,12 +259,28 @@ namespace ug {
 				}
 			}
 
+			std::map<Vertex*, Vertex*> pairs;
 			/// TODO: find corresponding vertices by distance? or by angle? see connect_outer_* method below
-			///       or find one vertex pair and walk counter or counter clockwise around the polygons?
+			///       or find one vertex pair and walk counter or counter clockwise around the polygons? which is safest?
+			for (size_t i = 0; i < size/numVerts; i++) {
+				sel.clear();
+				SelectSubsetElements<Vertex>(sel, sh, somaIndex+1+i, true);
+				vit = sel.begin<Vertex>();
+				vit_end = sel.end<Vertex>();
+				for (; vit != vit_end; ++vit) {
+					int index = FindClosestVertexInPointSet(&projectedVertices[i][0], *vit, aaPos, 10, numVerts);
+					pairs[rootNeurites[i*numVerts+index]] = *vit; /// soma vertex -> unprojected vertex
+				}
+			}
+
+			/// Connect by edge (TODO: merge later)
+			for (map<Vertex*, Vertex*>::iterator it = pairs.begin(); it != pairs.end(); ++it) {
+			    ug::Edge* e1 = *g.create<RegularEdge>(EdgeDescriptor(it->first, it->second));
+			}
+
 			SaveGridToFile(g, sh, "after_connecting_outer_variant.ugx");
 
-
-			/// TODO: then merge vertices accordingly
+			/// TODO: Delete projected debbuging vertices
 		}
 
 
@@ -512,7 +530,7 @@ namespace ug {
 					vit_end = sel.end<Vertex>();
 					std::vector<Vertex*> array;
 					for (; vit != vit_end; ++vit) { array.push_back(*vit); }
-					int index = FindClosestVertexInArray(array, aaPos[p1], aaPos, 10); /// closest soma vertex of inner quad to outer soma quad: this is safe if inner and outer quads have same number of vertices
+					int index = FindClosestVertexInArray(array, p1, aaPos, 10); /// closest soma vertex of inner quad to outer soma quad: this is safe if inner and outer quads have same number of vertices
 
 					UG_COND_THROW(!array[index], "Not found!");
 					UG_COND_THROW(!projectedToUnprojectedInner[p2], "Not found!");
