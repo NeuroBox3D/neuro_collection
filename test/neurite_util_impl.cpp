@@ -194,6 +194,7 @@ namespace ug {
 			std::vector<ug::Vertex*>& rootNeurites, /// Note: is just one single array => need to iterate by stride numVerts
 			size_t numVerts /// Note: Number of vertices for outer or inner soma's polygon (4 or 12 usually)
 		) {
+
 			Selector sel(g);
 			size_t size = rootNeurites.size();
 			Selector::traits<Vertex>::iterator vit;
@@ -261,7 +262,7 @@ namespace ug {
 			SaveGridToFile(g, sh, "after_connecting_outer_variant.ugx");
 
 
-			/// TODO: then merge vertices accordingly....
+			/// TODO: then merge vertices accordingly
 		}
 
 

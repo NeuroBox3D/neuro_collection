@@ -3954,45 +3954,6 @@ void create_spline_data_for_neurites
 	}
 
 	////////////////////////////////////////////////////////////////////////
-	/// top level vertex repositioning function for neurite projection
-	////////////////////////////////////////////////////////////////////////
-	void apply_neurite_projector(
-		MultiGrid& mg,
-		SmartPtr<NeuriteProjector> neuriteProj
-	)
-	{
-	// define attachment accessors
-	Grid::VertexAttachmentAccessor<APosition> aaPos(mg, aPosition);
-
-	// move manifold vertices to their projected positions
-	VertexIterator vrtIter = mg.begin<Vertex>(mg.top_level());
-	VertexIterator vrtEnd = mg.end<Vertex>(mg.top_level());
-	for (; vrtIter != vrtEnd; ++vrtIter)
-	{
-		GridObject* go = mg.get_parent(*vrtIter);
-
-		if (go->base_object_id() == EDGE)
-		{
-			Edge* par = dynamic_cast<Edge*>(go);
-			UG_ASSERT(par, "Object with base object id EDGE is not an edge.");
-			neuriteProj->new_vertex(*vrtIter, par);
-		}
-		else if (go->base_object_id() == FACE)
-		{
-			Face* par = dynamic_cast<Face*>(go);
-			UG_ASSERT(par, "Object with base object id FACE is not a face.");
-			neuriteProj->new_vertex(*vrtIter, par);
-		}
-		else if (go->base_object_id() == VOLUME) {
-			Volume* par = dynamic_cast<Volume*>(go);
-			UG_ASSERT(par, "Object with base object id VOLUME is not a volume.");
-			// TODO: Treat the volume case
-		}
-	}
-}
-
-
-	////////////////////////////////////////////////////////////////////////
 	/// test_import_swc_general_new
 	////////////////////////////////////////////////////////////////////////
 	void test_import_swc_general_new(
