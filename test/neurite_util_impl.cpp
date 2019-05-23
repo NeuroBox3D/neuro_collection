@@ -775,7 +775,7 @@ namespace ug {
 							smallest = j;
 						}
 					}
-					pair.push_back(std::make_pair<size_t, size_t>(i, smallest));
+					pair.push_back(std::make_pair(i, smallest));
 				}
 				pairs.push_back(pair);
 			}
