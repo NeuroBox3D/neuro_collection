@@ -47,8 +47,10 @@ void BufferFV1<TDomain>::prepare_setting(const std::vector<LFEID>& vLfeID, bool 
 
 	// check that Lagrange 1st order
 	for (size_t i = 0; i < vLfeID.size(); ++i)
-		if (vLfeID[i] != LFEID(LFEID::LAGRANGE, dim, 1))
-			UG_THROW("FV1BufferElemDisc: Only first order implemented.");
+		if (vLfeID[i].order() != 1 || vLfeID[i].type() != LFEID::LAGRANGE)
+			UG_THROW("FV1BufferElemDisc FV scheme only implemented for 1st order Lagrange,\n"
+				"but function " << i << " is of type " << vLfeID[i].type()
+				<< " and order " << vLfeID[i].order() << ".");
 
 	// remember
 	m_bNonRegularGrid = bNonRegularGrid;
