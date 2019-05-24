@@ -280,7 +280,7 @@ namespace ug {
 
 			SaveGridToFile(g, sh, "after_connecting_outer_variant.ugx");
 
-			/// TODO: Delete projected debbuging vertices
+			/// TODO: Delete projected debbuging vertices ...
 		}
 
 
