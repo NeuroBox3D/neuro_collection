@@ -14,6 +14,7 @@
 #include "lib_grid/algorithms/remeshing/resolve_intersections.h"
 #include "lib_grid/grid/neighborhood_util.h" // FindNeighborhood
 #include <cmath>
+#include "nc_config.h"
 #include <boost/lexical_cast.hpp>
 
 namespace ug {
