@@ -260,8 +260,8 @@ namespace ug {
 			}
 
 			std::map<Vertex*, Vertex*> pairs;
-			/// TODO: find corresponding vertices by distance? or by angle? see connect_outer_* method below
-			///       or find one vertex pair and walk counter or counter clockwise around the polygons? which is safest?
+			/// Find corresponding vertices by distance or by angle? Both might not be 100% safe.
+			/// TODO: Potential alternative: Find one vertex pair and walk cw or ccw around the polygons? Is this safe?
 			for (size_t i = 0; i < size/numVerts; i++) {
 				sel.clear();
 				SelectSubsetElements<Vertex>(sel, sh, somaIndex+1+i, true);
@@ -269,18 +269,25 @@ namespace ug {
 				vit_end = sel.end<Vertex>();
 				for (; vit != vit_end; ++vit) {
 					int index = FindClosestVertexInPointSet(&projectedVertices[i][0], *vit, aaPos, 10, numVerts);
-					pairs[rootNeurites[i*numVerts+index]] = *vit; /// soma vertex -> unprojected vertex
+					pairs[rootNeurites[i*numVerts+index]] = *vit; /// soma's polygon/quad vertex -> unprojected vertex (rootNeurite vertices)
 				}
 			}
 
-			/// Connect by edge (TODO: merge later)
+			/// Connect by edge for debugging
 			for (map<Vertex*, Vertex*>::iterator it = pairs.begin(); it != pairs.end(); ++it) {
 			    *g.create<RegularEdge>(EdgeDescriptor(it->first, it->second));
+			    /// TODO: Merge vertices instead
+			}
+
+			/// Delete debugging vertices
+			typedef std::vector<std::vector<Vertex*> >::iterator IT;
+			for (IT it = projectedVertices.begin(); it != projectedVertices.end(); ++it) {
+				for (std::vector<Vertex*>::iterator it2 = it->begin(); it2 != it->end(); ++it2) {
+					g.erase(*it2);
+				}
 			}
 
 			SaveGridToFile(g, sh, "after_connecting_outer_variant.ugx");
-
-			/// TODO: Delete projected debbuging vertices ...
 		}
 
 

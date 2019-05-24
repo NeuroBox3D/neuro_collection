@@ -21,8 +21,7 @@
 
 namespace ug {
 namespace neuro_collection {
-
-
+////////////////////////////////////////////////////////////////////////////////
 template <typename TDomain>
 void mark_global(SmartPtr<IRefiner> refiner, SmartPtr<TDomain> domain)
 {
@@ -39,8 +38,7 @@ void mark_global(SmartPtr<IRefiner> refiner, SmartPtr<TDomain> domain)
 		refiner->mark(*iter, RM_FULL);
 }
 
-
-
+////////////////////////////////////////////////////////////////////////////////
 template <typename TDomain>
 void mark_anisotropic
 (
@@ -88,7 +86,7 @@ void mark_anisotropic
 	}
 }
 
-
+////////////////////////////////////////////////////////////////////////////////
 template <typename TDomain>
 void mark_anisotropic_onlyX
 (
@@ -146,7 +144,7 @@ void mark_anisotropic_onlyX
 	}
 }
 
-
+////////////////////////////////////////////////////////////////////////////////
 void MarkNeuriteForAxialRefinement(SmartPtr<IRefiner> refiner, SmartPtr<Domain3d> domain)
 {
 	typedef SurfaceView::traits<Volume>::const_iterator const_vol_it;
@@ -378,8 +376,7 @@ UG_LOGN("");
 	}
 }
 
-
-
+////////////////////////////////////////////////////////////////////////////////
 template <typename TDomain>
 void RemoveAllNonDefaultRefinementProjectors(SmartPtr<TDomain> dom)
 {
@@ -392,7 +389,11 @@ void RemoveAllNonDefaultRefinementProjectors(SmartPtr<TDomain> dom)
 		ph->set_projector(i, ph->default_projector());
 }
 
-
+////////////////////////////////////////////////////////////////////////////////
+bool SaveGridToFile(Grid& grid, ISubsetHandler& sh, const std::string& fileName)
+{
+	return SaveGridToFile(grid, sh, fileName.c_str());
+}
 
 // explicit template specializations
 #ifdef UG_DIM_1

@@ -17,8 +17,7 @@
 namespace ug {
 namespace neuro_collection {
 
-
-
+////////////////////////////////////////////////////////////////////////////////
 template <typename TBaseElem, typename TGridFunction>
 static void scale_dof_indices
 (
@@ -51,7 +50,7 @@ static void scale_dof_indices
 	UG_CATCH_THROW("Error while scaling vector.")
 }
 
-
+////////////////////////////////////////////////////////////////////////////////
 template <typename TGridFunction>
 void scale_dimless_vector
 (
@@ -86,8 +85,6 @@ void scale_dimless_vector
 	if (dd->max_dofs(VOLUME))
 		scale_dof_indices<Volume, TGridFunction>(dd, scaledVecOut, dimlessVecIn, scalingFactors);
 }
-
-
 } // namspace neuro_collection
 } // namespace ug
 

@@ -10,7 +10,7 @@
 #include "neurite_refMarkAdjuster.h"
 #include "neurite_util.h"
 #include "neurite_grid_generation.h"
-#include "nc_config.h"
+#include "../util/misc_util.h"
 
 /// ug
 #include "lib_grid/refinement/projectors/projection_handler.h" // ProjectionHandler
@@ -3404,13 +3404,6 @@ void create_spline_data_for_neurites
 		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh);
 
-	// at branching points, we have not computed the correct positions yet,
-	// so project the complete geometry using the projector
-	VertexIterator vit = g.begin<Vertex>();
-	VertexIterator vit_end = g.end<Vertex>();
-	for (; vit != vit_end; ++vit)
-		neuriteProj->project(*vit);
-
 	// assign subset
 	AssignSubsetColors(sh);
 	sh.set_subset_name("cyt", 0);
@@ -3418,8 +3411,18 @@ void create_spline_data_for_neurites
 	sh.set_subset_name("pm", 2);
 	sh.set_subset_name("erm", 3);
 
-	// output
+	// output before projection
 	std::string outFileNameBase = FilenameAndPathWithoutExtension(fileNameOut);
+	SaveGridToFile(g, sh, fileNameOut);
+
+	// at branching points, we have not computed the correct positions yet,
+	// so project the complete geometry using the projector
+	VertexIterator vit = g.begin<Vertex>();
+	VertexIterator vit_end = g.end<Vertex>();
+	for (; vit != vit_end; ++vit)
+		neuriteProj->project(*vit);
+
+	// output after projection (overwrites the outFileName if projection successful)
 	std::string outFileName = outFileNameBase + ".ugx";
 	GridWriterUGX ugxWriter;
 	ugxWriter.add_grid(g, "defGrid", aPosition);

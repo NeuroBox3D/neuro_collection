@@ -44,11 +44,11 @@ void scale_dimless_vector
 	const std::vector<number>& scalingFactors
 );
 
-
-
+////////////////////////////////////////////////////////////////////////////////
 template <typename TDomain>
 void mark_global(SmartPtr<IRefiner> refiner, SmartPtr<TDomain> domain);
 
+////////////////////////////////////////////////////////////////////////////////
 template <typename TDomain>
 void mark_anisotropic
 (
@@ -57,6 +57,7 @@ void mark_anisotropic
 	number thresholdRatio
 );
 
+////////////////////////////////////////////////////////////////////////////////
 template <typename TDomain>
 void mark_anisotropic_onlyX
 (
@@ -65,14 +66,15 @@ void mark_anisotropic_onlyX
 	number thresholdRatio
 );
 
-
+////////////////////////////////////////////////////////////////////////////////
 void MarkNeuriteForAxialRefinement(SmartPtr<IRefiner> refiner, SmartPtr<Domain3d> domain);
 
-
+////////////////////////////////////////////////////////////////////////////////
 template <typename TDomain>
 void RemoveAllNonDefaultRefinementProjectors(SmartPtr<TDomain> dom);
 
-
+////////////////////////////////////////////////////////////////////////////////
+bool SaveGridToFile(Grid& grid, ISubsetHandler& sh, const std::string& fileName);
 
 ///@}
 
