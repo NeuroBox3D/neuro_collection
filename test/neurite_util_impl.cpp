@@ -275,7 +275,7 @@ namespace ug {
 
 			/// Connect by edge (TODO: merge later)
 			for (map<Vertex*, Vertex*>::iterator it = pairs.begin(); it != pairs.end(); ++it) {
-			    ug::Edge* e1 = *g.create<RegularEdge>(EdgeDescriptor(it->first, it->second));
+			    *g.create<RegularEdge>(EdgeDescriptor(it->first, it->second));
 			}
 
 			SaveGridToFile(g, sh, "after_connecting_outer_variant.ugx");
@@ -775,7 +775,7 @@ namespace ug {
 							smallest = j;
 						}
 					}
-					pair.push_back(std::make_pair<size_t, size_t>(i, smallest));
+					pair.push_back(std::make_pair(i, smallest));
 				}
 				pairs.push_back(pair);
 			}
