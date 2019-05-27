@@ -1,5 +1,4 @@
 /*!
- * connect_outer_and_inner_root_neurites_to_outer_soma
  * \file neurite_grid_generation_impl.cpp
  *
  *  Created on: May 6, 2019
@@ -14,10 +13,10 @@
 
 namespace ug {
 namespace neuro_collection {
-////////////////////////////////////////////////////////////////////////
-/// create_neurite_with_er
-////////////////////////////////////////////////////////////////////////
-void create_neurite_with_er(
+	////////////////////////////////////////////////////////////////////////
+	/// create_neurite_with_er
+	////////////////////////////////////////////////////////////////////////
+	void create_neurite_with_er(
 		const std::vector<NeuriteProjector::Neurite>& vNeurites,
 		const std::vector<std::vector<vector3> >& vPos,
 		const std::vector<std::vector<number> >& vR, size_t nid,
@@ -33,7 +32,7 @@ void create_neurite_with_er(
 		std::vector<Vertex*>* outVertsInner,
 		std::vector<number>* outRads,
 		std::vector<number>* outRadsInner
-) {
+	) {
 	const NeuriteProjector::Neurite& neurite = vNeurites[nid];
 	const std::vector<vector3>& pos = vPos[nid];
 	const std::vector<number>& r = vR[nid];
@@ -1178,13 +1177,13 @@ void create_neurite_with_er(
 			break;
 		else
 			++brit;
+		}
 	}
-}
 
-////////////////////////////////////////////////////////////////////////
-/// create_neurite_surf
-////////////////////////////////////////////////////////////////////////
-void create_neurite_surf(
+	////////////////////////////////////////////////////////////////////////
+	/// create_neurite_surf
+	////////////////////////////////////////////////////////////////////////
+	void create_neurite_surf(
 		const std::vector<NeuriteProjector::Neurite>& vNeurites,
 		const std::vector<std::vector<vector3> >& vPos,
 		const std::vector<std::vector<number> >& vR, size_t nid,
@@ -1653,9 +1652,12 @@ void create_neurite_surf(
 	aaSurfParams[v].axial = 2.0;
 	aaSurfParams[v].angular = 0.0;
 	aaSurfParams[v].radial = 1.0;
-}
+	}
 
- void create_neurite_1d(
+	////////////////////////////////////////////////////////////////////////
+	/// create_neurite_1d
+	////////////////////////////////////////////////////////////////////////
+	void create_neurite_1d(
 		const std::vector<NeuriteProjector::Neurite>& vNeurites,
 		const std::vector<std::vector<vector3> >& vPos,
 		const std::vector<std::vector<number> >& vR, size_t nid,
@@ -1664,7 +1666,8 @@ void create_neurite_surf(
 		Grid::VertexAttachmentAccessor<
 		Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 		Grid::VertexAttachmentAccessor<Attachment<number> >& aaDiam,
-		Vertex* connectingVrt) {
+		Vertex* connectingVrt
+	) {
 	const NeuriteProjector::Neurite& neurite = vNeurites[nid];
 	const std::vector<vector3>& pos = vPos[nid];
 	const std::vector<number>& r = vR[nid];
@@ -1900,22 +1903,21 @@ number calculate_length_over_radius
 	}
 
 	return integral;
-}
+	}
 
-
-////////////////////////////////////////////////////////////////////////
-/// calculate_segment_axial_positions
-////////////////////////////////////////////////////////////////////////
-void calculate_segment_axial_positions
-(
-	std::vector<number>& segAxPosOut,
-	number t_start,
-	number t_end,
-	const NeuriteProjector::Neurite& neurite,
-	size_t startSec,
-	number segLength
-)
-{
+	////////////////////////////////////////////////////////////////////////
+	/// calculate_segment_axial_positions
+	////////////////////////////////////////////////////////////////////////
+	void calculate_segment_axial_positions
+	(
+		std::vector<number>& segAxPosOut,
+		number t_start,
+		number t_end,
+		const NeuriteProjector::Neurite& neurite,
+		size_t startSec,
+		number segLength
+	)
+	{
 	const size_t nSeg = segAxPosOut.size();
 
 	GaussLegendre gl(5);
@@ -1993,11 +1995,11 @@ void calculate_segment_axial_positions
 	}
 
 	UG_ASSERT(seg == nSeg, "seg = " << seg << " != " << nSeg << " = nSeg");
-}
+	}
 
-////////////////////////////////////////////////////////////////////////
-/// create_neurite_with_er
-////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////
+	/// create_neurite_with_er
+	////////////////////////////////////////////////////////////////////////
 	void create_neurite_with_er
 		(
 			const std::vector<NeuriteProjector::Neurite>& vNeurites,
