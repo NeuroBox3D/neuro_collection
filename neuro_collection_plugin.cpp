@@ -977,7 +977,7 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("test_neurite_projector_with_bp", &test_neurite_projector_with_four_section_tube_and_branch_point, "", "", "");
 		reg.add_function("test_import_swc_with_er", &test_import_swc_with_er, "",
 			"swc file name (input) # ugx file name (output) # ER scale factor # anisotropy # refinements", "");
-		reg.add_function("test_import_swc_general_new", &test_import_swc_general_new, "",
+		reg.add_function("test_import_swc_general", &test_import_swc_general, "",
 			"swc file name (input) # ugx file name (output) # ER scale factor # anisotropy # refinements", "");
 		reg.add_function("test_import_swc_surf", &test_import_swc_surf, "", "file name", "");
 		reg.add_function("test_import_swc_1d", &test_import_swc_1d, "", "file name # anisotropy # refinements", "");

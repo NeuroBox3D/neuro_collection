@@ -1,6 +1,6 @@
 /*!
  * \file test_neurite_proj.h
- * How to run: ugshell -call  "test_import_swc(\"smith.swc\", false, 0.5\")
+ * How to run: ugshell -call "test_import_swc_general(\"smith.swc\", false, 0.5, true, 0.5, 0)"
  *
  *  Created on: 27.12.2016
  *      Author: mbreit
@@ -246,28 +246,15 @@ void test_import_swc_scale
 
 /*!
  * \brief test import swc general
- * \param[in] fileName
- * \param[in] correct
- * \param[in] shrinkPercentage
- * \param[in] withER
- */
-void test_import_swc_general
-(
-	const std::string& fileName,
-	bool correct,
-	number shrinkPercentage,
-	bool withER
-);
-
-/*!
- * \brief test import swc general
+ * Builds geometry with or without ER and connects to soma
  * \param[in] fileName
  * \param[in] correct
  * \param[in] erScaleFactor
+ * \param[in] withER
  * \param[in] anisotropy
  * \param[in] numRefs
  */
-void test_import_swc_general_new
+void test_import_swc_general
 (
 	const std::string& fileName,
 	bool correct,
