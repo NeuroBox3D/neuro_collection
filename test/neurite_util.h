@@ -1,8 +1,7 @@
 /*!
  * \file neurite_util.h
  *
- * TODO: Cleanup and commenting of code - discard old legacy code after testing volume code
- * TODO: Add unit tests for the current code base and add const correctness
+ * TODO: Cleanup comments, add unit tests and const correctness to current code base
  *
  *  Created on: Apr 22, 2019
  *      Author: Stephan Grein
@@ -27,9 +26,9 @@ namespace ug {
 		 * \brief generic comparator for SurfaceParams
 		 */
 		typedef float (NeuriteProjector::SurfaceParams::*membervar);
-		template< membervar m > struct CompareBy {
+		template<membervar m> struct CompareBy {
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> > m_aaSurfParams;
-			bool operator()( const ug::Vertex* a, const ug::Vertex* b ) const {
+			bool operator()(const ug::Vertex* const a, const ug::Vertex* const b) const {
 				return m_aaSurfParams[a].*m < m_aaSurfParams[b].*m ;
 			}
 			CompareBy(const Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams) {
@@ -43,9 +42,19 @@ namespace ug {
 		template <typename TElem>
 		struct ExistsInVector
 		{
+			/*!
+			 * \brief initializes vector
+			 * \param[in] vec
+			 */
 			ExistsInVector(const std::vector<TElem>& vec) : m_vec(vec) {
 			}
 
+			/*!
+			 * \brief operator()
+			 * \param[in] elem
+			 *
+			 * \return \c true if elemenet found otherwise false
+			 */
 			bool operator() (TElem elem) {
 				return (std::find(m_vec.begin(), m_vec.end(), elem) != m_vec.end());
 			}
@@ -200,7 +209,7 @@ namespace ug {
 	     * connect the closest soma inner vertex with the corresponding vertex in rootNeuritesInner vertices with the same index.
 		 * \param[in] somaIndex
 		 * \param[in] numQuads
-		 * \param[in] g
+		 * \param[in,out] grid
 		 * \param[in] aaPos
 		 * \param[in] sh
 		 * \param[in] rootNeurites
@@ -210,14 +219,12 @@ namespace ug {
 		(
 			size_t somaIndex,
 			size_t numQuads,
-			Grid& g,
+			Grid& grid,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			SubsetHandler& sh,
 			std::vector<ug::Vertex*>& rootNeurites,
 			std::vector<ug::Vertex*>& rootNeuritesInner
 		);
-
-
 
 		/*!
 		 * \brief connects the inner neurites (ER) to the inner sphere's (ER) surface quads
@@ -228,22 +235,22 @@ namespace ug {
 		 * this method connect_inner_neurites_to_inner_soma used the smallest difference of positions which should suffice
 		 * \param[in] somaIndex
 		 * \param[in] numQuads
-		 * \param[in] g
+		 * \param[in,out] grid
 		 * \param[in] aaPos
 		 * \param[in] sh
 		 */
 		void connect_inner_neurites_to_inner_soma
 		(
-				size_t somaIndex, /// inner soma index: beginning of inner sphere's quads (ER) is somaIndex+1, outer sphere's quads (ER) is somaIndex-numQuads-1
-				size_t numQuads, /// number of total surface quads or neurites to connect to
-			    Grid& g,
-			    Grid::VertexAttachmentAccessor<APosition>& aaPos,
-			    SubsetHandler& sh
+			size_t somaIndex, /// inner soma index: beginning of inner sphere's quads (ER) is somaIndex+1, outer sphere's quads (ER) is somaIndex-numQuads-1
+			size_t numQuads, /// number of total surface quads or neurites to connect to
+		    Grid& grid,
+		    Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			SubsetHandler& sh
 		);
 
 		/*!
 		 * \brief finds the quadrilateral vertices on soma surface
-		 * \param[in] g
+		 * \param[in,out] grid
 		 * \param[in] aaPos
 		 * \param[in] oldVertices
 		 * \param[in] outRads
@@ -255,7 +262,7 @@ namespace ug {
 		 */
 		std::vector<ug::vector3> find_quad_verts_on_soma
 		(
-		   Grid& g,
+		   Grid& grid,
 		   Grid::VertexAttachmentAccessor<APosition>& aaPos,
 		   std::vector<ug::Vertex*> verticesOld,
 		   std::vector<std::vector<number> > outRads,
@@ -268,13 +275,36 @@ namespace ug {
 
 		/*!
 		 * \brief connects neurites to soma
-		 * \param[in] g
+		 * \param[in,out] grid
 		 * \param[in] aaPos
+		 * \param[in] aaSurfParams
+		 * \param[out] outVerts
+		 * \param[out] outVertsInner
+		 * \param[out] outRads
+		 * \param[out] smallerQuadVerts
+		 * \param[in] si
+		 * \param[in] sh
+		 * \param[in] fileName
+		 * \param[in] rimSnapThreshold
+		 * \param[out] axisVectors
+		 * \param[in] vNeurites
+		 * \param[in] connectingVertices
+		 * \param[in] connectingVerticesInner
+		 * \param[in] connectingEdges
+		 * \param[in] connectingEdgesInner
+		 * \param[in] createInner
+		 * \param[in] alpha
+		 * \param[in] numIterations
+		 * \param[in] resolveThreshold
+		 * \param[in] scale
+		 * \param[in] numVerts
+		 * \param[in] numQuads
+		 *
 		 * TODO: Find suitable parameters for tangential smooth and resolve intersection
 		 */
 		void connect_neurites_with_soma
 		(
-		   Grid& g,
+		   Grid& grid,
 		   Grid::VertexAttachmentAccessor<APosition>& aaPos,
 		   Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 		   std::vector<Vertex*> outVerts,
@@ -306,7 +336,7 @@ namespace ug {
 		 * \param[out] outvVrt
 		 * \param[in] oldVertices
 		 * \param[out] outvEdge
-		 * \param[in] g
+		 * \param[in,out] grid
 		 * \param[in] aaPos
 		 * \param[in] percentage
 		 * \param[in] createFacs
@@ -319,7 +349,7 @@ namespace ug {
 			std::vector<Vertex*>& outvVrt,
 			const std::vector<Vertex*>& oldVertices,
 			std::vector<Edge*>& outvEdge,
-			Grid& g,
+			Grid& grid,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			number percentage,
 			bool createFaces=true,
@@ -329,15 +359,15 @@ namespace ug {
 
 		/*!
 		 * \brief shrinks quadrilateral and overwrites old quadrilateral's vertices
-		 * \param[in] vVrt
-		 * \param[in] g
+		 * \param[in,out] vVrt
+		 * \param[in,out] grid
 		 * \param[in] aaPos
 		 * \param[in] percentage
 		 */
 		void shrink_quadrilateral
 		(
 			std::vector<Vertex*> vVrt,
-			Grid& g,
+			Grid& grid,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			number percentage
 		);
@@ -345,7 +375,7 @@ namespace ug {
 		/*!
 		 * \brief creates the soma
 		 * \param[in] somaPts
-		 * \param[in] g
+		 * \param[in,out] grid
 		 * \param[in] aaPos
 		 * \param[in] sh
 		 * \param[in] si
@@ -353,31 +383,31 @@ namespace ug {
 		 */
 		void create_soma
 		(
-				const std::vector<SWCPoint>& somaPts,
-				Grid& g,
-				Grid::VertexAttachmentAccessor<APosition>& aaPos,
-				SubsetHandler& sh,
-				size_t si,
-				size_t numRefs = 2
+			const std::vector<SWCPoint>& somaPts,
+			Grid& grid,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			SubsetHandler& sh,
+			size_t si,
+			size_t numRefs = 2
 		);
 
 		/*!
 		 * \brief creates the soma
 		 * \param[in] somaPts
-		 * \param[in] g
+		 * \param[in,out] grid
 		 * \param[in] aaPos
 		 */
 		void create_soma
 		(
-				const std::vector<SWCPoint>& somaPts,
-				Grid& g,
-				Grid::VertexAttachmentAccessor<APosition>& aaPos
+			const std::vector<SWCPoint>& somaPts,
+			Grid& grid,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos
 		);
 
 		/*!
 		 * \brief split a quadrilateral along its edges
 		 * \param[in] vVrt
-		 * \param[in] g
+		 * \param[in,out] grid
 		 * \param[in] aaPos
 		 * \param[in] percentage
 		 * \param[in] vecDir
@@ -388,7 +418,7 @@ namespace ug {
 		void split_quadrilateral_along_edges
 		(
 			std::vector<Vertex*> vVrt,
-			Grid& g,
+			Grid& grid,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			number percentage,
 			ug::vector3 vecDir,
@@ -401,7 +431,7 @@ namespace ug {
 		/*!
 		 * \brief shrink a quadrilateral towards its center
 		 * \param[in] vVrt
-		 * \param[in] g
+		 * \param[in,out] grid
 		 * \param[in] aaPOs
 		 * \param[in] percentage
 		 * \param[in] center
@@ -409,7 +439,7 @@ namespace ug {
 		void shrink_quadrilateral_center
 		(
 			std::vector<Vertex*>& vVrt,
-			Grid& g,
+			Grid& grid,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			number percentage,
 			ug::vector3& center
@@ -433,7 +463,7 @@ namespace ug {
 		 * \param[in] edges
 		 * \param[in] oldVertsSorted
 		 * \param[in] aaSurfParams
-		 * \param[in] g
+		 * \param[in,out] grid
 		 * \param[in] aaPos
 		 * \param[in] scale
 		 */
@@ -443,7 +473,7 @@ namespace ug {
 			std::vector<ug::Edge*>& edges,
 			std::vector<ug::Vertex*>& oldVertsSorted,
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
-			Grid& g,
+			Grid& grid,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			number scale
 		);
@@ -455,7 +485,7 @@ namespace ug {
 		 * \param[in] edges
 		 * \param[in] edgesOpp
 		 * \param[in] aaSurfParams
-		 * \param[in] g
+		 * \param[in,out] grid
 		 * \param[in] aaPos
 		 * \param[in] scale
 		 */
@@ -466,7 +496,7 @@ namespace ug {
 			std::vector<ug::Edge*>& edges,
 			std::vector<ug::Edge*>& edgesOpp,
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
-			Grid& g,
+			Grid& grid,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			number scale
 		);
@@ -522,7 +552,7 @@ namespace ug {
 		 * \brief get closest vertices on soma
 		 * \param[in] vPos
 		 * \param[in] vPointsSomaSurface
-		 * \param[in] g
+		 * \param[in,out] grid
 		 * \param[in] aaPos
 		 * \param[in] sh
 		 * \param[in] si
@@ -531,7 +561,7 @@ namespace ug {
 		(
 			const std::vector<ug::vector3>& vPos,
 			std::vector<ug::Vertex*>& vPointsSomaSurface,
-			Grid& g,
+			Grid& grid,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			SubsetHandler& sh,
 			size_t si
@@ -541,7 +571,7 @@ namespace ug {
 		 * \brief get closest points on soma
 		 * \param[in] vPos
 		 * \param[in] vPointsSomaSurface
-		 * \param[in] g
+		 * \param[in,out] grid
 		 * \param[in] aaPos
 		 * \param[in] sh
 		 * \param[in] si
@@ -550,7 +580,7 @@ namespace ug {
 		(
 			const std::vector<ug::vector3>& vPos,
 			std::vector<ug::vector3>& vPointsSomaSurface,
-			Grid& g,
+			Grid& grid,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			SubsetHandler& sh,
 			size_t si
@@ -577,7 +607,7 @@ namespace ug {
 		 * \param[out] outvVrt
 		 * \param[in] oldVertices
 		 * \param[out] outvEdge
-		 * \param[in] g
+		 * \param[in,out] grid
 		 * \param[in] aaPos
 		 * \param[in] percentage
 		 * \param[in] createFacs
@@ -590,7 +620,7 @@ namespace ug {
 			std::vector<Vertex*>& outvVrt,
 			const std::vector<Vertex*>& oldVertices,
 			std::vector<Edge*>& outvEdge,
-			Grid& g,
+			Grid& grid,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			number percentage,
 			bool createFaces,
@@ -598,21 +628,40 @@ namespace ug {
 		);
 
 		/*!
-		 * \brief connect oute rand inner root neurites to outer soma variant
+		 * \brief connect outer and inner root neurites to outer soma variant
 		 * \param[in] somaIndex
 		 * \param[in] numQuads
-		 * \param[in] g
+		 * \param[in,out] grid
 		 * \param[in] aaPos
 		 */
 		void connect_outer_and_inner_root_neurites_to_outer_soma_variant
 		(
 			size_t somaIndex,
 			size_t numQuads,
-			Grid& g,
+			Grid& grid,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			SubsetHandler& sh,
 			std::vector<ug::Vertex*>& rootNeurites,
 			size_t numVerts
+		);
+
+		/*!
+		 * \brief fill volume with tetrahedra
+		 * \param[in, out] grid
+		 * \param[in] quality
+		 * \param[in] preserveBnds
+		 * \param[in] preserveAll
+		 * \param[in] aaPos
+		 * \param[in] verbosity
+		 */
+		void tetrahedralize_soma
+		(
+			Grid& grid,
+			number quality,
+			bool preserveBnds,
+			bool preserveAll,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			int verbosity=1
 		);
 	}
 }

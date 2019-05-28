@@ -3234,6 +3234,9 @@ void create_spline_data_for_neurites
    	    /// This method works only if inner and outer number of vertices of the polygon (previosuly quad) are the same, e.g. 4.
 	    /// connect_outer_and_inner_root_neurites_to_outer_soma(1, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, outVertsInner);
 
+	    tetrahedralize_soma(g, 5, false, false, aaPos, 1);
+		SaveGridToFile(g, sh, "after_tetrahedralize_soma.ugx");
+
 	    return;
    		/// TODO Tested until here (Projection destroys soma? Need to address this in neurite_projector.cpp and assign aaSurfParams during grid generation)
 	    // at branching points, we have not computed the correct positions yet,

@@ -2181,5 +2181,21 @@ namespace ug {
 			 lineCnt++;
 	    	}
 		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// tetrahedralize_soma
+		////////////////////////////////////////////////////////////////////////
+		void tetrahedralize_soma
+		(
+			Grid& grid,
+			number quality,
+			bool preserveBnds,
+			bool preserveAll,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			int verbosity
+		) {
+			// TODO
+			// Tetrahedralize(grid, quality, preserveBnds, preserveAll, aPosition, verbosity);
+		}
 	}
 }
