@@ -648,20 +648,14 @@ namespace ug {
 		/*!
 		 * \brief fill volume with tetrahedra
 		 * \param[in, out] grid
-		 * \param[in] quality
-		 * \param[in] preserveBnds
-		 * \param[in] preserveAll
+		 * \param[in] sh
 		 * \param[in] aaPos
-		 * \param[in] verbosity
 		 */
 		void tetrahedralize_soma
 		(
 			Grid& grid,
-			number quality,
-			bool preserveBnds,
-			bool preserveAll,
-			Grid::VertexAttachmentAccessor<APosition>& aaPos,
-			int verbosity=1
+			SubsetHandler& sh,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos
 		);
 	}
 }

@@ -2188,14 +2188,13 @@ namespace ug {
 		void tetrahedralize_soma
 		(
 			Grid& grid,
-			number quality,
-			bool preserveBnds,
-			bool preserveAll,
-			Grid::VertexAttachmentAccessor<APosition>& aaPos,
-			int verbosity
+			SubsetHandler& sh,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos
 		) {
-			// TODO
-			// Tetrahedralize(grid, quality, preserveBnds, preserveAll, aPosition, verbosity);
+			/// TODO
+			/// 1. Extract submesh (Inner soma until dendrite start)
+			/// 2. Create pyramids at connecting region soma/dendrite
+			/// 3. Tetrahedralize
 		}
 	}
 }

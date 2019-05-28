@@ -42,6 +42,8 @@ set(SOURCES neuro_collection_plugin.cpp
             util/misc_util.cpp
             util/neurite_axial_refinement_marker.cpp
    )
+   
+set(SOURCES_TEST unit_tests/tests.cpp)
 
 ## add experimental neurite projector impl (but not in VRL)   
 if (NOT buildForVRL)
@@ -76,6 +78,19 @@ endif (cable_neuron)
 if (Parmetis)
 	set(NC_WITH_PARMETIS 1)
 endif (Parmetis)
+
+# tests
+option(NCTestsuite "Build NC Testsuite" ${NCTestsuite})
+message(STATUS "Info: NC Testsuite:   " ${NCTestsuite} " (options are: ON, OFF)")
+
+if(buildEmbeddedPlugins)
+   set(NCTestsuite OFF)
+endif(buildEmbeddedPlugins)
+
+if(${NCTestsuite} STREQUAL "ON")
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${UG_ROOT_PATH}/bin/)
+    add_executable(NCTestsuite ${SOURCES_TEST})
+endif(${NCTestsuite} STREQUAL "ON")
 
 ################################################################################
 # The code below doesn't have to be changed (usually)
@@ -118,5 +133,9 @@ else(buildEmbeddedPlugins)
 	endif (Parmetis)
 	
 	target_link_libraries (${pluginName} ug4 ${linkLibraries})
+	
+	if(${NCTestsuite} STREQUAL "ON")
+		target_link_libraries (NCTestsuite ${pluginName} ug4)
+	endif(${NCTestsuite} STREQUAL "ON")
 endif(buildEmbeddedPlugins)
 
