@@ -2183,6 +2183,25 @@ namespace ug {
 		}
 
 		////////////////////////////////////////////////////////////////////////
+		/// create_pyramid
+		////////////////////////////////////////////////////////////////////////
+		Pyramid* create_pyramid
+		(
+			Grid& grid,
+			const Quadrilateral* const quad,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			const number scale
+		) {
+			Vertex* top = *grid.create<RegularVertex>();
+			ug::vector3 vNormOut;
+			CalculateNormal(vNormOut, quad, aaPos);
+			ug::vector3 center = CalculateCenter(quad, aaPos);
+			aaPos[top] = center;
+			VecScaleAdd(aaPos[top], 1.0, aaPos[top], scale, vNormOut);
+			return *grid.create<Pyramid>(PyramidDescriptor(quad->vertex(0), quad->vertex(1), quad->vertex(2), quad->vertex(3), top));
+		}
+
+		////////////////////////////////////////////////////////////////////////
 		/// tetrahedralize_soma
 		////////////////////////////////////////////////////////////////////////
 		void tetrahedralize_soma
@@ -2191,10 +2210,12 @@ namespace ug {
 			SubsetHandler& sh,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos
 		) {
+
 			/// TODO
 			/// 1. Extract submesh (Inner soma until dendrite start)
-			/// 2. Create pyramids at connecting region soma/dendrite
-			/// 3. Tetrahedralize
+			/// 2. Create pyramids at connecting region soma/dendrite: Mitteln über zwei NAchbarpunkte im 60 Grad Winkel
+			/// 3. Convert surface of cylinders connecting ER and soma to triangles
+			/// 4. Tetrahedralize whole submesh (exclude the dendrites)
 		}
 	}
 }

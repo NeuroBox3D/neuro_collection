@@ -3298,5 +3298,32 @@ void create_spline_data_for_neurites
 		Grid::VertexAttachmentAccessor<APosition> aaPos;
 		correct_axial_offset(verts, aaSurfParams, aaPos, 0.5);
 	}
+
+	////////////////////////////////////////////////////////////////////////
+	/// test_create_pyramid
+	////////////////////////////////////////////////////////////////////////
+	void test_create_pyramid() {
+		Grid g;
+		SubsetHandler sh(g);
+		sh.set_default_subset_index(0);
+		g.attach_to_vertices(aPosition);
+		Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+		ug::Vertex *p1, *p2, *p3, *p4;
+		p1 = *g.create<RegularVertex>();
+		p2 = *g.create<RegularVertex>();
+		p3 = *g.create<RegularVertex>();
+		p4 = *g.create<RegularVertex>();
+		aaPos[p1] = ug::vector3(0, 0, 0);
+		aaPos[p2] = ug::vector3(0, 1, 0);
+		aaPos[p3] = ug::vector3(1, 1, 0);
+		aaPos[p4] = ug::vector3(1, 0, 0);
+		const Quadrilateral* const quad = *g.create<Quadrilateral>(QuadrilateralDescriptor(p1, p2, p3, p4));
+		UG_COND_THROW(!quad, "Quadrilateral could not be created.")
+		Pyramid* pyramid = create_pyramid(g, quad, aaPos);
+		UG_COND_THROW(!pyramid, "Pyramid could not be created.");
+		SaveGridToFile(g, sh, "pyramid.ugx");
+	}
+
+
 	} // namespace neuro_collection
 } // namespace ug

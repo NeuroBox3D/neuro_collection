@@ -210,7 +210,7 @@ namespace ug {
 		 * \param[in] somaIndex
 		 * \param[in] numQuads
 		 * \param[in,out] grid
-		 * \param[in] aaPos
+		 * \param[in, out] aaPos
 		 * \param[in] sh
 		 * \param[in] rootNeurites
 		 * \param[in] rootNeuritesInner
@@ -236,7 +236,7 @@ namespace ug {
 		 * \param[in] somaIndex
 		 * \param[in] numQuads
 		 * \param[in,out] grid
-		 * \param[in] aaPos
+		 * \param[in, out] aaPos
 		 * \param[in] sh
 		 */
 		void connect_inner_neurites_to_inner_soma
@@ -251,7 +251,7 @@ namespace ug {
 		/*!
 		 * \brief finds the quadrilateral vertices on soma surface
 		 * \param[in,out] grid
-		 * \param[in] aaPos
+		 * \param[in, out] aaPos
 		 * \param[in] oldVertices
 		 * \param[in] outRads
 		 * \param[in] si
@@ -276,7 +276,7 @@ namespace ug {
 		/*!
 		 * \brief connects neurites to soma
 		 * \param[in,out] grid
-		 * \param[in] aaPos
+		 * \param[in, out] aaPos
 		 * \param[in] aaSurfParams
 		 * \param[out] outVerts
 		 * \param[out] outVertsInner
@@ -337,7 +337,7 @@ namespace ug {
 		 * \param[in] oldVertices
 		 * \param[out] outvEdge
 		 * \param[in,out] grid
-		 * \param[in] aaPos
+		 * \param[in, out] aaPos
 		 * \param[in] percentage
 		 * \param[in] createFacs
 		 * \param[in] outSel
@@ -361,7 +361,7 @@ namespace ug {
 		 * \brief shrinks quadrilateral and overwrites old quadrilateral's vertices
 		 * \param[in,out] vVrt
 		 * \param[in,out] grid
-		 * \param[in] aaPos
+		 * \param[in, out] aaPos
 		 * \param[in] percentage
 		 */
 		void shrink_quadrilateral
@@ -376,7 +376,7 @@ namespace ug {
 		 * \brief creates the soma
 		 * \param[in] somaPts
 		 * \param[in,out] grid
-		 * \param[in] aaPos
+		 * \param[in, out] aaPos
 		 * \param[in] sh
 		 * \param[in] si
 		 * \param[in] numRefs
@@ -395,7 +395,7 @@ namespace ug {
 		 * \brief creates the soma
 		 * \param[in] somaPts
 		 * \param[in,out] grid
-		 * \param[in] aaPos
+		 * \param[in, out] aaPos
 		 */
 		void create_soma
 		(
@@ -408,7 +408,7 @@ namespace ug {
 		 * \brief split a quadrilateral along its edges
 		 * \param[in] vVrt
 		 * \param[in,out] grid
-		 * \param[in] aaPos
+		 * \param[in, out] aaPos
 		 * \param[in] percentage
 		 * \param[in] vecDir
 		 * \param[out] vertices
@@ -464,7 +464,7 @@ namespace ug {
 		 * \param[in] oldVertsSorted
 		 * \param[in] aaSurfParams
 		 * \param[in,out] grid
-		 * \param[in] aaPos
+		 * \param[in, out] aaPos
 		 * \param[in] scale
 		 */
 		void correct_edges
@@ -486,7 +486,7 @@ namespace ug {
 		 * \param[in] edgesOpp
 		 * \param[in] aaSurfParams
 		 * \param[in,out] grid
-		 * \param[in] aaPos
+		 * \param[in, out] aaPos
 		 * \param[in] scale
 		 */
 		void correct_edges_all
@@ -507,7 +507,7 @@ namespace ug {
 		 * the current neurite and the larger axial values further back
 		 * \param[in] verts
 		 * \param[in] aaSurfParams
-		 * \param[in] aaPos
+		 * \param[in, out] aaPos
 		 * \param[in] scale
 		 */
 		void correct_axial_offset
@@ -553,7 +553,7 @@ namespace ug {
 		 * \param[in] vPos
 		 * \param[in] vPointsSomaSurface
 		 * \param[in,out] grid
-		 * \param[in] aaPos
+		 * \param[in, out] aaPos
 		 * \param[in] sh
 		 * \param[in] si
 		 */
@@ -572,7 +572,7 @@ namespace ug {
 		 * \param[in] vPos
 		 * \param[in] vPointsSomaSurface
 		 * \param[in,out] grid
-		 * \param[in] aaPos
+		 * \param[in, out] aaPos
 		 * \param[in] sh
 		 * \param[in] si
 		 */
@@ -608,7 +608,7 @@ namespace ug {
 		 * \param[in] oldVertices
 		 * \param[out] outvEdge
 		 * \param[in,out] grid
-		 * \param[in] aaPos
+		 * \param[in, out] aaPos
 		 * \param[in] percentage
 		 * \param[in] createFacs
 		 * \param[in] outSel
@@ -632,7 +632,7 @@ namespace ug {
 		 * \param[in] somaIndex
 		 * \param[in] numQuads
 		 * \param[in,out] grid
-		 * \param[in] aaPos
+		 * \param[in, out] aaPos
 		 */
 		void connect_outer_and_inner_root_neurites_to_outer_soma_variant
 		(
@@ -649,13 +649,29 @@ namespace ug {
 		 * \brief fill volume with tetrahedra
 		 * \param[in, out] grid
 		 * \param[in] sh
-		 * \param[in] aaPos
+		 * \param[in, out] aaPos
 		 */
 		void tetrahedralize_soma
 		(
 			Grid& grid,
 			SubsetHandler& sh,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos
+		);
+
+		/*!
+		 * \brief create pyramid
+		 * \param[in, out] grid
+		 * \param[in] quad
+		 * \param[in, out] aaPos
+		 * \param[in] scale
+		 * \return \c pointer to new pyramid
+		 */
+		Pyramid* create_pyramid
+		(
+			Grid& grid,
+			const Quadrilateral* const quad,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			number scale = 1
 		);
 	}
 }

@@ -336,6 +336,13 @@ void test_convert_swc_to_ugx
 	const std::string& fileName
 );
 
+/*!
+ * \brief test create pyramid
+ */
+void test_create_pyramid
+(
+);
+
 } // namespace neuro_collection
 } // namespace ug
 
