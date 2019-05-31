@@ -2198,7 +2198,8 @@ namespace ug {
 			ug::vector3 center = CalculateCenter(quad, aaPos);
 			aaPos[top] = center;
 			VecScaleAdd(aaPos[top], 1.0, aaPos[top], scale, vNormOut);
-			return *grid.create<Pyramid>(PyramidDescriptor(quad->vertex(0), quad->vertex(1), quad->vertex(2), quad->vertex(3), top));
+			return *grid.create<Pyramid>(PyramidDescriptor(quad->vertex(0),
+					quad->vertex(1), quad->vertex(2), quad->vertex(3), top));
 		}
 
 		////////////////////////////////////////////////////////////////////////
@@ -2208,14 +2209,81 @@ namespace ug {
 		(
 			Grid& grid,
 			SubsetHandler& sh,
-			Grid::VertexAttachmentAccessor<APosition>& aaPos
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			size_t somaIndex,
+			size_t erIndex,
+			number scale
 		) {
+			Selector sel(grid);
+			// Converts quadrilaterals on soma surface to triangles
+			SelectSubsetElements<Quadrilateral>(sel, sh, somaIndex, true);
+			SelectSubsetElements<Quadrilateral>(sel, sh, erIndex, true);
+			Triangulate(grid, sel.begin<Quadrilateral>(), sel.end<Quadrilateral>(), &aaPos);
+			sel.clear();
 
-			/// TODO
-			/// 1. Extract submesh (Inner soma until dendrite start)
-			/// 2. Create pyramids at connecting region soma/dendrite: Mitteln über zwei NAchbarpunkte im 60 Grad Winkel
-			/// 3. Convert surface of cylinders connecting ER and soma to triangles
-			/// 4. Tetrahedralize whole submesh (exclude the dendrites)
+			// TODO: Extract submesh from grid
+
+			// Create pyramids at connectiong region of soma and dendrite
+			Grid::traits<Quadrilateral>::secure_container quadCont;
+			find_quadrilaterals_constrained(grid, aaSurfParams, quadCont);
+			for (size_t i = 0; i < quadCont.size(); i++) {
+				const ug::Pyramid* const pyramid = create_pyramid(grid, quadCont[i], aaPos, scale);
+			}
+
+			// TODO Tetrahedralize whole submesh and exclude the dendrite starts
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// SavePreparedGridToFile
+		////////////////////////////////////////////////////////////////////////
+		void SavePreparedGridToFile
+		(
+			Grid& grid,
+			ISubsetHandler& sh,
+			const char* const fileName
+		) {
+			EraseEmptySubsets(sh);
+			AssignSubsetColors(sh);
+			SaveGridToFile(grid, sh, fileName);
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// find_quadrilaterals_constrained
+		////////////////////////////////////////////////////////////////////////
+		void find_quadrilaterals_constrained
+		(
+			Grid& grid,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			Grid::traits<Quadrilateral>::secure_container& quadCont,
+			number axial,
+			number scale
+		) {
+			ConstQuadrilateralIterator qit = grid.begin<Quadrilateral>();
+			ConstQuadrilateralIterator qit_end = grid.end<Quadrilateral>();
+			for (; qit != qit_end; ++qit) {
+				const Quadrilateral* const quad = *qit;
+				size_t numVerts = quad->num_vertices();
+				bool atSoma = true;
+				for (size_t i = 0; i < numVerts; i++) {
+					if (aaSurfParams[quad->vertex(i)].axial != axial) {
+						atSoma = false;
+						break;
+					}
+				}
+
+				// if at soma, check that we have only outer quads around the ER part -> this can be checked by using radial
+				if (atSoma) {
+					std::vector<number> scales;
+					for (size_t i = 0; i < numVerts; i++) {
+						scales.push_back(aaSurfParams[quad->vertex(i)].radial);
+					}
+					scales.erase(remove(scales.begin(), scales.end(), scale), scales.end());
+					if (scales.size() <= 2)  {
+						quadCont.push_back(*qit);
+					}
+				}
+			}
 		}
 	}
 }

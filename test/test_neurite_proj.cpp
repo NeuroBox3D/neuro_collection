@@ -3224,18 +3224,19 @@ void create_spline_data_for_neurites
 	    /// connect now inner soma to neurites (This is the old strategy: New strategy is to project)
 	    /// TODO make sure this still works: Should use angle not distance based criterion?
 	    connect_inner_neurites_to_inner_soma(newSomaIndex, 1, g, aaPos, sh);
-	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_inner_soma_to_outer_ER.ugx");
+	    SavePreparedGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_inner_soma_to_outer_ER.ugx");
 
 	    /// Note: Call two times for inner and outer polygon on outer soma but use the same plane defined by the outer soma's inner quad vertices
 	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12);
 	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(5, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4);
 
+	    /// TODO: extrude ER volume a little bit further into normal direction like pyramids, then merge the vertices in connect_outer_and_inner_root_neurites_to_outer_soma_variant method will avoid self intersections
+
 	    /// Note: Below method is probably not required anymore:
    	    /// This method works only if inner and outer number of vertices of the polygon (previosuly quad) are the same, e.g. 4.
 	    /// connect_outer_and_inner_root_neurites_to_outer_soma(1, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, outVertsInner);
-
-	    tetrahedralize_soma(g, sh, aaPos);
-		SaveGridToFile(g, sh, "after_tetrahedralize_soma.ugx");
+	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 7); /// After merging additional subsets 5, 6 are gone
+		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma.ugx");
 
 	    return;
    		/// TODO Tested until here (Projection destroys soma? Need to address this in neurite_projector.cpp and assign aaSurfParams during grid generation)

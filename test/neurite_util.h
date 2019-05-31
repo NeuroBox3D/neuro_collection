@@ -650,12 +650,19 @@ namespace ug {
 		 * \param[in, out] grid
 		 * \param[in] sh
 		 * \param[in, out] aaPos
+		 * \param[in] somaIndex
+		 * \param[in] erIndex
+		 * \param[in] scale
 		 */
 		void tetrahedralize_soma
 		(
 			Grid& grid,
 			SubsetHandler& sh,
-			Grid::VertexAttachmentAccessor<APosition>& aaPos
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			size_t somaIndex,
+			size_t erIndex,
+			number scale = -1.0
 		);
 
 		/*!
@@ -671,7 +678,39 @@ namespace ug {
 			Grid& grid,
 			const Quadrilateral* const quad,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
-			number scale = 1
+			number scale = 1.0
+		);
+
+		/*!
+		 * \brief saves grid to file
+		 * Assigns subsets colors and erases empty subsets in addition before
+		 * \param[in, out] grid
+		 * \param[in, out] sh
+		 * \param[in] fileName
+		 */
+		void SavePreparedGridToFile
+		(
+			Grid& grid,
+			ISubsetHandler& sh,
+			const char* const fileName
+		);
+
+
+		/*!
+		 * \brief finds the quadrilaterals constrained to have a certain axial and radial parameters
+		 * \param[in,out] grid
+		 * \param[in] aaSurfParams
+		 * \param[out] quadCont
+		 * \param[in] axial
+		 * \param[in] scale
+		 */
+		void find_quadrilaterals_constrained
+		(
+			Grid& grid,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			Grid::traits<Quadrilateral>::secure_container& quadCont,
+			number axial = 0.0,
+			number scale = 1.0
 		);
 	}
 }
