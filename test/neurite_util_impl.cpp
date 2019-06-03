@@ -13,6 +13,7 @@
 #include "lib_grid/refinement/regular_refinement.h"
 #include "lib_grid/algorithms/remeshing/resolve_intersections.h"
 #include "lib_grid/grid/neighborhood_util.h" // FindNeighborhood
+#include <lib_grid/file_io/file_io.h>
 #include <cmath>
 #include "nc_config.h"
 #include <boost/lexical_cast.hpp>
@@ -2222,7 +2223,11 @@ namespace ug {
 			Triangulate(grid, sel.begin<Quadrilateral>(), sel.end<Quadrilateral>(), &aaPos);
 			sel.clear();
 
-			// TODO: Extract submesh from grid
+			// Extract submesh from grid
+			std::vector<size_t> vSi; vSi.push_back(somaIndex); vSi.push_back(erIndex);
+			Grid gridOut;
+			SubsetHandler destSh;
+			split_grid_based_on_subset_indices(grid, sh, gridOut, destSh, aaPos, vSi);
 
 			// Create pyramids at connectiong region of soma and dendrite
 			Grid::traits<Quadrilateral>::secure_container quadCont;
@@ -2231,7 +2236,8 @@ namespace ug {
 				const ug::Pyramid* const pyramid = create_pyramid(grid, quadCont[i], aaPos, scale);
 			}
 
-			// TODO Tetrahedralize whole submesh and exclude the dendrite starts
+			// TODO Tetrahedralize whole submesh and exclude the dendrite starts and merge
+			/// Tetrahedralize(gridOut, destSh, 5, true, false, aaPos, 0);
 		}
 
 		////////////////////////////////////////////////////////////////////////
@@ -2284,6 +2290,38 @@ namespace ug {
 					}
 				}
 			}
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// split_grid_based_on_subset_indices
+		////////////////////////////////////////////////////////////////////////
+		void split_grid_based_on_subset_indices
+		(
+			Grid& gridIn,
+			ISubsetHandler& srcSh,
+			Grid& gridOut,
+			ISubsetHandler& destSh,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			const std::vector<size_t>& vSi
+		) {
+			gridOut.attach_to_vertices(aPosition);
+			SubsetHandler sh(gridOut);
+			CopyGrid<APosition>(gridIn, gridOut, srcSh, sh, aPosition);
+
+			// select soma and ER in spheres
+			Selector sel(gridOut); sel.clear();
+			for (size_t i = 0; i < vSi.size(); i++) {
+				SelectSubset(sel, sh, vSi[i], true);
+			}
+
+			// invert
+			InvertSelection(sel);
+
+			// erase selection
+			EraseSelectedObjects(sel);
+
+			// save grid
+			SavePreparedGridToFile(gridOut, sh, "after_splitting_the_grid_and_copying.ugx");
 		}
 	}
 }

@@ -712,6 +712,21 @@ namespace ug {
 			number axial = 0.0,
 			number scale = 1.0
 		);
+
+		/*!
+		 * \brief splis a grid into two subgrids based on the provided subset indices
+		 */
+		void split_grid_based_on_subset_indices
+		(
+			Grid& gridIn,
+			ISubsetHandler& srcSh,
+			Grid& gridOut,
+			ISubsetHandler& destSh,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			const std::vector<size_t>& vSi
+		);
+
+		void SelectSubset(Selector& sel, SubsetHandler& sh, size_t si);
 	}
 }
 
