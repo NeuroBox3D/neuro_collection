@@ -3230,7 +3230,7 @@ void create_spline_data_for_neurites
 	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12);
 	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(5, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4);
 
-	    /// TODO: extrude ER volume a little bit further into normal direction like pyramids, then merge the vertices in connect_outer_and_inner_root_neurites_to_outer_soma_variant method will avoid self intersections
+	    /// TODO: extrude ER volume a little bit further into normal direction like the pyramids, then merge the vertices in connect_outer_and_inner_root_neurites_to_outer_soma_variant method will avoid self intersections
 
 	    /// Note: Below method is probably not required anymore:
    	    /// This method works only if inner and outer number of vertices of the polygon (previosuly quad) are the same, e.g. 4.

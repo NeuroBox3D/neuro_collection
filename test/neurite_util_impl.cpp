@@ -12,7 +12,7 @@
 #include "lib_grid/algorithms/remeshing/grid_adaption.h"
 #include "lib_grid/refinement/regular_refinement.h"
 #include "lib_grid/algorithms/remeshing/resolve_intersections.h"
-#include "lib_grid/grid/neighborhood_util.h" // FindNeighborhood
+#include "lib_grid/grid/neighborhood_util.h"
 #include <lib_grid/file_io/file_io.h>
 #include <cmath>
 #include "nc_config.h"
@@ -2223,21 +2223,33 @@ namespace ug {
 			Triangulate(grid, sel.begin<Quadrilateral>(), sel.end<Quadrilateral>(), &aaPos);
 			sel.clear();
 
-			// Extract submesh from grid
+			// assign quadrilterals to soma part
+			size_t oldDefaultSubsetIndex = sh.get_default_subset_index();
+			Grid::traits<Quadrilateral>::secure_container quadCont;
+			find_quadrilaterals_constrained(grid, aaSurfParams, quadCont);
+			sh.set_default_subset_index(somaIndex);
+			sel.clear();
+			for (size_t i = 0; i < quadCont.size(); i++) {
+				sel.select(quadCont[i]);
+				SelectAssociatedElements(sel, true, true, true, true);
+				CloseSelection(sel);
+				AssignSelectionToSubset(sel, sh, somaIndex);
+			}
+
+			// Create pyramids at connectiong region of soma and dendrite
+			for (size_t i = 0; i < quadCont.size(); i++) {
+				sh.assign_subset(quadCont[i], somaIndex);
+				const ug::Pyramid* const pyramid = create_pyramid(grid, quadCont[i], aaPos, scale);
+			}
+
+			// Extract submesh from grid (ignore neurites)
 			std::vector<size_t> vSi; vSi.push_back(somaIndex); vSi.push_back(erIndex);
 			Grid gridOut;
 			SubsetHandler destSh;
 			split_grid_based_on_subset_indices(grid, sh, gridOut, destSh, aaPos, vSi);
 
-			// Create pyramids at connectiong region of soma and dendrite
-			Grid::traits<Quadrilateral>::secure_container quadCont;
-			find_quadrilaterals_constrained(grid, aaSurfParams, quadCont);
-			for (size_t i = 0; i < quadCont.size(); i++) {
-				const ug::Pyramid* const pyramid = create_pyramid(grid, quadCont[i], aaPos, scale);
-			}
-
-			// TODO Tetrahedralize whole submesh and exclude the dendrite starts and merge
-			/// Tetrahedralize(gridOut, destSh, 5, true, false, aaPos, 0);
+			// TODO: Tetrahedralize whole subgrid then merge gridOut and grid
+			/// Tetrahedralize(gridOut, 5, true, false, aPosition, 0);
 		}
 
 		////////////////////////////////////////////////////////////////////////
