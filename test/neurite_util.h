@@ -699,7 +699,7 @@ namespace ug {
 		/*!
 		 * \brief finds the quadrilaterals constrained to have a certain axial and radial parameters
 		 * \param[in,out] grid
-		 * \param[in] aaSurfParams
+		 * \param[in,out] aaSurfParams
 		 * \param[out] quadCont
 		 * \param[in] axial
 		 * \param[in] scale
@@ -715,6 +715,17 @@ namespace ug {
 			size_t numVertices = 2
 		);
 
+		/*!
+		 * \brief extend ER part of neurites into soma in normal direction
+		 * \param[in,out] grid
+		 * \param[in,out] sh
+		 * \param[in,out] aaPos
+		 * \param[in,out] aaSurfParams
+		 * \param[in] somaIndex
+		 * \param[in] numQuads
+		 * \param[in] scale
+		 * \param[out] outVertsInner
+		 */
 		 void extend_ER_within
 		 (
 			Grid& grid,
@@ -728,7 +739,13 @@ namespace ug {
 		);
 
 		/*!
-		 * \brief splis a grid into two subgrids based on the provided subset indices
+		 * \brief splits a grid into two subgrids based on the provided subset indices
+		 * \param[in] gridIn
+		 * \param[in] srcSh
+		 * \param[out] gridOut
+		 * \param[out] destSh
+		 * \param[in,out] aaPos
+		 * \param[in] vSi
 		 */
 		void split_grid_based_on_subset_indices
 		(
@@ -739,8 +756,6 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			const std::vector<size_t>& vSi
 		);
-
-		void SelectSubset(Selector& sel, SubsetHandler& sh, size_t si);
 	}
 }
 
