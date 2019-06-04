@@ -102,11 +102,14 @@ namespace ug {
         int type = boost::lexical_cast<int>(strs[1]);
         switch (type)
         {
+        	case 0: pt.type = SWC_UNDF; break;
             case 1: pt.type = SWC_SOMA; break;
             case 2: pt.type = SWC_AXON; break;
             case 3: pt.type = SWC_DEND; break;
             case 4: pt.type = SWC_APIC; break;
-            default: pt.type = SWC_UNDF;
+            case 5: pt.type = SWC_FORK; break;
+            case 6: pt.type = SWC_END; break;
+            default: pt.type = SWC_CUSTOM;
         }
 
         // coordinates
@@ -196,11 +199,14 @@ namespace ug {
         int type = boost::lexical_cast<int>(strs[1]);
         switch (type)
         {
+        	case 0: pt.type = SWC_UNDF; break;
             case 1: pt.type = SWC_SOMA; break;
             case 2: pt.type = SWC_AXON; break;
             case 3: pt.type = SWC_DEND; break;
             case 4: pt.type = SWC_APIC; break;
-            default: pt.type = SWC_UNDF;
+            case 5: pt.type = SWC_FORK; break;
+            case 6: pt.type = SWC_END; break;
+            default: pt.type = SWC_CUSTOM;
         }
 
         // coordinates

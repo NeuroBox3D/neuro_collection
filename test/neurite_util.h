@@ -756,6 +756,36 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			const std::vector<size_t>& vSi
 		);
+
+		/*!
+		 * \brief selects elements whose center lies within a sphere specified by center and radius
+		 * \param[in] grid
+		 * \param[out] sel
+		 * \param[in] center
+		 * \param[in] radius
+		 * \param[in,out] aaPos
+		 */
+		template <class TElem>
+		void SelectElementsInSphere
+		(
+			Grid& grid,
+			Selector& sel,
+			const ug::vector3& center,
+			number radius,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos)
+		{
+			for(typename Grid::traits<TElem>::iterator iter = grid.begin<TElem>();
+				iter != grid.end<TElem>(); ++iter)
+			{
+				vector3 c = CalculateCenter(*iter, aaPos);
+				vector3 diff;
+				VecSubtract(diff, center, c);
+				VecPow(diff, diff, 2);
+				number s = diff.x() + diff.y()  + diff.z();
+				if(s <= sq(radius))
+					sel.select(*iter);
+			}
+		}
 	}
 }
 
