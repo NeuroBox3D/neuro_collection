@@ -26,6 +26,7 @@ struct FixtureGrid {
 	number axial;
 	size_t si;
 	number radial;
+	ug::Vertex *p1, *p2, *p3, *p4;
 
 	/*!
 	 * \brief set up a quadrilateral with optional axial and radial parameters
@@ -37,7 +38,6 @@ struct FixtureGrid {
 		aaPos = Grid::VertexAttachmentAccessor<APosition>(g, aPosition);
 		sh = SubsetHandler(g);
 		sh.set_default_subset_index(si);
-		ug::Vertex *p1, *p2, *p3, *p4;
 		p1 = *g.create<RegularVertex>(); p2 = *g.create<RegularVertex>();
 		p3 = *g.create<RegularVertex>(); p4 = *g.create<RegularVertex>();
 		BOOST_REQUIRE_MESSAGE(p1, "Creating first vertex.");

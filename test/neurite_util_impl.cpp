@@ -2253,6 +2253,41 @@ namespace ug {
 		}
 
 		////////////////////////////////////////////////////////////////////////
+		/// extend_ER_within
+		////////////////////////////////////////////////////////////////////////
+	    void extend_ER_within
+		(
+			Grid& grid,
+			SubsetHandler& sh,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			int somaIndex,
+			size_t numQuads,
+			number scale,
+			std::vector<ug::Vertex*>& outVertsInner
+		) {
+	    	outVertsInner.clear();
+			Grid::traits<Quadrilateral>::secure_container quadCont;
+			find_quadrilaterals_constrained(grid, aaSurfParams, quadCont, 0.0, scale, 0);
+			UG_COND_THROW(quadCont.size() != 1, "Only one quad should be available for the ER");
+			ug::vector3 vNormOut;
+			CalculateNormal(vNormOut, quadCont[0], aaPos);
+			ug::vector3 center = CalculateCenter(quadCont[0], aaPos);
+			std::vector<Edge*> vEdges;
+            Grid::traits<Edge>::secure_container edges;
+            grid.associated_elements(edges, quadCont[0]);
+			std::vector<Vertex*> vertices;
+
+			for (size_t i = 0; i < quadCont[0]->size(); i++) vertices.push_back(quadCont[0]->vertex(i));
+			for (size_t i = 0; i < edges.size(); i++) vEdges.push_back(edges[i]);
+
+			/// extrude in normal direction
+			Extrude(grid, &vertices, &vEdges, NULL, -vNormOut, aaPos, EO_CREATE_FACES | EO_CREATE_VOLUMES);
+			SavePreparedGridToFile(grid, sh, "after_extend_ER_within.ugx");
+			outVertsInner.assign(vertices.begin(), vertices.end());
+	    }
+
+		////////////////////////////////////////////////////////////////////////
 		/// SavePreparedGridToFile
 		////////////////////////////////////////////////////////////////////////
 		void SavePreparedGridToFile
@@ -2275,7 +2310,8 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 			Grid::traits<Quadrilateral>::secure_container& quadCont,
 			number axial,
-			number scale
+			number scale,
+			size_t numVertices
 		) {
 			ConstQuadrilateralIterator qit = grid.begin<Quadrilateral>();
 			ConstQuadrilateralIterator qit_end = grid.end<Quadrilateral>();
@@ -2297,7 +2333,7 @@ namespace ug {
 						scales.push_back(aaSurfParams[quad->vertex(i)].radial);
 					}
 					scales.erase(remove(scales.begin(), scales.end(), scale), scales.end());
-					if (scales.size() <= 2)  {
+					if (scales.size() <= numVertices)  {
 						quadCont.push_back(*qit);
 					}
 				}

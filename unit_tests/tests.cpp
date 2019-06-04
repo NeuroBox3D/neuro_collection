@@ -78,9 +78,25 @@ BOOST_AUTO_TEST_CASE(ExtractSubGrid) {
 	BOOST_REQUIRE_MESSAGE(gridOut.num_vertices() == 4, "Requiring four vertices.");
 	BOOST_REQUIRE_MESSAGE(g.num_edges() == 4, "Requiring four edges.");
 }
+
 ////////////////////////////////////////////////////////////////////////
-BOOST_AUTO_TEST_CASE(ExtractSubGrid3d) {
-	/// TODO: Add some unit test for the 3d case
+BOOST_FIXTURE_TEST_CASE(ExtendERintoSoma, FixtureGrid) {
+	// calculate new vertices manually in normal direction
+	ug::vector3 newVertex1, newVertex2, newVertex3, newVertex4;
+	ug::vector3 normalDir(0, 0, 1);
+	VecScaleAdd(newVertex1, 1.0, aaPos[p1], 1.0, normalDir);
+	VecScaleAdd(newVertex2, 1.0, aaPos[p2], 1.0, normalDir);
+	VecScaleAdd(newVertex3, 1.0, aaPos[p3], 1.0, normalDir);
+	VecScaleAdd(newVertex4, 1.0, aaPos[p4], 1.0, normalDir);
+
+	// extrude with method and check for equality
+	std::vector<ug::Vertex*> outVerts;
+	extend_ER_within(g, sh, aaPos, aaSurfParams, 0, 1, 1.0, outVerts);
+	BOOST_REQUIRE_MESSAGE(outVerts.size() == 4, "Requiring four extruded vertices");
+	BOOST_REQUIRE_SMALL(VecDistance(aaPos[outVerts[0]], newVertex1), SMALL);
+	BOOST_REQUIRE_SMALL(VecDistance(aaPos[outVerts[1]], newVertex2), SMALL);
+	BOOST_REQUIRE_SMALL(VecDistance(aaPos[outVerts[2]], newVertex3), SMALL);
+	BOOST_REQUIRE_SMALL(VecDistance(aaPos[outVerts[3]], newVertex4), SMALL);
 }
 
 BOOST_AUTO_TEST_SUITE_END();

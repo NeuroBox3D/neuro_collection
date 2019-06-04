@@ -703,6 +703,7 @@ namespace ug {
 		 * \param[out] quadCont
 		 * \param[in] axial
 		 * \param[in] scale
+		 * \param[in] numVertices
 		 */
 		void find_quadrilaterals_constrained
 		(
@@ -710,7 +711,20 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 			Grid::traits<Quadrilateral>::secure_container& quadCont,
 			number axial = 0.0,
-			number scale = 1.0
+			number scale = 1.0,
+			size_t numVertices = 2
+		);
+
+		 void extend_ER_within
+		 (
+			Grid& grid,
+			SubsetHandler& sh,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			int somaIndex,
+			size_t numQuads,
+			number scale,
+			std::vector<ug::Vertex*>& outVertsInner
 		);
 
 		/*!
