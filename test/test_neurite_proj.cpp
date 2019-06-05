@@ -2295,6 +2295,9 @@ void create_spline_data_for_neurites
 	sh.set_subset_name("axon", 1);
 	sh.set_subset_name("dend", 2);
 	sh.set_subset_name("apic", 3);
+	sh.set_subset_name("fork", 4);
+	sh.set_subset_name("end", 5);
+	sh.set_subset_name("custom", 6);
 	EraseEmptySubsets(sh);
 	}
 
