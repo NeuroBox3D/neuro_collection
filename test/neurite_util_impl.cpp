@@ -2368,8 +2368,93 @@ namespace ug {
 			// erase selection
 			EraseSelectedObjects(sel);
 
-			// save grid
+			// save grid (TODO: dont erase empty subsets because we need to merge subsets again / e.g. join em)
 			SavePreparedGridToFile(gridOut, sh, "after_splitting_the_grid_and_copying.ugx");
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// MergeFirstGrids
+		////////////////////////////////////////////////////////////////////////
+		void MergeFirstGrids
+		(
+			Grid& mrgGrid,
+			Grid& grid,
+			SubsetHandler& mrgSH,
+			SubsetHandler& sh,
+			bool joinSubsets
+		)
+		{
+			/// base index always zero if subsets should be joined otherwise add offset
+			int subsetBaseInd = joinSubsets ? 0 : mrgSH.num_subsets();
+
+			/// attach data
+			grid.attach_to_vertices(aPosition);
+			mrgGrid.attach_to_vertices(aPosition);
+			AVertex aVrt;
+			grid.attach_to_vertices(aVrt);
+
+			/// attachments accessors
+			Grid::AttachmentAccessor<Vertex, APosition> aaPosMRG(mrgGrid, aPosition);
+			Grid::AttachmentAccessor<Vertex, AVertex> aaVrt(grid, aVrt, true);
+			Grid::AttachmentAccessor<Vertex, APosition> aaPos(grid, aPosition);
+
+			///	copy vertices
+			for(VertexIterator iter = grid.begin<Vertex>();
+			iter != grid.end<Vertex>(); ++iter)
+			{
+				Vertex* nvrt = *mrgGrid.create_by_cloning(*iter);
+				aaPosMRG[nvrt] = aaPos[*iter];
+				aaVrt[*iter] = nvrt;
+				mrgSH.assign_subset(nvrt, subsetBaseInd + sh.get_subset_index(*iter));
+			}
+
+			///	copy edges
+			EdgeDescriptor ed;
+			for(EdgeIterator iter = grid.begin<Edge>();
+			iter != grid.end<Edge>(); ++iter)
+			{
+				Edge* eSrc = *iter;
+				ed.set_vertices(aaVrt[eSrc->vertex(0)], aaVrt[eSrc->vertex(1)]);
+				Edge* e = *mrgGrid.create_by_cloning(eSrc, ed);
+				mrgSH.assign_subset(e, subsetBaseInd + sh.get_subset_index(eSrc));
+			}
+
+			///	copy faces
+			FaceDescriptor fd;
+			for(FaceIterator iter = grid.begin<Face>();
+			iter != grid.end<Face>(); ++iter)
+			{
+				Face* fSrc = *iter;
+				fd.set_num_vertices((uint)fSrc->num_vertices());
+				for(size_t i = 0; i < fd.num_vertices(); ++i)
+					fd.set_vertex((uint)i, aaVrt[fSrc->vertex(i)]);
+
+					Face* f = *mrgGrid.create_by_cloning(fSrc, fd);
+					mrgSH.assign_subset(f, subsetBaseInd + sh.get_subset_index(fSrc));
+			}
+
+			///	copy volumes
+			VolumeDescriptor vd;
+			for(VolumeIterator iter = grid.begin<Volume>();
+			iter != grid.end<Volume>(); ++iter)
+			{
+				Volume* vSrc = *iter;
+				vd.set_num_vertices((uint)vSrc->num_vertices());
+				for(size_t i = 0; i < vd.num_vertices(); ++i)
+					vd.set_vertex((uint)i, aaVrt[vSrc->vertex(i)]);
+
+					Volume* v = *mrgGrid.create_by_cloning(vSrc, vd);
+					mrgSH.assign_subset(v, subsetBaseInd + sh.get_subset_index(vSrc));
+			}
+
+			///	remove the temporary attachment
+			grid.detach_from_vertices(aVrt);
+			mrgGrid.detach_from_vertices(aVrt);
+
+			/// overwrite subset names
+			for(int i_sub = 0; i_sub < sh.num_subsets(); ++i_sub){
+				mrgSH.subset_info(subsetBaseInd + i_sub) = sh.subset_info(i_sub);
+			}
 		}
 	}
 }

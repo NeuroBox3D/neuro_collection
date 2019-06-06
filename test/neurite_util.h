@@ -786,6 +786,23 @@ namespace ug {
 					sel.select(*iter);
 			}
 		}
+
+		/*!
+		 * \brief Merge two grids
+		 * \param[in,out] mrgGrid
+		 * \param[in,out] grid
+		 * \param[in,out] mrgSh
+		 * \param[in,out] sh
+		 * \param[in] joinSubsets
+		 */
+		void MergeFirstGrids
+		(
+			Grid& mrgGrid,
+			Grid& grid,
+			SubsetHandler& mrgSH,
+			SubsetHandler& sh,
+			bool joinSubsets = true
+		);
 	}
 }
 

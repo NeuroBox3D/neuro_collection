@@ -24,7 +24,7 @@ using namespace ug::neuro_collection;
 ////////////////////////////////////////////////////////////////////////
 BOOST_AUTO_TEST_SUITE(test);
 ////////////////////////////////////////////////////////////////////////
-BOOST_FIXTURE_TEST_CASE(CreatePyramid, FixtureGrid) {
+BOOST_FIXTURE_TEST_CASE(CreatePyramid, FixtureOneGrid) {
 	Pyramid* p = create_pyramid(g, quad, aaPos);
 	BOOST_REQUIRE_MESSAGE(p, "Creating pyramid out of supplied vertices "
 			"and created top vertex.");
@@ -35,7 +35,7 @@ BOOST_FIXTURE_TEST_CASE(CreatePyramid, FixtureGrid) {
 }
 
 ////////////////////////////////////////////////////////////////////////
-BOOST_FIXTURE_TEST_CASE(FindQuadrilateralConstrained, FixtureGrid) {
+BOOST_FIXTURE_TEST_CASE(FindQuadrilateralConstrained, FixtureOneGrid) {
 	// find auadrilateral and checks
 	Grid::traits<Quadrilateral>::secure_container quadCont;
 	find_quadrilaterals_constrained(g, aaSurfParams, quadCont);
@@ -80,7 +80,7 @@ BOOST_AUTO_TEST_CASE(ExtractSubGrid) {
 }
 
 ////////////////////////////////////////////////////////////////////////
-BOOST_FIXTURE_TEST_CASE(ExtendERintoSoma, FixtureGrid) {
+BOOST_FIXTURE_TEST_CASE(ExtendERintoSoma, FixtureOneGrid) {
 	// calculate new vertices manually in normal direction
 	ug::vector3 newVertex1, newVertex2, newVertex3, newVertex4;
 	ug::vector3 normalDir(0, 0, 1);
@@ -97,6 +97,25 @@ BOOST_FIXTURE_TEST_CASE(ExtendERintoSoma, FixtureGrid) {
 	BOOST_REQUIRE_SMALL(VecDistance(aaPos[outVerts[1]], newVertex2), SMALL);
 	BOOST_REQUIRE_SMALL(VecDistance(aaPos[outVerts[2]], newVertex3), SMALL);
 	BOOST_REQUIRE_SMALL(VecDistance(aaPos[outVerts[3]], newVertex4), SMALL);
+}
+
+////////////////////////////////////////////////////////////////////////
+BOOST_FIXTURE_TEST_CASE(MergeTwoGrids, FixtureTwoGrid) {
+	// check input for consistency
+	BOOST_REQUIRE_MESSAGE(sh1.num<Vertex>(0) == 4, "Requiring 4 vertices in subset 0 in first grid");
+	BOOST_REQUIRE_MESSAGE(sh1.num<Quadrilateral>() == 1, "Requiring 1 quadrilateral in subset 0 in first grid");
+	BOOST_REQUIRE_MESSAGE(sh2.num<Vertex>(1) == 4, "Requiring 4 vertices in subset 1 of second grid");
+	BOOST_REQUIRE_MESSAGE(sh2.num<Quadrilateral>() == 1, "Requiring 1 quadrilateral in subset 1 in first grid");
+
+	// merge grids and check output for basic consistency
+	MergeFirstGrids(g1, g2, sh1, sh2);
+	BOOST_REQUIRE_MESSAGE(g1.num_vertices() == 8, "Requiring 8 vertices in merged grid (first grid)");
+	BOOST_REQUIRE_MESSAGE(g1.num_edges() == 8, "Requiring 8 edges in merged grid (first grid)");
+
+	// additional checks
+	BOOST_CHECK_MESSAGE(sh1.num<Vertex>(0) == 4, "Checking 4 vertices in subset 0 of merged grid");
+	BOOST_CHECK_MESSAGE(sh1.num<Vertex>(1) == 4, "Checking 4 vertices in subset 1 of merged grid");
+	BOOST_CHECK_MESSAGE(sh1.num<Quadrilateral>() == 2, "Checking 2 quadrilaterals in merged grid");
 }
 
 BOOST_AUTO_TEST_SUITE_END();

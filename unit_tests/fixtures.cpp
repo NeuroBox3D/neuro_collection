@@ -16,7 +16,7 @@ using namespace ug;
 /*!
  * \brief grid fixture
  */
-struct FixtureGrid {
+struct FixtureOneGrid {
 	typedef NeuriteProjector::SurfaceParams NPSP;
 	Grid g;
 	SubsetHandler sh;
@@ -32,7 +32,7 @@ struct FixtureGrid {
 	 * \brief set up a quadrilateral with optional axial and radial parameters
 	 * \param[in] axial
 	 */
-	FixtureGrid(number axial=0.0, size_t si=0, number radial=1.0) : axial(axial), si (si), radial(radial) {
+	FixtureOneGrid(number axial=0.0, size_t si=0, number radial=1.0) : axial(axial), si (si), radial(radial) {
 		// create vertices
 		g.attach_to_vertices(aPosition);
 		aaPos = Grid::VertexAttachmentAccessor<APosition>(g, aPosition);
@@ -79,9 +79,72 @@ struct FixtureGrid {
 	}
 
 	/*!
-	 * \brief
+	 * \brief undeclare the npSurfParam attachment
 	 */
-	~FixtureGrid() {
+	~FixtureOneGrid() {
 		GlobalAttachments::undeclare_attachment<Attachment<NPSP> >("npSurfParams");
+	}
+};
+
+/*!
+ * \brief two grid fixture
+ */
+struct FixtureTwoGrid {
+	Grid g1, g2;
+	SubsetHandler sh1, sh2;
+	Grid::VertexAttachmentAccessor<APosition> aaPos;
+	/*!
+	 * \brief creates two grids with non-overlapping quadrilaterals in distinct subsets
+	 */
+	FixtureTwoGrid() {
+		// create vertices for first grid
+		g1.attach_to_vertices(aPosition);
+		aaPos = Grid::VertexAttachmentAccessor<APosition>(g1, aPosition);
+		sh1 = SubsetHandler(g1);
+		sh1.set_default_subset_index(0);
+		ug::Vertex *p1, *p2, *p3, *p4;
+		p1 = *g1.create<RegularVertex>(); p2 = *g1.create<RegularVertex>();
+		p3 = *g1.create<RegularVertex>(); p4 = *g1.create<RegularVertex>();
+		BOOST_REQUIRE_MESSAGE(p1, "Creating first vertex.");
+		BOOST_REQUIRE_MESSAGE(p2, "Creating second vertex.");
+		BOOST_REQUIRE_MESSAGE(p3, "Creating third vertex.");
+		BOOST_REQUIRE_MESSAGE(p4, "Creating forth vertex.");
+
+		// assign coordinates
+		aaPos[p1] = ug::vector3(2, 2, 0); aaPos[p2] = ug::vector3(2, 3, 0);
+		aaPos[p3] = ug::vector3(3, 3, 0); aaPos[p4] = ug::vector3(3, 2, 0);
+		Quadrilateral* quad = *g1.create<Quadrilateral>(QuadrilateralDescriptor(p1, p2, p3, p4));
+		BOOST_REQUIRE_MESSAGE(quad, "Creating quadrilateral out of supplied vertices.");
+		sh1.assign_grid(g1);
+		sh1.assign_subset(p1, 0);
+		sh1.assign_subset(p2, 0);
+		sh1.assign_subset(p3, 0);
+		sh1.assign_subset(p4, 0);
+		sh1.assign_subset(quad, 0);
+
+		// create vertices
+		g2.attach_to_vertices(aPosition);
+		aaPos = Grid::VertexAttachmentAccessor<APosition>(g2, aPosition);
+		sh2 = SubsetHandler(g2);
+		sh2.set_default_subset_index(1);
+		ug::Vertex *p12, *p22, *p32, *p42;
+		p12 = *g2.create<RegularVertex>(); p22 = *g2.create<RegularVertex>();
+		p32 = *g2.create<RegularVertex>(); p42 = *g2.create<RegularVertex>();
+		BOOST_REQUIRE_MESSAGE(p12, "Creating first vertex.");
+		BOOST_REQUIRE_MESSAGE(p22, "Creating second vertex.");
+		BOOST_REQUIRE_MESSAGE(p32, "Creating third vertex.");
+		BOOST_REQUIRE_MESSAGE(p42, "Creating forth vertex.");
+
+		// assign coordinates
+		aaPos[p12] = ug::vector3(0, 0, 0); aaPos[p22] = ug::vector3(0, 1, 0);
+		aaPos[p32] = ug::vector3(1, 1, 0); aaPos[p42] = ug::vector3(1, 0, 0);
+		Quadrilateral* quad2 = *g2.create<Quadrilateral>(QuadrilateralDescriptor(p12, p22, p32, p42));
+		BOOST_REQUIRE_MESSAGE(quad2, "Creating quadrilateral out of supplied vertices.");
+		sh2.assign_grid(g2);
+		sh2.assign_subset(p12, 1);
+		sh2.assign_subset(p22, 1);
+		sh2.assign_subset(p32, 1);
+		sh2.assign_subset(p42, 1);
+		sh2.assign_subset(quad2, 1);
 	}
 };
