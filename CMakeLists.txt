@@ -10,7 +10,23 @@
 ################################################################################
 
 # name of plugin, path to plugin (relative to ug's root path) and sources
-set(pluginName	neuro_collection)
+set(pluginName neuro_collection)
+
+cmake_minimum_required(VERSION 2.6)
+
+project(UG_PLUGIN_${pluginName})
+
+# include the definitions and dependencies for ug-plugins.
+include(${UG_ROOT_CMAKE_PATH}/ug_plugin_includes.cmake)
+
+message(STATUS "")
+message(STATUS "Additional options for the neuro_collection plugin (-DNC for setting options):")
+
+# tests
+option(NCTestsuite "Build NC Testsuite" ${NCTestsuite})
+message(STATUS "      Testsuite:   " ${NCTestsuite} " (options are: ON, OFF)")
+
+
 set(SOURCES neuro_collection_plugin.cpp
             buffer_fv1.cpp
             surface_marking.cpp
@@ -55,10 +71,6 @@ if (NOT buildForVRL)
       )
 endif (NOT buildForVRL)
 
-
-##message(STATUS "")
-##message(STATUS "Additional options for the neuro_collection plugin (-DNC for setting options):")
-
 if (MembranePotentialMapping)
 	set(NC_WITH_MPM 1)
     set(SOURCES ${SOURCES} membrane_transporters/vdcc_bg/vdcc_bg_vm2ug.cpp)
@@ -79,9 +91,6 @@ if (Parmetis)
 	set(NC_WITH_PARMETIS 1)
 endif (Parmetis)
 
-# tests
-option(NCTestsuite "Build NC Testsuite" ${NCTestsuite})
-message(STATUS "Info: NC Testsuite:   " ${NCTestsuite} " (options are: ON, OFF)")
 
 if(buildEmbeddedPlugins)
    set(NCTestsuite OFF)
@@ -92,17 +101,10 @@ if(${NCTestsuite} STREQUAL "ON")
     add_executable(NCTestsuite ${SOURCES_TEST})
 endif(${NCTestsuite} STREQUAL "ON")
 
+
 ################################################################################
 # The code below doesn't have to be changed (usually)
 ################################################################################
-cmake_minimum_required(VERSION 2.6)
-
-project(UG_PLUGIN_${pluginName})
-
-# include the definitions and dependencies for ug-plugins.
-include(${UG_ROOT_CMAKE_PATH}/ug_plugin_includes.cmake)
-
-
 # This will copy the configurable file config_cmake.h to
 # the final configuration header nc_config.h,
 # setting the #defines as given by the current CMake variables.
