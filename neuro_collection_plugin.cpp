@@ -61,6 +61,7 @@
 #include "grid_generation/bouton_generator.h"
 #include "grid_generation/dendrite_generator.h"
 #include "grid_generation/spine_generation.h"
+#include "grid_generation/neurites_from_swc.h"
 
 #include "lib_grid/refinement/projectors/neurite_projector.h"
 #include "test/test_neurite_proj.h"
@@ -930,7 +931,17 @@ static void Common(Registry& reg, string grp)
 	}
 
 #ifndef UG_FOR_VRL
-	// test neurite projector registry
+	// neurites from swc
+	{
+		reg.add_function("import_neurites_from_swc", &neurites_from_swc::import_neurites_from_swc, "",
+			"file name # anisotropy # refinements", "");
+		reg.add_function("import_er_neurites_from_swc", &neurites_from_swc::import_er_neurites_from_swc, "",
+			"swc file name (input) # ugx file name (output) # ER scale factor # anisotropy # refinements", "");
+		reg.add_function("import_1d_neurites_from_swc", &neurites_from_swc::import_1d_neurites_from_swc, "",
+			"file name # anisotropy # refinements", "");
+	}
+
+	// test neurite projector
 	{
 		reg.add_function("test_neurite_projector", &test_neurite_projector_with_four_section_tube, "", "", "");
 		reg.add_function("test_neurite_projector_with_bp", &test_neurite_projector_with_four_section_tube_and_branch_point, "", "", "");

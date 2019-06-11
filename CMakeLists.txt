@@ -65,6 +65,7 @@ set(SOURCES_TEST unit_tests/tests.cpp)
 ## add experimental neurite projector impl (but not in VRL)   
 if (NOT buildForVRL)
 	set(SOURCES ${SOURCES}
+				grid_generation/neurites_from_swc.cpp
 				test/test_neurite_proj.cpp
 				test/neurite_refMarkAdjuster.cpp
 				test/neurite_util_impl.cpp
