@@ -145,8 +145,8 @@ void HybridNeuronCommunicator<TDomain>::reinit_potential_mapping()
     typedef typename DoFDistribution::traits<Vertex>::const_iterator VrtItType;
     typedef typename TDomain::position_accessor_type posAccType;
 
-    posAccType aaPos1 = m_spApprox1d->domain()->position_accessor();
-    posAccType aaPos3 = m_spApprox3d->domain()->position_accessor();
+    const posAccType& aaPos1 = m_spApprox1d->domain()->position_accessor();
+    const posAccType& aaPos3 = m_spApprox3d->domain()->position_accessor();
     ConstSmartPtr<DoFDistribution> dd1 = m_spApprox1d->dof_distribution(GridLevel());
     ConstSmartPtr<DoFDistribution> dd3 = m_spApprox3d->dof_distribution(GridLevel());
 
@@ -218,6 +218,7 @@ void HybridNeuronCommunicator<TDomain>::reinit_potential_mapping()
         // at the same time, fill recvInfo
         size_t nPE = vLocPotElemPos.size();
         size_t nProcs = vOffsets.size();
+        vOffsets.resize(nProcs+1, vGlobVrtPos.size());
         std::map<size_t, std::vector<int> > mIndex;
         m_mReceiveInfo.clear();
         for (size_t i = 0; i < nPE; ++i)
@@ -226,21 +227,13 @@ void HybridNeuronCommunicator<TDomain>::reinit_potential_mapping()
 
         	// perform a binary search for the largest entry in offset
         	// that is lower than or equal to pos
-        	size_t low = 0;
-        	size_t high = nProcs-1;
-        	while (low != high)
-        	{
-        	    size_t mid = (low + high) / 2 + (low + high) % 2;
-        	    if ((size_t) vOffsets[mid] > pos)
-        	    	high = mid-1;
-        	    else
-        	    	low = mid;
-        	}
+        	size_t proc = std::distance(vOffsets.cbegin(),
+        		std::upper_bound(vOffsets.cbegin(), vOffsets.cend(), pos)) - 1;
 
-        	mIndex[low].push_back((int) pos - vOffsets[low]);
+        	mIndex[proc].push_back((int) pos - vOffsets[proc]);
 
         	// add to recvInfo
-        	m_mReceiveInfo[(int) low].push_back(vLocPotElems[i]);
+        	m_mReceiveInfo[(int) proc].push_back(vLocPotElems[i]);
         }
 
         // fill m_vSendInfo (we need to communicate for that)
@@ -255,22 +248,21 @@ void HybridNeuronCommunicator<TDomain>::reinit_potential_mapping()
 
 		// step 1: who has how much for whom?
         std::vector<int> vNumTo(nProcs, 0);
-        for (size_t p = 0; p < nProcs; ++p)
-        {
-        	std::map<size_t, std::vector<int> >::const_iterator it = mIndex.find(p);
-        	if (it != mIndex.end())
-        	{
-        		int sz = it->second.size();
-        		vNumTo[p] = sz;
+        std::map<size_t, std::vector<int> >::const_iterator it = mIndex.cbegin();
+        std::map<size_t, std::vector<int> >::const_iterator itEnd = mIndex.cend();
+		for (; it != itEnd; ++it)
+		{
+			const size_t p = it->first;
+			int sz = it->second.size();
+			vNumTo[p] = sz;
 
-        		++numRecverProcs;
-        		recverProcs.push_back(p);
-        		sendSizes.push_back(sz * sizeof(int));
-        		for (size_t i = 0; i < (size_t) sz; ++i)
-        			sendBuffer.push_back(it->second[i]);
-        	}
-        }
-        std::vector<int> vNumFrom(nProcs);
+			++numRecverProcs;
+			recverProcs.push_back(p);
+			sendSizes.push_back(sz * sizeof(int));
+			for (size_t i = 0; i < (size_t) sz; ++i)
+				sendBuffer.push_back(it->second[i]);
+		}
+	    std::vector<int> vNumFrom(nProcs);
         procComm.alltoall(&vNumTo[0], 1, PCL_DT_INT, &vNumFrom[0], 1, PCL_DT_INT);
 
         // step 2: exchange information on who has which minDist vertices of whom
@@ -300,10 +292,6 @@ void HybridNeuronCommunicator<TDomain>::reinit_potential_mapping()
 		);
 
 		// step 3: fill the actual senderInfo
-		sendBuffer.clear();
-		sendSizes.clear();
-		recverProcs.clear();
-
 		m_mSendInfo.clear();
 		size_t offset = 0;
 		for (int p = 0; p < numSenderProcs; ++p)
@@ -320,11 +308,6 @@ void HybridNeuronCommunicator<TDomain>::reinit_potential_mapping()
 			offset += sz;
 		}
 
-		recvBuffer.clear();
-		recvSizes.clear();
-		senderProcs.clear();
-
-
 
         // at last, prepare communication arrays
         // delete present ones if this is a re-initialization
@@ -336,14 +319,14 @@ void HybridNeuronCommunicator<TDomain>::reinit_potential_mapping()
         if (sendBuf)  delete[] (char*) sendBuf;
 
         // receiving setup
-        int numRcv = (int) m_mReceiveInfo.size();
+        size_t numRcv = m_mReceiveInfo.size();
         rcvSize = new int[numRcv];
         rcvFrom = new int[numRcv];
         size_t rcvBytes = 0;
 
         size_t i = 0;
-        typename std::map<int, std::vector<side_t*> >::const_iterator itRec = m_mReceiveInfo.begin();
-        typename std::map<int, std::vector<side_t*> >::const_iterator itRec_end = m_mReceiveInfo.end();
+        typename std::map<int, std::vector<side_t*> >::const_iterator itRec = m_mReceiveInfo.cbegin();
+        typename std::map<int, std::vector<side_t*> >::const_iterator itRec_end = m_mReceiveInfo.cend();
         for (; itRec != itRec_end; ++itRec)
         {
             rcvFrom[i] = itRec->first;
@@ -354,7 +337,7 @@ void HybridNeuronCommunicator<TDomain>::reinit_potential_mapping()
         rcvBuf = new char[rcvBytes];
 
         // sending setup
-        int numSend = (int) m_mSendInfo.size();
+        size_t numSend = m_mSendInfo.size();
         sendSize = new int[numSend];
         sendTo = new int[numSend];
         size_t sendBytes = 0;
@@ -709,6 +692,8 @@ void HybridNeuronCommunicator<TDomain>::reinit_synapse_mapping()
 #ifdef UG_PARALLEL
 	}
 #endif
+
+	m_bSynapseMappingNeedsUpdate = false;
 }
 
 template <typename TDomain>
@@ -744,8 +729,6 @@ void HybridNeuronCommunicator<TDomain>::gather_synaptic_currents
 			vSynIDOut.push_back(sid);
 		}
 	}
-
-	m_bSynapseMappingNeedsUpdate = false;
 }
 
 

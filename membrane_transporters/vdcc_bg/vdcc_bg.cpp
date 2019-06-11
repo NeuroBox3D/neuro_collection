@@ -95,7 +95,7 @@ void VDCC_BG<TDomain>::after_construction()
 	if (m_mg->template has_attachment<side_t>(this->m_Vm))
 		UG_THROW("Attachment necessary for Borg-Graham channel dynamics "
 				 "could not be made, since it already exists.");
-	m_mg->template attach_to<side_t>(this->m_Vm);
+	m_mg->template attach_to<side_t>(this->m_Vm, true);
 	m_aaVm = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_Vm);
 
 	// check whether necessary functions are given

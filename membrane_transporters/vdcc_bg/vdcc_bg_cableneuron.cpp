@@ -233,7 +233,13 @@ void VDCC_BG_CN<TDomain>::prep_timestep(number future_time, const number time, V
 
     // do nothing if new time is older than we are
     // (might happen in case of external reset due to non-convergence)
-    if (future_time <= m_curTime) return;
+    if (future_time <= m_curTime)
+    {
+        // we may need to update the potential mapping (after redistribution)
+        m_spHNC->coordinate_potential_values();
+
+        return;
+    }
 
     // the 1d simulation needs to be updated to the given time
     // modify time step size if needed
