@@ -235,7 +235,6 @@ static void DomainAlgebra(Registry& reg, string grp)
 		UG_COND_THROW(i == numClasses, "No class with domain tag '" << GetDomainTag<TDomain>()
 			<< "' found in VDCC_BG class group to add algebra-dependent functionality to.");
 	}
-
 }
 
 /**
@@ -638,6 +637,7 @@ static void Domain(Registry& reg, string grp)
 					 "volume of the subset", "approxSpace # subset index", "calculates subset volume");
 
 	reg.add_function("RemoveAllNonDefaultRefinementProjectors", &RemoveAllNonDefaultRefinementProjectors<TDomain>);
+
 }
 
 /**

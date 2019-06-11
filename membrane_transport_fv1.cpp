@@ -225,6 +225,11 @@ MembraneTransport1d<TDomain>::MembraneTransport1d(const std::vector<std::string>
 
 
 template<typename TDomain>
+MembraneTransport1d<TDomain>::~MembraneTransport1d()
+{}
+
+
+template<typename TDomain>
 void MembraneTransport1d<TDomain>::set_density_function(SmartPtr<CplUserData<number,dim> > densityFct)
 {
 	this->m_spDensityFct = densityFct;

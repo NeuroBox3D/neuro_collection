@@ -613,8 +613,7 @@ RyRImplicit_1drotsym(const std::vector<std::string>& fcts, const std::vector<std
   KAminus(28.8), KBminus(385.9), KCminus(0.1),
   MU_RYR(5.0e-11), REF_CA_ER(2.5e-1),
   m_scale_cc(1.0),
-  m_bNonRegularGrid(false),
-  m_bCurrElemIsHSlave(false)
+  m_bNonRegularGrid(false)
 {}
 
 template <typename TDomain>
@@ -625,8 +624,7 @@ RyRImplicit_1drotsym<TDomain>::RyRImplicit_1drotsym(const char* fcts, const char
   KAminus(28.8), KBminus(385.9), KCminus(0.1),
   MU_RYR(5.0e-11), REF_CA_ER(2.5e-1),
   m_scale_cc(1.0),
-  m_bNonRegularGrid(false),
-  m_bCurrElemIsHSlave(false)
+  m_bNonRegularGrid(false)
 {}
 
 
@@ -686,14 +684,6 @@ prep_elem
 	const MathVector<dim> vCornerCoords[]
 )
 {
-#ifdef UG_PARALLEL
-	DistributedGridManager& dgm = *this->approx_space()->domain()->grid()->distributed_grid_manager();
-	m_bCurrElemIsHSlave = dgm.get_status(elem) & ES_H_SLAVE;
-#endif
-
-	// on horizontal interfaces: only treat hmasters
-	if (m_bCurrElemIsHSlave) return;
-
 	// update geometry for this element
 	static TFVGeom& geo = GeomProvider<TFVGeom>::get();
 	try {geo.update(elem, vCornerCoords, &(this->subset_handler()));}
@@ -711,9 +701,6 @@ void RyRImplicit_1drotsym<TDomain>::add_def_A_elem
 	const MathVector<dim> vCornerCoords[]
 )
 {
-	// on horizontal interfaces: only treat hmasters
-	if (m_bCurrElemIsHSlave) return;
-
 	// get finite volume geometry
 	static TFVGeom& fvgeom = GeomProvider<TFVGeom>::get();
 
@@ -747,9 +734,6 @@ void RyRImplicit_1drotsym<TDomain>::add_def_M_elem
 	const MathVector<dim> vCornerCoords[]
 )
 {
-	// on horizontal interfaces: only treat hmasters
-	if (m_bCurrElemIsHSlave) return;
-
 	// get finite volume geometry
 	static TFVGeom& fvgeom = GeomProvider<TFVGeom>::get();
 
@@ -786,9 +770,6 @@ void RyRImplicit_1drotsym<TDomain>::add_jac_A_elem
 	const MathVector<dim> vCornerCoords[]
 )
 {
-	// on horizontal interfaces: only treat hmasters
-	if (m_bCurrElemIsHSlave) return;
-
 	// get finite volume geometry
 	static TFVGeom& fvgeom = GeomProvider<TFVGeom>::get();
 
@@ -832,9 +813,6 @@ void RyRImplicit_1drotsym<TDomain>::add_jac_M_elem
 	const MathVector<dim> vCornerCoords[]
 )
 {
-	// on horizontal interfaces: only treat hmasters
-	if (m_bCurrElemIsHSlave) return;
-
 	// get finite volume geometry
 	static TFVGeom& fvgeom = GeomProvider<TFVGeom>::get();
 

@@ -307,7 +307,6 @@ class RyRImplicit_1drotsym
 		number m_scale_cc;
 
 		bool m_bNonRegularGrid;
-		bool m_bCurrElemIsHSlave;
 };
 
 ///@}

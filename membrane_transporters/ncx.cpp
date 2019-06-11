@@ -39,6 +39,7 @@ void NCX::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<num
 
 	flux[0] = gatingFactor * IMAX_N;
 
+	//UG_LOGN("NCX: " << flux[0]);
 	//UG_COND_THROW(flux[0] != flux[0],
 	//	"NCX NaN: gatingFactor = " << gatingFactor);
 }

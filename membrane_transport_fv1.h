@@ -166,6 +166,9 @@ class MembraneTransport1d
 		/// constructor with vector
 		MembraneTransport1d(const std::vector<std::string>& subsets, SmartPtr<IMembraneTransporter> mt);
 
+		/// destructor
+		virtual ~MembraneTransport1d();
+
 		/// adding density information for pumps/channels in membrane
 		void set_density_function(SmartPtr<CplUserData<number,dim> > densityFct);
 
