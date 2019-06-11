@@ -66,7 +66,7 @@ IMembraneTransporter::~IMembraneTransporter()
 }
 
 
-void IMembraneTransporter::prep_timestep
+void IMembraneTransporter::prepare_timestep
 (
 	number future_time, const number time, VectorProxyBase* upb
 )

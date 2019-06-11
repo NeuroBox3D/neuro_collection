@@ -186,7 +186,7 @@ void MembraneTransportFV1<TDomain>::prep_timestep
     VectorProxyBase* upb
 )
 {
-	m_spMembraneTransporter->prep_timestep(future_time, time, upb);
+	m_spMembraneTransporter->prepare_timestep(future_time, time, upb);
 }
 
 
@@ -386,7 +386,7 @@ void MembraneTransport1d<TDomain>::prep_timestep
 	const v_type& u = up->m_v;
 	m_spMembraneTransporter->prep_timestep(future_time, time, u);
 	*/
-	m_spMembraneTransporter->prep_timestep(future_time, time, upb);
+	m_spMembraneTransporter->prepare_timestep(future_time, time, upb);
 }
 
 

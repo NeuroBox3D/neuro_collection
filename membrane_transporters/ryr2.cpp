@@ -147,7 +147,7 @@ RyR2<TDomain>::~RyR2()
 
 
 template <typename TDomain>
-void RyR2<TDomain>::prep_timestep(number future_time, const number time, VectorProxyBase* upb)
+void RyR2<TDomain>::prepare_timestep(number future_time, const number time, VectorProxyBase* upb)
 {
 	// before the first step: initiate to equilibrium (or init again; stationary case)
 	if (!m_initiated || future_time == m_initTime)

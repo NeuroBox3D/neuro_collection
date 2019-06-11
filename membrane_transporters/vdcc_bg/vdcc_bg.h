@@ -136,8 +136,8 @@ class VDCC_BG
 		/// @copydoc IMembraneTransporter::IMembraneTransporter()
 		virtual ~VDCC_BG();
 
-		/// @copydoc IMembraneTransporter::prep_timestep()
-		virtual void prep_timestep
+		/// @copydoc IMembraneTransporter::prepare_timestep()
+		virtual void prepare_timestep
 		(
 			number future_time, const number time, VectorProxyBase* upb
 		);

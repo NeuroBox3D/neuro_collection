@@ -225,7 +225,7 @@ void VDCC_BG_CN<TDomain>::init(number time)
 
 
 template <typename TDomain>
-void VDCC_BG_CN<TDomain>::prep_timestep(number future_time, const number time, VectorProxyBase* upb)
+void VDCC_BG_CN<TDomain>::prepare_timestep(number future_time, const number time, VectorProxyBase* upb)
 {
     // initiate if this has not already been done
     if (!this->m_initiated)
@@ -311,7 +311,7 @@ void VDCC_BG_CN<TDomain>::prep_timestep(number future_time, const number time, V
             m_spHNC->coordinate_potential_values();
 
             // call regular prep timestep from base class
-            VDCC_BG<TDomain>::prep_timestep(future_time, time, upb);
+            VDCC_BG<TDomain>::prepare_timestep(future_time, time, upb);
 
             m_timeSinceLastPotentialUpdate -= m_dt_potentialUpdate;
         }

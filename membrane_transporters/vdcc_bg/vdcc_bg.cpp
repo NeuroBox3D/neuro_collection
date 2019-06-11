@@ -330,7 +330,7 @@ void VDCC_BG<TDomain>::update_time(const number newTime)
 };
 
 template<typename TDomain>
-void VDCC_BG<TDomain>::prep_timestep
+void VDCC_BG<TDomain>::prepare_timestep
 (
     number future_time, const number time, VectorProxyBase* upb
 )

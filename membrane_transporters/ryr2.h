@@ -68,8 +68,8 @@ class RyR2 : public IMembraneTransporter
 		/// @copydoc IMembraneTransporter::IMembraneTransporter()
 		virtual ~RyR2();
 
-		/// @copydoc IMembraneTransporter::prep_timestep()
-		virtual void prep_timestep(number future_time, const number time, VectorProxyBase* upb);
+		/// @copydoc IMembraneTransporter::prepare_timestep()
+		virtual void prepare_timestep(number future_time, const number time, VectorProxyBase* upb);
 
 		/// @copydoc IMembraneTransporter::calc_flux()
 		virtual void calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const;

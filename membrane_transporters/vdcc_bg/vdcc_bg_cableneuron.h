@@ -93,8 +93,8 @@ class VDCC_BG_CN
         /// @copydoc VDCC_BG::init()
         virtual void init(number time);
 
-        /// @copydoc IMembraneTransporter::prep_timestep()
-        virtual void prep_timestep(number future_time, const number time, VectorProxyBase* upb);
+        /// @copydoc IMembraneTransporter::prepare_timestep()
+        virtual void prepare_timestep(number future_time, const number time, VectorProxyBase* upb);
 
         /// @copydoc VDCC_BG::update_potential()
         virtual void update_potential(side_t* elem);

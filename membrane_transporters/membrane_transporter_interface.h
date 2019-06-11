@@ -96,7 +96,7 @@ class IMembraneTransporter
 		/**
 		 * @brief Prepares a transport mechanism for time step assemblings
 		 *
-		 * This method will be called by the MembraneTransportFV1 method of the same name.
+		 * This method will be called by the MembraneTransportFV1 method "prep_timestep".
 		 * It can be used if any modifications have to be made before any time step
 		 * before the fluxes for this time step can be calculated.
 		 * This is especially useful for the implementation of the Borg-Graham type VDCCs using
@@ -106,7 +106,7 @@ class IMembraneTransporter
          * @param time            current point in time
 		 * @param upb             wrapper for the current solution vector
 		 */
-		virtual void prep_timestep
+		virtual void prepare_timestep
 		(
 			number future_time, const number time, VectorProxyBase* upb
 		);

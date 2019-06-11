@@ -93,7 +93,7 @@ class MembraneTransportFV1
 	/// @copydoc IElemDisc<TDomain>::prepare_setting()
 		virtual void prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid);
 
-	/// @copydoc IElemDisc<TDomain>::prepare_timestep()
+	/// @copydoc IElemDisc<TDomain>::prep_timestep()
 		void prep_timestep(number future_time, number time, VectorProxyBase* upb);
 
 	protected:
