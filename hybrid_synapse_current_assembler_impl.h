@@ -448,15 +448,8 @@ adjust_error
 
 				// substract constant flux density value from every IP on the side
 				size_t numSideIPs;
-				const MathVector<side_type::dim>* sideLocIPs;
-				const MathVector<TDomain::dim>* sideGlobIPs;
-				try
-				{
-					numSideIPs = err_est_data->get(m_fctInd)->num_side_ips(roid);
-					sideLocIPs = err_est_data->get(m_fctInd)->template side_local_ips<side_type::dim>(roid);
-					sideGlobIPs = err_est_data->get(m_fctInd)->side_global_ips(elem, &vCoCo[0]);
-				}
-				UG_CATCH_THROW("Global integration points for error estimator cannot be determined.");
+				try	{numSideIPs = err_est_data->get(m_fctInd)->num_side_ips(roid);}
+				UG_CATCH_THROW("Number of side integration points for error estimator cannot be determined.");
 
 				for (size_t ip = 0; ip < numSideIPs; ++ip)
 					(*err_est_data->get(m_fctInd))(elem, ip) -= dt * fluxDensity;
@@ -485,15 +478,8 @@ adjust_error
 			CollectCornerCoordinates(vCoCo, elem, *m_spDom, false);
 
 			size_t numSideIPs;
-			const MathVector<side_type::dim>* sideLocIPs;
-			const MathVector<TDomain::dim>* sideGlobIPs;
-			try
-			{
-				numSideIPs = err_est_data->get(m_fctInd_ip3)->num_side_ips(roid);
-				sideLocIPs = err_est_data->get(m_fctInd_ip3)->template side_local_ips<side_type::dim>(roid);
-				sideGlobIPs = err_est_data->get(m_fctInd_ip3)->side_global_ips(elem, &vCoCo[0]);
-			}
-			UG_CATCH_THROW("Global integration points for error estimator cannot be determined.");
+			try {numSideIPs = err_est_data->get(m_fctInd_ip3)->num_side_ips(roid);}
+			UG_CATCH_THROW("Number of side integration points for error estimator cannot be determined.");
 
 			for (size_t ip = 0; ip < numSideIPs; ++ip)
 				(*err_est_data->get(m_fctInd_ip3))(elem, ip) += dt * fluxDensity;

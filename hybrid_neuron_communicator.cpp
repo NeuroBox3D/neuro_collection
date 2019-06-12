@@ -660,7 +660,6 @@ void HybridNeuronCommunicator<TDomain>::reinit_synapse_mapping()
 			MathVector<dim>& minPos = m_mSynapse3dCoords[syn_ids_local[s]];
 			MathVector<dim> pos;
 			number minDistSq = std::numeric_limits<number>::max();
-			minPos = pos;
 			for (size_t p = 0; p < nProcs; ++p)
 			{
 				for (int d = 0; d < dim; ++d)
