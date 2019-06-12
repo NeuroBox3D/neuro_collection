@@ -227,8 +227,8 @@ void HybridNeuronCommunicator<TDomain>::reinit_potential_mapping()
 
         	// perform a binary search for the largest entry in offset
         	// that is lower than or equal to pos
-        	size_t proc = std::distance(vOffsets.cbegin(),
-        		std::upper_bound(vOffsets.cbegin(), vOffsets.cend(), pos)) - 1;
+        	size_t proc = std::distance(vOffsets.begin(),
+        		std::upper_bound(vOffsets.begin(), vOffsets.end(), pos)) - 1;
 
         	mIndex[proc].push_back((int) pos - vOffsets[proc]);
 
@@ -248,8 +248,8 @@ void HybridNeuronCommunicator<TDomain>::reinit_potential_mapping()
 
 		// step 1: who has how much for whom?
         std::vector<int> vNumTo(nProcs, 0);
-        std::map<size_t, std::vector<int> >::const_iterator it = mIndex.cbegin();
-        std::map<size_t, std::vector<int> >::const_iterator itEnd = mIndex.cend();
+        std::map<size_t, std::vector<int> >::const_iterator it = mIndex.begin();
+        std::map<size_t, std::vector<int> >::const_iterator itEnd = mIndex.end();
 		for (; it != itEnd; ++it)
 		{
 			const size_t p = it->first;
@@ -325,8 +325,8 @@ void HybridNeuronCommunicator<TDomain>::reinit_potential_mapping()
         size_t rcvBytes = 0;
 
         size_t i = 0;
-        typename std::map<int, std::vector<side_t*> >::const_iterator itRec = m_mReceiveInfo.cbegin();
-        typename std::map<int, std::vector<side_t*> >::const_iterator itRec_end = m_mReceiveInfo.cend();
+        typename std::map<int, std::vector<side_t*> >::const_iterator itRec = m_mReceiveInfo.begin();
+        typename std::map<int, std::vector<side_t*> >::const_iterator itRec_end = m_mReceiveInfo.end();
         for (; itRec != itRec_end; ++itRec)
         {
             rcvFrom[i] = itRec->first;
