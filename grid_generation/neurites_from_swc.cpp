@@ -1759,8 +1759,8 @@ static void create_neurite_with_er
 		number lengthOverRadius = calculate_length_over_radius(t_start, t_end, neurite, curSec);
 
 		// to reach the desired anisotropy on the surface in the refinement limit,
-		// it has to be multiplied by pi/2 h
-		size_t nSeg = (size_t) floor(lengthOverRadius / (anisotropy*0.5*PI));
+		// it has to be multiplied by pi/6 h
+		size_t nSeg = (size_t) round(lengthOverRadius / (anisotropy*0.16666666*PI));
 		if (!nSeg)
 			nSeg = 1;
 		number segLength = lengthOverRadius / nSeg;	// segments are between 8 and 16 radii long
