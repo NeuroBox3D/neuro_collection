@@ -68,10 +68,10 @@ void VDCC_BG<TDomain>::set_channel_type()
 
 
 template <typename TDomain>
-template <typename TVector>
-void VDCC_BG<TDomain>::calculate_steady_state(SmartPtr<TVector> u, number vm) const
+template <typename TGridFunction>
+void VDCC_BG<TDomain>::calculate_steady_state(SmartPtr<TGridFunction> u, number vm) const
 {
-	typedef typename DoFDistribution::traits<side_t>::const_iterator it_type;
+	typedef typename DoFDistribution::traits<Vertex>::const_iterator it_type;
 	ConstSmartPtr<ApproximationSpace<TDomain> > approxSpace = this->approx_space();
 	UG_COND_THROW(!approxSpace.valid(), "Approximation space not present in Borg-Graham VDCC discretization."
 		<< std::endl << " Did you forget to add it to the domain discretization?");
@@ -85,6 +85,12 @@ void VDCC_BG<TDomain>::calculate_steady_state(SmartPtr<TVector> u, number vm) co
 	if (has_hGate())
 		ind_h = fctGrp.unique_id(_H_ - m_localIndicesOffset);
 
+	const bool bUseP1Interpolation = (u->local_finite_element_id(ind_m).type() == LFEID::LAGRANGE
+		&& u->local_finite_element_id(ind_m).order() == 1)
+		&& (!has_hGate() || (u->local_finite_element_id(ind_h).type() == LFEID::LAGRANGE
+			&& u->local_finite_element_id(ind_h).order() == 1));
+	UG_COND_THROW(!bUseP1Interpolation, "Only implemented for P1 functions at the moment.");
+
 	// loop dof distro vertices of plasma membrane subsets
 	std::vector<DoFIndex> dofIndexM;
 	std::vector<DoFIndex> dofIndexH;
@@ -93,14 +99,14 @@ void VDCC_BG<TDomain>::calculate_steady_state(SmartPtr<TVector> u, number vm) co
 	size_t si_sz = ssg.size();
 	for (size_t si = 0; si < si_sz; ++si)
 	{
-		it_type it = dd->begin<side_t>(ssg[si]);
-		it_type it_end = dd->end<side_t>(ssg[si]);
+		it_type it = dd->begin<Vertex>(ssg[si]);
+		it_type it_end = dd->end<Vertex>(ssg[si]);
 		for (; it != it_end; ++it)
 		{
 			// get DoFs for all involved unknowns
-			dd->dof_indices(*it, ind_m, dofIndexM, true, true);
+			dd->inner_dof_indices(*it, ind_m, dofIndexM, true);
 			if (has_hGate())
-				dd->dof_indices(*it, ind_h, dofIndexH, true, true);
+				dd->inner_dof_indices(*it, ind_h, dofIndexH, true);
 
 			UG_COND_THROW(has_hGate() && dofIndexM.size() != dofIndexH.size(),
 				"Not the same number of DoFs on the same element for state variables m ("

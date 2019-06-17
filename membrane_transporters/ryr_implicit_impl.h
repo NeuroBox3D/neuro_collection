@@ -13,10 +13,10 @@ namespace ug {
 namespace neuro_collection {
 
 template <typename TDomain>
-template <typename TVector>
-void RyRImplicit<TDomain>::calculate_steady_state(SmartPtr<TVector> u) const
+template <typename TGridFunction>
+void RyRImplicit<TDomain>::calculate_steady_state(SmartPtr<TGridFunction> u) const
 {
-	typedef typename DoFDistribution::traits<side_t>::const_iterator it_type;
+	typedef typename DoFDistribution::traits<Vertex>::const_iterator it_type;
 	ConstSmartPtr<ApproximationSpace<TDomain> > approxSpace = this->approx_space();
 	UG_COND_THROW(!approxSpace.valid(), "Approximation space not present in implicit RyR discretization."
 		<< std::endl << " Did you forget to add it to the domain discretization?");
@@ -30,6 +30,15 @@ void RyRImplicit<TDomain>::calculate_steady_state(SmartPtr<TVector> u) const
 	const size_t ind_c1 = fctGrp.unique_id(_C1_);
 	const size_t ind_c2 = fctGrp.unique_id(_C2_);
 
+	const bool bUseP1Interpolation =
+		u->local_finite_element_id(ind_o2).type() == LFEID::LAGRANGE
+		&& u->local_finite_element_id(ind_o2).order() == 1
+		&& u->local_finite_element_id(ind_c1).type() == LFEID::LAGRANGE
+		&& u->local_finite_element_id(ind_c1).order() == 1
+		&& u->local_finite_element_id(ind_c2).type() == LFEID::LAGRANGE
+		&& u->local_finite_element_id(ind_c2).order() == 1;
+	UG_COND_THROW(!bUseP1Interpolation, "Only implemented for P1 functions at the moment, "
+		"but either o2, c1 or c2 is not.");
 
 	// loop dof distro vertices of ER membrane subsets
 	std::vector<DoFIndex> dofIndexCa;
@@ -41,19 +50,19 @@ void RyRImplicit<TDomain>::calculate_steady_state(SmartPtr<TVector> u) const
 	size_t si_sz = ssg.size();
 	for (size_t si = 0; si < si_sz; ++si)
 	{
-		it_type it = dd->begin<side_t>(ssg[si]);
-		it_type it_end = dd->end<side_t>(ssg[si]);
+		it_type it = dd->begin<Vertex>(ssg[si]);
+		it_type it_end = dd->end<Vertex>(ssg[si]);
 		for (; it != it_end; ++it)
 		{
 			// get DoFs for all involved unknowns
-			dd->dof_indices(*it, ind_o2, dofIndexO2, true, true);
-			dd->dof_indices(*it, ind_c1, dofIndexC1, true, true);
-			dd->dof_indices(*it, ind_c2, dofIndexC2, true, true);
+			dd->inner_dof_indices(*it, ind_o2, dofIndexO2, true);
+			dd->inner_dof_indices(*it, ind_c1, dofIndexC1, true);
+			dd->inner_dof_indices(*it, ind_c2, dofIndexC2, true);
 
 			number ca_cyt = 0.0;
 			if (!this->has_constant_value(_CCYT_, ca_cyt))
 			{
-				dd->dof_indices(*it, ind_ccyt, dofIndexCa, true, true);
+				dd->inner_dof_indices(*it, ind_ccyt, dofIndexCa, true);
 				UG_COND_THROW(dofIndexCa.size() != dofIndexO2.size(),
 					"Not the same number of DoFs on the same element for cytosolic calcium ("
 					<< dofIndexCa.size() << ") and channel state O2 (" << dofIndexO2.size() << ") "

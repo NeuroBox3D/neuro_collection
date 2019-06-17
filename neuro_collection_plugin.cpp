@@ -42,7 +42,7 @@
 #include "membrane_transporters/vdcc_bg/vdcc_bg_userdata.h"
 
 #ifdef NC_WITH_CABLENEURON
-	#include "hybrid_neuron_communicator.h"
+	//#include "hybrid_neuron_communicator.h"
 	#include "hybrid_synapse_current_assembler.h"
     #include "membrane_transporters/vdcc_bg/vdcc_bg_cableneuron.h"
 #endif
@@ -181,7 +181,7 @@ static void DomainAlgebra(Registry& reg, string grp)
 				UG_COND_THROW(!expClass, "Exported class can not be cast to the correct type.");
 
 				expClass->add_method("calculate_steady_state",
-					&T::template calculate_steady_state<typename TAlgebra::vector_type>, "", "", "");
+					&T::template calculate_steady_state<TGridFunction>, "", "", "");
 
 				break;
 			}
@@ -203,7 +203,7 @@ static void DomainAlgebra(Registry& reg, string grp)
 				UG_COND_THROW(!expClass, "Exported class can not be cast to the correct type.");
 
 				expClass->add_method("calculate_steady_state",
-					&T1::template calculate_steady_state<typename TAlgebra::vector_type>, "", "", "");
+					&T1::template calculate_steady_state<TGridFunction>, "", "", "");
 
 				break;
 			}
@@ -227,7 +227,7 @@ static void DomainAlgebra(Registry& reg, string grp)
 				UG_COND_THROW(!expClass, "Exported class can not be cast to the correct type.");
 
 				expClass->add_method("calculate_steady_state",
-					&T::template calculate_steady_state<typename TAlgebra::vector_type>, "", "solution # equilibrium potential (V)", "");
+					&T::template calculate_steady_state<TGridFunction>, "", "solution # equilibrium potential (V)", "");
 
 				break;
 			}

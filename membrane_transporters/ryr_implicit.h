@@ -122,8 +122,8 @@ class RyRImplicit
 
 	public:
 		/// init gating variables to equilibrium
-		template <typename TVector> // this is supposed to be some algebra_type::vector_type
-		void calculate_steady_state(SmartPtr<TVector> u) const;
+		template <typename TGridFunction> // this is supposed to be some algebra_type::vector_type
+		void calculate_steady_state(SmartPtr<TGridFunction> u) const;
 
 	// inheritances from IElemDisc
 	public:

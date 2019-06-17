@@ -207,9 +207,7 @@ void VDCC_BG<TDomain>::calc_flux_deriv(const std::vector<number>& u, GridObject*
 	++i;
 	if (has_hGate())
 	{
-		try{
-		flux_derivs[0][i].first = local_fct_index(_H_);}
-		UG_CATCH_THROW("Blub.");
+		flux_derivs[0][i].first = local_fct_index(_H_);
 		flux_derivs[0][i].second = dGatingdH * maxFlux;
 		++i;
 	}

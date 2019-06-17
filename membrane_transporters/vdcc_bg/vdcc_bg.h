@@ -276,8 +276,8 @@ class VDCC_BG
 
 	public:
 		/// init gating variables to equilibrium
-		template <typename TVector> // this is supposed to be some algebra_type::vector_type
-		void calculate_steady_state(SmartPtr<TVector> u, number vm) const;
+		template <typename TGridFunction>
+		void calculate_steady_state(SmartPtr<TGridFunction> u, number vm) const;
 
 	private:
 		void after_construction();
