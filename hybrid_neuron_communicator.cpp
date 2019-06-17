@@ -774,12 +774,6 @@ void HybridNeuronCommunicator<TDomain>::grid_distribution_callback(const GridMes
 
 
 // explicit template specializations
-#ifdef UG_DIM_1
-	template class HybridNeuronCommunicator<Domain1d>;
-#endif
-#ifdef UG_DIM_2
-    template class HybridNeuronCommunicator<Domain2d>;
-#endif
 #ifdef UG_DIM_3
     template class HybridNeuronCommunicator<Domain3d>;
 #endif

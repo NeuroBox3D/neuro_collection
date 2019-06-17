@@ -380,12 +380,6 @@ void VDCC_BG_CN<TDomain>::print_units() const
 
 
 // explicit template specializations
-#ifdef UG_DIM_1
-    template class VDCC_BG_CN<Domain1d>;
-#endif
-#ifdef UG_DIM_2
-    template class VDCC_BG_CN<Domain2d>;
-#endif
 #ifdef UG_DIM_3
     template class VDCC_BG_CN<Domain3d>;
 #endif

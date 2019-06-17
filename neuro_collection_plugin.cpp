@@ -546,41 +546,6 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "VDCC_BG_UserData", tag);
 	}
 
-#ifdef NC_WITH_CABLENEURON
-	// VDCC with cable_neuron
-    {
-        typedef VDCC_BG_CN<TDomain> T;
-        typedef VDCC_BG<TDomain> TBase;
-        std::string name = std::string("VDCC_BG_CN").append(suffix);
-        reg.add_class_<T, TBase>(name, grp)
-            .template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&,
-                SmartPtr<ApproximationSpace<TDomain> >, SmartPtr<ApproximationSpace<TDomain> >, const std::string&)>
-                ("function(s) as vector#subset(s) as vector#approxSpace 1d#approxSpace 3d#potential function name")
-            .add_method("set_domain_disc_1d", &T::set_domain_disc_1d, "", "domainDisc",
-                "Set the 1d cable domain discretization.")
-			.add_method("set_cable_disc", &T::set_cable_disc, "", "cableDisc",
-				"Set the 1d cable element discretization.")
-			.add_method("set_3d_neuron_ids", &T::set_3d_neuron_ids, "", "neuron ids as vector",
-				"Set the 3d represented neuron IDs.")
-            .add_method("set_initial_values", &T::set_initial_values, "", "initial value(s) as vector",
-                "Set initial values for all unknowns in the 1d cable simulation.")
-            .add_method("set_coordinate_scale_factor_3d_to_1d", &T::set_coordinate_scale_factor_3d_to_1d, "",
-                "factor", "Set a factor for coordinate scaling from 3d to 1d representation.")
-            .add_method("set_solver_output_verbose", &T::set_solver_output_verbose, "",
-                "verbose", "Set whether the output of the 1d solver is to be verbose.")
-            .add_method("set_vtk_output", &T::set_vtk_output, "",
-                "file name#plot step", "Set a file name and a plotting interval for output to VTK file.")
-            .add_method("set_time_steps_for_simulation_and_potential_update", &T::set_time_steps_for_simulation_and_potential_update, "",
-                "simulation time step#potential update time step",
-                "Set a time step size (maximum) for the 1d simulation and for the potential update.")
-            // not necessary atm
-            //.add_method("set_hybrid_neuron_communicator", &T::set_hybrid_neuron_communicator, "",
-            //    "hybrid neuron communicator", "Set a hybrid neuron communicator.")
-            .set_construct_as_smart_pointer(true);
-        reg.add_class_to_group(name, "VDCC_BG_CN", tag);
-    }
-#endif
-
 #ifdef NC_WITH_MPM
 	// VDCC with Vm2UG
 	{
@@ -1041,9 +1006,54 @@ struct NonBlockedFunctionality
 			"", "solution # function names for ca_cyt, ca_er, c1, c2 as c-style string #"
 			"RyR-carrying membrane subset names as c-style string # RyR channel",
 			"maximal flux density through RyR channel (mol/(m^2*s))");
-
 	}
 };
+
+
+#ifdef NC_WITH_CABLENEURON
+struct Pure3DFunctionality
+{
+	template <typename TDomain>
+	static void Domain(Registry& reg, string grp)
+	{
+		string suffix = GetDomainSuffix<TDomain>();
+		string tag = GetDomainTag<TDomain>();
+
+		// VDCC with cable_neuron
+		{
+			typedef VDCC_BG_CN<TDomain> T;
+			typedef VDCC_BG<TDomain> TBase;
+			std::string name = std::string("VDCC_BG_CN").append(suffix);
+			reg.add_class_<T, TBase>(name, grp)
+				.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&,
+					SmartPtr<ApproximationSpace<TDomain> >, SmartPtr<ApproximationSpace<TDomain> >, const std::string&)>
+					("function(s) as vector#subset(s) as vector#approxSpace 1d#approxSpace 3d#potential function name")
+				.add_method("set_domain_disc_1d", &T::set_domain_disc_1d, "", "domainDisc",
+					"Set the 1d cable domain discretization.")
+				.add_method("set_cable_disc", &T::set_cable_disc, "", "cableDisc",
+					"Set the 1d cable element discretization.")
+				.add_method("set_3d_neuron_ids", &T::set_3d_neuron_ids, "", "neuron ids as vector",
+					"Set the 3d represented neuron IDs.")
+				.add_method("set_initial_values", &T::set_initial_values, "", "initial value(s) as vector",
+					"Set initial values for all unknowns in the 1d cable simulation.")
+				.add_method("set_coordinate_scale_factor_3d_to_1d", &T::set_coordinate_scale_factor_3d_to_1d, "",
+					"factor", "Set a factor for coordinate scaling from 3d to 1d representation.")
+				.add_method("set_solver_output_verbose", &T::set_solver_output_verbose, "",
+					"verbose", "Set whether the output of the 1d solver is to be verbose.")
+				.add_method("set_vtk_output", &T::set_vtk_output, "",
+					"file name#plot step", "Set a file name and a plotting interval for output to VTK file.")
+				.add_method("set_time_steps_for_simulation_and_potential_update", &T::set_time_steps_for_simulation_and_potential_update, "",
+					"simulation time step#potential update time step",
+					"Set a time step size (maximum) for the 1d simulation and for the potential update.")
+				// not necessary atm
+				//.add_method("set_hybrid_neuron_communicator", &T::set_hybrid_neuron_communicator, "",
+				//    "hybrid neuron communicator", "Set a hybrid neuron communicator.")
+				.set_construct_as_smart_pointer(true);
+			reg.add_class_to_group(name, "VDCC_BG_CN", tag);
+		}
+	}
+};
+#endif
 
 
 // end group plugin_neuro_collection
@@ -1090,6 +1100,17 @@ InitUGPlugin_neuro_collection(Registry* reg, string grp)
 		RegisterDomainAlgebraDependent<NonBlockedFunctionality, CompileDomainList, CompileNonBlockedAlgebraList>(*reg,grp);
 	}
 	UG_REGISTRY_CATCH_THROW(grp);
+
+	// VDCC_BG_CN can only be registered for 3D, as cable_neuron functionality is only compiled for 3D
+#ifdef NC_WITH_CABLENEURON
+#ifdef UG_DIM_3
+	typedef boost::mpl::list<Domain3d> CompileDomain3dList;
+
+	typedef neuro_collection::Pure3DFunctionality Pure3DFunctionality;
+	try {RegisterDomainDependent<Pure3DFunctionality, CompileDomain3dList>(*reg,grp);}
+	UG_REGISTRY_CATCH_THROW(grp);
+#endif
+#endif
 }
 
 } // namespace ug
