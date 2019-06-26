@@ -226,6 +226,7 @@ namespace ug {
 			std::vector<ug::Vertex*>& rootNeuritesInner
 		);
 
+
 		/*!
 		 * \brief connects the inner neurites (ER) to the inner sphere's (ER) surface quads
 		 * Projected vertices onto the inner sphere's quad plane will correspond to an unprojected outer sphere's quad vertex.
@@ -633,6 +634,7 @@ namespace ug {
 		 * \param[in] numQuads
 		 * \param[in,out] grid
 		 * \param[in, out] aaPos
+		 * \param[in] merge
 		 */
 		void connect_outer_and_inner_root_neurites_to_outer_soma_variant
 		(
@@ -642,7 +644,8 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			SubsetHandler& sh,
 			std::vector<ug::Vertex*>& rootNeurites,
-			size_t numVerts
+			size_t numVerts,
+			bool merge
 		);
 
 		/*!

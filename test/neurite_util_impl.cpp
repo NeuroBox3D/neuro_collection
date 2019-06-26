@@ -195,7 +195,8 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			SubsetHandler& sh,
 			std::vector<ug::Vertex*>& rootNeurites, /// Note: is just one single array => need to iterate by stride numVerts
-			size_t numVerts /// Note: Number of vertices for outer or inner soma's polygon (4 or 12 usually)
+			size_t numVerts, /// Note: Number of vertices for outer or inner soma's polygon (4 or 12 usually)
+			bool merge=false /// merge or connect by edge
 		) {
 
 			Selector sel(g);
@@ -275,10 +276,13 @@ namespace ug {
 				}
 			}
 
-			/// Connect by edge for debugging
+			/// Connect by edge for debugging or merge
 			for (map<Vertex*, Vertex*>::iterator it = pairs.begin(); it != pairs.end(); ++it) {
-			    *g.create<RegularEdge>(EdgeDescriptor(it->first, it->second));
-			    /// TODO: Merge vertices instead
+				if (merge) {
+					MergeVertices(g, it->first, it->second);
+				} else {
+					*g.create<RegularEdge>(EdgeDescriptor(it->first, it->second));
+				}
 			}
 
 			/// Delete debugging vertices
@@ -871,6 +875,7 @@ namespace ug {
 					UG_COND_THROW( ! ((p1 != p2) && (p3 != p4)), "Non-unique vertices provided to create quadrilateral.");
 					ug::Face* f = *g.create<Quadrilateral>(QuadrilateralDescriptor(p1, p3, p4, p2));
 					UG_COND_THROW(!f, "Quadrilateral for connecting inner soma sphere (ER) with inner neurite conneting to outer sphere (PM)");
+					sh.assign_subset(f, 3); /// 3: erm
 				}
 			}
 
@@ -2246,6 +2251,7 @@ namespace ug {
 			std::vector<size_t> vSi; vSi.push_back(somaIndex); vSi.push_back(erIndex);
 			Grid gridOut;
 			SubsetHandler destSh;
+			SavePreparedGridToFile(grid, sh, "before_tetrahedralize_soma.ugx");
 			split_grid_based_on_subset_indices(grid, sh, gridOut, destSh, aaPos, vSi);
 
 			// TODO: Tetrahedralize whole subgrid then merge gridOut and grid

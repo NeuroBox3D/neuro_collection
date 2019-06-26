@@ -65,7 +65,6 @@ BOOST_AUTO_TEST_CASE(ExtractSubGrid) {
 	aaPos[p3] = ug::vector3(1, 1, 0); aaPos[p4] = ug::vector3(1, 0, 0);
 
 	/// create edges in subsets 1, 2, 3 and 4 of square
-	ug::Edge *e1, *e2, *e3, *e4;
 	sh.assign_subset(*g.create<RegularEdge>(EdgeDescriptor(p1, p2)), 1);
 	sh.assign_subset(*g.create<RegularEdge>(EdgeDescriptor(p2, p3)), 2);
 	sh.assign_subset(*g.create<RegularEdge>(EdgeDescriptor(p3, p4)), 3);

@@ -3137,7 +3137,7 @@ void create_spline_data_for_neurites
 
 	    UG_LOGN("generating neurites")
 
-		/// Could be improved to generate only first layer
+		/// TODO Could be improved to generate only first layer or get only outVerts outVertsInner outRads outRadsInner without generating grid
 	    for (size_t i = 0; i < 1; ++i) {
 	    ///for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 	    	create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
@@ -3206,10 +3206,9 @@ void create_spline_data_for_neurites
 		sh.set_subset_name("pm", 2);
 		sh.set_subset_name("erm", 3);
 		sh.set_subset_name("soma (outer)", 4);
-		/// Note: Neurite connections get their names above in the connect methods
 		sh.set_subset_name("soma (inner)", newSomaIndex);
 
-		sh.set_subset_name("soma (inner)", newSomaIndex);
+		/// Note: Neurite connections get their names respectively subset assignment above in the connect methods
 		for (int i = newSomaIndex+1; i < sh.num_subsets(); i++) {
 		  	std::stringstream ss;
 		   	ss << "inner-connex #" << i;
@@ -3231,21 +3230,26 @@ void create_spline_data_for_neurites
 
 	    UG_LOGN("Soma's inner index: " << newSomaIndex);
 	    /// connect now inner soma to neurites (This is the old strategy: New strategy is to project)
-	    /// TODO (Verify) this still works: Should use angle not distance based criterion?
+	    /// TODO (Verify) this still works: Should use angle not distance-based criterion?
 	    connect_inner_neurites_to_inner_soma(newSomaIndex, 1, g, aaPos, sh);
 	    SavePreparedGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_inner_soma_to_outer_ER.ugx");
 
 	    /// Note: Call two times for inner and outer polygon on outer soma but use the same plane defined by the outer soma's inner quad vertices
-	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12);
+	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12, true);
 
 	    /// TODO (Verify!) Extrude ER volume a little bit further into normal direction like the pyramids, then merge the vertices in connect_outer_and_inner_root_neurites_to_outer_soma_variant method will avoid self intersections
 	    extend_ER_within(g, sh, aaPos, aaSurfParams, newSomaIndex, 1, erScaleFactor, outVertsInner);
-	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(5, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4);
+	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4, true);
+	    EraseEmptySubsets(sh);
+	    AssignSubsetColors(sh);
+
+	    /// TODO: reassign elements for connecting parts ER and somata: Select erm subset and close selection and assign to erm subset
 
 	    /// Note: Below method is probably not required anymore:
    	    /// This method works only if inner and outer number of vertices of the polygon (previosuly quad) are the same, e.g. 4.
 	    /// connect_outer_and_inner_root_neurites_to_outer_soma(1, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, outVertsInner);
-	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 7); /// TODO (Verify) After merging additional subsets 5, 6 are gone
+	    /// TODO: how to select the appropriate elements for splitting the grid? use aaSurfParams?
+	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 5); /// TODO (Verify) After merging additional subsets 5, 6 are gone -> are gone
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma.ugx");
 
 	    return;
