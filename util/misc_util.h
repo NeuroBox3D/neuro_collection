@@ -27,23 +27,6 @@ namespace neuro_collection {
 ///@addtogroup plugin_neuro_collection
 ///@{
 
-/**
- * \brief Scales all functions contained in a grid function.
- *
- *	Each function has a separate scaling factor.
- *
- * \param scaledVecOut    the scaled grid function (output)
- * \param dimlessVecIn	  the original grid function (input)
- * \param scalingFactors  vector of scales for each of the composite functions
- */
-template <typename TGridFunction>
-void scale_dimless_vector
-(
-	SmartPtr<TGridFunction> scaledVecOut,
-	ConstSmartPtr<TGridFunction> dimlessVecIn,
-	const std::vector<number>& scalingFactors
-);
-
 ////////////////////////////////////////////////////////////////////////////////
 template <typename TDomain>
 void mark_global(SmartPtr<IRefiner> refiner, SmartPtr<TDomain> domain);
@@ -80,8 +63,6 @@ bool SaveGridToFile(Grid& grid, ISubsetHandler& sh, const std::string& fileName)
 
 } // namespace ug
 } // namespace neuro_collection
-
-#include "misc_util_impl.h"
 
 
 #endif // UG__PLUGINS__NEURO_COLLECTION__UTIL__MISC_UTIL_H

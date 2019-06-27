@@ -142,14 +142,7 @@ static void DomainAlgebra(Registry& reg, string grp)
 		reg.add_class_to_group(name, "WaveProfileExporter", tag);
 	}
 
-	// scaling of dimless solution vectors
-	{
-		reg.add_function("scale_dimless_vector", &scale_dimless_vector<TGridFunction>,
-			grp.c_str(), "", "scaled output vector#dimless input vector#vector of scaling factors for each function",
-			"Scales the dimensionless input vector using the given scaling factors for each function and writes "
-			"the result to the output vector");
-	}
-
+	// measurements
 	reg.add_function("take_measurement", static_cast<number (*)(SmartPtr<TGridFunction>, const number, const char*, const char*, const char*, const char*)>(&takeMeasurement<GridFunction<TDomain, TAlgebra> >), grp.c_str(),
 					 "", "solution#time#subset names#function names#output file name#output file extension",
 					 "outputs average values of unknowns on subsets");
