@@ -1,20 +1,52 @@
 /*
- * vdcc_bg.h
+ * Copyright (c) 2009-2019: G-CSC, Goethe University Frankfurt
  *
- *  Created on: 05.02.2013
- *      Author: mbreit
+ * Author: Markus Breit
+ * Creation date: 2013-02-05
+ *
+ * This file is part of NeuroBox, which is based on UG4.
+ *
+ * NeuroBox and UG4 are free software: You can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License version 3
+ * (as published by the Free Software Foundation) with the following additional
+ * attribution requirements (according to LGPL/GPL v3 §7):
+ *
+ * (1) The following notice must be displayed in the appropriate legal notices
+ * of covered and combined works: "Based on UG4 (www.ug4.org/license)".
+ *
+ * (2) The following notice must be displayed at a prominent place in the
+ * terminal output of covered works: "Based on UG4 (www.ug4.org/license)".
+ *
+ * (3) The following bibliography is recommended for citation and must be
+ * preserved in all covered files:
+ * "Reiter, S., Vogel, A., Heppner, I., Rupp, M., and Wittum, G. A massively
+ *   parallel geometric multigrid solver on hierarchically distributed grids.
+ *   Computing and visualization in science 16, 4 (2013), 151-164"
+ * "Vogel, A., Reiter, S., Rupp, M., Nägel, A., and Wittum, G. UG4 -- a novel
+ *   flexible software system for simulating PDE based models on high performance
+ *   computers. Computing and visualization in science 16, 4 (2013), 165-179"
+ * "Stepniewski, M., Breit, M., Hoffer, M. and Queisser, G.
+ *   NeuroBox: computational mathematics in multiscale neuroscience.
+ *   Computing and visualization in science (2019).
+ * "Breit, M. et al. Anatomically detailed and large-scale simulations studying
+ *   synapse loss and synchrony using NeuroBox. Front. Neuroanat. 10 (2016), 8"
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License for more details.
  */
 
-#ifndef __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__VDCC_BG_H__
-#define __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__VDCC_BG_H__
+#ifndef UG__PLUGINS__NEURO_COLLECTION__MEMBRANE_TRANSPORTERS__VDCC_BG__VDCC_BG_H
+#define UG__PLUGINS__NEURO_COLLECTION__MEMBRANE_TRANSPORTERS__VDCC_BG__VDCC_BG_H
 
 #include "../membrane_transporter_interface.h"
 #include "lib_disc/spatial_disc/disc_util/fv1_geom.h"  // for FV1ManifoldGeometry
 #include "lib_disc/spatial_disc/disc_util/hfv1_geom.h"  // for HFV1ManifoldGeometry
 #include "lib_disc/spatial_disc/elem_disc/elem_disc_interface.h"  // for IElemDisc
 
-namespace ug{
-namespace neuro_collection{
+namespace ug {
+namespace neuro_collection {
 
 ///@addtogroup plugin_neuro_collection
 ///@{
@@ -323,4 +355,4 @@ class VDCC_BG
 
 #include "vdcc_bg_impl.h"
 
-#endif // __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__VDCC_BG_H__
+#endif // UG__PLUGINS__NEURO_COLLECTION__MEMBRANE_TRANSPORTERS__VDCC_BG__VDCC_BG_H
