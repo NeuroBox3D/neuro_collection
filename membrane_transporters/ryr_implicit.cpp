@@ -98,7 +98,7 @@ void RyRImplicit<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e
 	static size_t cnt = 0;
 	if (!cnt)
 	{
-		UG_LOGN("RyR2 single channel flux: " << flux[0] << ",  pOpen = " << pOpen);
+		UG_LOGN("RyRimplicit single channel flux: " << flux[0] << ",  pOpen = " << pOpen);
 		++cnt;
 	}
 	*/
