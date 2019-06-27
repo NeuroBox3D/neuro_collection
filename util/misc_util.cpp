@@ -11,6 +11,7 @@
 #include "lib_disc/function_spaces/approximation_space.h"           // for ApproximationSpace
 #include "lib_grid/algorithms/geom_obj_util/anisotropy_util.h"      // for is_anisotropic
 #include "lib_grid/algorithms/debug_util.h"                         // for ElementDebugInfo
+#include "lib_grid/file_io/file_io.h"                               // for SaveGridToFile
 #include "lib_grid/global_attachments.h"                            // for GlobalAttachments
 #include "lib_grid/grid/neighborhood_util.h"                        // for GetConnectedNeighbor
 #include "lib_grid/refinement/projectors/neurite_projector.h"       // for NeuriteProjector
@@ -21,7 +22,8 @@
 
 namespace ug {
 namespace neuro_collection {
-////////////////////////////////////////////////////////////////////////////////
+
+
 template <typename TDomain>
 void mark_global(SmartPtr<IRefiner> refiner, SmartPtr<TDomain> domain)
 {
@@ -38,7 +40,7 @@ void mark_global(SmartPtr<IRefiner> refiner, SmartPtr<TDomain> domain)
 		refiner->mark(*iter, RM_FULL);
 }
 
-////////////////////////////////////////////////////////////////////////////////
+
 template <typename TDomain>
 void mark_anisotropic
 (
@@ -86,7 +88,7 @@ void mark_anisotropic
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////
+
 template <typename TDomain>
 void mark_anisotropic_onlyX
 (
@@ -144,7 +146,7 @@ void mark_anisotropic_onlyX
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////
+
 void MarkNeuriteForAxialRefinement(SmartPtr<IRefiner> refiner, SmartPtr<Domain3d> domain)
 {
 	typedef SurfaceView::traits<Volume>::const_iterator const_vol_it;
@@ -376,7 +378,7 @@ UG_LOGN("");
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////
+
 template <typename TDomain>
 void RemoveAllNonDefaultRefinementProjectors(SmartPtr<TDomain> dom)
 {
@@ -389,11 +391,13 @@ void RemoveAllNonDefaultRefinementProjectors(SmartPtr<TDomain> dom)
 		ph->set_projector(i, ph->default_projector());
 }
 
-////////////////////////////////////////////////////////////////////////////////
+
 bool SaveGridToFile(Grid& grid, ISubsetHandler& sh, const std::string& fileName)
 {
 	return SaveGridToFile(grid, sh, fileName.c_str());
 }
+
+
 
 // explicit template specializations
 #ifdef UG_DIM_1
