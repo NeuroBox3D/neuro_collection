@@ -5,8 +5,8 @@
  *      Author: marcuskessler, mbreit
  */
 
-#ifndef __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__RYR2_H__
-#define __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__RYR2_H__
+#ifndef UG__PLUGINS__NEURO_COLLECTION__MEMBRANE_TRANSPORTERS__RYR_INSTAT_H
+#define UG__PLUGINS__NEURO_COLLECTION__MEMBRANE_TRANSPORTERS__RYR_INSTAT_H
 
 #include "membrane_transporter_interface.h"
 #include "lib_disc/spatial_disc/elem_disc/inner_boundary/inner_boundary.h"
@@ -23,7 +23,7 @@ namespace neuro_collection {
 /// Discretization for the RyR calcium channel in the ER membrane
 /**
  * This class implements the IMembraneTransporter interface to provide flux densities
- * and their derivatives for the Keizer & Levine (1996) RyR model.
+ * and their derivatives for the Keizer & Levine (1996) RyR model (instationary).
  *
  * Units used in the implementation of this channel:
  * [Ca_cyt]  mM (= mol/m^3)
@@ -33,7 +33,7 @@ namespace neuro_collection {
  */
 
 template<typename TDomain>
-class RyR2 : public IMembraneTransporter
+class RyRinstat : public IMembraneTransporter
 {
 	public:
 		enum{_CCYT_=0, _CER_};
@@ -60,13 +60,13 @@ class RyR2 : public IMembraneTransporter
 
 	public:
 		/// @copydoc IMembraneTransporter::IMembraneTransporter(const std::vector<std::string)
-		RyR2(const std::vector<std::string>& fcts, const std::vector<std::string>& subsets, SmartPtr<ApproximationSpace<TDomain> > approx);
+		RyRinstat(const std::vector<std::string>& fcts, const std::vector<std::string>& subsets, SmartPtr<ApproximationSpace<TDomain> > approx);
 
 		/// @copydoc IMembraneTransporter::IMembraneTransporter()
-		RyR2(const char* fcts, const char* subsets, SmartPtr<ApproximationSpace<TDomain> > approx);
+		RyRinstat(const char* fcts, const char* subsets, SmartPtr<ApproximationSpace<TDomain> > approx);
 
 		/// @copydoc IMembraneTransporter::IMembraneTransporter()
-		virtual ~RyR2();
+		virtual ~RyRinstat();
 
 		/// @copydoc IMembraneTransporter::prepare_timestep()
 		virtual void prepare_timestep(number future_time, const number time, VectorProxyBase* upb);
@@ -138,5 +138,5 @@ class RyR2 : public IMembraneTransporter
 } // namespace neuro_collection
 } // namespace ug
 
-#endif // __UG__PLUGINS__EXPERIMENTAL__NEURO_COLLECTION__RYR2_H__
+#endif // UG__PLUGINS__NEURO_COLLECTION__MEMBRANE_TRANSPORTERS__RYR_INSTAT_H
 

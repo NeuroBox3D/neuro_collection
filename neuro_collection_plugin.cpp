@@ -31,13 +31,13 @@
 #include "membrane_transporters/leakage_ohmic.h"
 #include "membrane_transporters/ip3r.h"
 #include "membrane_transporters/ryr.h"
-#include "membrane_transporters/ryr2.h"
 #include "membrane_transporters/ryr_discrete.h"
 #include "membrane_transporters/ryr_implicit.h"
 #include "membrane_transporters/serca.h"
 #include "membrane_transporters/leak.h"
 #include "membrane_transporters/pmca.h"
 #include "membrane_transporters/ncx.h"
+#include "membrane_transporters/ryr_instat.h"
 #include "membrane_transporters/vdcc_bg/vdcc_bg.h"
 #include "membrane_transporters/vdcc_bg/vdcc_bg_userdata.h"
 
@@ -446,11 +446,11 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "HHSpecies", tag);
 	}
 
-	// RyR2 (time-dep. RyR implementation)
+	// RyRinstat (time-dep. RyR implementation)
 	{
-		typedef RyR2<TDomain> T;
+		typedef RyRinstat<TDomain> T;
 		typedef IMembraneTransporter TBase;
-		std::string name = std::string("RyR2").append(suffix);
+		std::string name = std::string("RyRinstat").append(suffix);
 		reg.add_class_<T, TBase>(name, grp)
 			.template add_constructor<void (*)(const char*, const char*, SmartPtr<ApproximationSpace<TDomain> >)>
 				("Functions as comma-separated string with the order: "
@@ -461,7 +461,7 @@ static void Domain(Registry& reg, string grp)
 				 "{\"cytosolic calcium\", \"endoplasmic calcium\"} # "
 				 "subsets vector, approximation space")
 			.set_construct_as_smart_pointer(true);
-		reg.add_class_to_group(name, "RyR2", tag);
+		reg.add_class_to_group(name, "RyRinstat", tag);
 	}
 
 	// fully implicit RyR

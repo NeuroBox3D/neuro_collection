@@ -5,18 +5,18 @@
  *      Author: marcuskessler, mbreit
  */
 
-#include "ryr2.h"
+#include "ryr_instat.h"
 
 #include "lib_grid/algorithms/debug_util.h"   // for ElementDebugInfo
 #include "lib_grid/grid/grid_base_objects.h"  // for VERTEX ...
 #include "lib_grid/tools/surface_view.h"      // for MG_ALL
 
-namespace ug{
-namespace neuro_collection{
+namespace ug {
+namespace neuro_collection {
 
 template<typename TDomain>
-RyR2<TDomain>::
-RyR2
+RyRinstat<TDomain>::
+RyRinstat
 (
 	const std::vector<std::string>& fcts,
 	const std::vector<std::string>& subsets,
@@ -27,14 +27,14 @@ R(8.314), T(310.0), F(96485.0),
 KAplus(1500.0e12), KBplus(1500.0e9), KCplus(1.75),
 KAminus(28.8), KBminus(385.9), KCminus(0.1),
 MU_RYR(5.0e-11), REF_CA_ER(2.5e-1),
-m_time(0.0), m_initiated(false)
+m_time(0.0), m_initTime(0.0), m_initiated(false)
 {
 	construct(subsets, approx);
 }
 
 template<typename TDomain>
-RyR2<TDomain>::
-RyR2
+RyRinstat<TDomain>::
+RyRinstat
 (
 	const char* fcts,
 	const char* subsets,
@@ -45,14 +45,14 @@ R(8.314), T(310.0), F(96485.0),
 KAplus(1500.0e12), KBplus(1500.0e9), KCplus(1.75),
 KAminus(28.8), KBminus(385.9), KCminus(0.1),
 MU_RYR(5.0e-11), REF_CA_ER(2.5e-1),
-m_time(0.0), m_initiated(false)
+m_time(0.0), m_initTime(0.0), m_initiated(false)
 {
 	construct(TokenizeString(subsets), approx);
 }
 
 
 template<typename TDomain>
-void RyR2<TDomain>::construct
+void RyRinstat<TDomain>::construct
 (
 	const std::vector<std::string>& subsets,
 	SmartPtr<ApproximationSpace<TDomain> > approx
@@ -136,7 +136,7 @@ void RyR2<TDomain>::construct
 
 
 template<typename TDomain>
-RyR2<TDomain>::~RyR2()
+RyRinstat<TDomain>::~RyRinstat()
 {
 	m_mg->template detach_from<Vertex>(this->m_aO2);
 	m_mg->template detach_from<Vertex>(this->m_aC1);
@@ -147,7 +147,7 @@ RyR2<TDomain>::~RyR2()
 
 
 template <typename TDomain>
-void RyR2<TDomain>::prepare_timestep(number future_time, const number time, VectorProxyBase* upb)
+void RyRinstat<TDomain>::prepare_timestep(number future_time, const number time, VectorProxyBase* upb)
 {
 	// before the first step: initiate to equilibrium (or init again; stationary case)
 	if (!m_initiated || future_time == m_initTime)
@@ -294,7 +294,7 @@ void RyR2<TDomain>::prepare_timestep(number future_time, const number time, Vect
 
 
 template<typename TDomain>
-void RyR2<TDomain>::init(number time, VectorProxyBase* upb)
+void RyRinstat<TDomain>::init(number time, VectorProxyBase* upb)
 {
 	this->m_time = time;
 	this->m_initTime = time;
@@ -369,7 +369,7 @@ void RyR2<TDomain>::init(number time, VectorProxyBase* upb)
 
 template<typename TDomain>
 template<typename TBaseElem>
-number RyR2<TDomain>::open_prob(GridObject* o) const
+number RyRinstat<TDomain>::open_prob(GridObject* o) const
 {
 	TBaseElem* e = static_cast<TBaseElem*>(o);
 	number pOpen = 0.0;
@@ -386,7 +386,7 @@ number RyR2<TDomain>::open_prob(GridObject* o) const
 
 
 template<typename TDomain>
-number RyR2<TDomain>::open_prob_for_grid_object(GridObject* o) const
+number RyRinstat<TDomain>::open_prob_for_grid_object(GridObject* o) const
 {
 	switch (o->base_object_id())
 	{
@@ -409,7 +409,7 @@ number RyR2<TDomain>::open_prob_for_grid_object(GridObject* o) const
 
 
 template<typename TDomain>
-void RyR2<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
+void RyRinstat<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
 {
 	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
 	number caER = u[_CER_];		// ER Ca2+ concentration
@@ -429,7 +429,7 @@ void RyR2<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::
 	static size_t cnt = 0;
 	if (!cnt)
 	{
-		UG_LOGN("RyR2 single channel flux: " << flux[0] << ",  pOpen = " << pOpen);
+		UG_LOGN("RyRinstat single channel flux: " << flux[0] << ",  pOpen = " << pOpen);
 		++cnt;
 	}
 	*/
@@ -437,7 +437,7 @@ void RyR2<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::
 
 
 template<typename TDomain>
-void RyR2<TDomain>::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
+void RyRinstat<TDomain>::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
 	number pOpen = open_prob_for_grid_object(e);
 	number deriv_value = pOpen * R*T/(4*F*F) * MU_RYR/REF_CA_ER;
@@ -459,7 +459,7 @@ void RyR2<TDomain>::calc_flux_deriv(const std::vector<number>& u, GridObject* e,
 
 
 template<typename TDomain>
-size_t RyR2<TDomain>::n_dependencies() const
+size_t RyRinstat<TDomain>::n_dependencies() const
 {
 	size_t n = 2;
 	if (has_constant_value(_CCYT_))
@@ -472,14 +472,14 @@ size_t RyR2<TDomain>::n_dependencies() const
 
 
 template<typename TDomain>
-size_t RyR2<TDomain>::n_fluxes() const
+size_t RyRinstat<TDomain>::n_fluxes() const
 {
 	return 1;
 };
 
 
 template<typename TDomain>
-const std::pair<size_t,size_t> RyR2<TDomain>::flux_from_to(size_t flux_i) const
+const std::pair<size_t,size_t> RyRinstat<TDomain>::flux_from_to(size_t flux_i) const
 {
     size_t from, to;
     if (allows_flux(_CCYT_)) to = local_fct_index(_CCYT_); else to = InnerBoundaryConstants::_IGNORE_;
@@ -490,14 +490,14 @@ const std::pair<size_t,size_t> RyR2<TDomain>::flux_from_to(size_t flux_i) const
 
 
 template<typename TDomain>
-const std::string RyR2<TDomain>::name() const
+const std::string RyRinstat<TDomain>::name() const
 {
-	return std::string("RyR2");
+	return std::string("RyRinstat");
 };
 
 
 template<typename TDomain>
-void RyR2<TDomain>::check_supplied_functions() const
+void RyRinstat<TDomain>::check_supplied_functions() const
 {
 	// Check that not both, inner and outer calcium concentrations are not supplied;
 	// in that case, calculation of a flux would be of no consequence.
@@ -511,7 +511,7 @@ void RyR2<TDomain>::check_supplied_functions() const
 
 
 template<typename TDomain>
-void RyR2<TDomain>::print_units() const
+void RyRinstat<TDomain>::print_units() const
 {
 	std::string nm = name();
 	size_t n = nm.size();
@@ -532,13 +532,13 @@ void RyR2<TDomain>::print_units() const
 
 // explicit template specializations
 #ifdef UG_DIM_1
-	template class RyR2<Domain1d>;
+	template class RyRinstat<Domain1d>;
 #endif
 #ifdef UG_DIM_2
-	template class RyR2<Domain2d>;
+	template class RyRinstat<Domain2d>;
 #endif
 #ifdef UG_DIM_3
-	template class RyR2<Domain3d>;
+	template class RyRinstat<Domain3d>;
 #endif
 
 
