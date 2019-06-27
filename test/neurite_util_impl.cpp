@@ -2229,7 +2229,6 @@ namespace ug {
 			sel.clear();
 
 			// assign quadrilterals to soma part
-			size_t oldDefaultSubsetIndex = sh.get_default_subset_index();
 			Grid::traits<Quadrilateral>::secure_container quadCont;
 			find_quadrilaterals_constrained(grid, aaSurfParams, quadCont);
 			sh.set_default_subset_index(somaIndex);
@@ -2244,7 +2243,7 @@ namespace ug {
 			// Create pyramids at connectiong region of soma and dendrite
 			for (size_t i = 0; i < quadCont.size(); i++) {
 				sh.assign_subset(quadCont[i], somaIndex);
-				const ug::Pyramid* const pyramid = create_pyramid(grid, quadCont[i], aaPos, scale);
+				create_pyramid(grid, quadCont[i], aaPos, scale);
 			}
 
 			// Extract submesh from grid (ignore neurites)
@@ -2278,7 +2277,7 @@ namespace ug {
 			UG_COND_THROW(quadCont.size() != 1, "Only one quad should be available for the ER");
 			ug::vector3 vNormOut;
 			CalculateNormal(vNormOut, quadCont[0], aaPos);
-			ug::vector3 center = CalculateCenter(quadCont[0], aaPos);
+			//ug::vector3 center = CalculateCenter(quadCont[0], aaPos);
 			std::vector<Edge*> vEdges;
             Grid::traits<Edge>::secure_container edges;
             grid.associated_elements(edges, quadCont[0]);
