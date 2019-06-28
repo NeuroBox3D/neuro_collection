@@ -2285,7 +2285,7 @@ namespace ug {
 			SubsetHandler destSh;
 			SavePreparedGridToFile(grid, sh, "before_tetrahedralize_soma.ugx");
 			split_grid_based_on_subset_indices(grid, sh, gridOut, destSh, aaPos, vSi);
-			///split_grid_based_on_selection(grid, sh, gridOut, destSh, aaPos, somaPoint);
+			/// split_grid_based_on_selection(grid, sh, gridOut, destSh, aaPos, somaPoint);
 
 			// TODO: Tetrahedralize whole subgrid then merge gridOut and grid
 			/// Tetrahedralize(gridOut, 5, true, false, aPosition, 0);

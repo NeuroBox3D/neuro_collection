@@ -3264,21 +3264,21 @@ void create_spline_data_for_neurites
 	    }
 
 	    UG_LOGN("Soma's inner index: " << newSomaIndex);
-	    /// connect now inner soma to neurites (This is the old strategy: New strategy is to project)
-	    /// TODO (Verify) this still works: Should use angle not distance-based criterion?
+	    /// connect now inner soma to neurites (This is the old strategy: New strategy is to project and find corresponding vertices)
+	    /// TODO: Verify: Does this still work? Should use angle not distance-based criterion?
 	    connect_inner_neurites_to_inner_soma(newSomaIndex, 1, g, aaPos, sh);
 	    SavePreparedGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_inner_soma_to_outer_ER.ugx");
 
 	    /// Note: Call two times for inner and outer polygon on outer soma but use the same plane defined by the outer soma's inner quad vertices
 	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12, true);
 
-	    /// TODO (Verify!) Extrude ER volume a little bit further into normal direction like the pyramids, then merge the vertices in connect_outer_and_inner_root_neurites_to_outer_soma_variant method will avoid self intersections
-	    extend_ER_within(g, sh, aaPos, aaSurfParams, newSomaIndex, 1, erScaleFactor, outVertsInner); /// TODO: need to set aasurfParams axial for the new vertices...
+	    /// TODO Verify: Extrude ER volume a little bit further into normal direction like the pyramids, then merge the vertices in connect_outer_and_inner_root_neurites_to_outer_soma_variant method will avoid self intersections
+	    extend_ER_within(g, sh, aaPos, aaSurfParams, newSomaIndex, 1, erScaleFactor, outVertsInner); /// TODO: need to set aasurfParams axial for the new vertices... and for somatas when created (Cf. above)
 	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4, true);
 	    EraseEmptySubsets(sh);
 	    AssignSubsetColors(sh);
 
-	    /// TODO: reassign elements for connecting parts ER and somata: Select erm subset and close selection and assign to erm subset
+	    /// TODO: Verify: Reassign elements for connecting parts ER and somata
 	    sel.clear();
 	    SelectSubset(sel, sh, 3, true);
 	    CloseSelection(sel);
@@ -3288,12 +3288,15 @@ void create_spline_data_for_neurites
 	    /// Note: Below method is probably not required anymore:
    	    /// This method works only if inner and outer number of vertices of the polygon (previosuly quad) are the same, e.g. 4.
 	    /// connect_outer_and_inner_root_neurites_to_outer_soma(1, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, outVertsInner);
-	    /// TODO: how to select the appropriate elements for splitting the grid? use aaSurfParams? Use SelectElementsByAxialPosition is better -> then tetrahedralize
-	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 5, savedSomaPoint); /// TODO (Verify) After merging additional subsets 5, 6 are gone -> are gone
+	    /// TODO: Use: SelectElementsByAxialPosition to select all elements with axial < 0, which are part of the soma which should be tetrahedralized.
+	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 5, savedSomaPoint);
+	    /// TODO: Verify: After merging additional subsets 5, 6 are gone -> are gone
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma.ugx");
 
 	    return;
-   		/// TODO Tested until here (Projection destroys soma? Need to address this in neurite_projector.cpp and assign aaSurfParams during grid generation)
+   		/// TODO Tested until here (Projection destroys soma? Need to address this in neurite_projector.cpp
+	    /// and assign appropriate aaSurfParams during grid generation to ensure this)
+
 	    // at branching points, we have not computed the correct positions yet,
 		// so project the complete geometry using the projector
 		VertexIterator vit = g.begin<Vertex>();
