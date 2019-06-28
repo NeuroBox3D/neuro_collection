@@ -3113,6 +3113,8 @@ void create_spline_data_for_neurites
 		convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 	    std::vector<SWCPoint> somaPoint = vSomaPoints;
 
+	    std::vector<SWCPoint> savedSomaPoint = vSomaPoints;
+
 		// prepare grid and projector
 		Grid g;
 		SubsetHandler sh(g);
@@ -3147,6 +3149,7 @@ void create_spline_data_for_neurites
 	    import_swc_old(fn_precond_with_soma, vPoints, correct, 1.0);
 	    UG_LOGN("converted to neuritelist 2!")
 	    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+
 
 		SubsetHandler psh(g);
 		psh.set_default_subset_index(0);
@@ -3270,18 +3273,23 @@ void create_spline_data_for_neurites
 	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12, true);
 
 	    /// TODO (Verify!) Extrude ER volume a little bit further into normal direction like the pyramids, then merge the vertices in connect_outer_and_inner_root_neurites_to_outer_soma_variant method will avoid self intersections
-	    extend_ER_within(g, sh, aaPos, aaSurfParams, newSomaIndex, 1, erScaleFactor, outVertsInner);
+	    extend_ER_within(g, sh, aaPos, aaSurfParams, newSomaIndex, 1, erScaleFactor, outVertsInner); /// TODO: need to set aasurfParams axial for the new vertices...
 	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4, true);
 	    EraseEmptySubsets(sh);
 	    AssignSubsetColors(sh);
 
 	    /// TODO: reassign elements for connecting parts ER and somata: Select erm subset and close selection and assign to erm subset
+	    sel.clear();
+	    SelectSubset(sel, sh, 3, true);
+	    CloseSelection(sel);
+	    AssignSelectionToSubset(sel, sh, 3);
+	    SavePreparedGridToFile(g, sh, "before_tetrahedralize_and_after_reassigned.ugx");
 
 	    /// Note: Below method is probably not required anymore:
    	    /// This method works only if inner and outer number of vertices of the polygon (previosuly quad) are the same, e.g. 4.
 	    /// connect_outer_and_inner_root_neurites_to_outer_soma(1, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, outVertsInner);
-	    /// TODO: how to select the appropriate elements for splitting the grid? use aaSurfParams?
-	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 5); /// TODO (Verify) After merging additional subsets 5, 6 are gone -> are gone
+	    /// TODO: how to select the appropriate elements for splitting the grid? use aaSurfParams? Use SelectElementsByAxialPosition is better -> then tetrahedralize
+	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 5, savedSomaPoint); /// TODO (Verify) After merging additional subsets 5, 6 are gone -> are gone
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma.ugx");
 
 	    return;

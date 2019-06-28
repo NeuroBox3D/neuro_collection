@@ -41,6 +41,7 @@
 #include <common/math/ugmath.h>
 #include <lib_grid/grid/grid.h>
 #include <lib_grid/global_attachments.h>
+#include <lib_grid/algorithms/grid_generation/icosahedron.h>
 
 using namespace ug;
 
@@ -61,9 +62,8 @@ struct FixtureOneGrid {
 
 	/*!
 	 * \brief set up a quadrilateral with optional axial and radial parameters
-	 * \param[in] axial
 	 */
-	FixtureOneGrid(number axial=0.0, size_t si=0, number radial=1.0) : axial(axial), si (si), radial(radial) {
+	FixtureOneGrid() : axial(0.0), si (0), radial(1.0) {
 		// create vertices
 		g.attach_to_vertices(aPosition);
 		aaPos = Grid::VertexAttachmentAccessor<APosition>(g, aPosition);
@@ -177,5 +177,27 @@ struct FixtureTwoGrid {
 		sh2.assign_subset(p32, 1);
 		sh2.assign_subset(p42, 1);
 		sh2.assign_subset(quad2, 1);
+	}
+};
+
+/*!
+ * \brief unit sphere fixture
+ */
+struct FixtureSphere {
+	Grid g;
+	SubsetHandler sh;
+	Grid::VertexAttachmentAccessor<APosition> aaPos;
+	ug::vector3 center;
+	number radius;
+	/*!
+	 * \brief creates a sphere
+	 */
+	FixtureSphere() : center(ug::vector3(0, 0, 0)), radius(1.0) {
+		g.attach_to_vertices(aPosition);
+		aaPos = Grid::VertexAttachmentAccessor<APosition>(g, aPosition);
+		sh = SubsetHandler(g);
+		sh.set_default_subset_index(0);
+		Selector sel(g);
+		GenerateIcosphere(g, center, radius, 0, aPosition, &sel);
 	}
 };

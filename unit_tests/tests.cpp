@@ -148,6 +148,20 @@ BOOST_FIXTURE_TEST_CASE(MergeTwoGrids, FixtureTwoGrid) {
 	BOOST_CHECK_MESSAGE(sh1.num<Quadrilateral>() == 2, "Checking 2 quadrilaterals in merged grid");
 }
 
+////////////////////////////////////////////////////////////////////////
+BOOST_FIXTURE_TEST_CASE(SelectElementsInUnitSphere, FixtureSphere) {
+	Selector sel(g);
+	SelectElementsInSphere<ug::Vertex>(g, sel, ug::vector3(0, 0, 0), 1, aaPos);
+	InvertSelection(sel);
+	BOOST_REQUIRE_MESSAGE(g.num<Vertex>() == 12, "Requiring 12 vertices in original grid");
+	InvertSelection(sel);
+	EraseSelectedObjects(sel);
+	BOOST_REQUIRE_MESSAGE(g.num_vertices() == 0, "Requiring empty grid (all vertices erased)");
+	BOOST_REQUIRE_MESSAGE(g.num_edges() == 0, "Requiring empty grid (all vertices erased thus no further edge elements)");
+	BOOST_REQUIRE_MESSAGE(g.num_faces() == 0, "Requiring empty grid (all vertices erased thus no further face elements)");
+	BOOST_REQUIRE_MESSAGE(g.num_volumes() == 0, "Requiring empty grid (all vertices erased thus no further volume elements)");
+}
+
 BOOST_AUTO_TEST_SUITE_END();
 ////////////////////////////////////////////////////////////////////////
 /// neuro_collection/test tests

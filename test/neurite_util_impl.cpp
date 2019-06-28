@@ -2251,6 +2251,7 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 			size_t somaIndex,
 			size_t erIndex,
+			const std::vector<SWCPoint>& somaPoint,
 			number scale
 		) {
 			Selector sel(grid);
@@ -2284,9 +2285,11 @@ namespace ug {
 			SubsetHandler destSh;
 			SavePreparedGridToFile(grid, sh, "before_tetrahedralize_soma.ugx");
 			split_grid_based_on_subset_indices(grid, sh, gridOut, destSh, aaPos, vSi);
+			///split_grid_based_on_selection(grid, sh, gridOut, destSh, aaPos, somaPoint);
 
 			// TODO: Tetrahedralize whole subgrid then merge gridOut and grid
 			/// Tetrahedralize(gridOut, 5, true, false, aPosition, 0);
+			/// MergeFirstGrids(...)
 		}
 
 		////////////////////////////////////////////////////////////////////////
@@ -2375,6 +2378,36 @@ namespace ug {
 					}
 				}
 			}
+		}
+
+
+
+		////////////////////////////////////////////////////////////////////////
+		/// split_grid_based_on_selection
+		////////////////////////////////////////////////////////////////////////
+		void split_grid_based_on_selection
+		(
+			Grid& gridIn,
+			ISubsetHandler& srcSh,
+			Grid& gridOut,
+			ISubsetHandler& destSh,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			const std::vector<SWCPoint>& somaPoint
+		) {
+			gridOut.attach_to_vertices(aPosition);
+			SubsetHandler sh(gridOut);
+			CopyGrid<APosition>(gridIn, gridOut, srcSh, sh, aPosition);
+			Selector sel(gridOut); sel.clear();
+			SelectElementsInSphere<ug::Vertex>(gridOut, sel, somaPoint[0].coords, somaPoint[0].radius*0.55, aaPos);
+
+			// invert
+			InvertSelection(sel);
+
+			// erase selection
+			EraseSelectedObjects(sel);
+
+			// save grid
+			SavePreparedGridToFile(gridOut, sh, "after_splitting_the_grid_and_copying.ugx");
 		}
 
 		////////////////////////////////////////////////////////////////////////

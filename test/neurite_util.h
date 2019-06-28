@@ -692,6 +692,7 @@ namespace ug {
 		 * \param[in] somaIndex
 		 * \param[in] erIndex
 		 * \param[in] scale
+		 * \param[in] somaPoint
 		 */
 		void tetrahedralize_soma
 		(
@@ -701,6 +702,7 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 			size_t somaIndex,
 			size_t erIndex,
+			const std::vector<SWCPoint>& somaPoint,
 			number scale = -1.0
 		);
 
@@ -797,7 +799,62 @@ namespace ug {
 		);
 
 		/*!
-		 * \brief selects elements whose center lies within a sphere specified by center and radius
+		 * \brief splits a grid into two subgrids based on the provided selection
+		 * \param[in] gridIn
+		 * \param[in] srcSh
+		 * \param[out] gridOut
+		 * \param[out] destSh
+		 * \param[in,out] aaPos
+		 * \param[in] somaPoint
+		 */
+		void split_grid_based_on_selection
+		(
+			Grid& gridIn,
+			ISubsetHandler& srcSh,
+			Grid& gridOut,
+			ISubsetHandler& destSh,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			const std::vector<SWCPoint>& somaPoint
+		);
+
+		/*!
+		 * \brief selects elements whose axial surface parameter is smaller than given
+		 * \param[in] grid
+		 * \param[out] sel
+		 * \param[in] axial
+		 * \param[in,out] aaPos
+		 * \param[in] aaSurfParams
+		 */
+		template <class TElem>
+		void SelectElementsByAxialPosition
+		(
+			Grid& grid,
+			Selector& sel,
+			number axial,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams
+		)
+		{
+			for(typename Grid::traits<TElem>::iterator iter = grid.begin<TElem>();
+							iter != grid.end<TElem>(); ++iter)
+			{
+				bool select = true;
+				for (size_t i = 0; i < iter->num_vertices(); ++i) {
+					if (! aaSurfParams[iter->vertex(i)].axial <= axial) {
+						select = false;
+						break;
+					}
+				}
+
+				if (select) {
+					sel.select(iter);
+				}
+			}
+		}
+
+
+		/*!
+		 * \brief selects elements whose center lies within or on a sphere specified by center and radius
 		 * \param[in] grid
 		 * \param[out] sel
 		 * \param[in] center
@@ -811,18 +868,20 @@ namespace ug {
 			Selector& sel,
 			const ug::vector3& center,
 			number radius,
-			Grid::VertexAttachmentAccessor<APosition>& aaPos)
+			Grid::VertexAttachmentAccessor<APosition>& aaPos
+		)
 		{
 			for(typename Grid::traits<TElem>::iterator iter = grid.begin<TElem>();
 				iter != grid.end<TElem>(); ++iter)
 			{
 				vector3 c = CalculateCenter(*iter, aaPos);
 				vector3 diff;
-				VecSubtract(diff, center, c);
-				VecPow(diff, diff, 2);
-				number s = diff.x() + diff.y()  + diff.z();
-				if(s <= sq(radius))
+				VecSubtract(diff, c, center);
+				VecPow(diff, diff, 2.0);
+				number s = diff.x() + diff.y() + diff.z();
+				if(s <= (sq(radius) + SMALL)) {
 					sel.select(*iter);
+				}
 			}
 		}
 
