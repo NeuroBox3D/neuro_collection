@@ -282,7 +282,8 @@ namespace ug {
 			size_t numQuads, /// number of total surface quads or neurites to connect to
 		    Grid& grid,
 		    Grid::VertexAttachmentAccessor<APosition>& aaPos,
-			SubsetHandler& sh
+			SubsetHandler& sh,
+		    Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams
 		);
 
 		/*!

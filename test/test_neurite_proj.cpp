@@ -3265,32 +3265,30 @@ void create_spline_data_for_neurites
 
 	    UG_LOGN("Soma's inner index: " << newSomaIndex);
 	    /// connect now inner soma to neurites (This is the old strategy: New strategy is to project and find corresponding vertices)
-	    /// TODO: Verify: Does this still work? Should use angle not distance-based criterion?
-	    connect_inner_neurites_to_inner_soma(newSomaIndex, 1, g, aaPos, sh);
+	    /// Note: Does this still work? Should use angle not distance-based criterion?
+	    connect_inner_neurites_to_inner_soma(newSomaIndex, 1, g, aaPos, sh, aaSurfParams); // TODO: set aaSurfParams.axial correctly
 	    SavePreparedGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_inner_soma_to_outer_ER.ugx");
 
 	    /// Note: Call two times for inner and outer polygon on outer soma but use the same plane defined by the outer soma's inner quad vertices
 	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12, true);
 
-	    /// TODO Verify: Extrude ER volume a little bit further into normal direction like the pyramids, then merge the vertices in connect_outer_and_inner_root_neurites_to_outer_soma_variant method will avoid self intersections
+	    /// Verified: Extrude ER volume a little bit further into normal direction like the pyramids, then merge the vertices in connect_outer_and_inner_root_neurites_to_outer_soma_variant method will avoid self intersections
 	    extend_ER_within(g, sh, aaPos, aaSurfParams, newSomaIndex, 1, erScaleFactor, outVertsInner); /// TODO: need to set aasurfParams axial for the new vertices... and for somatas when created (Cf. above)
 	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4, true);
 	    EraseEmptySubsets(sh);
 	    AssignSubsetColors(sh);
 
-	    /// TODO: Verify: Reassign elements for connecting parts ER and somata
+	    /// Verified: Reassign elements for connecting parts ER and somata
 	    sel.clear();
 	    SelectSubset(sel, sh, 3, true);
 	    CloseSelection(sel);
 	    AssignSelectionToSubset(sel, sh, 3);
 	    SavePreparedGridToFile(g, sh, "before_tetrahedralize_and_after_reassigned.ugx");
 
-	    /// Note: Below method is probably not required anymore:
    	    /// This method works only if inner and outer number of vertices of the polygon (previosuly quad) are the same, e.g. 4.
 	    /// connect_outer_and_inner_root_neurites_to_outer_soma(1, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, outVertsInner);
-	    /// TODO: Use: SelectElementsByAxialPosition to select all elements with axial < 0, which are part of the soma which should be tetrahedralized.
 	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 5, savedSomaPoint);
-	    /// TODO: Verify: After merging additional subsets 5, 6 are gone -> are gone
+	    /// Verified: After merging additional subsets 5, 6 are gone
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma.ugx");
 
 	    return;

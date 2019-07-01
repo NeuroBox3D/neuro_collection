@@ -47,7 +47,7 @@
 #include "lib_grid/grid/neighborhood_util.h"
 #include <lib_grid/file_io/file_io.h>
 #include <cmath>
-#include "nc_config.h"
+/// #include "nc_config.h"
 #include <boost/lexical_cast.hpp>
 
 namespace ug {
@@ -626,7 +626,8 @@ namespace ug {
 			size_t numQuads, /// number of total surface quads or neurites to connect to
 		    Grid& g,
 		    Grid::VertexAttachmentAccessor<APosition>& aaPos,
-		    SubsetHandler& sh
+		    SubsetHandler& sh,
+		    Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams
 		) {
 			Selector::traits<Vertex>::iterator vit;
 			Selector::traits<Vertex>::iterator vit_end;
@@ -904,6 +905,11 @@ namespace ug {
 					ug::Vertex* p2 = e->vertex(1);
 					ug::Vertex* p3 = myPairs2[e->vertex(0)];
 					ug::Vertex* p4 = myPairs2[e->vertex(1)];
+					/// TODO: Change this. Dummy values to pretend to be inside soma for SelectElementsByAxialPosition
+					aaSurfParams[p1].axial = -0.5;
+					aaSurfParams[p2].axial = -0.5;
+					aaSurfParams[p3].axial = -0.5;
+					aaSurfParams[p4].axial = -0.5;
 					UG_COND_THROW( ! ((p1 != p2) && (p3 != p4)), "Non-unique vertices provided to create quadrilateral.");
 					ug::Face* f = *g.create<Quadrilateral>(QuadrilateralDescriptor(p1, p3, p4, p2));
 					UG_COND_THROW(!f, "Quadrilateral for connecting inner soma sphere (ER) with inner neurite conneting to outer sphere (PM)");
@@ -2284,12 +2290,21 @@ namespace ug {
 			Grid gridOut;
 			SubsetHandler destSh;
 			SavePreparedGridToFile(grid, sh, "before_tetrahedralize_soma.ugx");
-			split_grid_based_on_subset_indices(grid, sh, gridOut, destSh, aaPos, vSi);
-			/// split_grid_based_on_selection(grid, sh, gridOut, destSh, aaPos, somaPoint);
+			sel.clear();
+			SelectElementsByAxialPosition<Face>(grid, sel, 0.0, aaPos, aaSurfParams);
+			CloseSelection(sel);
+			InvertSelection(sel);
+			EraseSelectedObjects(sel);
+			SavePreparedGridToFile(grid, sh, "before_tetrahedralize_soma_and_after_selecting.ugx");
 
-			// TODO: Tetrahedralize whole subgrid then merge gridOut and grid
-			/// Tetrahedralize(gridOut, 5, true, false, aPosition, 0);
-			/// MergeFirstGrids(...)
+			// Tetrahedralizes somata
+			Tetrahedralize(grid, 2, true, false, aPosition, 0);
+			SavePreparedGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
+
+			/// TODO: Check merged grids: grid (contains somata) and gridOut (contains neurites)
+			/// Note: Do not erase empty subset. If we keep all subsets then subset indices
+			/// will correspond 1-to-1 between grids grid and gridOut during merging process
+			// MergeFirstGrids(grid, gridOut, destSh, sh);
 		}
 
 		////////////////////////////////////////////////////////////////////////
@@ -2321,9 +2336,12 @@ namespace ug {
 			for (size_t i = 0; i < quadCont[0]->size(); i++) vertices.push_back(quadCont[0]->vertex(i));
 			for (size_t i = 0; i < edges.size(); i++) vEdges.push_back(edges[i]);
 
-			/// extrude in normal direction
+			/// extrude in normal direction with amount of "scale" of ER
 			Extrude(grid, &vertices, &vEdges, NULL, -vNormOut, aaPos, EO_CREATE_FACES | EO_CREATE_VOLUMES);
 			SavePreparedGridToFile(grid, sh, "after_extend_ER_within.ugx");
+			for (size_t i = 0; i < vertices.size(); i++) {
+				aaSurfParams[vertices[i]].axial = -scale;
+			}
 			outVertsInner.assign(vertices.begin(), vertices.end());
 	    }
 
@@ -2438,7 +2456,7 @@ namespace ug {
 			// erase selection
 			EraseSelectedObjects(sel);
 
-			// save grid (TODO: dont erase empty subsets because we need to merge subsets again / e.g. join em)
+			// save grid
 			SavePreparedGridToFile(gridOut, sh, "after_splitting_the_grid_and_copying.ugx");
 		}
 
