@@ -2288,7 +2288,10 @@ namespace ug {
 			// Extract submesh from grid (ignore neurites)
 			std::vector<size_t> vSi; vSi.push_back(somaIndex); vSi.push_back(erIndex);
 			Grid gridOut;
-			SubsetHandler destSh;
+			SubsetHandler destSh(gridOut);
+			gridOut.attach_to_vertices(aPosition);
+			CopyGrid<APosition>(grid, gridOut, sh, destSh, aPosition);
+			SavePreparedGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_copying_grid.ugx");
 			SavePreparedGridToFile(grid, sh, "before_tetrahedralize_soma.ugx");
 			sel.clear();
 			SelectElementsByAxialPosition<Face>(grid, sel, 0.0, aaPos, aaSurfParams);
@@ -2296,15 +2299,23 @@ namespace ug {
 			InvertSelection(sel);
 			EraseSelectedObjects(sel);
 			SavePreparedGridToFile(grid, sh, "before_tetrahedralize_soma_and_after_selecting.ugx");
+			sel.clear();
+			/*
+			Selector sel2(gridOut);
+			SelectElementsByAxialPosition<Face>(gridOut, sel2, 0.0, aaPos, aaSurfParams);
+			CloseSelection(sel2);
+			EraseSelectedObjects(sel2);
+			*/
+			SavePreparedGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_selecting_complement.ugx");
 
 			// Tetrahedralizes somata
 			Tetrahedralize(grid, 2, true, false, aPosition, 0);
 			SavePreparedGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
 
-			/// TODO: Check merged grids: grid (contains somata) and gridOut (contains neurites)
-			/// Note: Do not erase empty subset. If we keep all subsets then subset indices
+			/// Verified. Check merged grids: grid (contains somata) and gridOut (contains neurites)
+			/// Note/TODO: Do not erase empty subset. If we keep all subsets then subset indices
 			/// will correspond 1-to-1 between grids grid and gridOut during merging process
-			// MergeFirstGrids(grid, gridOut, destSh, sh);
+			MergeFirstGrids(grid, gridOut, sh, destSh);
 		}
 
 		////////////////////////////////////////////////////////////////////////
