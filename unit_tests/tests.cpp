@@ -162,6 +162,25 @@ BOOST_FIXTURE_TEST_CASE(SelectElementsInUnitSphere, FixtureSphere) {
 	BOOST_REQUIRE_MESSAGE(g.num_volumes() == 0, "Requiring empty grid (all vertices erased thus no further volume elements)");
 }
 
+////////////////////////////////////////////////////////////////////////
+BOOST_FIXTURE_TEST_CASE(SelectElementsInUnitSphereByAxialPosition, FixtureSphereAxial) {
+	Selector sel(g);
+	BOOST_REQUIRE_MESSAGE(g.num<Face>() == 20, "Requiring 20 faces in total in original grid");
+
+	/// positive test (should select all elements of unit sphere since they have aaSurfParams.axial = -1.0)
+	SelectElementsByAxialPosition<Face>(g, sel, 0.0, aaPos, aaSurfParams);
+	BOOST_REQUIRE_MESSAGE(sel.num<Face>() == 20, "Requiring 20 faces in total in selection.");
+	CloseSelection(sel);
+	BOOST_REQUIRE_MESSAGE(sel.num<Vertex>() == 12, "Requiring 12 vertices in total in selection.");
+
+	/// negative test
+	sel.clear();
+	SelectElementsByAxialPosition<Face>(g, sel, -2.0, aaPos, aaSurfParams);
+	BOOST_REQUIRE_MESSAGE(sel.num<Face>() == 0, "Requiring 0 faces in total in selection.");
+	CloseSelection(sel);
+	BOOST_REQUIRE_MESSAGE(sel.num<Vertex>() == 0, "Requiring 0 vertices in total in selection.");
+}
+
 BOOST_AUTO_TEST_SUITE_END();
 ////////////////////////////////////////////////////////////////////////
 /// neuro_collection/test tests

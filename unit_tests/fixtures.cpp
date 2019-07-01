@@ -201,3 +201,37 @@ struct FixtureSphere {
 		GenerateIcosphere(g, center, radius, 0, aPosition, &sel);
 	}
 };
+
+/*!
+ * \brief unit sphere fixture axial
+ */
+struct FixtureSphereAxial {
+	typedef NeuriteProjector::SurfaceParams NPSP;
+	Grid g;
+	SubsetHandler sh;
+	Grid::VertexAttachmentAccessor<APosition> aaPos;
+	ug::vector3 center;
+	number radius;
+    Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
+	/*!
+	 * \brief creates a sphere with axial parameters
+	 */
+	FixtureSphereAxial() : center(ug::vector3(0, 0, 0)), radius(1.0) {
+		g.attach_to_vertices(aPosition);
+		aaPos = Grid::VertexAttachmentAccessor<APosition>(g, aPosition);
+		sh = SubsetHandler(g);
+		sh.set_default_subset_index(0);
+		Selector sel(g);
+		GenerateIcosphere(g, center, radius, 0, aPosition, &sel);
+		GlobalAttachments::declare_attachment<Attachment<NPSP> >("npSurfParams", true);
+	    UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
+	            "GlobalAttachment 'npSurfParams' not declared.");
+	    Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
+	    if (!g.has_vertex_attachment(aSP))
+	        g.attach_to_vertices(aSP);
+	    aaSurfParams.access(g, aSP);
+	    for(VertexIterator iter = g.vertices_begin(); iter != g.vertices_end(); ++iter) {
+	    	aaSurfParams[*iter].axial = -1.0;
+	    }
+	}
+};

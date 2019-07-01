@@ -2526,5 +2526,63 @@ namespace ug {
 				mrgSH.subset_info(subsetBaseInd + i_sub) = sh.subset_info(i_sub);
 			}
 		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// SelectElementsByAxialPosition
+		////////////////////////////////////////////////////////////////////////
+		template <class TElem>
+		void SelectElementsByAxialPosition
+		(
+			Grid& grid,
+			Selector& sel,
+			number axial,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams
+		)
+		{
+			for (typename Grid::traits<TElem>::iterator iter = grid.begin<TElem>();
+					iter != grid.end<TElem>(); ++iter)
+			{
+				bool select = true;
+				TElem* elem = *iter;
+				for (size_t i = 0; i < elem->num_vertices(); ++i) {
+					if (! (aaSurfParams[elem->vertex(i)].axial <= axial)) {
+						select = false;
+						break;
+					}
+				}
+				if (select) {
+					sel.select(*iter);
+				}
+			}
+		}
+
+		template <>
+		void SelectElementsByAxialPosition<Vertex>
+		(
+			Grid& grid,
+			Selector& sel,
+			number axial,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams
+		) {
+			for (VertexIterator::iterator iter = grid.vertices_begin();
+					iter != grid.vertices_end(); ++iter)
+			{
+				if (aaSurfParams[*iter].axial <= axial) {
+					sel.select(*iter);
+				}
+			}
+		}
+
+		template void SelectElementsByAxialPosition<Edge>(Grid&, Selector&, number,
+				Grid::VertexAttachmentAccessor<APosition>&,
+				Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >&);
+		template void SelectElementsByAxialPosition<Face>(Grid&, Selector&, number,
+				Grid::VertexAttachmentAccessor<APosition>&,
+				Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >&);
+		template void SelectElementsByAxialPosition<Volume>(Grid&, Selector&, number,
+				Grid::VertexAttachmentAccessor<APosition>&,
+				Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >&);
 	}
 }
