@@ -2339,12 +2339,15 @@ namespace ug {
 			SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_selecting_complement.ugx");
 
 			// Tetrahedralizes somata
-			Tetrahedralize(grid, 2, true, false, aPosition, 0);
+			Tetrahedralize(grid, 2, true, true, aPosition, 0);
 			SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
+			/// TODO: Need to convert triangles to quads on soma surface again: How to do this:
+			/// 1. Get quads on soma, 2. check if there are additional edges between the quads, 3. delete the edge
 
 			/// Grid (contains somata) and gridOut (contains neurites) - these both have to be merged
-			/// TODO: Need to match grid subset of gridOut before merging or during merge process
+			/// TODO: Need to match grid subset of gridOut before merging or during merge process.
 			MergeFirstGrids(grid, gridOut, sh, destSh);
+
 		}
 
 		////////////////////////////////////////////////////////////////////////

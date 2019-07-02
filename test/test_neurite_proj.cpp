@@ -3298,8 +3298,9 @@ void create_spline_data_for_neurites
 		VertexIterator vit_end = g.end<Vertex>();
 		for (; vit != vit_end; ++vit)
 			neuriteProj->project(*vit);
-		/// TODO: Projection seems not to work anymore? (Note that soma parts are
-		/// unprojected/unahndled because not implemented in neurite_projector.cpp)
+
+		/// TODO: Projection seems not to work anymore for neurites? (Soma parts
+		/// are allowed to fail since implementation in neurite_projector is WIP!)
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
 
 		// output
