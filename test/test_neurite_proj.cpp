@@ -3150,7 +3150,6 @@ void create_spline_data_for_neurites
 	    UG_LOGN("converted to neuritelist 2!")
 	    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 
-
 		SubsetHandler psh(g);
 		psh.set_default_subset_index(0);
 
@@ -3216,7 +3215,9 @@ void create_spline_data_for_neurites
 	    		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 	    			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, &outVerts, &outVertsInner, &outRads, &outRadsInner);
 	    	} else {
-	    		/// TODO: Create neurite without ER, don't create ER (inner sphere) connect soma (outer sphere) to neurites only (without inner ER "cable")
+	    		/// TODO: Create neurite without ER, don't create ER (inner sphere)
+	    		/// connect soma (outer sphere) to neurites only (without inner ER "cable"),
+	    		/// i.e. wrap appropriate parts in if-else statements
 	    	}
 	    }
 
@@ -3241,7 +3242,7 @@ void create_spline_data_for_neurites
 		sh.set_subset_name("pm", 2);
 		sh.set_subset_name("erm", 3);
 		sh.set_subset_name("soma (outer)", 4);
-		sh.set_subset_name("soma (inner)", newSomaIndex);
+		sh.set_subset_name("soma (inner)", newSomaIndex); // ER which should be always subset index 5 (newSomaIndex can be replace with 5?)
 
 		/// Note: Neurite connections get their names respectively subset assignment above in the connect methods
 		for (int i = newSomaIndex+1; i < sh.num_subsets(); i++) {
@@ -3263,37 +3264,33 @@ void create_spline_data_for_neurites
 	     	sh.set_subset_name(ss.str().c_str(), i);
 	    }
 
+	    /// connect now inner soma to neurites (Note: Old strategy which uses distance not angle based criterion. Change this?)
 	    UG_LOGN("Soma's inner index: " << newSomaIndex);
-	    /// connect now inner soma to neurites (This is the old strategy: New strategy is to project and find corresponding vertices)
-	    /// Note: Does this still work? Should use angle not distance-based criterion?
-	    connect_inner_neurites_to_inner_soma(newSomaIndex, 1, g, aaPos, sh, aaSurfParams); // TODO: set aaSurfParams.axial correctly
+	    connect_inner_neurites_to_inner_soma(newSomaIndex, 1, g, aaPos, sh, aaSurfParams, erScaleFactor);
 	    SavePreparedGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_inner_soma_to_outer_ER.ugx");
 
-	    /// Note: Call two times for inner and outer polygon on outer soma but use the same plane defined by the outer soma's inner quad vertices
+	    /// Note: Called two times for inner and outer polygon on outer soma but use the same plane defined by the outer soma's inner quad vertices
 	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12, true);
 
-	    /// Verified: Extrude ER volume a little bit further into normal direction like the pyramids, then merge the vertices in connect_outer_and_inner_root_neurites_to_outer_soma_variant method will avoid self intersections
-	    extend_ER_within(g, sh, aaPos, aaSurfParams, newSomaIndex, 1, erScaleFactor, outVertsInner); /// TODO: need to set aasurfParams axial for the new vertices... and for somatas when created (Cf. above)
+	    /// Extrude ER volume a little bit further into normal direction towards inner soma, like the pyramids to close outer soma, to avoid intersections
+	    extend_ER_within(g, sh, aaPos, aaSurfParams, newSomaIndex, 1, erScaleFactor, outVertsInner);
 	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4, true);
 	    EraseEmptySubsets(sh);
 	    AssignSubsetColors(sh);
 
-	    /// Verified: Reassign elements for connecting parts ER and somata
+	    /// Reassign elements for connecting parts ER and somata to erm subset
 	    sel.clear();
 	    SelectSubset(sel, sh, 3, true);
 	    CloseSelection(sel);
 	    AssignSelectionToSubset(sel, sh, 3);
 	    SavePreparedGridToFile(g, sh, "before_tetrahedralize_and_after_reassigned.ugx");
 
-   	    /// This method works only if inner and outer number of vertices of the polygon (previosuly quad) are the same, e.g. 4.
-	    /// connect_outer_and_inner_root_neurites_to_outer_soma(1, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, outVertsInner);
+	    /// Tetrahedralizes somata with specified and fixed indices 4 and 5
 	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 5, savedSomaPoint);
-	    /// Verified: After merging additional subsets 5, 6 are gone
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma.ugx");
 
-	    return;
-   		/// TODO Tested until here (Projection destroys soma? Need to address this in neurite_projector.cpp
-	    /// and assign appropriate aaSurfParams during grid generation to ensure this)
+		/// assign correct axial parameters for somata
+		set_somata_axial_parameters(g, sh, aaSurfParams, 4, 5);
 
 	    // at branching points, we have not computed the correct positions yet,
 		// so project the complete geometry using the projector
@@ -3301,8 +3298,8 @@ void create_spline_data_for_neurites
 		VertexIterator vit_end = g.end<Vertex>();
 		for (; vit != vit_end; ++vit)
 			neuriteProj->project(*vit);
-
-	    /// connect_outer_and_inner_root_neurites_to_outer_soma(5, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner);
+		/// TODO: Projection seems not to work anymore? (Note that soma parts are
+		/// unprojected/unahndled because not implemented in neurite_projector.cpp)
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
 
 		// output
@@ -3335,7 +3332,6 @@ void create_spline_data_for_neurites
 		for (uint i = 0; i < numRefs; ++i)
 		{
 			ref.refine();
-
 			std::ostringstream oss;
 			oss << "_refined_" << i+1 << ".ugx";
 			curFileName = outFileName.substr(0, outFileName.size()-4) + oss.str();

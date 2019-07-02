@@ -37,13 +37,8 @@
  * GNU Lesser General Public License for more details.
  */
 
-
 #ifndef UG__PLUGINS__NEURO_COLLECTION__TEST__NEURITE_UTIL_H
 #define UG__PLUGINS__NEURO_COLLECTION__TEST__NEURITE_UTIL_H
-
-
-// TODO: Cleanup comments, add unit tests and const correctness to current code base
-
 
 #include "test_neurite_proj.h"
 #include "lib_grid/grid/grid.h"
@@ -73,7 +68,8 @@ namespace ug {
 		};
 
 		/*!
-		 * \brief comparator for elements in vector
+		 * \brief vector exists comparator
+		 * Checks if an element is available in the given vector
 		 */
 		template <typename TElem>
 		struct ExistsInVector
@@ -88,7 +84,6 @@ namespace ug {
 			/*!
 			 * \brief operator()
 			 * \param[in] elem
-			 *
 			 * \return \c true if elemenet found otherwise false
 			 */
 			bool operator() (TElem elem) {
@@ -108,7 +103,6 @@ namespace ug {
 		 * \param[in] point
 		 * \param[in] n
 		 * \return \c angle in interval [-pi, pi]
-		 *
 		 */
 		float calculate_angle
 		(
@@ -229,7 +223,6 @@ namespace ug {
 			number a
 		);
 
-
 		/*!
 		 * \brief this connects the outer soma surface with the root neurites vertices ER (smaller quad) and PM (larger quad)
 		 * First the root neurite vertices are projected to the outer sphere / soma surface. Then the smallest angle pairs
@@ -243,6 +236,7 @@ namespace ug {
 	     * with rootNeurites list. Thus remember for each pair of closest soma inner quad vertex and corresponding outer quad vertex
 	     * the index with which the outer quad vertex was connected with the outer rootNeurite vertices. This index will be used to
 	     * connect the closest soma inner vertex with the corresponding vertex in rootNeuritesInner vertices with the same index.
+	     * !!! WARNING !!!: Works only if inner and outer root neurite have the same number of connecting vertices
 		 * \param[in] somaIndex
 		 * \param[in] numQuads
 		 * \param[in,out] grid
@@ -262,7 +256,6 @@ namespace ug {
 			std::vector<ug::Vertex*>& rootNeuritesInner
 		);
 
-
 		/*!
 		 * \brief connects the inner neurites (ER) to the inner sphere's (ER) surface quads
 		 * Projected vertices onto the inner sphere's quad plane will correspond to an unprojected outer sphere's quad vertex.
@@ -270,11 +263,14 @@ namespace ug {
 		 * Then the unprojected vertices and the corresponding vertex on the inner sphere's quad are connected by edges and faces.
 		 * This procedure is also used in connect_outer_and_inner_root_neurites_to_outer_soma which uses angle differences -
 		 * this method connect_inner_neurites_to_inner_soma used the smallest difference of positions which should suffice
+		 * !!! WARNING !!!: Might not work if using distance-based criterion - should use angle based criterion after projection to plane
 		 * \param[in] somaIndex
 		 * \param[in] numQuads
 		 * \param[in,out] grid
 		 * \param[in, out] aaPos
 		 * \param[in] sh
+		 * \param[in, out] aaSurfParams
+		 * \param[in] scale
 		 */
 		void connect_inner_neurites_to_inner_soma
 		(
@@ -283,11 +279,12 @@ namespace ug {
 		    Grid& grid,
 		    Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			SubsetHandler& sh,
-		    Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams
+		    Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+		    number scale
 		);
 
 		/*!
-		 * \brief finds the quadrilateral vertices on soma surface
+		 * \brief finds the quadrilateral vertices on a soma surface
 		 * \param[in,out] grid
 		 * \param[in, out] aaPos
 		 * \param[in] oldVertices
@@ -337,8 +334,7 @@ namespace ug {
 		 * \param[in] scale
 		 * \param[in] numVerts
 		 * \param[in] numQuads
-		 *
-		 * TODO: Find suitable parameters for tangential smooth and resolve intersection
+		 * FIXME: Find suitable parameters for tangential smooth and resolve intersection
 		 */
 		void connect_neurites_with_soma
 		(
@@ -369,7 +365,7 @@ namespace ug {
 		);
 
 		/*!
-		 * \brief shrinks a quadrilateral and creates a copy of the smaller
+		 * \brief shrinks a quadrilateral and creates a copy of the smaller one
 		 * \param[in] vVrt
 		 * \param[out] outvVrt
 		 * \param[in] oldVertices
@@ -411,7 +407,7 @@ namespace ug {
 		);
 
 		/*!
-		 * \brief creates the soma
+		 * \brief creates the soma as icosphere
 		 * \param[in] somaPts
 		 * \param[in,out] grid
 		 * \param[in, out] aaPos
@@ -430,7 +426,24 @@ namespace ug {
 		);
 
 		/*!
-		 * \brief creates the soma
+		 * \brief sets the somata's axial parameters (ER and PM surfaces)
+		 * \param[in,out] grid
+		 * \param[in] sh
+		 * \param[in,out] aaSurfParams
+		 * \param[in] somaIndex
+		 * \param[in] erIndex
+		 */
+		void set_somata_axial_parameters
+		(
+			Grid& grid,
+			SubsetHandler& sh,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			size_t somaIndex,
+			size_t erIndex
+		);
+
+		/*!
+		 * \brief creates the soma as icosahedron
 		 * \param[in] somaPts
 		 * \param[in,out] grid
 		 * \param[in, out] aaPos
@@ -464,7 +477,6 @@ namespace ug {
 			std::vector<ug::Edge*>& edges,
 			bool conservative = true
 		);
-
 
 		/*!
 		 * \brief shrink a quadrilateral towards its center
@@ -650,7 +662,6 @@ namespace ug {
 		 * \param[in] percentage
 		 * \param[in] createFacs
 		 * \param[in] outSel
-
 		 */
 		void shrink_polygon_copy
 		(
@@ -724,8 +735,8 @@ namespace ug {
 		);
 
 		/*!
-		 * \brief saves grid to file
-		 * Assigns subsets colors and erases empty subsets in addition before
+		 * \brief saves a grid to file and prepares the grid before
+		 * Assigns subsets colors and erases empty subsets then saves the grid
 		 * \param[in, out] grid
 		 * \param[in, out] sh
 		 * \param[in] fileName
@@ -736,7 +747,6 @@ namespace ug {
 			ISubsetHandler& sh,
 			const char* const fileName
 		);
-
 
 		/*!
 		 * \brief finds the quadrilaterals constrained to have a certain axial and radial parameters
@@ -818,7 +828,6 @@ namespace ug {
 			const std::vector<SWCPoint>& somaPoint
 		);
 
-
 		/*!
 		 * \brief selects elements whose center lies within or on a sphere specified by center and radius
 		 * \param[in] grid
@@ -871,6 +880,7 @@ namespace ug {
 
 		/*!
 		 * \brief Merge two grids
+		 * Merges grid into mrgGrid, if joinSubsets is true, subsets are joined.
 		 * \param[in,out] mrgGrid
 		 * \param[in,out] grid
 		 * \param[in,out] mrgSh
@@ -887,6 +897,5 @@ namespace ug {
 		);
 	}
 }
-
 
 #endif // UG__PLUGINS__NEURO_COLLECTION__TEST__NEURITE_UTIL_H

@@ -627,7 +627,8 @@ namespace ug {
 		    Grid& g,
 		    Grid::VertexAttachmentAccessor<APosition>& aaPos,
 		    SubsetHandler& sh,
-		    Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams
+		    Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+		    number scale
 		) {
 			Selector::traits<Vertex>::iterator vit;
 			Selector::traits<Vertex>::iterator vit_end;
@@ -906,10 +907,10 @@ namespace ug {
 					ug::Vertex* p3 = myPairs2[e->vertex(0)];
 					ug::Vertex* p4 = myPairs2[e->vertex(1)];
 					/// TODO: Change this. Dummy values to pretend to be inside soma for SelectElementsByAxialPosition
-					aaSurfParams[p1].axial = -0.5;
-					aaSurfParams[p2].axial = -0.5;
-					aaSurfParams[p3].axial = -0.5;
-					aaSurfParams[p4].axial = -0.5;
+					aaSurfParams[p1].axial = -scale/2;
+					aaSurfParams[p2].axial = -scale/2;
+					aaSurfParams[p3].axial = -scale/2;
+					aaSurfParams[p4].axial = -scale/2;
 					UG_COND_THROW( ! ((p1 != p2) && (p3 != p4)), "Non-unique vertices provided to create quadrilateral.");
 					ug::Face* f = *g.create<Quadrilateral>(QuadrilateralDescriptor(p1, p3, p4, p2));
 					UG_COND_THROW(!f, "Quadrilateral for connecting inner soma sphere (ER) with inner neurite conneting to outer sphere (PM)");
@@ -1660,6 +1661,35 @@ namespace ug {
 		}
 
 		////////////////////////////////////////////////////////////////////////
+		/// set_somata_axial_parameters
+		////////////////////////////////////////////////////////////////////////
+		void set_somata_axial_parameters
+		(
+			Grid& g,
+			SubsetHandler& sh,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			size_t somaIndex,
+			size_t erIndex
+		) {
+			Selector sel(g);
+			SelectSubset(sel, sh, somaIndex, true);
+			Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
+			Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
+			for (; vit != vit_end; ++vit) {
+				aaSurfParams[*vit].axial = -0.5;
+			}
+
+			sel.clear();
+			SelectSubset(sel, sh, erIndex, true);
+			vit = sel.vertices_begin();
+			vit_end = sel.vertices_end();
+			for (; vit != vit_end; ++vit) {
+				aaSurfParams[*vit].axial = -1.0;
+			}
+		}
+
+
+		////////////////////////////////////////////////////////////////////////
 		/// create_soma
 		////////////////////////////////////////////////////////////////////////
 		void create_soma
@@ -1669,8 +1699,8 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<APosition>& aaPos
 		) {
 			if (somaPts.size() == 1) {
-			// create soma as icosahedron
-			GenerateIcosahedron(g, somaPts[0].coords, somaPts[0].radius, aPosition);
+				// create soma as icosahedron
+				GenerateIcosahedron(g, somaPts[0].coords, somaPts[0].radius, aPosition);
 			} else {
 				// Note: Generalize this: Could take recipe from the following link to define
 				/// and generate a discrete deformated icosphere respectively icosahedron:
@@ -2291,14 +2321,14 @@ namespace ug {
 			SubsetHandler destSh(gridOut);
 			gridOut.attach_to_vertices(aPosition);
 			CopyGrid<APosition>(grid, gridOut, sh, destSh, aPosition);
-			SavePreparedGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_copying_grid.ugx");
-			SavePreparedGridToFile(grid, sh, "before_tetrahedralize_soma.ugx");
+			SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_copying_grid.ugx");
+			SaveGridToFile(grid, sh, "before_tetrahedralize_soma.ugx");
 			sel.clear();
 			SelectElementsByAxialPosition<Face>(grid, sel, 0.0, aaPos, aaSurfParams);
 			CloseSelection(sel);
 			InvertSelection(sel);
 			EraseSelectedObjects(sel);
-			SavePreparedGridToFile(grid, sh, "before_tetrahedralize_soma_and_after_selecting.ugx");
+			SaveGridToFile(grid, sh, "before_tetrahedralize_soma_and_after_selecting.ugx");
 			sel.clear();
 			/*
 			Selector sel2(gridOut);
@@ -2306,15 +2336,14 @@ namespace ug {
 			CloseSelection(sel2);
 			EraseSelectedObjects(sel2);
 			*/
-			SavePreparedGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_selecting_complement.ugx");
+			SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_selecting_complement.ugx");
 
 			// Tetrahedralizes somata
 			Tetrahedralize(grid, 2, true, false, aPosition, 0);
-			SavePreparedGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
+			SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
 
-			/// Verified. Check merged grids: grid (contains somata) and gridOut (contains neurites)
-			/// Note/TODO: Do not erase empty subset. If we keep all subsets then subset indices
-			/// will correspond 1-to-1 between grids grid and gridOut during merging process
+			/// Grid (contains somata) and gridOut (contains neurites) - these both have to be merged
+			/// TODO: Need to match grid subset of gridOut before merging or during merge process
 			MergeFirstGrids(grid, gridOut, sh, destSh);
 		}
 
@@ -2351,7 +2380,7 @@ namespace ug {
 			Extrude(grid, &vertices, &vEdges, NULL, -vNormOut, aaPos, EO_CREATE_FACES | EO_CREATE_VOLUMES);
 			SavePreparedGridToFile(grid, sh, "after_extend_ER_within.ugx");
 			for (size_t i = 0; i < vertices.size(); i++) {
-				aaSurfParams[vertices[i]].axial = -scale;
+				aaSurfParams[vertices[i]].axial = -scale/2.0;
 			}
 			outVertsInner.assign(vertices.begin(), vertices.end());
 	    }
@@ -2586,6 +2615,9 @@ namespace ug {
 			}
 		}
 
+		////////////////////////////////////////////////////////////////////////
+		/// SelectElementsByAxialPosition
+		////////////////////////////////////////////////////////////////////////
 		template <>
 		void SelectElementsByAxialPosition<Vertex>
 		(
@@ -2604,6 +2636,9 @@ namespace ug {
 			}
 		}
 
+		////////////////////////////////////////////////////////////////////////
+		/// SelectElementsByAxialPosition
+		////////////////////////////////////////////////////////////////////////
 		template void SelectElementsByAxialPosition<Edge>(Grid&, Selector&, number,
 				Grid::VertexAttachmentAccessor<APosition>&,
 				Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >&);
