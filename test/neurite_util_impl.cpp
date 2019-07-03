@@ -2341,11 +2341,9 @@ namespace ug {
 			// Tetrahedralizes somata
 			Tetrahedralize(grid, 2, true, true, aPosition, 0);
 			SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
-			/// TODO: Need to convert triangles to quads on soma surface again: How to do this:
-			/// 1. Get quads on soma, 2. check if there are additional edges between the quads, 3. delete the edge
 
 			/// Grid (contains somata) and gridOut (contains neurites) - these both have to be merged
-			/// TODO: Need to match grid subset of gridOut before merging or during merge process.
+			/// TODO: Need to match grid subset indices/names of gridOut before merging or during merge process.
 			MergeFirstGrids(grid, gridOut, sh, destSh);
 
 		}
@@ -2651,5 +2649,50 @@ namespace ug {
 		template void SelectElementsByAxialPosition<Volume>(Grid&, Selector&, number,
 				Grid::VertexAttachmentAccessor<APosition>&,
 				Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >&);
+
+
+		////////////////////////////////////////////////////////////////////////
+		/// DeleteInnerEdgesFromQuadrilaterals
+		////////////////////////////////////////////////////////////////////////
+		void DeleteInnerEdgesFromQuadrilaterals
+		(
+			Grid& grid,
+			SubsetHandler& sh,
+			int si
+		)
+		{
+			for (QuadrilateralIterator iter = sh.begin<Quadrilateral>(si);
+					iter != sh.end<Quadrilateral>(si); ++iter)
+			{
+				UG_DLOGN(NC_TNP, 0, "Num quads in subset " << si << ": " <<
+						sh.num<Quadrilateral>(si));
+				// quadrilateral has to be retained and edges might be deleted
+				const Quadrilateral* const quad = *iter;
+
+				Edge* e1 = grid.get_edge(quad->vertex(0), quad->vertex(2));
+				if (e1) {
+					grid.erase(e1);
+				} else {
+					e1 = grid.get_edge(quad->vertex(2), quad->vertex(0));
+					if (e1) {
+						grid.erase(e1);
+					} else {
+						UG_DLOGN(NC_TNP, 1, "No edge (e1) found for deletion.");
+					}
+				}
+
+				Edge* e2 = grid.get_edge(quad->vertex(1), quad->vertex(3));
+				if (e2) {
+					grid.erase(e2);
+				} else {
+					e2 = grid.get_edge(quad->vertex(3), quad->vertex(1));
+					if (e2) {
+						grid.erase(e2);
+					} else {
+						UG_DLOGN(NC_TNP, 1, "No edge (e2) found for deletion");
+					}
+				}
+			}
+		}
 	}
 }

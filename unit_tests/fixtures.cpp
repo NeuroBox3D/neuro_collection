@@ -235,3 +235,71 @@ struct FixtureSphereAxial {
 	    }
 	}
 };
+
+/*!
+ * \brief quadrilateral with inner edges fixture
+ */
+struct FixtureQuadrilateralWithInnerEdges {
+	Grid g;
+	SubsetHandler sh;
+	Grid::VertexAttachmentAccessor<APosition> aaPos;
+	/*!
+	 * \brief creates a quadrilateral with two inner edges p1->p3 and p2->p4
+	 */
+	FixtureQuadrilateralWithInnerEdges() {
+		g.attach_to_vertices(aPosition);
+		aaPos = Grid::VertexAttachmentAccessor<APosition>(g, aPosition);
+		sh = SubsetHandler(g);
+		sh.set_default_subset_index(0);
+		Vertex* p1, *p2, *p3, *p4;
+		p1 = *g.create<RegularVertex>(); p2 = *g.create<RegularVertex>();
+		p3 = *g.create<RegularVertex>(); p4 = *g.create<RegularVertex>();
+		BOOST_REQUIRE_MESSAGE(p1, "Creating first vertex.");
+		BOOST_REQUIRE_MESSAGE(p2, "Creating second vertex.");
+		BOOST_REQUIRE_MESSAGE(p3, "Creating third vertex.");
+		BOOST_REQUIRE_MESSAGE(p4, "Creating forth vertex.");
+		aaPos[p1] = ug::vector3(0, 0, 0); aaPos[p2] = ug::vector3(0, 1, 0);
+		aaPos[p3] = ug::vector3(1, 1, 0); aaPos[p4] = ug::vector3(1, 0, 0);
+		Quadrilateral* quad = *g.create<Quadrilateral>(QuadrilateralDescriptor(p1, p2, p3, p4));
+		BOOST_REQUIRE_MESSAGE(quad, "Creating quadrilateral.");
+		RegularEdge* e1 = *g.create<RegularEdge>(EdgeDescriptor(p1, p3));
+		RegularEdge* e2 = *g.create<RegularEdge>(EdgeDescriptor(p2, p4));
+		BOOST_REQUIRE_MESSAGE(e1, "Creating first additional edge.");
+		BOOST_REQUIRE_MESSAGE(e2, "Creating second additional edge.");
+		sh.assign_grid(g);
+		sh.assign_subset(quad, 0);
+		sh.assign_subset(e1, 0);
+		sh.assign_subset(e2, 0);
+	}
+};
+
+/*!
+ * \brief quadrilateral without inner edges fixture
+ */
+struct FixtureQuadrilateralWithoutInnerEdges {
+	Grid g;
+	SubsetHandler sh;
+	Grid::VertexAttachmentAccessor<APosition> aaPos;
+	/*!
+	 * \brief creates a quadrilateral with two inner edges p1->p3 and p2->p4
+	 */
+	FixtureQuadrilateralWithoutInnerEdges() {
+		g.attach_to_vertices(aPosition);
+		aaPos = Grid::VertexAttachmentAccessor<APosition>(g, aPosition);
+		sh = SubsetHandler(g);
+		sh.set_default_subset_index(0);
+		Vertex* p1, *p2, *p3, *p4;
+		p1 = *g.create<RegularVertex>(); p2 = *g.create<RegularVertex>();
+		p3 = *g.create<RegularVertex>(); p4 = *g.create<RegularVertex>();
+		BOOST_REQUIRE_MESSAGE(p1, "Creating first vertex.");
+		BOOST_REQUIRE_MESSAGE(p2, "Creating second vertex.");
+		BOOST_REQUIRE_MESSAGE(p3, "Creating third vertex.");
+		BOOST_REQUIRE_MESSAGE(p4, "Creating forth vertex.");
+		aaPos[p1] = ug::vector3(0, 0, 0); aaPos[p2] = ug::vector3(0, 1, 0);
+		aaPos[p3] = ug::vector3(1, 1, 0); aaPos[p4] = ug::vector3(1, 0, 0);
+		Quadrilateral* quad = *g.create<Quadrilateral>(QuadrilateralDescriptor(p1, p2, p3, p4));
+		BOOST_REQUIRE_MESSAGE(quad, "Creating quadrilateral.");
+		sh.assign_grid(g);
+		sh.assign_subset(quad, 0);
+	}
+};

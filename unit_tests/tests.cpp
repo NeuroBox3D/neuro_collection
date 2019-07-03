@@ -50,11 +50,11 @@
 using namespace ug;
 using namespace ug::neuro_collection;
 
-////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 /// neuro_collection/test tests
-////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 BOOST_AUTO_TEST_SUITE(test);
-////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 BOOST_FIXTURE_TEST_CASE(CreatePyramid, FixtureOneGrid) {
 	Pyramid* p = create_pyramid(g, quad, aaPos);
 	BOOST_REQUIRE_MESSAGE(p, "Creating pyramid out of supplied vertices "
@@ -65,7 +65,7 @@ BOOST_FIXTURE_TEST_CASE(CreatePyramid, FixtureOneGrid) {
 	BOOST_CHECK_EQUAL(top.z(), -1.0);
 }
 
-////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 BOOST_FIXTURE_TEST_CASE(FindQuadrilateralConstrained, FixtureOneGrid) {
 	// find auadrilateral and checks
 	Grid::traits<Quadrilateral>::secure_container quadCont;
@@ -75,7 +75,7 @@ BOOST_FIXTURE_TEST_CASE(FindQuadrilateralConstrained, FixtureOneGrid) {
 			"parameters.");
 }
 
-////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 BOOST_AUTO_TEST_CASE(ExtractSubGrid) {
 	Grid g;
 	SubsetHandler sh(g);
@@ -109,7 +109,7 @@ BOOST_AUTO_TEST_CASE(ExtractSubGrid) {
 	BOOST_REQUIRE_MESSAGE(g.num_edges() == 4, "Requiring four edges.");
 }
 
-////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 BOOST_FIXTURE_TEST_CASE(ExtendERintoSoma, FixtureOneGrid) {
 	// calculate new vertices manually in normal direction
 	ug::vector3 newVertex1, newVertex2, newVertex3, newVertex4;
@@ -129,7 +129,7 @@ BOOST_FIXTURE_TEST_CASE(ExtendERintoSoma, FixtureOneGrid) {
 	BOOST_REQUIRE_SMALL(VecDistance(aaPos[outVerts[3]], newVertex4), SMALL);
 }
 
-////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 BOOST_FIXTURE_TEST_CASE(MergeTwoGrids, FixtureTwoGrid) {
 	// check input for consistency
 	BOOST_REQUIRE_MESSAGE(sh1.num<Vertex>(0) == 4, "Requiring 4 vertices in subset 0 in first grid");
@@ -148,7 +148,7 @@ BOOST_FIXTURE_TEST_CASE(MergeTwoGrids, FixtureTwoGrid) {
 	BOOST_CHECK_MESSAGE(sh1.num<Quadrilateral>() == 2, "Checking 2 quadrilaterals in merged grid");
 }
 
-////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 BOOST_FIXTURE_TEST_CASE(SelectElementsInUnitSphere, FixtureSphere) {
 	Selector sel(g);
 	SelectElementsInSphere<ug::Vertex>(g, sel, ug::vector3(0, 0, 0), 1, aaPos);
@@ -162,7 +162,7 @@ BOOST_FIXTURE_TEST_CASE(SelectElementsInUnitSphere, FixtureSphere) {
 	BOOST_REQUIRE_MESSAGE(g.num_volumes() == 0, "Requiring empty grid (all vertices erased thus no further volume elements)");
 }
 
-////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 BOOST_FIXTURE_TEST_CASE(SelectElementsInUnitSphereByAxialPosition, FixtureSphereAxial) {
 	Selector sel(g);
 	BOOST_REQUIRE_MESSAGE(g.num<Face>() == 20, "Requiring 20 faces in total in original grid");
@@ -181,7 +181,24 @@ BOOST_FIXTURE_TEST_CASE(SelectElementsInUnitSphereByAxialPosition, FixtureSphere
 	BOOST_REQUIRE_MESSAGE(sel.num<Vertex>() == 0, "Requiring 0 vertices in total in selection.");
 }
 
+////////////////////////////////////////////////////////////////////////////////
+BOOST_FIXTURE_TEST_CASE(DeleteInnerEdgesFromQuadrilateralWithInnerEdges, FixtureQuadrilateralWithInnerEdges) {
+	BOOST_REQUIRE_MESSAGE(g.num<Edge>() == 6, "Requiring a quadrilateral with two additional edges from p1->p3 and p2->p4.");
+	BOOST_REQUIRE_MESSAGE(g.num<Quadrilateral>() == 1, "Requiring one quadrilateral.");
+	DeleteInnerEdgesFromQuadrilaterals(g, sh, 0);
+	BOOST_REQUIRE_MESSAGE(g.num<Edge>() == 4, "Requiring four edges from one quadrilateral.");
+	BOOST_REQUIRE_MESSAGE(g.num<Quadrilateral>() == 1, "Requiring one quadrilateral.");
+}
+
+BOOST_FIXTURE_TEST_CASE(DeleteInnerEdgesFromQuadrilateralWithoutInnerEdges, FixtureQuadrilateralWithoutInnerEdges) {
+	BOOST_REQUIRE_MESSAGE(g.num<Edge>() == 4, "Requiring a quadrilateral with no additional inner edges.");
+	BOOST_REQUIRE_MESSAGE(g.num<Quadrilateral>() == 1, "Requiring one quadrilateral.");
+	DeleteInnerEdgesFromQuadrilaterals(g, sh, 0);
+	BOOST_REQUIRE_MESSAGE(g.num<Edge>() == 4, "Requiring four edges from one quadrilateral.");
+	BOOST_REQUIRE_MESSAGE(g.num<Quadrilateral>() == 1, "Requiring one quadrilateral.");
+}
+
 BOOST_AUTO_TEST_SUITE_END();
-////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 /// neuro_collection/test tests
-////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////

@@ -52,6 +52,9 @@
 namespace ug {
 namespace neuro_collection {
 
+/// neuro_collection's test neurite projector debug ID
+extern ug::DebugID NC_TNP;
+
 /// Edge comparable
 struct EdgeLengthCompare
 {

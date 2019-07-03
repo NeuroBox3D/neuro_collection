@@ -69,6 +69,9 @@
 /// other
 #include <boost/lexical_cast.hpp>
 
+/// debug id
+ug::DebugID NC_TNP("NC_DID.TNP");
+
 namespace ug {
 	namespace neuro_collection {
 	////////////////////////////////////////////////////////////////////////
@@ -3079,9 +3082,9 @@ void create_spline_data_for_neurites
     }
 	}
 
-	////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////
 	/// test_import_swc_general
-	////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////
 	void test_import_swc_general(
 		const std::string& fileName,
 		bool correct,
@@ -3288,6 +3291,12 @@ void create_spline_data_for_neurites
 	    /// Tetrahedralizes somata with specified and fixed indices 4 and 5
 	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 5, savedSomaPoint);
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma.ugx");
+		/// After merge doubles might occur, delete them. Boundary faces are retained,
+		/// however triangles occur now at boundary interface and quadrilaterals, thus
+		/// delete the triangles to keep the quadrilaterals from the start of neurites
+		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aaPos, 0.00001);
+		DeleteInnerEdgesFromQuadrilaterals(g, sh, 4);
+		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma_and_conversion.ugx");
 
 		/// assign correct axial parameters for somata
 		set_somata_axial_parameters(g, sh, aaSurfParams, 4, 5);
@@ -3342,9 +3351,9 @@ void create_spline_data_for_neurites
 	}
 	}
 
-	////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////
 	/// test_shrinkage
-	////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////
 	void test_shrinkage() {
 		std::vector<ug::Vertex*> verts;
 		Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> > aaSurfParams;

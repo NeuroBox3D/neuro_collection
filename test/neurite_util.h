@@ -895,6 +895,19 @@ namespace ug {
 			SubsetHandler& sh,
 			bool joinSubsets = true
 		);
+
+		/*!
+		 * \brief Deletes inner edges from quadrilaterals
+		 * \param[in,out] grid
+		 * \param[in,out] sh
+		 * \param[in] si
+		 */
+		void DeleteInnerEdgesFromQuadrilaterals
+		(
+			Grid& grid,
+			SubsetHandler& sh,
+			int si = 0
+		);
 	}
 }
 
