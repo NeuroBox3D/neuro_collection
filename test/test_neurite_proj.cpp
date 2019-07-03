@@ -761,9 +761,9 @@ void convert_pointlist_to_neuritelist
 
 	#if 0
     	size_t numSomaPoints = vSomaPoints.size();
-    	UG_LOGN("Number of soma points: " << numSomaPoints);
+    	UG_DLOGN(NC_TNP, 0, "Number of soma points: " << numSomaPoints);
     	for (size_t i = 0; i < numSomaPoints; i++) {
-    		UG_LOGN("Coordinates for soma: " << vSomaPoints[i].coords);
+    		UG_DLOGN(NC_TNP, 0, "Coordinates for soma: " << vSomaPoints[i].coords);
     	}
 	#endif
 }
@@ -1000,7 +1000,7 @@ void create_spline_data_for_neurites
 
     vector3 vel;
     UG_COND_THROW(nSec == 0, "Number of sections > 0 required. FIX: Don't collapse root edges of neurites.");
-    UG_LOGN("nSec: " << nSec);
+    UG_DLOGN(NC_TNP, 0, "nSec: " << nSec);
     const NeuriteProjector::Section& sec = neurite.vSec[0];
     number h = sec.endParam;
     vel[0] = -3.0*sec.splineParamsX[0]*h*h - 2.0*sec.splineParamsX[1]*h - sec.splineParamsX[2];
@@ -1062,7 +1062,7 @@ void create_spline_data_for_neurites
             aaSurfParams[v].axial = 0.0;
             aaSurfParams[v].angular = angle;
             outVerts->push_back(v);
-            UG_LOGN("aaPos[v]: " << aaPos[v]);
+            UG_DLOGN(NC_TNP, 0, "aaPos[v]: " << aaPos[v]);
         }
         outRads->push_back(r[0]);
 
@@ -1177,8 +1177,8 @@ void create_spline_data_for_neurites
     	if (nSeg == 0) { nSeg = 1; }
     	UG_COND_THROW(nSeg == 0, "Number of segments > 0 required.");
     	number segLength = lengthOverRadius / nSeg;	// segments are between 8 and 16 radii long
-    	UG_LOGN("segLength: " << segLength);
-    	UG_LOGN("nSeg: " << nSeg);
+    	UG_DLOGN(NC_TNP, 0, "segLength: " << segLength);
+    	UG_DLOGN(NC_TNP, 0, "nSeg: " << nSeg);
     	std::vector<number> vSegAxPos(nSeg);
     	calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
 
@@ -1366,7 +1366,7 @@ void create_spline_data_for_neurites
 
 			g.erase(best);
 
-			UG_LOGN("Creating child")
+			UG_DLOGN(NC_TNP, 0, "Creating child")
 			/// Note:  create prism to connect to in case the branching angle is small or big
 			create_neurite_old(vNeurites, vPos, vR, child_nid, g, aaPos, aaSurfParams, &vrts, &edges, NULL, NULL, bWithER);
     	}
@@ -1532,7 +1532,7 @@ void create_spline_data_for_neurites
     {
        ug::vector3 dir;
        VecSubtract(dir, aaPos[vVrt[i]], center);
-       UG_LOGN("dir:" << dir)
+       UG_DLOGN(NC_TNP, 0, "dir:" << dir)
        VecScaleAdd(aaPos[vVrt[i]], 1.0, aaPos[vVrt[i]], length, dir);
        if (VecLength(dir) > VecDistance(center, aaPos[vVrt[i]])) {
     	   UG_WARNING("Moving vertex beyond center. Will create degenerated elements." << std::endl);
@@ -2178,11 +2178,11 @@ void create_spline_data_for_neurites
     }
 
     if (!soma_subset_present)
-        UG_LOGN("Warning: No somatic subset could be identified.")
+        UG_DLOGN(NC_TNP, 0, "Warning: No somatic subset could be identified.")
 
 	if (g.begin<Vertex>() == g.end<Vertex>())
 	{
-		UG_LOGN("Warning: No vertices contained in grid.")
+		UG_DLOGN(NC_TNP, 0, "Warning: No vertices contained in grid.")
 		return;
 	}
 
@@ -2215,7 +2215,7 @@ void create_spline_data_for_neurites
         g.end_marking();
 
         if (q.empty())
-            UG_LOGN("Warning: No soma vertex could be found in the requested neuron.")
+            UG_DLOGN(NC_TNP, 0, "Warning: No soma vertex could be found in the requested neuron.")
         else
             start = q.front();
     }
@@ -2270,7 +2270,7 @@ void create_spline_data_for_neurites
     g.end_marking();
 
     if (!all_types_identified)
-        UG_LOGN("WARNING: Some vertex type(s) - soma, dendrite, axon, etc. -\n"
+        UG_DLOGN(NC_TNP, 0, "WARNING: Some vertex type(s) - soma, dendrite, axon, etc. -\n"
             "could not be identified using the subset names.\n"
             << "To ensure correct types in the resulting swc file, the ugx subset names\n"
             "need to contain one of the strings \"SOMA\", \"AXON\", \"DEND\", \"APIC\",\n"
@@ -3071,7 +3071,7 @@ void create_spline_data_for_neurites
         for (; it!= it_end; ++it)
             ref.mark(*it, RM_REFINE);
 
-        UG_LOGN("refinement step " << i);
+        UG_DLOGN(NC_TNP, 0, "refinement step " << i);
         ref.refine();
         std::ostringstream oss;
         oss << "_refined_" << i+1 << ".ugx";
@@ -3105,7 +3105,7 @@ void create_spline_data_for_neurites
 		std::vector<ug::vector3> vPosSomaClosest;
 	    size_t lines;
 	    get_closest_points_to_soma(fn_precond, vPosSomaClosest, lines);
-	    UG_LOGN("Found " << vPosSomaClosest.size() << " soma points.");
+	    UG_DLOGN(NC_TNP, 0, "Found #" << vPosSomaClosest.size() << " soma points.");
 
 		// convert intermediate structure to neurite data
 		std::vector<std::vector<vector3> > vPos;
@@ -3115,7 +3115,6 @@ void create_spline_data_for_neurites
 	    std::vector<ug::vector3> vPointSomaSurface;
 		convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 	    std::vector<SWCPoint> somaPoint = vSomaPoints;
-
 	    std::vector<SWCPoint> savedSomaPoint = vSomaPoints;
 
 		// prepare grid and projector
@@ -3124,7 +3123,6 @@ void create_spline_data_for_neurites
 		sh.set_default_subset_index(0);
 		g.attach_to_vertices(aPosition);
 		Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
-		UG_LOGN("After convert to neuritelist...");
 
 		Selector sel(g);
 	    typedef NeuriteProjector::SurfaceParams NPSP;
@@ -3136,21 +3134,22 @@ void create_spline_data_for_neurites
 	    Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
 	    aaSurfParams.access(g, aSP);
 
-		/// FIXME: In new implementation radius should be possible to caled with 1.0 not 1.05 -> might create intersections which lead to segfault
+		/// FIXME: In new implementation radius should be possible to scale with
+	    /// 1.0 not 1.05 -> might create intersections which lead to segfault
 	    somaPoint[0].radius *= 1.05;
+	    UG_DLOGN(NC_TNP, 0, "Creating soma...");
 	    create_soma(somaPoint, g, aaPos, sh, 1);
-	    UG_LOGN("Created soma...");
-	    ///get_closest_points_on_soma(vPosSomaClosest, vPointSomaSurface, g, aaPos, sh, 1);
+	    UG_DLOGN(NC_TNP, 0, " done.");
+	    /// get_closest_points_on_soma(vPosSomaClosest, vPointSomaSurface, g, aaPos, sh, 1);
 	    std::vector<ug::Vertex*> vPointSomaSurface2;
 	    get_closest_vertices_on_soma(vPosSomaClosest, vPointSomaSurface2, g, aaPos, sh, 1);
-	    UG_LOGN("Got closest points on soma with size: " << vPointSomaSurface.size());
-	    ///add_soma_surface_to_swc(lines, fn_precond, fn_precond_with_soma, vPointSomaSurface);
+	    UG_DLOGN(NC_TNP, 0, "Got closest points on soma with size: " << vPointSomaSurface.size());
+	    /// add_soma_surface_to_swc(lines, fn_precond, fn_precond_with_soma, vPointSomaSurface);
 	    std::vector<ug::vector3> newVerts = find_quad_verts_on_soma(g, aaPos, vPointSomaSurface2, vRad, 1, sh, 1.0, vPos.size());
 	    replace_first_root_neurite_vertex_in_swc(lines, fn_precond, fn_precond_with_soma, newVerts);
-	    UG_LOGN("Added soma points for neurites to swc...")
+	    UG_DLOGN(NC_TNP, 0, "Replaced soma points for neurites to SWC file.")
 	    g.clear_geometry();
 	    import_swc_old(fn_precond_with_soma, vPoints, correct, 1.0);
-	    UG_LOGN("converted to neuritelist 2!")
 	    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 
 		SubsetHandler psh(g);
@@ -3172,8 +3171,7 @@ void create_spline_data_for_neurites
 		std::vector<Vertex*> outVertsInner;
 		std::vector<number> outRadsInner;
 
-	    UG_LOGN("generating neurites")
-
+	    UG_DLOGN(NC_TNP, 0, "Generating neurites...");
 		/// TODO Could be improved to generate only first layer or get only outVerts outVertsInner outRads outRadsInner without generating grid
 	    for (size_t i = 0; i < 1; ++i) {
 	    ///for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
@@ -3181,15 +3179,16 @@ void create_spline_data_for_neurites
 	    			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, &outVerts, &outVertsInner, &outRads, &outRadsInner);
 	    }
 
+	    UG_DLOGN(NC_TNP, 0, " done.");
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
 
 	    /// Outer soma
 	    /// Note: axisVectors (outer soma) and axisVectorsInner (inner soma) save the cylinder center, diameter and length parameters for the CylinderProjectors
-	    UG_LOGN("Creating soma!")
+	    UG_DLOG(NC_TNP, 0, "Creating soma...");
 	    sh.set_default_subset_index(4); /// soma starts now at 4
 	    somaPoint = vSomaPoints;
 	    create_soma(somaPoint, g, aaPos, sh, 4, 3);
-	    UG_LOGN("Done with soma!");
+	    UG_DLOGN(NC_TNP, 0, " done.");
 	    std::vector<Vertex*> outQuadsInner;
 	    std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectors;
 	    std::vector<std::vector<ug::Vertex*> > connectingVertices(vRootNeuriteIndsOut.size());
@@ -3210,8 +3209,7 @@ void create_spline_data_for_neurites
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_finding_initial_edges.ugx");
 
 	    sh.set_default_subset_index(0);
-	    UG_LOGN("generating neurites")
-
+	    UG_DLOGN(NC_TNP, 0, "Generating neurites...")
 	    /// for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 	    for (size_t i = 0; i < 1; ++i) {
 	    	if (withER) {
@@ -3223,17 +3221,17 @@ void create_spline_data_for_neurites
 	    		/// i.e. wrap appropriate parts in if-else statements
 	    	}
 	    }
+	    UG_DLOGN(NC_TNP, 0, " done.");
 
 	    /// Inner soma
-	    UG_LOGN("Done with connecting neurites!");
-	    UG_LOGN("Creating soma inner!")
+	    UG_DLOGN(NC_TNP, 0, "Creating inner soma...")
 	    number scaleER = 0.5;
 	    somaPoint.front().radius = somaPoint.front().radius * scaleER;
 	    size_t newSomaIndex = sh.num_subsets();
 	    create_soma(somaPoint, g, aaPos, sh, newSomaIndex, 2);
-	    UG_LOGN("Done with soma inner!");
+	    UG_DLOGN(NC_TNP, 0, " done.");
 	    std::vector<Vertex*> outQuadsInner2;
-	    UG_LOGN("Size of outQuadsInner: " << outQuadsInner.size())
+	    UG_DLOGN(NC_TNP, 0, "Size of outQuadsInner: " << outQuadsInner.size())
 	    std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectorsInner;
 	    /// connect inner soma with neurites (actually just finds/creates the surface quads on the inner soma)
 	    connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRadsInner, outQuadsInner2, newSomaIndex, sh, fileName, scaleER, axisVectorsInner, vNeurites, connectingVertices, connectingVerticesInner, connectingEdges, connectingEdgesInner, false);
@@ -3268,7 +3266,7 @@ void create_spline_data_for_neurites
 	    }
 
 	    /// connect now inner soma to neurites (Note: Old strategy which uses distance not angle based criterion. Change this?)
-	    UG_LOGN("Soma's inner index: " << newSomaIndex);
+	    UG_DLOGN(NC_TNP, 0, "Soma's inner index: " << newSomaIndex);
 	    connect_inner_neurites_to_inner_soma(newSomaIndex, 1, g, aaPos, sh, aaSurfParams, erScaleFactor);
 	    SavePreparedGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_inner_soma_to_outer_ER.ugx");
 

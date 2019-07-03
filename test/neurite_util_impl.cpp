@@ -89,7 +89,7 @@ namespace ug {
 			number v1_len = VecLengthSq(v1);
 			number v2_len = VecLengthSq(v2);
 			number x = (dot / (std::sqrt(v1_len*v2_len)));
-			UG_LOGN("acos(" << x << ")");
+			UG_DLOGN(NC_TNP, 0, "acos(" << x << ")");
 			return rad_to_deg(acos(x));
 		}
 
@@ -286,10 +286,10 @@ namespace ug {
 
 				ug::vector3 dir;
 				VecSubtract(dir, centerOut2, centerOut);
-				UG_LOGN("dir: " << dir);
+				UG_DLOGN(NC_TNP, 0, "dir: " << dir);
 
 				for (size_t j = 0; j < numVerts; j++) {
-					UG_LOGN("pos: " << aaPos[projectedVertices[i][j]]);
+					UG_DLOGN(NC_TNP, 0, "pos: " << aaPos[projectedVertices[i][j]]);
 					VecSubtract(aaPos[projectedVertices[i][j]], aaPos[projectedVertices[i][j]], dir);
 				}
 			}
@@ -357,22 +357,22 @@ namespace ug {
 			projectedVertices.resize(numQuads);
 			projectedVertices2.resize(numQuads);
 			for (size_t i = 1; i < numQuads+1; i++) {
-				UG_LOGN("Selecting now subset: " << somaIndex+i);
+				UG_DLOGN(NC_TNP, 0, "Selecting now subset: " << somaIndex+i);
 				sel.clear();
 				/// Select outer soma inner quad
 				SelectSubsetElements<Vertex>(sel, sh, somaIndex+i, true);
 				ug::Vertex* v0 = *(sel.vertices_begin());
-				UG_LOGN("First vertex of subset: " << aaPos[v0]);
+				UG_DLOGN(NC_TNP, 0, "First vertex of subset: " << aaPos[v0]);
 				SelectSubsetElements<Edge>(sel, sh, somaIndex+i, true);
 				eit = sel.edges_begin();
 				eit_end = sel.edges_end();
 				std::vector<std::pair<ug::Vertex*, ug::Vertex*> > es;
 				size_t count = 0;
 
-				UG_LOGN("Trying to find edges...");
+				UG_DLOGN(NC_TNP, 0, "Trying to find edges...");
 				for (; eit != eit_end; ++eit) {
 					Edge* e = *eit;
-					UG_LOGN("trying e->vertex(0)");
+					UG_DLOGN(NC_TNP, 0, "trying e->vertex(0)");
 					std::pair<ug::Vertex*, ug::Vertex*> p;
 					if (e->vertex(0) == v0) {
 						p.first = v0;
@@ -381,7 +381,7 @@ namespace ug {
 						es.push_back(p);
 					}
 
-					UG_LOGN("trying e->vertex(1)");
+					UG_DLOGN(NC_TNP, 0, "trying e->vertex(1)");
 					if (e->vertex(1) == v0) {
 						p.first = e->vertex(0);
 						p.second = v0;
@@ -389,19 +389,19 @@ namespace ug {
 						count++;
 					}
 				}
-				UG_LOGN("Found edges");
+				UG_DLOGN(NC_TNP, 0, "Found edges");
 				UG_COND_THROW(count != 2, "Number of edges has to be two!");
 
 				ug::vector3 v1, v2;
 				VecSubtract(v1, aaPos[es[0].first], aaPos[es[0].second]);
-				UG_LOGN("Subtracted v1");
+				UG_DLOGN(NC_TNP, 0, "Subtracted v1");
 				VecSubtract(v2, aaPos[es[1].first], aaPos[es[1].second]);
-				UG_LOGN("Subtracted v2");
+				UG_DLOGN(NC_TNP, 0, "Subtracted v2");
 				ug::vector3 normal;
 				VecCross(normal, v1, v2);
 				VecNormalize(normal, normal);
 				sel.clear();
-				UG_LOGN("calculated cross product");
+				UG_DLOGN(NC_TNP, 0, "calculated cross product");
 
 				size_t numVerts = 4;
 				ug::vector3 vProjected;
@@ -423,7 +423,7 @@ namespace ug {
 					normals.push_back(normal);
 				}
 				allNormals.push_back(normals);
-				UG_LOGN("First projection!");
+				UG_DLOGN(NC_TNP, 0, "First projection!");
 			}
 
 			/// Find the corresponding pairs of projected and unprojected respectively original quad vertex and unprojected vertex
@@ -454,17 +454,17 @@ namespace ug {
 				allAnglesInner.push_back(angles2);
 				j++;
 			}
-			UG_LOGN("Found angles");
+			UG_DLOGN(NC_TNP, 0, "Found angles");
 
 			for (size_t i = 0; i < 1; i++) {
 				for (size_t j = 0; j < allAngles[i].size(); j++) {
-					UG_LOGN("(old angles): " << allAngles[i][j]); /// allAngles are projected inner vertices (from outer vertices)
+					UG_DLOGN(NC_TNP, 0, "(old angles): " << allAngles[i][j]); /// allAngles are projected inner vertices (from outer vertices)
 				}
 			}
 
 			for (size_t i = 0; i < 1; i++) {
 				for (size_t j = 0; j < allAnglesInner[i].size(); j++) {
-					UG_LOGN("(old angles inner): " << allAnglesInner[i][j]); /// allAnglesInner are unprojected inner vertices
+					UG_DLOGN(NC_TNP, 0, "(old angles inner): " << allAnglesInner[i][j]); /// allAnglesInner are unprojected inner vertices
 				}
 			}
 
@@ -502,13 +502,13 @@ namespace ug {
 
 			for (size_t i = 0; i < 1; i++) {
 				for (size_t j = 0; j < allAngles[i].size(); j++) {
-					UG_LOGN("(new angles): " << allAngles[i][j]); /// projected inner vertices (from outer vertices of root neurite)
+					UG_DLOGN(NC_TNP, 0, "(new angles): " << allAngles[i][j]); /// projected inner vertices (from outer vertices of root neurite)
 				}
 			}
 
 			for (size_t i = 0; i < 1; i++) {
 				for (size_t j = 0; j < allAnglesInner[i].size(); j++) {
-					UG_LOGN("(new angles inner): " << allAnglesInner[i][j]); /// unprojected inner vertices
+					UG_DLOGN(NC_TNP, 0, "(new angles inner): " << allAnglesInner[i][j]); /// unprojected inner vertices
 				}
 			}
 
@@ -612,8 +612,8 @@ namespace ug {
 				UG_COND_THROW(!e1, "Edge (conencting outer quads with outer neurite) was not created");
 			}
 
-			UG_LOGN("Inner done!");
-			UG_LOGN("Next merge these vertices from above!");
+			UG_DLOGN(NC_TNP, 0, "Inner done!");
+			UG_DLOGN(NC_TNP, 0, "Next merge these vertices from above!");
 		}
 
 
@@ -646,22 +646,22 @@ namespace ug {
 
 			/// find all edges for each inner sphere's surface quad - take two starting at the same vertex to get two edges for normal calculation
 			for (size_t i = 1; i < numQuads+1; i++) {
-				UG_LOGN("Selecting now subset: " << somaIndex+i);
+				UG_DLOGN(NC_TNP, 0, "Selecting now subset: " << somaIndex+i);
 				sel.clear();
 				/// Select inner soma quad
 				SelectSubsetElements<Vertex>(sel, sh, somaIndex+i, true);
 				ug::Vertex* v0 = *(sel.vertices_begin());
-				UG_LOGN("First vertex of subset: " << aaPos[v0]);
+				UG_DLOGN(NC_TNP, 0, "First vertex of subset: " << aaPos[v0]);
 				SelectSubsetElements<Edge>(sel, sh, somaIndex+i, true);
 				eit = sel.edges_begin();
 				eit_end = sel.edges_end();
 				std::vector<std::pair<ug::Vertex*, ug::Vertex*> > es;
 				size_t count = 0;
 
-				UG_LOGN("Trying to find edges...");
+				UG_DLOGN(NC_TNP, 0, "Trying to find edges...");
 				for (; eit != eit_end; ++eit) {
 					Edge* e = *eit;
-					UG_LOGN("trying e->vertex(0)");
+					UG_DLOGN(NC_TNP, 0, "trying e->vertex(0)");
 					std::pair<ug::Vertex*, ug::Vertex*> p;
 					if (e->vertex(0) == v0) {
 						p.first = v0;
@@ -670,7 +670,7 @@ namespace ug {
 						es.push_back(p);
 					}
 
-					UG_LOGN("trying e->vertex(1)");
+					UG_DLOGN(NC_TNP, 0, "trying e->vertex(1)");
 					if (e->vertex(1) == v0) {
 						p.first = e->vertex(0);
 						p.second = v0;
@@ -680,20 +680,20 @@ namespace ug {
 				}
 
 				/// Two edges found starting in same vertex
-				UG_LOGN("Found edges");
+				UG_DLOGN(NC_TNP, 0, "Found edges");
 				UG_COND_THROW(count != 2, "Number of edges has to be two to calculate a normal");
 
 				/// Now calculate the normal for this plane / inner sphere's quad
 				ug::vector3 v1, v2;
 				VecSubtract(v1, aaPos[es[0].first], aaPos[es[0].second]);
-				UG_LOGN("Subtracted v1");
+				UG_DLOGN(NC_TNP, 0, "Subtracted v1");
 				VecSubtract(v2, aaPos[es[1].first], aaPos[es[1].second]);
-				UG_LOGN("Subtracted v2");
+				UG_DLOGN(NC_TNP, 0, "Subtracted v2");
 				ug::vector3 normal;
 				VecCross(normal, v1, v2);
 				VecNormalize(normal, normal);
 				sel.clear();
-				UG_LOGN("calculated cross product");
+				UG_DLOGN(NC_TNP, 0, "calculated cross product");
 
 				/// Project each of the outer sphere's quad (ER) to the plane described by the normal of the inner sphere's quad
 				ug::vector3 vProjected;
@@ -715,7 +715,7 @@ namespace ug {
 					g.erase(projVert); /// delete projected vertex (only used during debugging)
 				}
 				normals.push_back(normal);
-				UG_LOGN("First projection!");
+				UG_DLOGN(NC_TNP, 0, "First projection!");
 			}
 
 			/// Note: Could also calculate an averaged plane, e.g. calculate two plane normals for each quad, average them
@@ -754,8 +754,8 @@ namespace ug {
 				CalculateCenter(centerOut, &(*it)[0], it->size()); // center of projected inner soma surface quad vertices
 				CalculateCenter(centerOut2, &(verts[0]), verts.size()); /// center of unprojected inner soma surface quad
 				VecSubtract(dir, centerOut, centerOut2);
-				UG_LOGN("Centerout: " << centerOut);
-				UG_LOGN("Centerout2: " << centerOut2);
+				UG_DLOGN(NC_TNP, 0, "Centerout: " << centerOut);
+				UG_DLOGN(NC_TNP, 0, "Centerout2: " << centerOut2);
 				for (std::vector<ug::vector3>::iterator it2 = it->begin(); it2 != it->end(); ++it2) {
 					/// center each projected vertex to center of inner soma quad
 					VecSubtract(*it2, *it2, dir);
@@ -788,19 +788,19 @@ namespace ug {
 			}
 
 			for (std::vector<std::vector<number> >::const_iterator it = allAngles.begin(); it != allAngles.end(); ++it) {
-				UG_LOGN("Quad angles projected from outer to inner...");
+				UG_DLOGN(NC_TNP, 0, "Quad angles projected from outer to inner...");
 				for (std::vector<number>::const_iterator it2 = it->begin(); it2 != it->end(); ++it2) {
-					UG_LOGN(*it2);
+					UG_DLOGN(NC_TNP, 0, *it2);
 				}
-				UG_LOGN("---");
+				UG_DLOGN(NC_TNP, 0, "---");
 			}
 
 			for (std::vector<std::vector<number> >::const_iterator it = allAnglesInner.begin(); it != allAnglesInner.end(); ++it) {
-				UG_LOGN("Quad angles inner...");
+				UG_DLOGN(NC_TNP, 0, "Quad angles inner...");
 				for (std::vector<number>::const_iterator it2 = it->begin(); it2 != it->end(); ++it2) {
-					UG_LOGN(*it2);
+					UG_DLOGN(NC_TNP, 0, *it2);
 				}
-				UG_LOGN("---");
+				UG_DLOGN(NC_TNP, 0, "---");
 			}
 
 			/// TODO: Angle calculation here (Conversion from 0, 180 to 0, 360 interval) is wrong: use from connect_outer_* method to convert
@@ -828,11 +828,11 @@ namespace ug {
 			}
 
 			for (std::vector<std::vector<std::pair<size_t, size_t > > >::const_iterator it = pairs.begin(); it != pairs.end(); ++it) {
-				UG_LOGN("***");
+				UG_DLOGN(NC_TNP, 0, "***");
 				for (std::vector<std::pair<size_t, size_t> >::const_iterator it2 = it->begin(); it2 != it->end(); ++it2) {
-					UG_LOGN("Pair " << it2->first << " -> " << it2->second);
+					UG_DLOGN(NC_TNP, 0, "Pair " << it2->first << " -> " << it2->second);
 				}
-				UG_LOGN("***");
+				UG_DLOGN(NC_TNP, 0, "***");
 			}
 
 			/// find closest vertex instead of minimum angle difference: this should be safe for the inner sphere and outer sphere ER part connection. Note reference point has to be the same to make sense.
@@ -877,13 +877,13 @@ namespace ug {
 				j++;
 			}
 
-			UG_LOGN("vector pairs...");
+			UG_DLOGN(NC_TNP, 0, "vector pairs...");
 			for (std::vector<std::vector<std::pair<ug::vector3, ug::vector3 > > >::const_iterator it = myPairs.begin(); it != myPairs.end(); ++it) {
-				UG_LOGN("***");
+				UG_DLOGN(NC_TNP, 0, "***");
 				for (std::vector<std::pair<ug::vector3, ug::vector3> >::const_iterator it2 = it->begin(); it2 != it->end(); ++it2) {
-					UG_LOGN("Pair " << it2->first << " -> " << it2->second);
+					UG_DLOGN(NC_TNP, 0, "Pair " << it2->first << " -> " << it2->second);
 				}
-				UG_LOGN("***");
+				UG_DLOGN(NC_TNP, 0, "***");
 			}
 
 			/// Note: Could also project the inner soma's quad vertices onto the plane defined by two of the inner soma's quad vertices
@@ -894,13 +894,13 @@ namespace ug {
 			SaveGridToFile(g, sh, "before_projections_inner_connections.ugx");
 			for (size_t i = 1; i < numQuads+1; i++) {
 				sel.clear();
-				UG_LOGN("Selecting now subset: " << somaIndex+i);
+				UG_DLOGN(NC_TNP, 0, "Selecting now subset: " << somaIndex+i);
 				/// Select inner soma quad
 				SelectSubsetElements<Edge>(sel, sh, somaIndex+i, true);
 				eit = sel.edges_begin();
 				eit_end = sel.edges_end();
 				for (; eit != eit_end; ++eit) {
-					UG_LOGN("Edge!");
+					UG_DLOGN(NC_TNP, 0, "Edge!");
 					Edge* e = *eit;
 					ug::Vertex* p1 = e->vertex(0);
 					ug::Vertex* p2 = e->vertex(1);
@@ -941,7 +941,7 @@ namespace ug {
 	   	    size_t numVerts
 		) {
 			std::vector<ug::vector3> centers;
-			UG_LOGN("3. AdaptSurfaceGridToCylinder")
+			UG_DLOGN(NC_TNP, 0, "3. AdaptSurfaceGridToCylinder")
 			Selector sel(g);
 			for (size_t i = 0; i < verticesOld.size(); i++) {
 				sel.clear();
@@ -949,7 +949,7 @@ namespace ug {
 				CalculateVertexNormal(normal, g, verticesOld[i], aaPos);
 				number radius = outRads[i][0];
 				AdaptSurfaceGridToCylinder(sel, g, verticesOld[i], normal, radius, 1.0*rimSnapThresholdFactor, aPosition);
-				UG_LOGN("Adaption done");
+				UG_DLOGN(NC_TNP, 0, "Adaption done");
 
 				sel.clear();
 				sel.select(verticesOld[i]);
@@ -958,7 +958,7 @@ namespace ug {
 				sel.deselect(verticesOld[i]);
 				g.erase(verticesOld[i]);
 
-				UG_LOGN("num edges: " << sel.num<Edge>());
+				UG_DLOGN(NC_TNP, 0, "num edges: " << sel.num<Edge>());
 				size_t numEdges = sel.num<Edge>();
 				size_t j = 0;
 				while (numEdges > numVerts) {
@@ -984,20 +984,20 @@ namespace ug {
 					numEdges--;
 					j++;
 				}
-				UG_LOGN("Collapsing done");
+				UG_DLOGN(NC_TNP, 0, "Collapsing done");
 
 				std::vector<ug::vector3> vertices;
 				Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
 				Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
-				UG_LOGN("Pushing vertices");
+				UG_DLOGN(NC_TNP, 0, "Pushing vertices");
 				for (; vit != vit_end; ++vit) {
 					vertices.push_back(aaPos[*vit]);
 				}
 
-				UG_LOGN("Number of vertices: " << vertices.size());
+				UG_DLOGN(NC_TNP, 0, "Number of vertices: " << vertices.size());
 				ug::vector3 centerOut;
 				CalculateCenter(centerOut, &vertices[0], sel.num<ug::Vertex>());
-				UG_LOGN("centerOut: " << centerOut);
+				UG_DLOGN(NC_TNP, 0, "centerOut: " << centerOut);
 				centers.push_back(centerOut);
 				}
 			return centers;
@@ -1033,7 +1033,7 @@ namespace ug {
 			size_t numVerts,
 			size_t numQuads
 		) {
-			UG_LOGN("1. Find the vertices representing dendrite connection to soma.");
+			UG_DLOGN(NC_TNP, 0, "1. Find the vertices representing dendrite connection to soma.");
 			/// 1. Finde die 4 Vertices die den Dendritenanschluss darstellen zum Soma
 			std::vector<std::vector<ug::vector3> > quads;
 			std::vector<number> quadsRadii;
@@ -1044,11 +1044,11 @@ namespace ug {
 				for (size_t j = 0; j < numVerts; j++) {
 					temp.push_back(aaPos[outVerts[(i*12)+j]]);
 				}
-				UG_LOGN("push a quad!");
+				UG_DLOGN(NC_TNP, 0, "push a quad!");
 				quads.push_back(temp);
 			}
 
-			UG_LOGN("2. Calculate center of each quad, find next surface vertex on soma.")
+			UG_DLOGN(NC_TNP, 0, "2. Calculate center of each quad, find next surface vertex on soma.")
 			/// 2. Berechne den Schwerpunkt jedes Quads und finde den nächstgelegenen
 			///    Vertex des Oberflächengitters vom Soma
 			std::vector<ug::vector3> centerOuts;
@@ -1082,8 +1082,8 @@ namespace ug {
 			SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
-			UG_LOGN("3. AdaptSurfaceGridToCylinder")
-			UG_LOGN("Best vertices size: " << bestVertices.size());
+			UG_DLOGN(NC_TNP, 0, "3. AdaptSurfaceGridToCylinder")
+			UG_DLOGN(NC_TNP, 0, "Best vertices size: " << bestVertices.size());
 			/// 3. Für jeden Vertex v führe AdaptSurfaceGridToCylinder mit Radius entsprechend
 			///    dem anzuschließenden Dendritenende aus. Dadurch entsteht auf der Icosphere
 			///    um jedes v ein trianguliertes 6- bzw. 5-Eck.
@@ -1101,7 +1101,7 @@ namespace ug {
 			SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
-			UG_LOGN("5. MergeVertices")
+			UG_DLOGN(NC_TNP, 0, "5. MergeVertices")
 			/// 5. Wandle die stückweise linearen Ringe um die Anschlusslöcher per
 			///    MergeVertices zu Vierecken um.
 			sel.clear();
@@ -1118,7 +1118,7 @@ namespace ug {
 			SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
-			UG_LOGN("4. Remove each vertex. Creates holes in soma")
+			UG_DLOGN(NC_TNP, 0, "4. Remove each vertex. Creates holes in soma")
 			/// 4. Lösche jedes v, sodass im Soma Anschlusslöcher für die Dendriten entstehen.
 			sel.clear();
 			for (std::vector<Vertex*>::iterator it = bestVertices.begin(); it != bestVertices.end(); ++it) {
@@ -1187,39 +1187,39 @@ namespace ug {
 					int si = beginningOfQuads+i;
 
 					SelectSubsetElements<Vertex>(sel, sh, si, true);
-					UG_LOGN("Selecting subset index (si): " << si);
-					UG_LOGN("Number of vertices: " << sel.num<Vertex>(si));
+					UG_DLOGN(NC_TNP, 0, "Selecting subset index (si): " << si);
+					UG_DLOGN(NC_TNP, 0, "Number of vertices: " << sel.num<Vertex>(si));
 					std::vector<Vertex*> vrts;
 					sel.clear();
-					UG_LOGN("verts size: " << vrts.size());
+					UG_DLOGN(NC_TNP, 0, "verts size: " << vrts.size());
 
 					std::vector<Edge*> edges;
 					SelectSubsetElements<Edge>(sel, sh, si, true);
 					edges.assign(sel.edges_begin(), sel.edges_end());
 					sel.clear();
-					UG_LOGN("edges size: " << edges.size());
+					UG_DLOGN(NC_TNP, 0, "edges size: " << edges.size());
 
 					vrts.push_back(edges[0]->vertex(0));
 					vrts.push_back(edges[0]->vertex(1));
 					Vertex* prevVertex = edges[0]->vertex(1);
 					std::vector<size_t> indices;
 					edges.erase(edges.begin());
-					UG_LOGN("number of edges: " << edges.size());
+					UG_DLOGN(NC_TNP, 0, "number of edges: " << edges.size());
 
 					while (!edges.empty()) {
-						UG_LOGN("Still running: edges.size(): " << edges.size());
+						UG_DLOGN(NC_TNP, 0, "Still running: edges.size(): " << edges.size());
 						for (size_t i = 0; i < edges.size(); i++) {
 							Edge* nextEdge = edges[i];
 							if (nextEdge->vertex(0) == prevVertex) {
-								UG_LOGN("push first if");
+								UG_DLOGN(NC_TNP, 0, "push first if");
 								vrts.push_back(nextEdge->vertex(1));
 								prevVertex = nextEdge->vertex(1);
 								edges.erase(edges.begin()+i);
 								break;
 							}
-							UG_LOGN("in between");
+							UG_DLOGN(NC_TNP, 0, "in between");
 							if (nextEdge->vertex(1) == prevVertex) {
-								UG_LOGN("push second if")
+								UG_DLOGN(NC_TNP, 0, "push second if")
 		            			vrts.push_back(nextEdge->vertex(0));
 								prevVertex = nextEdge->vertex(0);
 								edges.erase(edges.begin()+i);
@@ -1233,7 +1233,7 @@ namespace ug {
 					std::vector<ug::Vertex*> vVrtOut;
 
 					Selector selToAssign(g);
-					UG_LOGN("Vrts.size(): " << vrts.size());
+					UG_DLOGN(NC_TNP, 0, "Vrts.size(): " << vrts.size());
 
 					/// UG_COND_THROW(vrts.size() != 4, "Non-quadrilateral encountered. Cannot shrink a non-quadrilateral!");
 					/// shrink_quadrilateral_copy(vrts, vVrtOut, vVrtOut, vEdgeOut, g, aaPos, -scale, false, &selToAssign, NULL);
@@ -1312,7 +1312,7 @@ namespace ug {
 			SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
-			UG_LOGN("8. TangentialSmooth");
+			UG_DLOGN(NC_TNP, 0, "8. TangentialSmooth");
 			/// Note: TangentialSmooth -> alpha has to be corrected for different geometries.
 			/// TangentialSmooth(g, g.vertices_begin(), g.vertices_end(), aaPos, alpha, numIterations);
 
@@ -1320,7 +1320,7 @@ namespace ug {
 			SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
-			UG_LOGN("6. Extrude rings along normal")
+			UG_DLOGN(NC_TNP, 0, "6. Extrude rings along normal")
 			/// 6. Extrudiere die Ringe entlang ihrer Normalen mit Höhe 0 (Extrude mit
 			///    aktivierter create faces Option).
 			sel.clear();
@@ -1335,12 +1335,12 @@ namespace ug {
 				int si = beginningOfQuads+i;
 				ug::vector3 normal;
 				CalculateVertexNormal(normal, g, *sh.begin<Vertex>(si), aaPos);
-				UG_LOGN("normal (outer): " << normal);
+				UG_DLOGN(NC_TNP, 0, "normal (outer): " << normal);
 				ug::vector3 axisVector;
 				CalculateCenter(sh.begin<Vertex>(si), sh.end<Vertex>(si), aaPos);
 				/// indicate soma posiiton
 				/*for (SubsetHandler::traits<Vertex>::iterator it = sh.begin<Vertex>(si); it != sh.end<Vertex>(si); ++it) {
-					UG_LOGN("setting axial to -1!");
+					UG_DLOGN(NC_TNP, 0, "setting axial to -1!");
 					aaSurfParams[*it].axial = -1;
 				}*/
 
@@ -1464,7 +1464,7 @@ namespace ug {
 			SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
-			UG_LOGN("7. Calculate convex hull and connect (Not needed anymore)")
+			UG_DLOGN(NC_TNP, 0, "7. Calculate convex hull and connect (Not needed anymore)")
 			/// 7. Vereine per MergeVertices die Vertices der in 6. extrudierten Ringe jeweils
 			///    mit den zu ihnen nächstgelegenen Vertices des entsprechenden Dendritenendes.
 			si = beginningOfQuads;
@@ -1476,7 +1476,7 @@ namespace ug {
 			SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
-			UG_LOGN("9. Resolve potentially generated intersection(s)")
+			UG_DLOGN(NC_TNP, 0, "9. Resolve potentially generated intersection(s)")
 			ResolveTriangleIntersections(g, g.begin<ug::Triangle>(), g.end<ug::Triangle>(), resolveThreshold, aPosition);
 
 			ss << fileName << "_final.ugx";
@@ -1526,7 +1526,7 @@ namespace ug {
 	    	   	   ///    otherwise project dir2 to edge e if e was antiparallel to currentDir
 	       	   }
 
-	       	   UG_LOGN("dir:" << dir)
+	       	   UG_DLOGN(NC_TNP, 0, "dir:" << dir)
 	       	   VecScaleAdd(aaPos[v], 1.0, aaPos[v], percentage, dir);
 
 	       	   if (percentage > 1) {
@@ -1582,7 +1582,7 @@ namespace ug {
 	       	   ug::vector3 dir;
 	       	   VecSubtract(dir, aaPos[vVrt[i]], center);
 
-	       	   UG_LOGN("dir:" << dir)
+	       	   UG_DLOGN(NC_TNP, 0, "dir:" << dir)
 	       	   VecScaleAdd(aaPos[v], 1.0, aaPos[v], percentage, dir);
 
 	       	   if (percentage > 1) {
@@ -1634,7 +1634,7 @@ namespace ug {
 			{
 				ug::vector3 dir;
 				VecSubtract(dir, aaPos[vVrt[i]], center);
-				UG_LOGN("dir:" << dir)
+				UG_DLOGN(NC_TNP, 0, "dir:" << dir)
 				VecScaleAdd(aaPos[vVrt[i]], 1.0, aaPos[vVrt[i]], percentage, dir);
 				if (percentage > 1) {
 					UG_WARNING("Moving vertex beyond center. Will create degenerated elements." << std::endl);
@@ -1734,10 +1734,10 @@ namespace ug {
 				VecSubtract(diffVec, aaPos[vVrt[i]], aaPos[vVrt[(i+1)%4]]);
 				VecNormalize(diffVec, diffVec);
 				VecNormalize(vecDir, vecDir);
-				UG_LOGN("Parallel? " << VecDot(vecDir, diffVec));
+				UG_DLOGN(NC_TNP, 0, "Parallel? " << VecDot(vecDir, diffVec));
 				if (abs(VecDot(vecDir, diffVec)) > (1-0.1)) {
 					numPar++;
-					UG_LOGN("Parallel:" << VecDot(vecDir, diffVec));
+					UG_DLOGN(NC_TNP, 0, "Parallel:" << VecDot(vecDir, diffVec));
 					Edge* e = g.get_edge(vVrt[i], vVrt[(i+1)%4]);
 					ug::RegularVertex* newVertex = SplitEdge<ug::RegularVertex>(g, e, conservative);
 					ug::vector3 dir;
@@ -1782,7 +1782,7 @@ namespace ug {
 		       ug::vector3 dir;
 		       VecSubtract(dir, aaPos[vVrt[i]], center);
 
-		       UG_LOGN("dir:" << dir)
+		       UG_DLOGN(NC_TNP, 0, "dir:" << dir)
 		       VecScaleAdd(aaPos[vVrt[i]], 1.0, aaPos[vVrt[i]], percentage, dir);
 
 		       if (percentage > 1) {
@@ -1921,10 +1921,10 @@ namespace ug {
 			number scale
 		) {
 			/// the connecting vertices are needed later
-			UG_LOGN("correcting edges connecting...")
+			UG_DLOGN(NC_TNP, 0, "correcting edges connecting...")
 				std::vector<ug::Vertex*> oldVertsSorted;
 			correct_edges(verts, edges, oldVertsSorted, aaSurfParams, g, aaPos, scale);
-			UG_LOGN("correcting edges opposing...")
+			UG_DLOGN(NC_TNP, 0, "correcting edges opposing...")
 
 			/// backside not needed
 			std::vector<ug::Vertex*> oldVertsSortedOpp;
@@ -1961,7 +1961,7 @@ namespace ug {
 			// sort to find min and max axial values
 			sort(verts.begin(), verts.end(), CompareBy<&NeuriteProjector::SurfaceParams::axial>(aaSurfParams));
 			number length = aaSurfParams[verts[2]].axial - aaSurfParams[verts[0]].axial;
-			UG_LOGN("length TIMES scale/2: " << length*scale/2)
+			UG_DLOGN(NC_TNP, 0, "length TIMES scale/2: " << length*scale/2)
 			// update surface parameters
 			aaSurfParams[verts[0]].axial = aaSurfParams[verts[0]].axial + length*scale/2;
 			aaSurfParams[verts[1]].axial = aaSurfParams[verts[1]].axial + length*scale/2;
@@ -2117,14 +2117,14 @@ namespace ug {
 			SubsetHandler& sh,
 			size_t si
 		) {
-			UG_LOGN("Finding now: " << vPos.size());
+			UG_DLOGN(NC_TNP, 0, "Finding now: " << vPos.size());
 			for (size_t i = 0; i < vPos.size(); i++) {
 				const ug::vector3* pointSet = &vPos[i];
 				ug::vector3 centerOut;
 				CalculateCenter(centerOut, pointSet, 1);
 				Selector sel(g);
 				SelectSubsetElements<Vertex>(sel, sh, si, true);
-				UG_LOGN("selected vertices: " << sel.num<Vertex>());
+				UG_DLOGN(NC_TNP, 0, "selected vertices: " << sel.num<Vertex>());
 				Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
 				Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
 				number best = -1;
@@ -2155,14 +2155,14 @@ namespace ug {
 			SubsetHandler& sh,
 			size_t si
 		) {
-			UG_LOGN("finding now: " << vPos.size());
+			UG_DLOGN(NC_TNP, 0, "finding now: " << vPos.size());
 			for (size_t i = 0; i < vPos.size(); i++) {
 				const ug::vector3* pointSet = &vPos[i];
 				ug::vector3 centerOut;
 				CalculateCenter(centerOut, pointSet, 1);
 				Selector sel(g);
 				SelectSubsetElements<Vertex>(sel, sh, si, true);
-				UG_LOGN("selected vertices: " << sel.num<Vertex>());
+				UG_DLOGN(NC_TNP, 0, "selected vertices: " << sel.num<Vertex>());
 				Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
 				Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
 				number best = -1;
