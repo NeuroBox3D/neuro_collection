@@ -272,7 +272,7 @@ namespace ug {
 				}
 			}
 
-			SaveGridToFile(g, sh, "after_projection_outer_variant.ugx");
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "after_projection_outer_variant.ugx");
 
 			/// Center projected vertices (projVert) around the inner soma's quad
 			for (size_t i = 0; i < size/numVerts; i++) {
@@ -325,7 +325,7 @@ namespace ug {
 				}
 			}
 
-			SaveGridToFile(g, sh, "after_connecting_outer_variant.ugx");
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "after_connecting_outer_variant.ugx");
 		}
 
 
@@ -642,7 +642,7 @@ namespace ug {
 			std::vector<ug::vector3> normals;
 			projected.resize(numQuads);
 			projectedVertices.resize(numQuads);
-			SaveGridToFile(g, "before_projections_inner.ugx");
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, "before_projections_inner.ugx");
 
 			/// find all edges for each inner sphere's surface quad - take two starting at the same vertex to get two edges for normal calculation
 			for (size_t i = 1; i < numQuads+1; i++) {
@@ -761,7 +761,7 @@ namespace ug {
 					VecSubtract(*it2, *it2, dir);
 				}
 			}
-			SaveGridToFile(g, sh, "projection_after_centered.ugx");
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "projection_after_centered.ugx");
 
 			std::vector<std::vector<number> > allAngles;
 			std::vector<std::vector<number> > allAnglesInner;
@@ -891,7 +891,7 @@ namespace ug {
 			/// Iterate over all neurite connections (numQuads) and get the vertices of the
 			/// inner sphere's quad edge each and find the corresponding unprojected (outer sphere's quad vertices) and form a face
 			/// It is also possible to do the same procedure with the sorted angle differences above to create these faces if angles are correct
-			SaveGridToFile(g, sh, "before_projections_inner_connections.ugx");
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "before_projections_inner_connections.ugx");
 			for (size_t i = 1; i < numQuads+1; i++) {
 				sel.clear();
 				UG_DLOGN(NC_TNP, 0, "Selecting now subset: " << somaIndex+i);
@@ -918,7 +918,7 @@ namespace ug {
 				}
 			}
 
-			SaveGridToFile(g, sh, "after_projections_inner.ugx");
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "after_projections_inner.ugx");
 
 			/// TODO: Verdrehung kann beseitigt werden wenn man die Knoten des inneren Soma Oberflächenquads
 			/// auf die Ebene projiziert welche durch das innere Oberflächenquads des äußeren Somas definiert wird.
@@ -1079,7 +1079,7 @@ namespace ug {
 			AssignSubsetColors(sh);
 			std::stringstream ss;
 			ss << fileName << "_best_vertices.ugx";
-			SaveGridToFile(g, sh, ss.str().c_str());
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
 			UG_DLOGN(NC_TNP, 0, "3. AdaptSurfaceGridToCylinder")
@@ -1098,7 +1098,7 @@ namespace ug {
 
 			AssignSubsetColors(sh);
 			ss << fileName << "_before_deleting_center_vertices.ugx";
-			SaveGridToFile(g, sh, ss.str().c_str());
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
 			UG_DLOGN(NC_TNP, 0, "5. MergeVertices")
@@ -1115,7 +1115,7 @@ namespace ug {
 
 			AssignSubsetColors(sh);
 			ss << fileName << "_before_getting_neighborhoods.ugx";
-			SaveGridToFile(g, sh, ss.str().c_str());
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
 			UG_DLOGN(NC_TNP, 0, "4. Remove each vertex. Creates holes in soma")
@@ -1131,7 +1131,7 @@ namespace ug {
 			EraseEmptySubsets(sh);
 			AssignSubsetColors(sh);
 			ss << fileName << "_after_deleting_center_vertices.ugx";
-			SaveGridToFile(g, sh, ss.str().c_str());
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
 			/// Collapse now edges and take smallest edges first
@@ -1164,7 +1164,7 @@ namespace ug {
 					j++;
 					std::stringstream ss;
 					ss << fileName << "_after_collapse_number_" << j << "_for_quad_" << i << ".ugx";
-					SaveGridToFile(g, sh, ss.str().c_str());
+					IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
 				}
 
 				SubsetHandler::traits<Vertex>::iterator vit = sh.begin<Vertex>(si);
@@ -1290,7 +1290,7 @@ namespace ug {
 						j++;
 						std::stringstream ss;
 						ss << fileName << "_after_collapse_number_" << j << "_for_quad_" << i << ".ugx";
-						SaveGridToFile(g, sh, ss.str().c_str());
+						IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
 					}
 				}
 
@@ -1309,7 +1309,7 @@ namespace ug {
 			AssignSubsetColors(sh);
 
 			ss << fileName << "_after_merging_cylinder_vertices.ugx";
-			SaveGridToFile(g, sh, ss.str().c_str());
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
 			UG_DLOGN(NC_TNP, 0, "8. TangentialSmooth");
@@ -1317,7 +1317,7 @@ namespace ug {
 			/// TangentialSmooth(g, g.vertices_begin(), g.vertices_end(), aaPos, alpha, numIterations);
 
 			ss << fileName << "_after_merging_cylinder_vertices_and_tangential_smooth.ugx";
-			SaveGridToFile(g, sh, ss.str().c_str());
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
 			UG_DLOGN(NC_TNP, 0, "6. Extrude rings along normal")
@@ -1439,7 +1439,7 @@ namespace ug {
 			}
 
 			ss << fileName << "_after_extruding_cylinders_before_removing_common_vertices.ugx";
-			SaveGridToFile(g, sh, ss.str().c_str());
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
 			/// delete common vertices, thus keep only newly extruded vertices (used in next step 7.)
@@ -1461,7 +1461,7 @@ namespace ug {
 			}
 
 			ss << fileName << "_after_extruding_cylinders.ugx";
-			SaveGridToFile(g, sh, ss.str().c_str());
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
 			UG_DLOGN(NC_TNP, 0, "7. Calculate convex hull and connect (Not needed anymore)")
@@ -1473,14 +1473,14 @@ namespace ug {
 			EraseEmptySubsets(sh);
 			AssignSubsetColors(sh);
 			ss << fileName << "_after_extruding_cylinders_and_merging.ugx";
-			SaveGridToFile(g, sh, ss.str().c_str());
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
 			UG_DLOGN(NC_TNP, 0, "9. Resolve potentially generated intersection(s)")
 			ResolveTriangleIntersections(g, g.begin<ug::Triangle>(), g.end<ug::Triangle>(), resolveThreshold, aPosition);
 
 			ss << fileName << "_final.ugx";
-			SaveGridToFile(g, sh, ss.str().c_str());
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
 		}
 
 		////////////////////////////////////////////////////////////////////////
@@ -2321,14 +2321,14 @@ namespace ug {
 			SubsetHandler destSh(gridOut);
 			gridOut.attach_to_vertices(aPosition);
 			CopyGrid<APosition>(grid, gridOut, sh, destSh, aPosition);
-			SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_copying_grid.ugx");
-			SaveGridToFile(grid, sh, "before_tetrahedralize_soma.ugx");
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_copying_grid.ugx");
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "before_tetrahedralize_soma.ugx");
 			sel.clear();
 			SelectElementsByAxialPosition<Face>(grid, sel, 0.0, aaPos, aaSurfParams);
 			CloseSelection(sel);
 			InvertSelection(sel);
 			EraseSelectedObjects(sel);
-			SaveGridToFile(grid, sh, "before_tetrahedralize_soma_and_after_selecting.ugx");
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "before_tetrahedralize_soma_and_after_selecting.ugx");
 			sel.clear();
 			/*
 			Selector sel2(gridOut);
@@ -2336,11 +2336,11 @@ namespace ug {
 			CloseSelection(sel2);
 			EraseSelectedObjects(sel2);
 			*/
-			SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_selecting_complement.ugx");
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_selecting_complement.ugx");
 
 			// Tetrahedralizes somata
 			Tetrahedralize(grid, 2, true, true, aPosition, 0);
-			SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
 
 			/// Grid (contains somata) and gridOut (contains neurites) - these both have to be merged
 			MergeFirstGrids(grid, gridOut, sh, destSh);
@@ -2397,7 +2397,7 @@ namespace ug {
 		) {
 			EraseEmptySubsets(sh);
 			AssignSubsetColors(sh);
-			SaveGridToFile(grid, sh, fileName);
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, fileName);
 		}
 
 		////////////////////////////////////////////////////////////////////////
