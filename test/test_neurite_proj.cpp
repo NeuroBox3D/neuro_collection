@@ -3172,23 +3172,28 @@ void create_spline_data_for_neurites
 		std::vector<number> outRadsInner;
 
 	    UG_DLOGN(NC_TNP, 0, "Generating neurites...");
-		/// TODO Could be improved to generate only first layer or get only outVerts outVertsInner outRads outRadsInner without generating grid
+    	/// for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 	    for (size_t i = 0; i < 1; ++i) {
-	    ///for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
-	    	create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
-	    			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, &outVerts, &outVertsInner, &outRads, &outRadsInner);
+	    	create_neurite_root_vertices(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
+	    			g, sh, erScaleFactor, aaPos, &outVerts, &outVertsInner, &outRads,
+	    			&outRadsInner);
+	    	///	create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
+	    	//	erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, &outVerts,
+	    	// &outVertsInner, &outRads, &outRadsInner);
 	    }
 
 	    UG_DLOGN(NC_TNP, 0, " done.");
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
 
 	    /// Outer soma
-	    /// Note: axisVectors (outer soma) and axisVectorsInner (inner soma) save the cylinder center, diameter and length parameters for the CylinderProjectors
+	    // Note: axisVectors (outer soma) and axisVectorsInner (inner soma) save the
+	    // cylinder center, diameter and length parameters for the CylinderProjectors
 	    UG_DLOG(NC_TNP, 0, "Creating soma...");
 	    sh.set_default_subset_index(4); /// soma starts now at 4
 	    somaPoint = vSomaPoints;
 	    create_soma(somaPoint, g, aaPos, sh, 4, 3);
 	    UG_DLOGN(NC_TNP, 0, " done.");
+	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_soma.ugx");
 	    std::vector<Vertex*> outQuadsInner;
 	    std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectors;
 	    std::vector<std::vector<ug::Vertex*> > connectingVertices(vRootNeuriteIndsOut.size());
@@ -3214,7 +3219,8 @@ void create_spline_data_for_neurites
 	    for (size_t i = 0; i < 1; ++i) {
 	    	if (withER) {
 	    		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
-	    			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, &outVerts, &outVertsInner, &outRads, &outRadsInner);
+	    			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, &outVerts,
+	    			&outVertsInner, &outRads, &outRadsInner);
 	    	} else {
 	    		/// TODO: Create neurite without ER, don't create ER (inner sphere)
 	    		/// connect soma (outer sphere) to neurites only (without inner ER "cable"),
@@ -3243,7 +3249,8 @@ void create_spline_data_for_neurites
 		sh.set_subset_name("pm", 2);
 		sh.set_subset_name("erm", 3);
 		sh.set_subset_name("soma (outer)", 4);
-		sh.set_subset_name("soma (inner)", newSomaIndex); // ER which should be always subset index 5 (newSomaIndex can be replace with 5?)
+		// ER which should be always subset index 5 (newSomaIndex can be replace with 5?)
+		sh.set_subset_name("soma (inner)", newSomaIndex);
 
 		/// Note: Neurite connections get their names respectively subset assignment above in the connect methods
 		for (int i = newSomaIndex+1; i < sh.num_subsets(); i++) {
@@ -3293,18 +3300,20 @@ void create_spline_data_for_neurites
 		/// however triangles occur now at boundary interface and quadrilaterals, thus
 		/// delete the triangles to keep the quadrilaterals from the start of neurites
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aaPos, 0.00001);
+		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma_and_removed_doubles.ugx");
 		DeleteInnerEdgesFromQuadrilaterals(g, sh, 4);
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma_and_conversion.ugx");
 
-		/// assign correct axial parameters for somata
+		/// assign correct axial parameters for "somata"
 		set_somata_axial_parameters(g, sh, aaSurfParams, 4, 5);
 
 	    // at branching points, we have not computed the correct positions yet,
 		// so project the complete geometry using the projector
 		VertexIterator vit = g.begin<Vertex>();
 		VertexIterator vit_end = g.end<Vertex>();
-		for (; vit != vit_end; ++vit)
+		for (; vit != vit_end; ++vit) {
 			neuriteProj->project(*vit);
+		}
 
 		/// TODO: Projection seems not to work anymore for neurites? (Soma parts
 		/// are allowed to fail since implementation in neurite_projector is WIP!)

@@ -220,6 +220,41 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<Attachment<number> >& aaDiam,
 			Vertex* connectingVrt
 		);
+
+		 /*!
+		  * \brief creates the root neurite's vertices, edges and faces
+		  * Note that the inner root neurite (ER) vertices and outer root
+		  * neurite (PM) vertices as well the corresponding radii are stored
+		  * in the variables outVerts, outVertsInner, outRads and outRadsInner.
+		  * \param[in] vNeurites
+		  * \param[in] vPos
+		  * \param[in] vR
+		  * \param[in] nid
+		  * \param[in,out] g
+		  * \param[in,out] sh
+		  * \param[in] erScaleFactor
+		  * \param[in,out] aaPos
+		  * \param[out] outVerts
+		  * \param[out] outVertsInner
+		  * \param[out] outRads
+		  * \param[out] outRadsInner
+		  *
+		  */
+		 void create_neurite_root_vertices
+		 (
+			const std::vector<NeuriteProjector::Neurite>& vNeurites,
+			const std::vector<std::vector<vector3> >& vPos,
+			const std::vector<std::vector<number> >& vR,
+			size_t nid,
+			Grid& g,
+			SubsetHandler& sh,
+			number erScaleFactor,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			std::vector<Vertex*>* outVerts,
+			std::vector<Vertex*>* outVertsInner,
+			std::vector<number>* outRads,
+			std::vector<number>* outRadsInner
+		);
 	}
 }
 

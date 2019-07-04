@@ -2343,9 +2343,9 @@ namespace ug {
 			SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
 
 			/// Grid (contains somata) and gridOut (contains neurites) - these both have to be merged
-			/// TODO: Need to match grid subset indices/names of gridOut before merging or during merge process.
 			MergeFirstGrids(grid, gridOut, sh, destSh);
 
+			/// TODO: extract volumes of soma to appropriate subsets (Tetrahedralize above does not separate volume subsets)
 		}
 
 		////////////////////////////////////////////////////////////////////////

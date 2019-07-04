@@ -44,7 +44,7 @@
 #include "lib_disc/quadrature/gauss_legendre/gauss_legendre.h"
 
 namespace ug {
-namespace neuro_collection {
+	namespace neuro_collection {
 	////////////////////////////////////////////////////////////////////////
 	/// create_neurite_with_er
 	////////////////////////////////////////////////////////////////////////
@@ -2033,25 +2033,146 @@ number calculate_length_over_radius
 	/// create_neurite_with_er
 	////////////////////////////////////////////////////////////////////////
 	void create_neurite_with_er
-		(
-			const std::vector<NeuriteProjector::Neurite>& vNeurites,
-			const std::vector<std::vector<vector3> >& vPos,
-			const std::vector<std::vector<number> >& vR,
-			size_t nid,
-			number erScaleFactor,
-			number anisotropy,
-			Grid& g,
-			Grid::VertexAttachmentAccessor<APosition>& aaPos,
-			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
-			SubsetHandler& sh,
-			std::vector<Vertex*>* outVerts,
-			std::vector<Vertex*>* outVertsInner,
-			std::vector<number>* outRads,
-			std::vector<number>* outRadsInner
-		)
-		{
-			create_neurite_with_er(vNeurites, vPos, vR, nid, erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, NULL, NULL, NULL, 0, outVerts, outVertsInner, outRads, outRadsInner);
+	(
+		const std::vector<NeuriteProjector::Neurite>& vNeurites,
+		const std::vector<std::vector<vector3> >& vPos,
+		const std::vector<std::vector<number> >& vR,
+		size_t nid,
+		number erScaleFactor,
+		number anisotropy,
+		Grid& g,
+		Grid::VertexAttachmentAccessor<APosition>& aaPos,
+		Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+		SubsetHandler& sh,
+		std::vector<Vertex*>* outVerts,
+		std::vector<Vertex*>* outVertsInner,
+		std::vector<number>* outRads,
+		std::vector<number>* outRadsInner
+	)
+	{
+		create_neurite_with_er(vNeurites, vPos, vR, nid, erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, NULL, NULL, NULL, 0, outVerts, outVertsInner, outRads, outRadsInner);
+	}
+
+	////////////////////////////////////////////////////////////////////////
+	/// create_neurite_root_vertices
+	////////////////////////////////////////////////////////////////////////
+	void create_neurite_root_vertices
+	(
+		const std::vector<NeuriteProjector::Neurite>& vNeurites,
+		const std::vector<std::vector<vector3> >& vPos,
+		const std::vector<std::vector<number> >& vR,
+		size_t nid,
+		Grid& g,
+		SubsetHandler& sh,
+		number erScaleFactor,
+		Grid::VertexAttachmentAccessor<APosition>& aaPos,
+		std::vector<Vertex*>* outVerts,
+		std::vector<Vertex*>* outVertsInner,
+		std::vector<number>* outRads,
+		std::vector<number>* outRadsInner
+	)
+	{
+		const NeuriteProjector::Neurite& neurite = vNeurites[nid];
+		const std::vector<vector3>& pos = vPos[nid];
+		const std::vector<number>& r = vR[nid];
+
+		vector3 vel;
+		const NeuriteProjector::Section& sec = neurite.vSec[0];
+		number h = sec.endParam;
+		vel[0] = -3.0 * sec.splineParamsX[0] * h * h
+				- 2.0 * sec.splineParamsX[1] * h - sec.splineParamsX[2];
+		vel[1] = -3.0 * sec.splineParamsY[0] * h * h
+				- 2.0 * sec.splineParamsY[1] * h - sec.splineParamsY[2];
+		vel[2] = -3.0 * sec.splineParamsZ[0] * h * h
+				- 2.0 * sec.splineParamsZ[1] * h - sec.splineParamsZ[2];
+
+		vector3 projRefDir;
+		VecNormalize(vel, vel);
+		number fac = VecProd(neurite.refDir, vel);
+		VecScaleAdd(projRefDir, 1.0, neurite.refDir, -fac, vel);
+		VecNormalize(projRefDir, projRefDir);
+
+		vector3 thirdDir;
+		VecCross(thirdDir, vel, projRefDir);
+
+		std::vector<Vertex*> vVrt;
+		std::vector<Edge*> vEdge;
+		std::vector<Face*> vFace;
+		vVrt.resize(16);
+		vEdge.resize(24);
+		vFace.resize(9);
+
+		// ER vertices and radii
+		for (size_t i = 0; i < 4; ++i) {
+			Vertex* v = *g.create<RegularVertex>();
+			vVrt[i] = v;
+			number angle = 0.5 * PI * i;
+			VecScaleAdd(aaPos[v], 1.0, pos[0],
+						erScaleFactor * r[0] * cos(angle), projRefDir,
+						erScaleFactor * r[0] * sin(angle), thirdDir);
+
+			if (outVertsInner) {
+				outVertsInner->push_back(v);
+			}
+
+			if (outRadsInner) {
+				outRadsInner->push_back(erScaleFactor * r[0]);
+			}
+			sh.assign_subset(v, 3);
+		}
+
+		// PM vertices and radii
+		for (size_t i = 0; i < 12; ++i) {
+			Vertex* v = *g.create<RegularVertex>();
+			vVrt[i + 4] = v;
+			number angle = PI * ((number) i / 6);
+			VecScaleAdd(aaPos[v], 1.0, pos[0], r[0] * cos(angle), projRefDir,
+					r[0] * sin(angle), thirdDir);
+
+			if (outVerts) {
+				outVerts->push_back(v);
+			}
+
+			if (outRads) {
+				outRads->push_back(r[0]);
+			}
+			sh.assign_subset(v, 2);
+		}
+
+		// edges
+		for (size_t i = 0; i < 4; ++i) {
+				vEdge[i] = *g.create<RegularEdge>(
+						EdgeDescriptor(vVrt[i], vVrt[(i + 1) % 4]));
+				vEdge[i + 4] = *g.create<RegularEdge>(
+						EdgeDescriptor(vVrt[i], vVrt[5 + 3 * i]));
+				vEdge[i + 8] = *g.create<RegularEdge>(
+						EdgeDescriptor(vVrt[(i + 1) % 4], vVrt[6 + 3 * i]));
+
+				sh.assign_subset(vEdge[i], 3);
+				sh.assign_subset(vEdge[i + 4], 0);
+		}
+
+		for (size_t i = 0; i < 12; ++i) {
+			vEdge[i + 12] = *g.create<RegularEdge>(
+					EdgeDescriptor(vVrt[i + 4], vVrt[(i + 1) % 12 + 4]));
+			sh.assign_subset(vEdge[i + 12], 2);
+		}
+
+		// faces
+		vFace[0] = *g.create<Quadrilateral>(
+			QuadrilateralDescriptor(vVrt[0], vVrt[1], vVrt[2], vVrt[3]));
+		sh.assign_subset(vFace[0], 1);
+		for (size_t i = 0; i < 4; ++i) {
+			vFace[i + 1] = *g.create<Quadrilateral>(
+				QuadrilateralDescriptor(vVrt[i],
+					vVrt[(3 * i + 11) % 12 + 4], vVrt[3 * i + 4],
+					vVrt[3 * i + 5]));
+			vFace[i + 5] = *g.create<Quadrilateral>(
+				QuadrilateralDescriptor(vVrt[i], vVrt[3 * i + 5],
+					vVrt[3 * i + 6], vVrt[(i + 1) % 4]));
+			sh.assign_subset(vFace[i + 1], 0);
+			sh.assign_subset(vFace[i + 5], 0);
 		}
 	}
 }
-
+}
