@@ -2276,6 +2276,54 @@ namespace ug {
 					quad->vertex(1), quad->vertex(2), quad->vertex(3), top));
 		}
 
+		template <class TAPos, class TAttachment>
+		void CopyGrid(Grid& srcGrid, Grid& destGrid,
+					  ISubsetHandler& srcSH, ISubsetHandler& destSH,
+					  TAPos aPos, TAttachment aAttachment)
+		{
+			if (!srcGrid.has_vertex_attachment(aAttachment))
+				srcGrid.attach_to_vertices(aAttachment);
+
+			if (!destGrid.has_vertex_attachment(aAttachment))
+				srcGrid.attach_to_vertices(aAttachment);
+
+			Grid::VertexAttachmentAccessor<TAttachment> aaSrc;
+			Grid::VertexAttachmentAccessor<TAttachment> aaDest;
+			aaSrc.access(srcGrid, aAttachment);
+			aaDest.access(srcGrid, aAttachment);
+
+			Grid::VertexAttachmentAccessor<TAPos> aaPos(destGrid, aPos);
+			Grid::VertexAttachmentAccessor<TAPos> aaSrcPos(srcGrid, aPos);
+			GridObjectCollection goc = srcGrid.get_grid_objects();
+
+			AVertex aNewVrt;
+			srcGrid.attach_to_vertices(aNewVrt);
+			Grid::VertexAttachmentAccessor<AVertex> aaNewVrt(srcGrid, aNewVrt);
+
+			for(int si = destSH.num_subsets(); si < srcSH.num_subsets(); ++si)
+			{
+				destSH.subset_info(si) = srcSH.subset_info(si);
+			}
+
+			for(VertexIterator vrtIter = goc.begin<Vertex>(); vrtIter != goc.end<Vertex>(); ++vrtIter) {
+				Vertex* srcVrt  = *vrtIter;
+				Vertex* destVrt = *destGrid.create_by_cloning(srcVrt);
+				aaDest[destVrt] = aaSrc[srcVrt];
+				aaNewVrt[srcVrt] = destVrt;
+				aaPos[destVrt] = aaSrcPos[srcVrt];
+				destSH.assign_subset(destVrt, srcSH.get_subset_index(srcVrt));
+			}
+
+			CopyGridElements<Edge>(srcGrid, destGrid, srcSH, destSH, aNewVrt);
+			CopyGridElements<Face>(srcGrid, destGrid, srcSH, destSH,  aNewVrt);
+			CopyGridElements<Volume>(srcGrid, destGrid, srcSH, destSH, aNewVrt);
+
+			srcGrid.detach_from_vertices(aNewVrt);
+		}
+
+		template void CopyGrid(Grid&, Grid&, ISubsetHandler&, ISubsetHandler&, APosition3,
+				Attachment<NeuriteProjector::SurfaceParams>);
+
 		////////////////////////////////////////////////////////////////////////
 		/// tetrahedralize_soma
 		////////////////////////////////////////////////////////////////////////
@@ -2320,15 +2368,17 @@ namespace ug {
 			Grid gridOut;
 			SubsetHandler destSh(gridOut);
 			gridOut.attach_to_vertices(aPosition);
-			CopyGrid<APosition>(grid, gridOut, sh, destSh, aPosition);
-			IF_DEBUG(NC_TNP, 0) SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_copying_grid.ugx");
-			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "before_tetrahedralize_soma.ugx");
+			typedef NeuriteProjector::SurfaceParams NPSP;
+			Attachment<NPSP> aAttachment = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
+			CopyGrid<APosition, Attachment<NPSP> >(grid, gridOut, sh, destSh, aPosition, aAttachment);
+			SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_copying_grid.ugx");
+			SaveGridToFile(grid, sh, "before_tetrahedralize_soma.ugx");
 			sel.clear();
 			SelectElementsByAxialPosition<Face>(grid, sel, 0.0, aaPos, aaSurfParams);
 			CloseSelection(sel);
 			InvertSelection(sel);
 			EraseSelectedObjects(sel);
-			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "before_tetrahedralize_soma_and_after_selecting.ugx");
+			SaveGridToFile(grid, sh, "before_tetrahedralize_soma_and_after_selecting.ugx");
 			sel.clear();
 			/*
 			Selector sel2(gridOut);
@@ -2336,11 +2386,11 @@ namespace ug {
 			CloseSelection(sel2);
 			EraseSelectedObjects(sel2);
 			*/
-			IF_DEBUG(NC_TNP, 0) SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_selecting_complement.ugx");
+			SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_selecting_complement.ugx");
 
 			// Tetrahedralizes somata
-			Tetrahedralize(grid, 2, true, true, aPosition, 0);
-			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
+			Tetrahedralize(grid, 2, true, false, aPosition, 0);
+			SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
 
 			/// Grid (contains somata) and gridOut (contains neurites) - these both have to be merged
 			MergeFirstGrids(grid, gridOut, sh, destSh);
@@ -2397,7 +2447,7 @@ namespace ug {
 		) {
 			EraseEmptySubsets(sh);
 			AssignSubsetColors(sh);
-			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, fileName);
+			SaveGridToFile(grid, sh, fileName);
 		}
 
 		////////////////////////////////////////////////////////////////////////
@@ -2517,17 +2567,14 @@ namespace ug {
 			int subsetBaseInd = joinSubsets ? 0 : mrgSH.num_subsets();
 
 			/// attach data
-			grid.attach_to_vertices(aPosition);
-			mrgGrid.attach_to_vertices(aPosition);
 			AVertex aVrt;
-			grid.attach_to_vertices(aVrt);
 
-			/// attachments accessors
-			Grid::AttachmentAccessor<Vertex, APosition> aaPosMRG(mrgGrid, aPosition);
+			/// attachments accessors for position and vertex index
+			Grid::AttachmentAccessor<Vertex, APosition> aaPosMRG(mrgGrid, aPosition, true);
+			Grid::AttachmentAccessor<Vertex, APosition> aaPos(grid, aPosition, true);
 			Grid::AttachmentAccessor<Vertex, AVertex> aaVrt(grid, aVrt, true);
-			Grid::AttachmentAccessor<Vertex, APosition> aaPos(grid, aPosition);
 
-			///	copy vertices
+			///	copy vertices and npSurfParams attachment
 			for(VertexIterator iter = grid.begin<Vertex>();
 			iter != grid.end<Vertex>(); ++iter)
 			{
@@ -2694,5 +2741,8 @@ namespace ug {
 				}
 			}
 		}
+
+
+
 	}
 }

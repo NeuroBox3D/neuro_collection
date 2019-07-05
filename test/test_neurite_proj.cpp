@@ -3183,7 +3183,7 @@ void create_spline_data_for_neurites
 	    }
 
 	    UG_DLOGN(NC_TNP, 0, " done.");
-	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
+	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
 
 	    /// Outer soma
 	    // Note: axisVectors (outer soma) and axisVectorsInner (inner soma) save the
@@ -3193,7 +3193,7 @@ void create_spline_data_for_neurites
 	    somaPoint = vSomaPoints;
 	    create_soma(somaPoint, g, aaPos, sh, 4, 3);
 	    UG_DLOGN(NC_TNP, 0, " done.");
-	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_soma.ugx");
+	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_soma.ugx");
 	    std::vector<Vertex*> outQuadsInner;
 	    std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectors;
 	    std::vector<std::vector<ug::Vertex*> > connectingVertices(vRootNeuriteIndsOut.size());
@@ -3211,7 +3211,7 @@ void create_spline_data_for_neurites
 	    g.erase(outVertsInner.begin(), outVertsInner.end());
 	    outVerts.clear();
 	    outVertsInner.clear();
-	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_finding_initial_edges.ugx");
+	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_finding_initial_edges.ugx");
 
 	    sh.set_default_subset_index(0);
 	    UG_DLOGN(NC_TNP, 0, "Generating neurites...")
@@ -3258,11 +3258,11 @@ void create_spline_data_for_neurites
 		   	ss << "inner-connex #" << i;
 		   	sh.set_subset_name(ss.str().c_str(), i);
 		 }
-		IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_renaming.ugx");
+		SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_renaming.ugx");
 
 		/// Double Vertices might occur during Qhull gen faces -> remove these here
 		/// RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aaPos, 0.0001);
-		IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_renaming_and_double_freed.ugx");
+		SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_renaming_and_double_freed.ugx");
 
 	    EraseEmptySubsets(sh);
 	    AssignSubsetColors(sh);
@@ -3275,7 +3275,7 @@ void create_spline_data_for_neurites
 	    /// connect now inner soma to neurites (Note: Old strategy which uses distance not angle based criterion. Change this?)
 	    UG_DLOGN(NC_TNP, 0, "Soma's inner index: " << newSomaIndex);
 	    connect_inner_neurites_to_inner_soma(newSomaIndex, 1, g, aaPos, sh, aaSurfParams, erScaleFactor);
-	    IF_DEBUG(NC_TNP, 0) SavePreparedGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_inner_soma_to_outer_ER.ugx");
+	    SavePreparedGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_inner_soma_to_outer_ER.ugx");
 
 	    /// Note: Called two times for inner and outer polygon on outer soma but use the same plane defined by the outer soma's inner quad vertices
 	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12, true);
@@ -3291,18 +3291,19 @@ void create_spline_data_for_neurites
 	    SelectSubset(sel, sh, 3, true);
 	    CloseSelection(sel);
 	    AssignSelectionToSubset(sel, sh, 3);
-	    IF_DEBUG(NC_TNP, 0) SavePreparedGridToFile(g, sh, "before_tetrahedralize_and_after_reassigned.ugx");
+	    SavePreparedGridToFile(g, sh, "before_tetrahedralize_and_after_reassigned.ugx");
 
 	    /// Tetrahedralizes somata with specified and fixed indices 4 and 5
 	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 5, savedSomaPoint);
-		IF_DEBUG(NC_TNP, 0) SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma.ugx");
+		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma.ugx");
 		/// After merge doubles might occur, delete them. Boundary faces are retained,
 		/// however triangles occur now at boundary interface and quadrilaterals, thus
 		/// delete the triangles to keep the quadrilaterals from the start of neurites
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aaPos, 0.00001);
-		IF_DEBUG(NC_TNP, 0) SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma_and_removed_doubles.ugx");
+		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma_and_removed_doubles.ugx");
 		DeleteInnerEdgesFromQuadrilaterals(g, sh, 4);
-		IF_DEBUG(NC_TNP, 0) SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma_and_conversion.ugx");
+		///DeleteInnerEdgesFromQuadrilaterals(g, sh, 3);
+		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma_and_conversion.ugx");
 
 		/// assign correct axial parameters for "somata"
 		set_somata_axial_parameters(g, sh, aaSurfParams, 4, 5);

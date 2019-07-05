@@ -720,9 +720,9 @@ namespace ug {
 
 		/*!
 		 * \brief create pyramid
-		 * \param[in, out] grid
+		 * \param[in,out] grid
 		 * \param[in] quad
-		 * \param[in, out] aaPos
+		 * \param[in,out] aaPos
 		 * \param[in] scale
 		 * \return \c pointer to new pyramid
 		 */
@@ -908,6 +908,7 @@ namespace ug {
 			SubsetHandler& sh,
 			int si = 0
 		);
+
 	}
 }
 
