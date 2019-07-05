@@ -1439,13 +1439,13 @@ void create_spline_data_for_neurites
 		     vEdge[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i], vVrt[(i+1)%4]));
 		 }
 
-		 SaveGridToFile(g, sh, "test_shrunk_geom2_before.ugx");
+		 IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "test_shrunk_geom2_before.ugx");
 		 ug::vector3 diffVec;
 		 VecSubtract(diffVec, aaPos[vVrt[0]], aaPos[vVrt[(1)%4]]);
 		 std::vector<ug::Vertex*> vertices;
 		 std::vector<ug::Edge*> edges;
 		 split_quadrilateral_along_edges(vVrt, g, aaPos, percentage, diffVec, vertices, edges);
-		 SaveGridToFile(g, sh, "test_shrunk_geom2_after.ugx");
+		 IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "test_shrunk_geom2_after.ugx");
 	}
 
 	////////////////////////////////////////////////////////////////////////
@@ -1480,11 +1480,11 @@ void create_spline_data_for_neurites
 	        vEdge[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i], vVrt[(i+1)%4]));
 	    }
 
-	    SaveGridToFile(g, sh, "test_shrunk_geom_copy_before.ugx");
+	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "test_shrunk_geom_copy_before.ugx");
 	    std::vector<ug::Vertex*> vVrtOut;
 	    std::vector<ug::Edge*> vEdgeOut;
 	    shrink_quadrilateral_copy(vVrt, vVrtOut, vVrtOut, vEdgeOut, g, aaPos, length);
-	    SaveGridToFile(g, sh, "test_shrunk_geom_copy_after.ugx");
+	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "test_shrunk_geom_copy_after.ugx");
 	}
 
 	////////////////////////////////////////////////////////////////////////
@@ -1523,7 +1523,7 @@ void create_spline_data_for_neurites
         vEdge[i] = *g.create<RegularEdge>(EdgeDescriptor(vVrt[i], vVrt[(i+1)%4]));
     }
 
-    SaveGridToFile(g, sh, "test_shrunk_geom_before.ugx");
+    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "test_shrunk_geom_before.ugx");
 
     ug::vector3 center;
     center = CalculateBarycenter(sel.vertices_begin(), sel.vertices_end(), aaPos);
@@ -1539,7 +1539,7 @@ void create_spline_data_for_neurites
        }
     }
 
-    SaveGridToFile(g, sh, "test_shrunk_geom_after.ugx");
+    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "test_shrunk_geom_after.ugx");
 	}
 
 	////////////////////////////////////////////////////////////////////////
@@ -2581,7 +2581,7 @@ void create_spline_data_for_neurites
 
 	// output before projection
 	std::string outFileNameBase = FilenameAndPathWithoutExtension(fileNameOut);
-	SaveGridToFile(g, sh, fileNameOut);
+	IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, fileNameOut);
 
 	// at branching points, we have not computed the correct positions yet,
 	// so project the complete geometry using the projector
@@ -3183,7 +3183,7 @@ void create_spline_data_for_neurites
 	    }
 
 	    UG_DLOGN(NC_TNP, 0, " done.");
-	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
+	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
 
 	    /// Outer soma
 	    // Note: axisVectors (outer soma) and axisVectorsInner (inner soma) save the
@@ -3193,7 +3193,7 @@ void create_spline_data_for_neurites
 	    somaPoint = vSomaPoints;
 	    create_soma(somaPoint, g, aaPos, sh, 4, 3);
 	    UG_DLOGN(NC_TNP, 0, " done.");
-	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_soma.ugx");
+	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_soma.ugx");
 	    std::vector<Vertex*> outQuadsInner;
 	    std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectors;
 	    std::vector<std::vector<ug::Vertex*> > connectingVertices(vRootNeuriteIndsOut.size());
@@ -3211,7 +3211,7 @@ void create_spline_data_for_neurites
 	    g.erase(outVertsInner.begin(), outVertsInner.end());
 	    outVerts.clear();
 	    outVertsInner.clear();
-	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_finding_initial_edges.ugx");
+	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_finding_initial_edges.ugx");
 
 	    sh.set_default_subset_index(0);
 	    UG_DLOGN(NC_TNP, 0, "Generating neurites...")
@@ -3258,11 +3258,11 @@ void create_spline_data_for_neurites
 		   	ss << "inner-connex #" << i;
 		   	sh.set_subset_name(ss.str().c_str(), i);
 		 }
-		SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_renaming.ugx");
+		IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_renaming.ugx");
 
 		/// Double Vertices might occur during Qhull gen faces -> remove these here
 		/// RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aaPos, 0.0001);
-		SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_renaming_and_double_freed.ugx");
+		IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_renaming_and_double_freed.ugx");
 
 	    EraseEmptySubsets(sh);
 	    AssignSubsetColors(sh);
@@ -3302,7 +3302,7 @@ void create_spline_data_for_neurites
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aaPos, 0.00001);
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma_and_removed_doubles.ugx");
 		DeleteInnerEdgesFromQuadrilaterals(g, sh, 4);
-		///DeleteInnerEdgesFromQuadrilaterals(g, sh, 3);
+		DeleteInnerEdgesFromQuadrilaterals(g, sh, 1);
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma_and_conversion.ugx");
 
 		/// assign correct axial parameters for "somata"
@@ -3316,10 +3316,11 @@ void create_spline_data_for_neurites
 			neuriteProj->project(*vit);
 		}
 
-		/// TODO: Projection did not work anymore because vertices aaSurfParams
-		/// have not been copied during grid merge process above... Note that soma
-		/// is allowed to fail since implementation in neurite_projector is WIP!
-	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
+		/// TODO: Projection does not work right now because aaSurfParams of vertices
+		/// have not been copied during grid merge and grid copy process above...
+		/// see the tetrahedralize_soma method. Note that soma is allowed to fil
+		/// fail since implementation in neurite_projector is still mostly WIP!
+	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
 
 		// output
 		std::string outFileNameBase = FilenameAndPathWithoutExtension(fileName);

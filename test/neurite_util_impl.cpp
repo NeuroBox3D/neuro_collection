@@ -2276,6 +2276,9 @@ namespace ug {
 					quad->vertex(1), quad->vertex(2), quad->vertex(3), top));
 		}
 
+		////////////////////////////////////////////////////////////////////////
+		/// CopyGrid
+		////////////////////////////////////////////////////////////////////////
 		template <class TAPos, class TAttachment>
 		void CopyGrid(Grid& srcGrid, Grid& destGrid,
 					  ISubsetHandler& srcSH, ISubsetHandler& destSH,
@@ -2285,12 +2288,12 @@ namespace ug {
 				srcGrid.attach_to_vertices(aAttachment);
 
 			if (!destGrid.has_vertex_attachment(aAttachment))
-				srcGrid.attach_to_vertices(aAttachment);
+				destGrid.attach_to_vertices(aAttachment);
 
 			Grid::VertexAttachmentAccessor<TAttachment> aaSrc;
 			Grid::VertexAttachmentAccessor<TAttachment> aaDest;
 			aaSrc.access(srcGrid, aAttachment);
-			aaDest.access(srcGrid, aAttachment);
+			aaDest.access(destGrid, aAttachment);
 
 			Grid::VertexAttachmentAccessor<TAPos> aaPos(destGrid, aPos);
 			Grid::VertexAttachmentAccessor<TAPos> aaSrcPos(srcGrid, aPos);
@@ -2370,15 +2373,17 @@ namespace ug {
 			gridOut.attach_to_vertices(aPosition);
 			typedef NeuriteProjector::SurfaceParams NPSP;
 			Attachment<NPSP> aAttachment = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
-			CopyGrid<APosition, Attachment<NPSP> >(grid, gridOut, sh, destSh, aPosition, aAttachment);
-			SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_copying_grid.ugx");
-			SaveGridToFile(grid, sh, "before_tetrahedralize_soma.ugx");
+			CopyGrid<APosition>(grid, gridOut, sh, destSh, aPosition);
+			// TODO: Needs debugging
+			/// CopyGrid<APosition, NPSP>(grid,  gridOut, sh, destSh, aPosition, aAttachment)
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_copying_grid.ugx");
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "before_tetrahedralize_soma.ugx");
 			sel.clear();
 			SelectElementsByAxialPosition<Face>(grid, sel, 0.0, aaPos, aaSurfParams);
 			CloseSelection(sel);
 			InvertSelection(sel);
 			EraseSelectedObjects(sel);
-			SaveGridToFile(grid, sh, "before_tetrahedralize_soma_and_after_selecting.ugx");
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "before_tetrahedralize_soma_and_after_selecting.ugx");
 			sel.clear();
 			/*
 			Selector sel2(gridOut);
@@ -2386,15 +2391,14 @@ namespace ug {
 			CloseSelection(sel2);
 			EraseSelectedObjects(sel2);
 			*/
-			SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_selecting_complement.ugx");
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_selecting_complement.ugx");
 
-			// Tetrahedralizes somata
+			// Tetrahedralizes somata (Preserve boundaries, preserving all not necessary?)
 			Tetrahedralize(grid, 2, true, false, aPosition, 0);
-			SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
 
 			/// Grid (contains somata) and gridOut (contains neurites) - these both have to be merged
 			MergeFirstGrids(grid, gridOut, sh, destSh);
-
 			/// TODO: extract volumes of soma to appropriate subsets (Tetrahedralize above does not separate volume subsets)
 		}
 
@@ -2571,8 +2575,8 @@ namespace ug {
 
 			/// attachments accessors for position and vertex index
 			Grid::AttachmentAccessor<Vertex, APosition> aaPosMRG(mrgGrid, aPosition, true);
+ 			Grid::AttachmentAccessor<Vertex, AVertex> aaVrt(grid, aVrt, true);
 			Grid::AttachmentAccessor<Vertex, APosition> aaPos(grid, aPosition, true);
-			Grid::AttachmentAccessor<Vertex, AVertex> aaVrt(grid, aVrt, true);
 
 			///	copy vertices and npSurfParams attachment
 			for(VertexIterator iter = grid.begin<Vertex>();
