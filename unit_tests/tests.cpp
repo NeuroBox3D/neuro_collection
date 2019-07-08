@@ -138,7 +138,11 @@ BOOST_FIXTURE_TEST_CASE(MergeTwoGrids, FixtureTwoGrid) {
 	BOOST_REQUIRE_MESSAGE(sh2.num<Quadrilateral>() == 1, "Requiring 1 quadrilateral in subset 1 in first grid");
 
 	// merge grids and check output for basic consistency
-	MergeFirstGrids(g1, g2, sh1, sh2);
+    typedef NeuriteProjector::SurfaceParams NPSP;
+    UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
+            "GlobalAttachment 'npSurfParams' not declared.");
+    Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
+	MergeFirstGrids<Attachment<NPSP> >(g1, g2, sh1, sh2, aSP, true);
 	BOOST_REQUIRE_MESSAGE(g1.num_vertices() == 8, "Requiring 8 vertices in merged grid (first grid)");
 	BOOST_REQUIRE_MESSAGE(g1.num_edges() == 8, "Requiring 8 edges in merged grid (first grid)");
 
@@ -146,7 +150,32 @@ BOOST_FIXTURE_TEST_CASE(MergeTwoGrids, FixtureTwoGrid) {
 	BOOST_CHECK_MESSAGE(sh1.num<Vertex>(0) == 4, "Checking 4 vertices in subset 0 of merged grid");
 	BOOST_CHECK_MESSAGE(sh1.num<Vertex>(1) == 4, "Checking 4 vertices in subset 1 of merged grid");
 	BOOST_CHECK_MESSAGE(sh1.num<Quadrilateral>() == 2, "Checking 2 quadrilaterals in merged grid");
+
+
 }
+
+////////////////////////////////////////////////////////////////////////////////
+BOOST_FIXTURE_TEST_CASE(CopyTwoGrids, FixtureOneGrid) {
+	Grid g2;
+	SubsetHandler sh2(g2);
+	SubsetHandler sh1(g);
+	AInt aInt;
+    Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
+    UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
+            "GlobalAttachment 'npSurfParams' not declared.");
+    Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
+	g2.attach_to_vertices(aPosition);
+    CopyGrid<APosition>(g, g2, sh1, sh2, aPosition);
+	g2.attach_to_vertices(aSP);
+	aaSurfParams.access(g, aSP);
+	// require that copied attachment values from grid g1 (axial and radial) matches values in copied grid g2
+	// Grid g1 has value 0.5 for axial parameter and value 0.1 for radial parameter
+    for (VertexIterator iter = g2.vertices_begin(); iter != g2.vertices_end(); ++iter) {
+    	BOOST_REQUIRE_MESSAGE(aaSurfParams[*iter].axial == 0.0, "Requiring axial 0.0 in copied grid");
+    	BOOST_REQUIRE_MESSAGE(aaSurfParams[*iter].radial == 1.0, "Requiring radial 1.0 in copied grid");
+    }
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 BOOST_FIXTURE_TEST_CASE(SelectElementsInUnitSphere, FixtureSphere) {

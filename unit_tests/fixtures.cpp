@@ -133,6 +133,9 @@ struct FixtureTwoGrid {
 		aaPos = Grid::VertexAttachmentAccessor<APosition>(g1, aPosition);
 		sh1 = SubsetHandler(g1);
 		sh1.set_default_subset_index(0);
+
+		GlobalAttachments::declare_attachment<Attachment<NeuriteProjector::SurfaceParams> >("npSurfParams", true);
+
 		ug::Vertex *p1, *p2, *p3, *p4;
 		p1 = *g1.create<RegularVertex>(); p2 = *g1.create<RegularVertex>();
 		p3 = *g1.create<RegularVertex>(); p4 = *g1.create<RegularVertex>();
@@ -140,6 +143,7 @@ struct FixtureTwoGrid {
 		BOOST_REQUIRE_MESSAGE(p2, "Creating second vertex.");
 		BOOST_REQUIRE_MESSAGE(p3, "Creating third vertex.");
 		BOOST_REQUIRE_MESSAGE(p4, "Creating forth vertex.");
+
 
 		// assign coordinates
 		aaPos[p1] = ug::vector3(2, 2, 0); aaPos[p2] = ug::vector3(2, 3, 0);
@@ -177,6 +181,9 @@ struct FixtureTwoGrid {
 		sh2.assign_subset(p32, 1);
 		sh2.assign_subset(p42, 1);
 		sh2.assign_subset(quad2, 1);
+	}
+	~FixtureTwoGrid() {
+		GlobalAttachments::undeclare_attachment<Attachment<NeuriteProjector::SurfaceParams> >("npSurfParams");
 	}
 };
 

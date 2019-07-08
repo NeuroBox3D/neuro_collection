@@ -3321,6 +3321,7 @@ void create_spline_data_for_neurites
 		/// see the tetrahedralize_soma method. Note that soma is allowed to fil
 		/// fail since implementation in neurite_projector is still mostly WIP!
 	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
+	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
 
 		// output
 		std::string outFileNameBase = FilenameAndPathWithoutExtension(fileName);

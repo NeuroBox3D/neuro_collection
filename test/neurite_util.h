@@ -885,15 +885,18 @@ namespace ug {
 		 * \param[in,out] grid
 		 * \param[in,out] mrgSh
 		 * \param[in,out] sh
+		 * \tparam[in,out] aAttachment
 		 * \param[in] joinSubsets
 		 */
+		template <typename TAttachment>
 		void MergeFirstGrids
 		(
 			Grid& mrgGrid,
 			Grid& grid,
 			SubsetHandler& mrgSH,
 			SubsetHandler& sh,
-			bool joinSubsets = true
+			TAttachment aAttachment,
+			bool joinSubsets
 		);
 
 		/*!

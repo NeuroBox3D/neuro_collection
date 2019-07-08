@@ -2277,57 +2277,6 @@ namespace ug {
 		}
 
 		////////////////////////////////////////////////////////////////////////
-		/// CopyGrid
-		////////////////////////////////////////////////////////////////////////
-		template <class TAPos, class TAttachment>
-		void CopyGrid(Grid& srcGrid, Grid& destGrid,
-					  ISubsetHandler& srcSH, ISubsetHandler& destSH,
-					  TAPos aPos, TAttachment aAttachment)
-		{
-			if (!srcGrid.has_vertex_attachment(aAttachment))
-				srcGrid.attach_to_vertices(aAttachment);
-
-			if (!destGrid.has_vertex_attachment(aAttachment))
-				destGrid.attach_to_vertices(aAttachment);
-
-			Grid::VertexAttachmentAccessor<TAttachment> aaSrc;
-			Grid::VertexAttachmentAccessor<TAttachment> aaDest;
-			aaSrc.access(srcGrid, aAttachment);
-			aaDest.access(destGrid, aAttachment);
-
-			Grid::VertexAttachmentAccessor<TAPos> aaPos(destGrid, aPos);
-			Grid::VertexAttachmentAccessor<TAPos> aaSrcPos(srcGrid, aPos);
-			GridObjectCollection goc = srcGrid.get_grid_objects();
-
-			AVertex aNewVrt;
-			srcGrid.attach_to_vertices(aNewVrt);
-			Grid::VertexAttachmentAccessor<AVertex> aaNewVrt(srcGrid, aNewVrt);
-
-			for(int si = destSH.num_subsets(); si < srcSH.num_subsets(); ++si)
-			{
-				destSH.subset_info(si) = srcSH.subset_info(si);
-			}
-
-			for(VertexIterator vrtIter = goc.begin<Vertex>(); vrtIter != goc.end<Vertex>(); ++vrtIter) {
-				Vertex* srcVrt  = *vrtIter;
-				Vertex* destVrt = *destGrid.create_by_cloning(srcVrt);
-				aaDest[destVrt] = aaSrc[srcVrt];
-				aaNewVrt[srcVrt] = destVrt;
-				aaPos[destVrt] = aaSrcPos[srcVrt];
-				destSH.assign_subset(destVrt, srcSH.get_subset_index(srcVrt));
-			}
-
-			CopyGridElements<Edge>(srcGrid, destGrid, srcSH, destSH, aNewVrt);
-			CopyGridElements<Face>(srcGrid, destGrid, srcSH, destSH,  aNewVrt);
-			CopyGridElements<Volume>(srcGrid, destGrid, srcSH, destSH, aNewVrt);
-
-			srcGrid.detach_from_vertices(aNewVrt);
-		}
-
-		template void CopyGrid(Grid&, Grid&, ISubsetHandler&, ISubsetHandler&, APosition3,
-				Attachment<NeuriteProjector::SurfaceParams>);
-
-		////////////////////////////////////////////////////////////////////////
 		/// tetrahedralize_soma
 		////////////////////////////////////////////////////////////////////////
 		void tetrahedralize_soma
@@ -2374,8 +2323,6 @@ namespace ug {
 			typedef NeuriteProjector::SurfaceParams NPSP;
 			Attachment<NPSP> aAttachment = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
 			CopyGrid<APosition>(grid, gridOut, sh, destSh, aPosition);
-			// TODO: Needs debugging
-			/// CopyGrid<APosition, NPSP>(grid,  gridOut, sh, destSh, aPosition, aAttachment)
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_copying_grid.ugx");
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "before_tetrahedralize_soma.ugx");
 			sel.clear();
@@ -2399,6 +2346,12 @@ namespace ug {
 			Tetrahedralize(grid, sh, 2, true, false, aPosition, 0);
 
 			/*
+			for (VertexIterator iter = gridOut.vertices_begin();
+								iter != gridOut.vertices_end(); ++iter) {
+							UG_LOGN("gridOut (before) aSP: " << aaSurfParams[*iter].axial);
+			}
+
+			/*
 			int oldNumSubsets = sh.num_subsets();
 			SeparateSubsetsByLowerDimSubsets<Volume>(grid, sh, true);
 			UG_LOGN("Subsets: " << sh.num_subsets());
@@ -2407,11 +2360,19 @@ namespace ug {
 			}
 			CopySubsetIndicesToSides (sh, true);
 			*/
-
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
+			SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
 
 			/// Grid (contains somata) and gridOut (contains neurites) - these both have to be merged
-			MergeFirstGrids(grid, gridOut, sh, destSh);
+			/// TODO: Needs debugging
+			MergeFirstGrids<Attachment<NPSP> >(grid, gridOut, sh, destSh, aAttachment, true);
+
+			/*for (VertexIterator iter = gridOut.vertices_begin();
+								iter != gridOut.vertices_end(); ++iter) {
+							UG_LOGN("gridOut (after) aSP: " << aaSurfParams[*iter]);
+			}
+			*/
+
 		}
 
 		////////////////////////////////////////////////////////////////////////
@@ -2570,12 +2531,14 @@ namespace ug {
 		////////////////////////////////////////////////////////////////////////
 		/// MergeFirstGrids
 		////////////////////////////////////////////////////////////////////////
+		template <typename TAttachment>
 		void MergeFirstGrids
 		(
 			Grid& mrgGrid,
-			Grid& grid,
+			Grid& gridOut,
 			SubsetHandler& mrgSH,
 			SubsetHandler& sh,
+			TAttachment aAttachment,
 			bool joinSubsets
 		)
 		{
@@ -2587,23 +2550,33 @@ namespace ug {
 
 			/// attachments accessors for position and vertex index
 			Grid::AttachmentAccessor<Vertex, APosition> aaPosMRG(mrgGrid, aPosition, true);
- 			Grid::AttachmentAccessor<Vertex, AVertex> aaVrt(grid, aVrt, true);
-			Grid::AttachmentAccessor<Vertex, APosition> aaPos(grid, aPosition, true);
+ 			Grid::AttachmentAccessor<Vertex, AVertex> aaVrt(gridOut, aVrt, true);
+			Grid::AttachmentAccessor<Vertex, APosition> aaPos(gridOut, aPosition, true);
+
+			if (!mrgGrid.has_vertex_attachment(aAttachment))
+				mrgGrid.attach_to_vertices(aAttachment);
+
+			if (!gridOut.has_vertex_attachment(aAttachment))
+				gridOut.attach_to_vertices(aAttachment);
+
+			Grid::VertexAttachmentAccessor<TAttachment> aaSrc(gridOut, aAttachment, true);
+			Grid::VertexAttachmentAccessor<TAttachment> aaDest(mrgGrid, aAttachment, true);
 
 			///	copy vertices and npSurfParams attachment
-			for(VertexIterator iter = grid.begin<Vertex>();
-			iter != grid.end<Vertex>(); ++iter)
+			for(VertexIterator iter = gridOut.begin<Vertex>();
+			iter != gridOut.end<Vertex>(); ++iter)
 			{
 				Vertex* nvrt = *mrgGrid.create_by_cloning(*iter);
 				aaPosMRG[nvrt] = aaPos[*iter];
+				aaDest[nvrt] = aaSrc[*iter];
 				aaVrt[*iter] = nvrt;
 				mrgSH.assign_subset(nvrt, subsetBaseInd + sh.get_subset_index(*iter));
 			}
 
 			///	copy edges
 			EdgeDescriptor ed;
-			for(EdgeIterator iter = grid.begin<Edge>();
-			iter != grid.end<Edge>(); ++iter)
+			for(EdgeIterator iter = gridOut.begin<Edge>();
+			iter != gridOut.end<Edge>(); ++iter)
 			{
 				Edge* eSrc = *iter;
 				ed.set_vertices(aaVrt[eSrc->vertex(0)], aaVrt[eSrc->vertex(1)]);
@@ -2613,8 +2586,8 @@ namespace ug {
 
 			///	copy faces
 			FaceDescriptor fd;
-			for(FaceIterator iter = grid.begin<Face>();
-			iter != grid.end<Face>(); ++iter)
+			for(FaceIterator iter = gridOut.begin<Face>();
+			iter != gridOut.end<Face>(); ++iter)
 			{
 				Face* fSrc = *iter;
 				fd.set_num_vertices((uint)fSrc->num_vertices());
@@ -2627,8 +2600,8 @@ namespace ug {
 
 			///	copy volumes
 			VolumeDescriptor vd;
-			for(VolumeIterator iter = grid.begin<Volume>();
-			iter != grid.end<Volume>(); ++iter)
+			for(VolumeIterator iter = gridOut.begin<Volume>();
+			iter != gridOut.end<Volume>(); ++iter)
 			{
 				Volume* vSrc = *iter;
 				vd.set_num_vertices((uint)vSrc->num_vertices());
@@ -2640,7 +2613,7 @@ namespace ug {
 			}
 
 			///	remove the temporary attachment
-			grid.detach_from_vertices(aVrt);
+			gridOut.detach_from_vertices(aVrt);
 			mrgGrid.detach_from_vertices(aVrt);
 
 			/// overwrite subset names
@@ -2648,6 +2621,9 @@ namespace ug {
 				mrgSH.subset_info(subsetBaseInd + i_sub) = sh.subset_info(i_sub);
 			}
 		}
+
+		template void MergeFirstGrids(Grid&, Grid&, SubsetHandler&, SubsetHandler&,
+									  Attachment<NeuriteProjector::SurfaceParams>, bool);
 
 		////////////////////////////////////////////////////////////////////////
 		/// SelectElementsByAxialPosition
