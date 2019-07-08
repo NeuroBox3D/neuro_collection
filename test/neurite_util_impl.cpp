@@ -2386,20 +2386,32 @@ namespace ug {
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "before_tetrahedralize_soma_and_after_selecting.ugx");
 			sel.clear();
 			/*
-			Selector sel2(gridOut);
-			SelectElementsByAxialPosition<Face>(gridOut, sel2, 0.0, aaPos, aaSurfParams);
-			CloseSelection(sel2);
-			EraseSelectedObjects(sel2);
+			 	Note: This could be improved to select only the complement instead of removing doubles later
+				Selector sel2(gridOut);
+				SelectElementsByAxialPosition<Face>(gridOut, sel2, 0.0, aaPos, aaSurfParams);
+				CloseSelection(sel2);
+				EraseSelectedObjects(sel2);
 			*/
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_selecting_complement.ugx");
 
-			// Tetrahedralizes somata (Preserve boundaries, preserving all not necessary?)
-			Tetrahedralize(grid, 2, true, false, aPosition, 0);
+			// Tetrahedralizes somata (Preserve boundaries, preserving all not necessary (Inner boundaries?)
+			/// TODO: Needs debugging, then join all non somata subsets at the end after correct separation
+			Tetrahedralize(grid, sh, 2, true, false, aPosition, 0);
+
+			/*
+			int oldNumSubsets = sh.num_subsets();
+			SeparateSubsetsByLowerDimSubsets<Volume>(grid, sh, true);
+			UG_LOGN("Subsets: " << sh.num_subsets());
+			for(int i = oldNumSubsets; i < sh.num_subsets(); ++i) {
+				sh.subset_info(i).name = "tetrahedra";
+			}
+			CopySubsetIndicesToSides (sh, true);
+			*/
+
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
 
 			/// Grid (contains somata) and gridOut (contains neurites) - these both have to be merged
 			MergeFirstGrids(grid, gridOut, sh, destSh);
-			/// TODO: extract volumes of soma to appropriate subsets (Tetrahedralize above does not separate volume subsets)
 		}
 
 		////////////////////////////////////////////////////////////////////////
