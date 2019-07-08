@@ -2350,6 +2350,7 @@ namespace ug {
 								iter != gridOut.vertices_end(); ++iter) {
 							UG_LOGN("gridOut (before) aSP: " << aaSurfParams[*iter].axial);
 			}
+			*/
 
 			/*
 			int oldNumSubsets = sh.num_subsets();
