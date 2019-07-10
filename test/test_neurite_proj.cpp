@@ -2215,7 +2215,9 @@ void create_spline_data_for_neurites
         g.end_marking();
 
         if (q.empty())
-            UG_DLOGN(NC_TNP, 0, "Warning: No soma vertex could be found in the requested neuron.")
+        {
+            UG_DLOGN(NC_TNP, 0, "Warning: No soma vertex could be found in the requested neuron.");
+        }
         else
             start = q.front();
     }
