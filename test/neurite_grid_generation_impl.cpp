@@ -42,6 +42,7 @@
 #include "lib_grid/algorithms/extrusion/extrude.h"
 #include "lib_grid/grid/neighborhood_util.h"
 #include "lib_disc/quadrature/gauss_legendre/gauss_legendre.h"
+#include <algorithm>
 
 namespace ug {
 	namespace neuro_collection {
@@ -2174,5 +2175,148 @@ number calculate_length_over_radius
 			sh.assign_subset(vFace[i + 5], 0);
 		}
 	}
-}
+
+	////////////////////////////////////////////////////////////////////////
+	/// constrained_smoothing
+	////////////////////////////////////////////////////////////////////////
+	void constrained_smoothing(std::vector<SWCPoint>& vPointsIn, size_t n, number h, number gamma)
+	{
+		// store first vertices after branch which should not be smoothed
+		std::vector<size_t> firstVerticesAfterBranch;
+
+		// find neurite root vertices
+		const size_t nP = vPointsIn.size();
+		std::vector<size_t> rootVrts;
+		std::vector<bool> treated(nP, false);
+		for (size_t i = 0; i < nP; ++i)
+		{
+			if (treated[i]) continue;
+			treated[i] = true;
+			if (vPointsIn[i].type != SWC_SOMA) continue;
+
+			// here, we have a soma point;
+			// find first non-soma point in all directions
+			std::queue<size_t> q;
+			q.push(i);
+
+			while (!q.empty())
+			{
+				const size_t ind = q.front();
+				const SWCPoint& pt = vPointsIn[ind];
+				q.pop();
+
+				if (pt.type == SWC_SOMA)
+				{
+					const size_t nConn = pt.conns.size();
+					for (size_t j = 0; j < nConn; ++j)
+						if (!treated[pt.conns[j]])
+							q.push(pt.conns[j]);
+				}
+				else
+					rootVrts.push_back(ind);
+
+				treated[ind] = true;
+			}
+		}
+
+		// starting at root vertices, smooth the entire tree(s),
+		// but leave out soma vertices as well as branching points
+		std::vector<vector3> newPos(nP);
+		for (size_t i = 0; i < n; ++i)
+		{
+			treated.clear();
+			treated.resize(nP, false);
+
+			std::stack<size_t> stack;
+			for (size_t rv = 0; rv < rootVrts.size(); ++rv)
+				stack.push(rootVrts[rv]);
+
+			while (!stack.empty())
+			{
+				size_t ind = stack.top();
+				stack.pop();
+				const SWCPoint& pt = vPointsIn[ind];
+				const vector3& x = pt.coords;
+				vector3& x_new = newPos[ind];
+
+				UG_COND_THROW(treated[ind], "Circle detected in supposedly tree-shaped neuron!\n"
+					"Position: " << vPointsIn[ind].coords);
+				treated[ind] = true;
+
+				// somata are not smoothed and not iterated over
+				if (pt.type == SWC_SOMA)
+				{
+					x_new = x;
+					continue;
+				}
+
+				// branching points are not smoothed, but iterated over
+				size_t connSz = pt.conns.size();
+				for (size_t c = 0; c < connSz; ++c)
+					if (!treated[pt.conns[c]])
+						stack.push(pt.conns[c]);
+
+				if (connSz != 2)
+				{
+					std::vector<size_t> conns = pt.conns;
+					std::vector<number> radii;
+					for (size_t i = 0; i < pt.conns.size(); ++i )
+					   radii.push_back(vPointsIn[pt.conns[i]].radius);
+
+					// max radius element is root neurite which can be smoothed
+					int max = std::distance(radii.begin(), std::max_element(radii.begin(), radii.end()));
+					conns.erase(conns.begin() + max);
+
+					// remember first vertex after or before branch of non root branch/neurite
+					for (size_t i = 0; i < conns.size(); i++) {
+						firstVerticesAfterBranch.push_back(conns[i]);
+					}
+
+					continue;
+				}
+
+				// ignore non-root branch first vertices for smoothing
+				if(std::find(firstVerticesAfterBranch.begin(), firstVerticesAfterBranch.end(),
+						pt.conns[0]) != firstVerticesAfterBranch.end()) {
+					continue;
+				}
+
+				if(std::find(firstVerticesAfterBranch.begin(), firstVerticesAfterBranch.end(),
+						pt.conns[1]) != firstVerticesAfterBranch.end()) {
+					continue;
+				}
+
+				// here we have a non-branching, non-end, non-soma point: smooth
+				const vector3& x1 = vPointsIn[pt.conns[0]].coords;
+				const vector3& x2 = vPointsIn[pt.conns[1]].coords;
+
+				number d1 = VecDistanceSq(x1, x);
+				number d2 = VecDistanceSq(x2, x);
+				number w1 = std::exp(-d1/(h*h));
+				number w2 = std::exp(-d2/(h*h));
+
+				// only really smooth if both adjacent edges are short
+				number w = std::min(w1, w2);
+
+				// correction
+				vector3 corr;
+				VecScaleAdd(corr, w, x1, -2*w, x, w, x2);
+				VecScale(corr, corr, 1.0 / (1.0 + 2*w));
+
+				// take only the part orthogonal to x1 - x2,
+				// we do not want to shift x towards the nearer neighbor
+				VecSubtract(x_new, x1, x2); // using x_new as intermediate variable
+				number normSq = VecNormSquared(x_new);
+				VecScaleAdd(corr, 1.0, corr, - VecProd(corr, x_new) / normSq, x_new);
+				VecScaleAdd(x_new, 1.0, x, gamma, corr);
+			}
+
+			// assign new positions
+			for (size_t p = 0; p < nP; ++p)
+				if (treated[p]) { // soma points may not have been treated
+					vPointsIn[p].coords = newPos[p];
+				}
+			}
+		}
+	}
 }

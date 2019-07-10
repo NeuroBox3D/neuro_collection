@@ -3176,9 +3176,17 @@ void create_spline_data_for_neurites
 	    UG_DLOGN(NC_TNP, 0, "Generating neurites...");
     	/// for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 	    for (size_t i = 0; i < 1; ++i) {
-	    	create_neurite_root_vertices(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
+	    	if (withER) {
+	    		create_neurite_root_vertices(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 	    			g, sh, erScaleFactor, aaPos, &outVerts, &outVertsInner, &outRads,
 	    			&outRadsInner);
+	    	} else {
+	    		/*
+	    		  create_neurite_root_vertices(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
+	    		 		g, sh, erScaleFactor, aaPos, &outVerts, &outVertsInner, &outRads,
+	    		 			&outRadsInner, withER);
+	   			*/
+	    	}
 	    	///	create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 	    	//	erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, &outVerts,
 	    	// &outVertsInner, &outRads, &outRadsInner);
@@ -3224,9 +3232,8 @@ void create_spline_data_for_neurites
 	    			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, &outVerts,
 	    			&outVertsInner, &outRads, &outRadsInner);
 	    	} else {
-	    		/// TODO: Create neurite without ER, don't create ER (inner sphere)
-	    		/// connect soma (outer sphere) to neurites only (without inner ER "cable"),
-	    		/// i.e. wrap appropriate parts in if-else statements
+	    		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
+	    				anisotropy, g, aaPos, aaSurfParams);
 	    	}
 	    }
 	    UG_DLOGN(NC_TNP, 0, " done.");
