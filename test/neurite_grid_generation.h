@@ -260,18 +260,21 @@ namespace ug {
 		  * \brief smoothes 1d line-graph structure constrained
 		  * Depending on the largest radius the first vertices before or after a
 		  * branch are ignored if they do not belong to the root neurite branch
-		  * TODO: Use empirical values for radii ratio and branching angle from KM
 		  * \param[in] vPoints points of graph
 		  * \param[in] n number of iterations
 		  * \param[in] h smoothing parameter
 		  * \param[in] gamma smoothing parameter
+		  * \param[in] minAngle min angle for root branch detection
+		  * \param[in] maxRadiusRatio max radii ratio for root branch detection
 		  */
 		void constrained_smoothing
 		(
-			const std::vector<SWCPoint>& vPointsIn,
+			std::vector<SWCPoint>& vPointsIn,
 			size_t n,
 			number h,
-			number gamma
+			number gamma,
+			number minAngle,
+			number maxRadiusRatio
 		);
 	}
 }

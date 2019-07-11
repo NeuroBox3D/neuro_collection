@@ -1688,6 +1688,23 @@ namespace ug {
 			}
 		}
 
+		////////////////////////////////////////////////////////////////////////
+		/// fix_axial_parameters
+		////////////////////////////////////////////////////////////////////////
+		void fix_axial_parameters
+		(
+			Grid& g,
+			SubsetHandler& sh,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams
+		) {
+			for (VertexIterator iter = g.vertices_begin(); iter != g.vertices_end(); ++iter) {
+				if ( (aaSurfParams[*iter].angular == 0) && (aaSurfParams[*iter].axial == 0) && (aaSurfParams[*iter].radial == 0) && (aaSurfParams[*iter].scale == 0)) {
+					UG_LOGN("FOUND TO CORRECT");
+					aaSurfParams[*iter].axial = -1;
+				}
+			}
+		}
+
 
 		////////////////////////////////////////////////////////////////////////
 		/// create_soma
@@ -2264,7 +2281,8 @@ namespace ug {
 			Grid& grid,
 			const Quadrilateral* const quad,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
-			const number scale
+			const number scale,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >* aaSurfParams
 		) {
 			Vertex* top = *grid.create<RegularVertex>();
 			ug::vector3 vNormOut;
@@ -2272,6 +2290,9 @@ namespace ug {
 			ug::vector3 center = CalculateCenter(quad, aaPos);
 			aaPos[top] = center;
 			VecScaleAdd(aaPos[top], 1.0, aaPos[top], scale, vNormOut);
+			if (aaSurfParams) {
+				(*aaSurfParams)[top].axial = -scale/VecLength(vNormOut);
+			}
 			return *grid.create<Pyramid>(PyramidDescriptor(quad->vertex(0),
 					quad->vertex(1), quad->vertex(2), quad->vertex(3), top));
 		}
@@ -2312,7 +2333,7 @@ namespace ug {
 			// Create pyramids at connectiong region of soma and dendrite
 			for (size_t i = 0; i < quadCont.size(); i++) {
 				sh.assign_subset(quadCont[i], somaIndex);
-				create_pyramid(grid, quadCont[i], aaPos, scale);
+				create_pyramid(grid, quadCont[i], aaPos, scale, &aaSurfParams);
 			}
 
 			// Extract submesh from grid (ignore neurites)
@@ -2323,6 +2344,7 @@ namespace ug {
 			typedef NeuriteProjector::SurfaceParams NPSP;
 			Attachment<NPSP> aAttachment = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
 			CopyGrid<APosition>(grid, gridOut, sh, destSh, aPosition);
+
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_copying_grid.ugx");
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "before_tetrahedralize_soma.ugx");
 			sel.clear();
@@ -2341,39 +2363,37 @@ namespace ug {
 			*/
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_selecting_complement.ugx");
 
-			// Tetrahedralizes somata (Preserve boundaries, preserving all not necessary (Inner boundaries?)
-			/// TODO: Needs debugging, then join all non somata subsets at the end after correct separation
+			// Tetrahedralizes somata (Preserve boundaries, preserving all boundaries not necessary (Inner boundaries?)
+			// debugging output
+			for (VertexIterator iter = grid.vertices_begin(); iter != grid.vertices_end(); ++iter) {
+				UG_DLOGN(NC_TNP, 0, "attachment value (aSP) before tetrahedralize: " << aaSurfParams[*iter]);
+			}
 			Tetrahedralize(grid, sh, 2, true, false, aPosition, 0);
 
-			/*
-			for (VertexIterator iter = gridOut.vertices_begin();
-								iter != gridOut.vertices_end(); ++iter) {
-							UG_LOGN("gridOut (before) aSP: " << aaSurfParams[*iter].axial);
+			for (VertexIterator iter = grid.vertices_begin(); iter != grid.vertices_end(); ++iter) {
+					UG_LOGN("attachment value (aSP) before tetrahedralize: " << aaSurfParams[*iter]);
 			}
-			*/
 
+			/// TODO: Needs debugging, then join all non somata subsets at the end after correct separation
 			/*
-			int oldNumSubsets = sh.num_subsets();
-			SeparateSubsetsByLowerDimSubsets<Volume>(grid, sh, true);
-			UG_LOGN("Subsets: " << sh.num_subsets());
-			for(int i = oldNumSubsets; i < sh.num_subsets(); ++i) {
-				sh.subset_info(i).name = "tetrahedra";
-			}
-			CopySubsetIndicesToSides (sh, true);
+		        int oldNumSubsets = sh.num_subsets();
+				SeparateSubsetsByLowerDimSubsets<Volume>(grid, sh, true);
+				UG_LOGN("Subsets: " << sh.num_subsets());
+				for(int i = oldNumSubsets; i < sh.num_subsets(); ++i) {
+					sh.subset_info(i).name = "tetrahedra";
+				}
+				CopySubsetIndicesToSides (sh, true);
 			*/
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
 			SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
 
-			/// Grid (contains somata) and gridOut (contains neurites) - these both have to be merged
-			/// TODO: Needs debugging
+			// Grid (contains somata) and gridOut (contains neurites) - these both have to be merged
 			MergeFirstGrids<Attachment<NPSP> >(grid, gridOut, sh, destSh, aAttachment, true);
 
-			/*for (VertexIterator iter = gridOut.vertices_begin();
-								iter != gridOut.vertices_end(); ++iter) {
-							UG_LOGN("gridOut (after) aSP: " << aaSurfParams[*iter]);
+			// debugging output
+			for (VertexIterator iter = grid.vertices_begin(); iter != grid.vertices_end(); ++iter) {
+				UG_DLOGN(NC_NNP, 0, "attachment value (aSP) after tetrahedralize: " << aaSurfParams[*iter]);
 			}
-			*/
-
 		}
 
 		////////////////////////////////////////////////////////////////////////
@@ -2548,17 +2568,20 @@ namespace ug {
 
 			/// attach data
 			AVertex aVrt;
+			gridOut.attach_to_vertices(aVrt);
 
 			/// attachments accessors for position and vertex index
 			Grid::AttachmentAccessor<Vertex, APosition> aaPosMRG(mrgGrid, aPosition, true);
- 			Grid::AttachmentAccessor<Vertex, AVertex> aaVrt(gridOut, aVrt, true);
+ 			Grid::AttachmentAccessor<Vertex, AVertex> aaVrt(gridOut, aVrt);
 			Grid::AttachmentAccessor<Vertex, APosition> aaPos(gridOut, aPosition, true);
 
-			if (!mrgGrid.has_vertex_attachment(aAttachment))
+			if (!mrgGrid.has_vertex_attachment(aAttachment)) {
 				mrgGrid.attach_to_vertices(aAttachment);
+			}
 
-			if (!gridOut.has_vertex_attachment(aAttachment))
+			if (!gridOut.has_vertex_attachment(aAttachment)) {
 				gridOut.attach_to_vertices(aAttachment);
+			}
 
 			Grid::VertexAttachmentAccessor<TAttachment> aaSrc(gridOut, aAttachment, true);
 			Grid::VertexAttachmentAccessor<TAttachment> aaDest(mrgGrid, aAttachment, true);
@@ -2569,7 +2592,7 @@ namespace ug {
 			{
 				Vertex* nvrt = *mrgGrid.create_by_cloning(*iter);
 				aaPosMRG[nvrt] = aaPos[*iter];
-				aaDest[nvrt] = aaSrc[*iter];
+				aaDest[nvrt] = aaDest[*iter];
 				aaVrt[*iter] = nvrt;
 				mrgSH.assign_subset(nvrt, subsetBaseInd + sh.get_subset_index(*iter));
 			}

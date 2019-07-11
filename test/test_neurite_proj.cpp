@@ -3300,8 +3300,22 @@ void create_spline_data_for_neurites
 	    AssignSelectionToSubset(sel, sh, 3);
 	    SavePreparedGridToFile(g, sh, "before_tetrahedralize_and_after_reassigned.ugx");
 
+		/// assign correct axial parameters for "somata"
+		set_somata_axial_parameters(g, sh, aaSurfParams, 4, 5);
+
+	    for (VertexIterator iter = g.vertices_begin(); iter != g.vertices_end(); ++iter) {
+	      	UG_DLOGN(NC_TNP, 0, "Attachment value (aSP): " << aaSurfParams[*iter]);
+	    }
+
 	    /// Tetrahedralizes somata with specified and fixed indices 4 and 5
 	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 5, savedSomaPoint);
+
+	    /// Assign SurfParams for new vertices from tetrahedralize
+	    fix_axial_parameters(g, sh, aaSurfParams);
+	    for (VertexIterator iter = g.vertices_begin(); iter != g.vertices_end(); ++iter) {
+ 			UG_DLOGN(NC_TNP, 0, "attachment value (aSP) after fix: " << aaSurfParams[*iter]);
+ 		}
+
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma.ugx");
 		/// After merge doubles might occur, delete them. Boundary faces are retained,
 		/// however triangles occur now at boundary interface and quadrilaterals, thus
@@ -3312,8 +3326,11 @@ void create_spline_data_for_neurites
 		DeleteInnerEdgesFromQuadrilaterals(g, sh, 1);
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma_and_conversion.ugx");
 
-		/// assign correct axial parameters for "somata"
-		set_somata_axial_parameters(g, sh, aaSurfParams, 4, 5);
+		for (int i = 0; i <= sh.num_subsets(); i++) {
+			for (VertexIterator iter = sh.begin<Vertex>(i); iter != sh.end<Vertex>(i); iter++) {
+				UG_DLOGN(NC_TNP, 0, "attachment value (aSP) for subset " << i << ": " << aaSurfParams[*iter]);
+			}
+		}
 
 	    // at branching points, we have not computed the correct positions yet,
 		// so project the complete geometry using the projector
@@ -3324,9 +3341,11 @@ void create_spline_data_for_neurites
 		}
 
 		/// TODO: Projection does not work right now because aaSurfParams of vertices
-		/// have not been copied during grid merge and grid copy process above...
-		/// see the tetrahedralize_soma method. Note that soma is allowed to fil
-		/// fail since implementation in neurite_projector is still mostly WIP!
+		/// have not all been set correctly after tetrahedralize_soma has been called.
+		/// Soma implementation might work after fixing this, see implementation in
+		/// neurite_projector.cpp - need to check additionally if vertex is soma or not.
+		/// Note that tetrahedralize introduces new vertices and these have axial 0 and are
+		/// thus wrongly considered in neurite_projector's BP projection as neurite BP!
 	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
 

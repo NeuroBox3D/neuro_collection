@@ -2179,7 +2179,15 @@ number calculate_length_over_radius
 	////////////////////////////////////////////////////////////////////////
 	/// constrained_smoothing
 	////////////////////////////////////////////////////////////////////////
-	void constrained_smoothing(std::vector<SWCPoint>& vPointsIn, size_t n, number h, number gamma)
+	void constrained_smoothing
+	(
+		std::vector<SWCPoint>& vPointsIn,
+		size_t n,
+		number h,
+		number gamma,
+		number minAngle,
+		number maxRadiusRatio
+	)
 	{
 		// store first vertices after branch which should not be smoothed
 		std::vector<size_t> firstVerticesAfterBranch;
@@ -2266,6 +2274,9 @@ number calculate_length_over_radius
 					// max radius element is root neurite which can be smoothed
 					int max = std::distance(radii.begin(), std::max_element(radii.begin(), radii.end()));
 					conns.erase(conns.begin() + max);
+
+					UG_COND_THROW(max < maxRadiusRatio, "Diameter of neurite does not satify main branch criterion.");
+					/// TODO: Add angle criterion
 
 					// remember first vertex after or before branch of non root branch/neurite
 					for (size_t i = 0; i < conns.size(); i++) {

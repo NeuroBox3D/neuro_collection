@@ -443,6 +443,19 @@ namespace ug {
 		);
 
 		/*!
+		 * \brief fix somata axial parameters
+		 * \param[in,out] grid
+		 * \param[in,out] sh
+		 * \param[in,out] aaSurfParams
+		 */
+		void fix_axial_parameters
+		(
+			Grid& g,
+			SubsetHandler& sh,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams
+		);
+
+		/*!
 		 * \brief creates the soma as icosahedron
 		 * \param[in] somaPts
 		 * \param[in,out] grid
@@ -724,6 +737,7 @@ namespace ug {
 		 * \param[in] quad
 		 * \param[in,out] aaPos
 		 * \param[in] scale
+		 * \param[in,out] aaSurfParams
 		 * \return \c pointer to new pyramid
 		 */
 		Pyramid* create_pyramid
@@ -731,7 +745,8 @@ namespace ug {
 			Grid& grid,
 			const Quadrilateral* const quad,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
-			number scale = 1.0
+			number scale = 1.0,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >* aaSurfParams = NULL
 		);
 
 		/*!
