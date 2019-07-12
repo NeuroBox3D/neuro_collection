@@ -2258,27 +2258,52 @@ number calculate_length_over_radius
 					continue;
 				}
 
-				// branching points are not smoothed, but iterated over
-				size_t connSz = pt.conns.size();
-				for (size_t c = 0; c < connSz; ++c)
-					if (!treated[pt.conns[c]])
-						stack.push(pt.conns[c]);
+				// mark branching points as treated
+				std::vector<size_t> conns = pt.conns;
+				for (size_t c = 0; c < conns.size(); ++c) {
+					if (!treated[conns[c]]) {
+						stack.push(conns[c]);
+					}
+				}
 
-				if (connSz != 2)
-				{
-					std::vector<size_t> conns = pt.conns;
+				// actually treat branching points
+				if (conns.size() != 2) {
 					std::vector<number> radii;
-					for (size_t i = 0; i < pt.conns.size(); ++i )
-					   radii.push_back(vPointsIn[pt.conns[i]].radius);
+					for (size_t i = 0; i < conns.size(); ++i) {
+					   radii.push_back(vPointsIn[conns[i]].radius);
+					}
 
-					// max radius element is root neurite which can be smoothed
+					// largest radius of all connecting points originating from
+					// current point x (pt.conns.coords) deemed as root branch
+					// continuation of current neurite the algorithm is tracing
 					int max = std::distance(radii.begin(), std::max_element(radii.begin(), radii.end()));
-					conns.erase(conns.begin() + max);
-
 					UG_COND_THROW(max < maxRadiusRatio, "Diameter of neurite does not satify main branch criterion.");
-					/// TODO: Add angle criterion
 
-					// remember first vertex after or before branch of non root branch/neurite
+					// branch with min angle is assumed to be root neurite branch continuation
+					number min = PI/2;
+					std::pair<size_t, size_t> minPair;
+					for (size_t i = 0; conns.size(); ++i) {
+						for (size_t j = 0; conns.size(); ++j) {
+							ug::vector3 v1;
+							ug::vector3 v2;
+							VecSubtract(v1, vPointsIn[conns[i]].coords, x);
+							VecSubtract(v2, vPointsIn[conns[j]].coords, x);
+							VecNormalize(v1, v1);
+							VecNormalize(v2, v2);
+							number angle = acos(VecDot(v1, v2));
+							if (angle < min) {
+								min = angle;
+								minPair = std::pair<size_t, size_t>(i, j);
+							}
+						}
+					}
+
+					/// min angle branch which matches the largest diameter deemed as root branch continuation
+					if ((minPair.second == max) || (minPair.first == max)) {
+						conns.erase(conns.begin() + max);
+					}
+
+					// remember first vertex after or before branch of non root branch of current neurite
 					for (size_t i = 0; i < conns.size(); i++) {
 						firstVerticesAfterBranch.push_back(conns[i]);
 					}
