@@ -2299,7 +2299,7 @@ number calculate_length_over_radius
 					}
 
 					/// min angle branch which matches the largest diameter deemed as root branch continuation
-					if ((minPair.second == max) || (minPair.first == max)) {
+					if ((minPair.second == (size_t) max) || (minPair.first == (size_t) max)) {
 						conns.erase(conns.begin() + max);
 					}
 

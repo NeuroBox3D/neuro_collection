@@ -56,7 +56,7 @@ using namespace ug::neuro_collection;
 BOOST_AUTO_TEST_SUITE(test);
 ////////////////////////////////////////////////////////////////////////////////
 BOOST_FIXTURE_TEST_CASE(CreatePyramid, FixtureOneGrid) {
-	Pyramid* p = create_pyramid(g, quad, aaPos);
+	Pyramid* p = create_pyramid(g, quad, aaPos, 1.0, NULL);
 	BOOST_REQUIRE_MESSAGE(p, "Creating pyramid out of supplied vertices "
 			"and created top vertex.");
 	vector3 top = aaPos[p->vertex(4)]; //!< last vertex is top vertex
@@ -150,8 +150,6 @@ BOOST_FIXTURE_TEST_CASE(MergeTwoGrids, FixtureTwoGrid) {
 	BOOST_CHECK_MESSAGE(sh1.num<Vertex>(0) == 4, "Checking 4 vertices in subset 0 of merged grid");
 	BOOST_CHECK_MESSAGE(sh1.num<Vertex>(1) == 4, "Checking 4 vertices in subset 1 of merged grid");
 	BOOST_CHECK_MESSAGE(sh1.num<Quadrilateral>() == 2, "Checking 2 quadrilaterals in merged grid");
-
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -175,7 +173,6 @@ BOOST_FIXTURE_TEST_CASE(CopyTwoGrids, FixtureOneGrid) {
     	BOOST_REQUIRE_MESSAGE(aaSurfParams[*iter].radial == 1.0, "Requiring radial 1.0 in copied grid");
     }
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 BOOST_FIXTURE_TEST_CASE(SelectElementsInUnitSphere, FixtureSphere) {

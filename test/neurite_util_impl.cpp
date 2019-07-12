@@ -50,6 +50,8 @@
 /// #include "nc_config.h"
 #include <boost/lexical_cast.hpp>
 
+extern ug::DebugID NC_TNP;
+
 namespace ug {
 	namespace neuro_collection {
 		////////////////////////////////////////////////////////////////////////
@@ -2353,6 +2355,7 @@ namespace ug {
 			InvertSelection(sel);
 			EraseSelectedObjects(sel);
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "before_tetrahedralize_soma_and_after_selecting.ugx");
+			SaveGridToFile(grid, sh, "before_tetrahedralize_soma_and_after_selecting.ugx");
 			sel.clear();
 			/*
 			 	Note: This could be improved to select only the complement instead of removing doubles later
@@ -2375,15 +2378,13 @@ namespace ug {
 			}
 
 			/// TODO: Needs debugging, then join all non somata subsets at the end after correct separation
-			/*
-		        int oldNumSubsets = sh.num_subsets();
-				SeparateSubsetsByLowerDimSubsets<Volume>(grid, sh, true);
+		    int oldNumSubsets = sh.num_subsets();
+			SeparateSubsetsByLowerDimSubsets<Volume>(grid, sh, true);
 				UG_LOGN("Subsets: " << sh.num_subsets());
 				for(int i = oldNumSubsets; i < sh.num_subsets(); ++i) {
 					sh.subset_info(i).name = "tetrahedra";
 				}
 				CopySubsetIndicesToSides (sh, true);
-			*/
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
 			SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
 
@@ -2757,8 +2758,5 @@ namespace ug {
 				}
 			}
 		}
-
-
-
 	}
 }
