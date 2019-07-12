@@ -50,6 +50,9 @@
 /// #include "nc_config.h"
 #include <boost/lexical_cast.hpp>
 
+/// neuro_collection's test neurite projector debug ID
+extern ug::DebugID NC_TNP;
+
 namespace ug {
 	namespace neuro_collection {
 		////////////////////////////////////////////////////////////////////////
@@ -2392,7 +2395,7 @@ namespace ug {
 
 			// debugging output
 			for (VertexIterator iter = grid.vertices_begin(); iter != grid.vertices_end(); ++iter) {
-				UG_DLOGN(NC_NNP, 0, "attachment value (aSP) after tetrahedralize: " << aaSurfParams[*iter]);
+				UG_DLOGN(NC_TNP, 0, "attachment value (aSP) after tetrahedralize: " << aaSurfParams[*iter]);
 			}
 		}
 
