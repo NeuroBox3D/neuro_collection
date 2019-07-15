@@ -3313,8 +3313,12 @@ void create_spline_data_for_neurites
 	    /// Tetrahedralizes somata with specified and fixed indices 4 and 5
 	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 5, savedSomaPoint);
 
-	    /// Assign SurfParams for new vertices from tetrahedralize
-	    fix_axial_parameters(g, sh, aaSurfParams);
+	    /// reassign soma volumes to appropriate subsets
+	    reassign_volumes(g, sh, 4, 5, scaleER, savedSomaPoint[0], aaPos);
+
+	    /// TODO: Assign SurfParams for all vertices from tetrahedralize call (now in subset 4 and 5)
+	    // fix_axial_parameters(g, sh, aaSurfParams, aaPos, 4, 5, savedSomaPoint[0], scaleER);
+
 	    for (VertexIterator iter = g.vertices_begin(); iter != g.vertices_end(); ++iter) {
  			UG_DLOGN(NC_TNP, 0, "attachment value (aSP) after fix: " << aaSurfParams[*iter]);
  		}
@@ -3344,7 +3348,7 @@ void create_spline_data_for_neurites
 		}
 
 		/// TODO: Projection does not work right now because aaSurfParams of vertices
-		/// have not all been set correctly after tetrahedralize_soma has been called.
+		/// have not all been set correctly after tetrahedralize_soma (see above note)
 		/// Soma implementation might work after fixing this, see implementation in
 		/// neurite_projector.cpp - need to check additionally if vertex is soma or not.
 		/// Note that tetrahedralize introduces new vertices and these have axial 0 and are

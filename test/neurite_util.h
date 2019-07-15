@@ -447,12 +447,35 @@ namespace ug {
 		 * \param[in,out] grid
 		 * \param[in,out] sh
 		 * \param[in,out] aaSurfParams
+		 * \param[in] aaPos
 		 */
 		void fix_axial_parameters
 		(
 			Grid& g,
 			SubsetHandler& sh,
-			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			const Grid::VertexAttachmentAccessor<APosition>& aaPos
+		);
+
+		/*!
+		 * \brief reassign soma volumes specified by soma indices
+		 * \param[in,out] grid
+		 * \param[in,out] sh
+		 * \param[in] somaIndexInner
+		 * \param[in] somaIndexOuter
+		 * \param[in] scale
+		 * \param[in] savedSomaPoint
+		 * \param[in,out] aaPos
+		 */
+		void reassign_volumes
+		(
+			Grid& grid,
+			SubsetHandler& sh,
+			size_t somaIndexInner,
+			size_t somaIndexOuter,
+			number scale,
+			const SWCPoint& point,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos
 		);
 
 		/*!

@@ -1698,14 +1698,44 @@ namespace ug {
 		(
 			Grid& g,
 			SubsetHandler& sh,
-			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			const Grid::VertexAttachmentAccessor<APosition>& aaPos
+
 		) {
 			for (VertexIterator iter = g.vertices_begin(); iter != g.vertices_end(); ++iter) {
 				if ( (aaSurfParams[*iter].angular == 0) && (aaSurfParams[*iter].axial == 0) && (aaSurfParams[*iter].radial == 0) && (aaSurfParams[*iter].scale == 0)) {
-					UG_LOGN("FOUND TO CORRECT");
+					UG_LOGN("Need to correct... (vertex is in subset: " << sh.get_subset_index(*iter) << ")");
+					UG_LOGN("Parameters: " << aaSurfParams[*iter]);
+					UG_LOGN("Position: " << aaPos[*iter]);
 					aaSurfParams[*iter].axial = -1;
+					sh.assign_subset(*iter, 7+sh.get_subset_index(*iter));
 				}
 			}
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// reassign_volumes
+		////////////////////////////////////////////////////////////////////////
+		void reassign_volumes
+		(
+			Grid& g,
+			SubsetHandler& sh,
+			size_t somaIndexOuter,
+			size_t somaIndexInner,
+			number scaleER,
+			const SWCPoint& soma,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos
+		) {
+			Selector sel(g);
+			SelectElementsInSphere<Volume>(g, sel, soma.coords, soma.radius, aaPos);
+			AssignSelectionToSubset(sel, sh, somaIndexOuter);
+			UG_DLOGN(NC_TNP, 0, "num volumes selected for inner soma with index"
+					<< "(" << somaIndexOuter << "): " << sel.num<Volume>());
+			sel.clear();
+			SelectElementsInSphere<Volume>(g, sel, soma.coords, soma.radius*scaleER, aaPos);
+			AssignSelectionToSubset(sel, sh, somaIndexInner);
+			UG_DLOGN(NC_TNP, 0, "num volumes selected for inner soma with index"
+					<< "(" << somaIndexInner << "): " << sel.num<Volume>());
 		}
 
 
@@ -2367,29 +2397,31 @@ namespace ug {
 			*/
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_selecting_complement.ugx");
 
-			// Tetrahedralizes somata (Preserve boundaries, preserving all boundaries not necessary (Inner boundaries?)
 			// debugging output
 			for (VertexIterator iter = grid.vertices_begin(); iter != grid.vertices_end(); ++iter) {
 				UG_DLOGN(NC_TNP, 0, "attachment value (aSP) before tetrahedralize: " << aaSurfParams[*iter]);
 			}
-			Tetrahedralize(grid, sh, 2, true, false, aPosition, 0);
+
+			// Tetrahedralizes somata (Preserve all all inner and outer boundaries)
+			Tetrahedralize(grid, sh, 2, true, true, aPosition, 0);
 
 			for (VertexIterator iter = grid.vertices_begin(); iter != grid.vertices_end(); ++iter) {
-					UG_LOGN("attachment value (aSP) before tetrahedralize: " << aaSurfParams[*iter]);
+				UG_DLOGN(NC_TNP, 0, "attachment value (aSP) after tetrahedralize: " << aaSurfParams[*iter]);
 			}
 
-			/// TODO: Needs debugging, then join all non somata subsets at the end after correct separation
-		    int oldNumSubsets = sh.num_subsets();
-			SeparateSubsetsByLowerDimSubsets<Volume>(grid, sh, true);
-				UG_LOGN("Subsets: " << sh.num_subsets());
-				for(int i = oldNumSubsets; i < sh.num_subsets(); ++i) {
-					sh.subset_info(i).name = "tetrahedra";
-				}
-				CopySubsetIndicesToSides (sh, true);
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
 			SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
 
+			/// Assign all volumes at end of subset list
+			size_t lastSi = sh.num_subsets();
+			for(VolumeIterator vIter = grid.begin<Volume>(); vIter != grid.end<Volume>(); ++vIter)
+			{
+			    sh.assign_subset(*vIter, lastSi);
+			}
+			sh.subset_info(lastSi).name = "tetrahedrons";
+
 			// Grid (contains somata) and gridOut (contains neurites) - these both have to be merged
+			/// TODO: MergeFirstGrids introduces during merge 0, 0, 0, 0 aaSurfParam values for some vertices which is incorrect
 			MergeFirstGrids<Attachment<NPSP> >(grid, gridOut, sh, destSh, aAttachment, true);
 
 			// debugging output
