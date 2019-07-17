@@ -3310,18 +3310,14 @@ void create_spline_data_for_neurites
 	      	UG_DLOGN(NC_TNP, 0, "Attachment value (aSP): " << aaSurfParams[*iter]);
 	    }
 
-	    /// Tetrahedralizes somata with specified and fixed indices 4 and 5
+	    /// tetrahedralizes somata with specified and fixed indices 4 and 5
 	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 5, savedSomaPoint);
 
 	    /// reassign soma volumes to appropriate subsets
 	    reassign_volumes(g, sh, 4, 5, scaleER, savedSomaPoint[0], aaPos);
 
-	    /// TODO: Assign SurfParams for all vertices from tetrahedralize call (now in subset 4 and 5)
-	    // fix_axial_parameters(g, sh, aaSurfParams, aaPos, 4, 5, savedSomaPoint[0], scaleER);
-
-	    for (VertexIterator iter = g.vertices_begin(); iter != g.vertices_end(); ++iter) {
- 			UG_DLOGN(NC_TNP, 0, "attachment value (aSP) after fix: " << aaSurfParams[*iter]);
- 		}
+	    /// assign SurfParams for all vertices from tetrahedralize call (now in subset 4 and 5)
+	    fix_axial_parameters(g, sh, aaSurfParams, aaPos, 4, 5, savedSomaPoint[0], scaleER);
 
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma.ugx");
 		/// After merge doubles might occur, delete them. Boundary faces are retained,

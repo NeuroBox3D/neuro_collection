@@ -448,13 +448,21 @@ namespace ug {
 		 * \param[in,out] sh
 		 * \param[in,out] aaSurfParams
 		 * \param[in] aaPos
+		 * \param[in] somaIndex
+		 * \param[in] erIndex
+		 * \param[in] somaPoint
+		 * \param[in] scaleER
 		 */
 		void fix_axial_parameters
 		(
 			Grid& g,
 			SubsetHandler& sh,
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
-			const Grid::VertexAttachmentAccessor<APosition>& aaPos
+		    const Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			size_t somaIndex,
+			size_t erIndex,
+            const SWCPoint& somaPoint,
+            number scaleER
 		);
 
 		/*!

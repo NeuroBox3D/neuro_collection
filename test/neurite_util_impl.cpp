@@ -1699,18 +1699,27 @@ namespace ug {
 			Grid& g,
 			SubsetHandler& sh,
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
-			const Grid::VertexAttachmentAccessor<APosition>& aaPos
-
+		    const Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			size_t somaIndex,
+			size_t erIndex,
+            const SWCPoint& somaPoint,
+            number scaleER
 		) {
-			for (VertexIterator iter = g.vertices_begin(); iter != g.vertices_end(); ++iter) {
-				if ( (aaSurfParams[*iter].angular == 0) && (aaSurfParams[*iter].axial == 0) && (aaSurfParams[*iter].radial == 0) && (aaSurfParams[*iter].scale == 0)) {
-					UG_LOGN("Need to correct... (vertex is in subset: " << sh.get_subset_index(*iter) << ")");
-					UG_LOGN("Parameters: " << aaSurfParams[*iter]);
-					UG_LOGN("Position: " << aaPos[*iter]);
-					aaSurfParams[*iter].axial = -1;
-					sh.assign_subset(*iter, 7+sh.get_subset_index(*iter));
-				}
+			/// vertices of soma volumes
+			for (VertexIterator iter = sh.begin<Vertex>(somaIndex); iter != sh.end<Vertex>(somaIndex); ++iter) {
+			        aaSurfParams[*iter].radial = 1.0;
+			        aaSurfParams[*iter].axial = -1.0;
+			        aaSurfParams[*iter].scale = somaPoint.radius;
+			        aaSurfParams[*iter].angular = 0;
 			}
+
+		   /// vertices of er volumes
+	       for (VertexIterator iter = sh.begin<Vertex>(erIndex); iter != sh.end<Vertex>(erIndex); ++iter) {
+	               aaSurfParams[*iter].radial = scaleER;
+	               aaSurfParams[*iter].axial = -0.5;
+	               aaSurfParams[*iter].scale = somaPoint.radius * scaleER;
+	               aaSurfParams[*iter].angular = 0;
+	       }
 		}
 
 		////////////////////////////////////////////////////////////////////////
@@ -2376,7 +2385,25 @@ namespace ug {
 			gridOut.attach_to_vertices(aPosition);
 			typedef NeuriteProjector::SurfaceParams NPSP;
 			Attachment<NPSP> aAttachment = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
+			/// TODO: CopyGrid introduces empty attachments *AND* different positions. Why is this the case?
 			CopyGrid<APosition>(grid, gridOut, sh, destSh, aPosition);
+
+			for (VertexIterator iter = gridOut.vertices_begin(); iter != gridOut.vertices_end(); ++iter) {
+				UG_DLOGN(NC_TNP, 0, "attachment value after copy call (gridOut): " << aaSurfParams[*iter] << " "
+						"and vertex in subset: " << destSh.get_subset_index(*iter) << " "
+						"with position: " <<  aaPos[*iter]);
+			}
+
+			for (VertexIterator iter = grid.vertices_begin(); iter != grid.vertices_end(); ++iter) {
+				UG_DLOGN(NC_TNP, 0, "attachment value after copy call (grid): " << aaSurfParams[*iter] << " "
+						"and vertex in subset: " << sh.get_subset_index(*iter) << " "
+						"with position: " <<  aaPos[*iter]);
+			}
+
+			// Number of vertices are the same, but different positions in copy grid gridOut?
+			UG_DLOGN(NC_TNP, 0, "Vertices in grid: " << grid.num<Vertex>());
+			UG_DLOGN(NC_TNP, 0, "Vertices in gridOut: " << gridOut.num<Vertex>());
+			UG_COND_THROW(grid.num<Vertex>() != gridOut.num<Vertex>(), "Vertices must agree.");
 
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_copying_grid.ugx");
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "before_tetrahedralize_soma.ugx");
@@ -2395,22 +2422,11 @@ namespace ug {
 				CloseSelection(sel2);
 				EraseSelectedObjects(sel2);
 			*/
-			IF_DEBUG(NC_TNP, 0) SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_selecting_complement.ugx");
-
-			// debugging output
-			for (VertexIterator iter = grid.vertices_begin(); iter != grid.vertices_end(); ++iter) {
-				UG_DLOGN(NC_TNP, 0, "attachment value (aSP) before tetrahedralize: " << aaSurfParams[*iter]);
-			}
 
 			// Tetrahedralizes somata (Preserve all all inner and outer boundaries)
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_selecting_complement.ugx");
 			Tetrahedralize(grid, sh, 2, true, true, aPosition, 0);
-
-			for (VertexIterator iter = grid.vertices_begin(); iter != grid.vertices_end(); ++iter) {
-				UG_DLOGN(NC_TNP, 0, "attachment value (aSP) after tetrahedralize: " << aaSurfParams[*iter]);
-			}
-
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
-			SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
 
 			/// Assign all volumes at end of subset list
 			size_t lastSi = sh.num_subsets();
@@ -2420,14 +2436,21 @@ namespace ug {
 			}
 			sh.subset_info(lastSi).name = "tetrahedrons";
 
-			// Grid (contains somata) and gridOut (contains neurites) - these both have to be merged
-			/// TODO: MergeFirstGrids introduces during merge 0, 0, 0, 0 aaSurfParam values for some vertices which is incorrect
-			MergeFirstGrids<Attachment<NPSP> >(grid, gridOut, sh, destSh, aAttachment, true);
-
-			// debugging output
+			/// Tetrahedralize introduces new vertices - aaSurfParams have to be set -
+			/// vertices are in subset 4 and are the vertices of the newly created tetrahedrons
+			/// Calling method, tetrahedralize_soma, separates subset 4 into soma (4) and er (5)
+			/// then the axial parameters are corrected accordingly depending on soma/er center and radii
 			for (VertexIterator iter = grid.vertices_begin(); iter != grid.vertices_end(); ++iter) {
-				UG_DLOGN(NC_TNP, 0, "attachment value (aSP) after tetrahedralize: " << aaSurfParams[*iter]);
+				UG_DLOGN(NC_TNP, 0, "attachment value after tet call: " << aaSurfParams[*iter] << " "
+						"and vertex in subset: " << sh.get_subset_index(*iter) << " "
+						"with position: " <<  aaPos[*iter]);
 			}
+
+			// Grid (contains somata) and gridOut (contains neurites) - these both have to be merged
+			// TODO: MergeFirstGrids introduces empty NeuriteProjector::SurfaceParams attachment: Why?
+			// Note that the empty attachments above introduced by the Tetrahedralize(...) call are ok
+			// however it seems that Tetrahedralize(...) call affects also vertices of copied gridOut?
+			MergeFirstGrids<Attachment<NPSP> >(grid, gridOut, sh, destSh, aAttachment, true);
 		}
 
 		////////////////////////////////////////////////////////////////////////
