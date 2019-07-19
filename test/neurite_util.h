@@ -936,7 +936,6 @@ namespace ug {
 			SubsetHandler& sh,
 			int si = 0
 		);
-
 	}
 }
 

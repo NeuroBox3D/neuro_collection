@@ -77,5 +77,4 @@ namespace ug {
 		);
 	}
 }
-
 #endif // UG__PLUIGNS___NEURO_COLLECTION_TEST__TETRAHEDRALIZE_UTIL_H

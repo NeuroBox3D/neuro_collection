@@ -3306,10 +3306,6 @@ void create_spline_data_for_neurites
 		/// assign correct axial parameters for "somata"
 		set_somata_axial_parameters(g, sh, aaSurfParams, 4, 5);
 
-	    for (VertexIterator iter = g.vertices_begin(); iter != g.vertices_end(); ++iter) {
-	      	UG_DLOGN(NC_TNP, 0, "Attachment value (aSP): " << aaSurfParams[*iter]);
-	    }
-
 	    /// tetrahedralizes somata with specified and fixed indices 4 and 5
 	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 5, savedSomaPoint);
 
@@ -3325,7 +3321,7 @@ void create_spline_data_for_neurites
 		/// delete the triangles to keep the quadrilaterals from the start of neurites
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aaPos, 0.00001);
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma_and_removed_doubles.ugx");
-		/// TODO: this will work after adapting Tetrahedralize method to re-add the quads or not delete them!
+		/// TODO: this will work after adapting Tetrahedralize method to re-add the quads or not delete them in Tetrahedralize
 		DeleteInnerEdgesFromQuadrilaterals(g, sh, 4);
 		DeleteInnerEdgesFromQuadrilaterals(g, sh, 1);
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma_and_conversion.ugx");
