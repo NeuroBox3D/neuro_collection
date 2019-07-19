@@ -138,11 +138,7 @@ BOOST_FIXTURE_TEST_CASE(MergeTwoGrids, FixtureTwoGrid) {
 	BOOST_REQUIRE_MESSAGE(sh2.num<Quadrilateral>() == 1, "Requiring 1 quadrilateral in subset 1 in first grid");
 
 	// merge grids and check output for basic consistency
-    typedef NeuriteProjector::SurfaceParams NPSP;
-    UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
-            "GlobalAttachment 'npSurfParams' not declared.");
-    Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
-	MergeFirstGrids<Attachment<NPSP> >(g1, g2, sh1, sh2, aSP, true);
+	MergeGrids<APosition>(g1, g2, sh1, sh2, aPosition, true);
 	BOOST_REQUIRE_MESSAGE(g1.num_vertices() == 8, "Requiring 8 vertices in merged grid (first grid)");
 	BOOST_REQUIRE_MESSAGE(g1.num_edges() == 8, "Requiring 8 edges in merged grid (first grid)");
 

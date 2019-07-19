@@ -105,6 +105,7 @@ if (NOT buildForVRL)
 				test/neurite_refMarkAdjuster.cpp
 				test/neurite_util_impl.cpp
 				test/neurite_grid_generation_impl.cpp
+				test/tetrahedralize_util.cpp
       )
 endif (NOT buildForVRL)
 

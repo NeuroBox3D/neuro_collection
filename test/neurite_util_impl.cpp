@@ -38,6 +38,7 @@
  */
 
 #include "neurite_util.h"
+#include "tetrahedralize_util.h"
 #include "common/log.h"
 #include "common/error.h"
 #include "bridge/domain_bridges/selection_bridge.h"
@@ -2385,8 +2386,8 @@ namespace ug {
 			gridOut.attach_to_vertices(aPosition);
 			typedef NeuriteProjector::SurfaceParams NPSP;
 			Attachment<NPSP> aAttachment = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
-			/// TODO: CopyGrid introduces empty attachments *AND* different positions. Why is this the case?
-			CopyGrid<APosition>(grid, gridOut, sh, destSh, aPosition);
+			/// Note: CopyGrid introduces empty attachments *AND* different positions. Why is this the case?
+			// CopyGrid<APosition>(grid, gridOut, sh, destSh, aPosition);
 
 			for (VertexIterator iter = gridOut.vertices_begin(); iter != gridOut.vertices_end(); ++iter) {
 				UG_DLOGN(NC_TNP, 0, "attachment value after copy call (gridOut): " << aaSurfParams[*iter] << " "
@@ -2403,18 +2404,20 @@ namespace ug {
 			// Number of vertices are the same, but different positions in copy grid gridOut?
 			UG_DLOGN(NC_TNP, 0, "Vertices in grid: " << grid.num<Vertex>());
 			UG_DLOGN(NC_TNP, 0, "Vertices in gridOut: " << gridOut.num<Vertex>());
-			UG_COND_THROW(grid.num<Vertex>() != gridOut.num<Vertex>(), "Vertices must agree.");
+			///UG_COND_THROW(grid.num<Vertex>() != gridOut.num<Vertex>(), "Vertices must agree.");
 
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_copying_grid.ugx");
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "before_tetrahedralize_soma.ugx");
 			sel.clear();
 			SelectElementsByAxialPosition<Face>(grid, sel, 0.0, aaPos, aaSurfParams);
 			CloseSelection(sel);
+			/*
 			InvertSelection(sel);
 			EraseSelectedObjects(sel);
+			*/
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "before_tetrahedralize_soma_and_after_selecting.ugx");
 			SaveGridToFile(grid, sh, "before_tetrahedralize_soma_and_after_selecting.ugx");
-			sel.clear();
+			///sel.clear();
 			/*
 			 	Note: This could be improved to select only the complement instead of removing doubles later
 				Selector sel2(gridOut);
@@ -2425,10 +2428,14 @@ namespace ug {
 
 			// Tetrahedralizes somata (Preserve all all inner and outer boundaries)
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(gridOut, destSh, "before_tetrahedralize_soma_and_after_selecting_complement.ugx");
-			Tetrahedralize(grid, sh, 2, true, true, aPosition, 0);
+			///Tetrahedralize(grid, sh, 2, true, true, aPosition, 0);
+			UG_LOGN("num vertices before tet call: " << grid.num<Vertex>());
+			Tetrahedralize(sel, grid, &sh, 2, true, true, aPosition, 0);
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_merging_grids.ugx");
+			UG_LOGN("num vertices after tet call: " << grid.num<Vertex>());
 
-			/// Assign all volumes at end of subset list
+			/// Assign all volumes at end of subset list: TODO dont do this anymore
+			/// since volumes are in appropriate subset already with new Tetrahedralize(...) method
 			size_t lastSi = sh.num_subsets();
 			for(VolumeIterator vIter = grid.begin<Volume>(); vIter != grid.end<Volume>(); ++vIter)
 			{
@@ -2436,21 +2443,24 @@ namespace ug {
 			}
 			sh.subset_info(lastSi).name = "tetrahedrons";
 
-			/// Tetrahedralize introduces new vertices - aaSurfParams have to be set -
-			/// vertices are in subset 4 and are the vertices of the newly created tetrahedrons
-			/// Calling method, tetrahedralize_soma, separates subset 4 into soma (4) and er (5)
-			/// then the axial parameters are corrected accordingly depending on soma/er center and radii
+			/// Tetrahedralize introduces new vertices - aaSurfParams have to be set
 			for (VertexIterator iter = grid.vertices_begin(); iter != grid.vertices_end(); ++iter) {
 				UG_DLOGN(NC_TNP, 0, "attachment value after tet call: " << aaSurfParams[*iter] << " "
 						"and vertex in subset: " << sh.get_subset_index(*iter) << " "
 						"with position: " <<  aaPos[*iter]);
 			}
 
+			for (VertexIterator iter = grid.vertices_begin(); iter != grid.vertices_end(); ++iter) {
+							UG_LOGN("attachment value after tet call: " << aaSurfParams[*iter] << " "
+									"and vertex in subset: " << sh.get_subset_index(*iter) << " "
+									"with position: " <<  aaPos[*iter]);
+						}
+
 			// Grid (contains somata) and gridOut (contains neurites) - these both have to be merged
-			// TODO: MergeFirstGrids introduces empty NeuriteProjector::SurfaceParams attachment: Why?
+			// Note: MergeFirstGrids introduces empty NeuriteProjector::SurfaceParams attachment: Why?
 			// Note that the empty attachments above introduced by the Tetrahedralize(...) call are ok
 			// however it seems that Tetrahedralize(...) call affects also vertices of copied gridOut?
-			MergeFirstGrids<Attachment<NPSP> >(grid, gridOut, sh, destSh, aAttachment, true);
+			/// MergeFirstGrids<Attachment<NPSP> >(grid, gridOut, sh, destSh, aAttachment, true);
 		}
 
 		////////////////////////////////////////////////////////////////////////
@@ -2605,106 +2615,6 @@ namespace ug {
 			// save grid
 			SavePreparedGridToFile(gridOut, sh, "after_splitting_the_grid_and_copying.ugx");
 		}
-
-		////////////////////////////////////////////////////////////////////////
-		/// MergeFirstGrids
-		////////////////////////////////////////////////////////////////////////
-		template <typename TAttachment>
-		void MergeFirstGrids
-		(
-			Grid& mrgGrid,
-			Grid& gridOut,
-			SubsetHandler& mrgSH,
-			SubsetHandler& sh,
-			TAttachment aAttachment,
-			bool joinSubsets
-		)
-		{
-			/// base index always zero if subsets should be joined otherwise add offset
-			int subsetBaseInd = joinSubsets ? 0 : mrgSH.num_subsets();
-
-			/// attach data
-			AVertex aVrt;
-			gridOut.attach_to_vertices(aVrt);
-
-			/// attachments accessors for position and vertex index
-			Grid::AttachmentAccessor<Vertex, APosition> aaPosMRG(mrgGrid, aPosition, true);
- 			Grid::AttachmentAccessor<Vertex, AVertex> aaVrt(gridOut, aVrt);
-			Grid::AttachmentAccessor<Vertex, APosition> aaPos(gridOut, aPosition, true);
-
-			if (!mrgGrid.has_vertex_attachment(aAttachment)) {
-				mrgGrid.attach_to_vertices(aAttachment);
-			}
-
-			if (!gridOut.has_vertex_attachment(aAttachment)) {
-				gridOut.attach_to_vertices(aAttachment);
-			}
-
-			Grid::VertexAttachmentAccessor<TAttachment> aaSrc(gridOut, aAttachment, true);
-			Grid::VertexAttachmentAccessor<TAttachment> aaDest(mrgGrid, aAttachment, true);
-
-			///	copy vertices and npSurfParams attachment
-			for(VertexIterator iter = gridOut.begin<Vertex>();
-			iter != gridOut.end<Vertex>(); ++iter)
-			{
-				Vertex* nvrt = *mrgGrid.create_by_cloning(*iter);
-				aaPosMRG[nvrt] = aaPos[*iter];
-				aaDest[nvrt] = aaDest[*iter];
-				aaVrt[*iter] = nvrt;
-				mrgSH.assign_subset(nvrt, subsetBaseInd + sh.get_subset_index(*iter));
-			}
-
-			///	copy edges
-			EdgeDescriptor ed;
-			for(EdgeIterator iter = gridOut.begin<Edge>();
-			iter != gridOut.end<Edge>(); ++iter)
-			{
-				Edge* eSrc = *iter;
-				ed.set_vertices(aaVrt[eSrc->vertex(0)], aaVrt[eSrc->vertex(1)]);
-				Edge* e = *mrgGrid.create_by_cloning(eSrc, ed);
-				mrgSH.assign_subset(e, subsetBaseInd + sh.get_subset_index(eSrc));
-			}
-
-			///	copy faces
-			FaceDescriptor fd;
-			for(FaceIterator iter = gridOut.begin<Face>();
-			iter != gridOut.end<Face>(); ++iter)
-			{
-				Face* fSrc = *iter;
-				fd.set_num_vertices((uint)fSrc->num_vertices());
-				for(size_t i = 0; i < fd.num_vertices(); ++i)
-					fd.set_vertex((uint)i, aaVrt[fSrc->vertex(i)]);
-
-					Face* f = *mrgGrid.create_by_cloning(fSrc, fd);
-					mrgSH.assign_subset(f, subsetBaseInd + sh.get_subset_index(fSrc));
-			}
-
-			///	copy volumes
-			VolumeDescriptor vd;
-			for(VolumeIterator iter = gridOut.begin<Volume>();
-			iter != gridOut.end<Volume>(); ++iter)
-			{
-				Volume* vSrc = *iter;
-				vd.set_num_vertices((uint)vSrc->num_vertices());
-				for(size_t i = 0; i < vd.num_vertices(); ++i)
-					vd.set_vertex((uint)i, aaVrt[vSrc->vertex(i)]);
-
-					Volume* v = *mrgGrid.create_by_cloning(vSrc, vd);
-					mrgSH.assign_subset(v, subsetBaseInd + sh.get_subset_index(vSrc));
-			}
-
-			///	remove the temporary attachment
-			gridOut.detach_from_vertices(aVrt);
-			mrgGrid.detach_from_vertices(aVrt);
-
-			/// overwrite subset names
-			for(int i_sub = 0; i_sub < sh.num_subsets(); ++i_sub){
-				mrgSH.subset_info(subsetBaseInd + i_sub) = sh.subset_info(i_sub);
-			}
-		}
-
-		template void MergeFirstGrids(Grid&, Grid&, SubsetHandler&, SubsetHandler&,
-									  Attachment<NeuriteProjector::SurfaceParams>, bool);
 
 		////////////////////////////////////////////////////////////////////////
 		/// SelectElementsByAxialPosition

@@ -3325,6 +3325,7 @@ void create_spline_data_for_neurites
 		/// delete the triangles to keep the quadrilaterals from the start of neurites
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aaPos, 0.00001);
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma_and_removed_doubles.ugx");
+		/// TODO: this will work after adapting Tetrahedralize method to re-add the quads or not delete them!
 		DeleteInnerEdgesFromQuadrilaterals(g, sh, 4);
 		DeleteInnerEdgesFromQuadrilaterals(g, sh, 1);
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma_and_conversion.ugx");
@@ -3343,12 +3344,7 @@ void create_spline_data_for_neurites
 			neuriteProj->project(*vit);
 		}
 
-		/// TODO: Projection does not work right now because aaSurfParams of vertices
-		/// have not all been set correctly after tetrahedralize_soma (see above note)
-		/// Soma implementation might work after fixing this, see implementation in
-		/// neurite_projector.cpp - need to check additionally if vertex is soma or not.
-		/// Note that tetrahedralize introduces new vertices and these have axial 0 and are
-		/// thus wrongly considered in neurite_projector's BP projection as neurite BP!
+		// TODO: debug projection for soma part in neurite_projector.cpp
 	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
 

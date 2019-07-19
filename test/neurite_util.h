@@ -925,27 +925,6 @@ namespace ug {
 		);
 
 		/*!
-		 * \brief Merge two grids
-		 * Merges grid into mrgGrid, if joinSubsets is true, subsets are joined.
-		 * \param[in,out] mrgGrid
-		 * \param[in,out] grid
-		 * \param[in,out] mrgSh
-		 * \param[in,out] sh
-		 * \tparam[in,out] aAttachment
-		 * \param[in] joinSubsets
-		 */
-		template <typename TAttachment>
-		void MergeFirstGrids
-		(
-			Grid& mrgGrid,
-			Grid& grid,
-			SubsetHandler& mrgSH,
-			SubsetHandler& sh,
-			TAttachment aAttachment,
-			bool joinSubsets
-		);
-
-		/*!
 		 * \brief Deletes inner edges from quadrilaterals
 		 * \param[in,out] grid
 		 * \param[in,out] sh
