@@ -3321,7 +3321,6 @@ void create_spline_data_for_neurites
 		/// delete the triangles to keep the quadrilaterals from the start of neurites
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aaPos, 0.00001);
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma_and_removed_doubles.ugx");
-		/// TODO: this will work after adapting Tetrahedralize method to re-add the quads or not delete them in Tetrahedralize
 		DeleteInnerEdgesFromQuadrilaterals(g, sh, 4);
 		DeleteInnerEdgesFromQuadrilaterals(g, sh, 1);
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma_and_conversion.ugx");
@@ -3340,7 +3339,7 @@ void create_spline_data_for_neurites
 			neuriteProj->project(*vit);
 		}
 
-		// TODO: debug projection for soma part in neurite_projector.cpp
+		// TODO: Debug projection for soma part in neurite_projector.cpp
 	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
 

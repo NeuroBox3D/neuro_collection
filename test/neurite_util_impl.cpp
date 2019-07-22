@@ -910,7 +910,9 @@ namespace ug {
 					ug::Vertex* p2 = e->vertex(1);
 					ug::Vertex* p3 = myPairs2[e->vertex(0)];
 					ug::Vertex* p4 = myPairs2[e->vertex(1)];
-					/// TODO: Change this. Dummy values to pretend to be inside soma for SelectElementsByAxialPosition
+					/// TODO: Change this possibly. Dummy values to pretend to be
+					/// inside soma for SelectElementsByAxialPosition, scale is
+					/// changed later to be the correct value - Check this is true.
 					aaSurfParams[p1].axial = -scale/2;
 					aaSurfParams[p2].axial = -scale/2;
 					aaSurfParams[p3].axial = -scale/2;
@@ -2379,27 +2381,39 @@ namespace ug {
 				create_pyramid(grid, quadCont[i], aaPos, scale, &aaSurfParams);
 			}
 
-			// Extract submesh from grid (ignore neurites)
+			// Save old quadrilalterals
+			std::vector<std::vector<Vertex*> > oldQuads;
+			for (size_t i = 0; i < quadCont.size(); i++) {
+				std::vector<Vertex*> temp;
+				for (size_t j = 0; j < 4; j++) {
+					temp.push_back(quadCont[i]->vertex(j));
+				}
+				oldQuads.push_back(temp);
+			}
+
+			// Create selection of soma and ER - ignoring the neurites
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "before_tetrahedralize_soma.ugx");
 			sel.clear();
 			SelectElementsByAxialPosition<Face>(grid, sel, 0.0, aaPos, aaSurfParams);
 			CloseSelection(sel);
-			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "before_tetrahedralize_soma_and_after_selecting.ugx");
+
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "before_tetrahedralize"
+					"_soma_and_after_selecting.ugx");
 			UG_DLOGN(NC_TNP, 0, "num vertices before tet call: " << grid.num<Vertex>());
 			Tetrahedralize(sel, grid, &sh, 2, true, true, aPosition, 0);
-			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "after_tetrahedralize_soma_and_before_fix_axial_parameters.ugx");
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "after_tetrahedralize_"
+					"soma_and_before_fix_axial_parameters.ugx");
 			UG_DLOGN(NC_TNP, 0, "num vertices after tet call: " << grid.num<Vertex>());
 
-			/// Assign all volumes at end of subset list: TODO dont do this anymore (otherwise new subset tetrahedrons)
-			/// since volumes are in appropriate subset already with new Tetrahedralize(...) method
-			size_t lastSi = sh.num_subsets();
-			for(VolumeIterator vIter = grid.begin<Volume>(); vIter != grid.end<Volume>(); ++vIter)
-			{
-			    sh.assign_subset(*vIter, lastSi);
+			// restore old quadrilaterals
+			for (size_t i = 0; i < oldQuads.size(); i++) {
+				std::vector<Vertex*> temp = oldQuads[i];
+				Quadrilateral* l = *grid.create<Quadrilateral>
+					(QuadrilateralDescriptor(temp[0], temp[1], temp[2], temp[3]));
+				sh.assign_subset(l, 4);
 			}
-			sh.subset_info(lastSi).name = "tetrahedrons";
 
-			/// Tetrahedralize introduces new vertices - aaSurfParams have to be set TODO
+			/// Tetrahedralize introduces new vertices and aaSurfParams are set to default
 			for (VertexIterator iter = grid.vertices_begin(); iter != grid.vertices_end(); ++iter) {
 				UG_DLOGN(NC_TNP, 0, "attachment value after tet call: " << aaSurfParams[*iter] << " "
 						"and vertex in subset: " << sh.get_subset_index(*iter) << " "

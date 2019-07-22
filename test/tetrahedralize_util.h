@@ -68,7 +68,7 @@ namespace ug {
 		(
 			Selector& sel,
 			Grid& grid,
-			ISubsetHandler* sh,
+			ISubsetHandler* SH,
 		    number quality = 5,
 		    bool preserveBnds = false,
 		    bool preserveAll = false,

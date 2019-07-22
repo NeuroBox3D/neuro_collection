@@ -69,7 +69,6 @@ namespace ug {
 				UG_COND_THROW(!grid.has_vertex_attachment(aPos), "Grid has no position attachment.");
 				Grid::VertexAttachmentAccessor<APosition> aaPos(grid, aPos);
 
-				/// TODO: store old quadrilaterals - will be needed later on to be added to the grid again
 				if (sel.num<Quadrilateral>() > 0) {
 					Triangulate(grid, sel.begin<Quadrilateral>(), sel.end<Quadrilateral>(), &aaPos);
 				}
