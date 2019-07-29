@@ -741,6 +741,12 @@ void convert_pointlist_to_neuritelist
 					else
 					{
 						vRootNeuriteIndsOut.push_back(curNeuriteInd);
+						// Identify soma/neurite BPs
+						/*
+						std::pair<size_t, std::vector<size_t> > bp;
+						bp.first = 0; // first point is at soma
+						vBPInfoOut[curNeuriteInd].push_back(bp);
+						*/
 					}
 				}
 			}
