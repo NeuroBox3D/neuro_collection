@@ -133,7 +133,10 @@ namespace ug {
 		 * \param[in] angle
 		 * \return \c angle in interval [0, 2*pi]
 		 */
-		float deg_to_full_range(float angle);
+		float deg_to_full_range
+		(
+			float angle
+		);
 
 		/**
 		 * \brief calculates the angles according to a center vertex with an implicitly specified reference vertex or specified by index
@@ -888,7 +891,7 @@ namespace ug {
 			Grid& grid,
 			Selector& sel,
 			const ug::vector3& center,
-			number radius,
+			const number radius,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos
 		)
 		{
@@ -906,6 +909,8 @@ namespace ug {
 			}
 		}
 
+
+
 		/*!
 		 * \brief selects elements whose axial surface parameter is smaller than given by axial parameter
 		 * \param[in] grid
@@ -919,7 +924,7 @@ namespace ug {
 		(
 			Grid& grid,
 			Selector& sel,
-			number axial,
+			const number axial,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams
 		);

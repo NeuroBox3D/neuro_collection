@@ -102,7 +102,7 @@ namespace ug {
 		////////////////////////////////////////////////////////////////////////
 		float deg_to_full_range
 		(
-			float angle
+			const float angle
 		) {
 			return fmod(angle+360, 360);
 		}
@@ -632,7 +632,7 @@ namespace ug {
 		    Grid::VertexAttachmentAccessor<APosition>& aaPos,
 		    SubsetHandler& sh,
 		    Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
-		    number scale
+		    const number scale
 		) {
 			Selector::traits<Vertex>::iterator vit;
 			Selector::traits<Vertex>::iterator vit_end;
@@ -1500,7 +1500,7 @@ namespace ug {
 			std::vector<Edge*>& outvEdge,
 			Grid& g,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
-			number percentage,
+			const number percentage,
 			bool createFaces,
 			ISelector* outSel,
 			ug::vector3* currentDir
@@ -1569,7 +1569,7 @@ namespace ug {
 			std::vector<Edge*>& outvEdge,
 			Grid& g,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
-			number percentage,
+			const number percentage,
 			bool createFaces,
 			ISelector* outSel
 		) {
@@ -1703,10 +1703,10 @@ namespace ug {
 			SubsetHandler& sh,
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 		    const Grid::VertexAttachmentAccessor<APosition>& aaPos,
-			size_t somaIndex,
-			size_t erIndex,
+			const size_t somaIndex,
+			const size_t erIndex,
             const SWCPoint& somaPoint,
-            number scaleER
+            const number scaleER
 		) {
 			/// vertices of soma volumes
 			for (VertexIterator iter = sh.begin<Vertex>(somaIndex); iter != sh.end<Vertex>(somaIndex); ++iter) {
@@ -1732,9 +1732,9 @@ namespace ug {
 		(
 			Grid& g,
 			SubsetHandler& sh,
-			size_t somaIndexOuter,
-			size_t somaIndexInner,
-			number scaleER,
+			const size_t somaIndexOuter,
+			const size_t somaIndexInner,
+			const number scaleER,
 			const SWCPoint& soma,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos
 		) {
@@ -1779,7 +1779,7 @@ namespace ug {
 			std::vector<Vertex*> vVrt,
 			Grid& g,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
-			number percentage,
+			const number percentage,
 			ug::vector3 vecDir,
 			std::vector<ug::Vertex*>& vertices,
 			std::vector<ug::Edge*>& edges,
@@ -1836,7 +1836,7 @@ namespace ug {
 			std::vector<Vertex*>& vVrt,
 			Grid& g,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
-			number percentage,
+			const number percentage,
 			ug::vector3& center
 		) {
 			for (size_t i = 0; i < 4; ++i)
@@ -1889,7 +1889,7 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 			Grid& g,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
-			number scale
+			const number scale
 		) {
 			sort(verts.begin(), verts.end(), CompareBy<&NeuriteProjector::SurfaceParams::axial>(aaSurfParams));
 			oldVertsSorted = verts;
@@ -1980,7 +1980,7 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 			Grid& g,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
-			number scale
+			const number scale
 		) {
 			/// the connecting vertices are needed later
 			UG_DLOGN(NC_TNP, 0, "correcting edges connecting...")
@@ -2016,7 +2016,7 @@ namespace ug {
 			std::vector<ug::Vertex*>& verts,
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
-			number scale
+			const number scale
 		) {
 			// check for consistency
 			UG_COND_THROW(verts.size() != 4, "Exactly 4 vertices are necessary on coarse grid level.");
@@ -2430,9 +2430,9 @@ namespace ug {
 			SubsetHandler& sh,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
-			int somaIndex,
-			size_t numQuads,
-			number scale,
+			const int somaIndex,
+			const size_t numQuads,
+			const number scale,
 			std::vector<ug::Vertex*>& outVertsInner
 		) {
 	    	outVertsInner.clear();
@@ -2582,7 +2582,7 @@ namespace ug {
 		(
 			Grid& grid,
 			Selector& sel,
-			number axial,
+			const number axial,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams
 		)
