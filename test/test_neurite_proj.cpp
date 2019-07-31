@@ -3175,6 +3175,14 @@ void create_spline_data_for_neurites
 		std::vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
 		create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
 
+		// assign soma region
+		std::vector<NeuriteProjector::SomaRegion> somaRegions;
+		somaRegions.push_back(NeuriteProjector::SomaRegion(0));
+		somaRegions.push_back(NeuriteProjector::SomaRegion(-1));
+		for (size_t i = 0; i < vNeurites.size(); i++) {
+			vNeurites[i].vSR = somaRegions;
+		}
+
 		std::vector<Vertex*> outVerts;
 		std::vector<number> outRads;
 		std::vector<Vertex*> outVertsInner;
