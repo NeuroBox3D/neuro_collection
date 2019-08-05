@@ -2070,7 +2070,8 @@ number calculate_length_over_radius
 		std::vector<Vertex*>* outVerts,
 		std::vector<Vertex*>* outVertsInner,
 		std::vector<number>* outRads,
-		std::vector<number>* outRadsInner
+		std::vector<number>* outRadsInner,
+		bool withER
 	)
 	{
 		const NeuriteProjector::Neurite& neurite = vNeurites[nid];
@@ -2099,27 +2100,36 @@ number calculate_length_over_radius
 		std::vector<Vertex*> vVrt;
 		std::vector<Edge*> vEdge;
 		std::vector<Face*> vFace;
-		vVrt.resize(16);
-		vEdge.resize(24);
-		vFace.resize(9);
 
-		// ER vertices and radii
-		for (size_t i = 0; i < 4; ++i) {
-			Vertex* v = *g.create<RegularVertex>();
-			vVrt[i] = v;
-			number angle = 0.5 * PI * i;
-			VecScaleAdd(aaPos[v], 1.0, pos[0],
+		if (withER) {
+			vVrt.resize(16);
+			vEdge.resize(24);
+			vFace.resize(9);
+		} else {
+			vVrt.resize(12);
+			vEdge.resize(12);
+			vFace.resize(8);
+		}
+
+		if (withER) {
+			// ER vertices and radii
+			for (size_t i = 0; i < 4; ++i) {
+				Vertex* v = *g.create<RegularVertex>();
+				vVrt[i] = v;
+				number angle = 0.5 * PI * i;
+				VecScaleAdd(aaPos[v], 1.0, pos[0],
 						erScaleFactor * r[0] * cos(angle), projRefDir,
 						erScaleFactor * r[0] * sin(angle), thirdDir);
 
-			if (outVertsInner) {
-				outVertsInner->push_back(v);
-			}
+				if (outVertsInner) {
+					outVertsInner->push_back(v);
+				}
 
-			if (outRadsInner) {
-				outRadsInner->push_back(erScaleFactor * r[0]);
+				if (outRadsInner) {
+					outRadsInner->push_back(erScaleFactor * r[0]);
+				}
+				sh.assign_subset(v, 3);
 			}
-			sh.assign_subset(v, 3);
 		}
 
 		// PM vertices and radii
@@ -2141,7 +2151,8 @@ number calculate_length_over_radius
 		}
 
 		// edges
-		for (size_t i = 0; i < 4; ++i) {
+		if (withER) {
+			for (size_t i = 0; i < 4; ++i) {
 				vEdge[i] = *g.create<RegularEdge>(
 						EdgeDescriptor(vVrt[i], vVrt[(i + 1) % 4]));
 				vEdge[i + 4] = *g.create<RegularEdge>(
@@ -2151,6 +2162,7 @@ number calculate_length_over_radius
 
 				sh.assign_subset(vEdge[i], 3);
 				sh.assign_subset(vEdge[i + 4], 0);
+			}
 		}
 
 		for (size_t i = 0; i < 12; ++i) {
@@ -2160,9 +2172,12 @@ number calculate_length_over_radius
 		}
 
 		// faces
-		vFace[0] = *g.create<Quadrilateral>(
+		if (withER) {
+			vFace[0] = *g.create<Quadrilateral>(
 			QuadrilateralDescriptor(vVrt[0], vVrt[1], vVrt[2], vVrt[3]));
-		sh.assign_subset(vFace[0], 1);
+			sh.assign_subset(vFace[0], 1);
+		}
+
 		for (size_t i = 0; i < 4; ++i) {
 			vFace[i + 1] = *g.create<Quadrilateral>(
 				QuadrilateralDescriptor(vVrt[i],

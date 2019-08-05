@@ -3191,20 +3191,9 @@ void create_spline_data_for_neurites
 	    UG_DLOGN(NC_TNP, 0, "Generating neurites...");
     	/// for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 	    for (size_t i = 0; i < 1; ++i) {
-	    	if (withER) {
-	    		create_neurite_root_vertices(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
-	    			g, sh, erScaleFactor, aaPos, &outVerts, &outVertsInner, &outRads,
-	    			&outRadsInner);
-	    	} else {
-	    		/*
-	    		  create_neurite_root_vertices(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
-	    		 		g, sh, erScaleFactor, aaPos, &outVerts, &outVertsInner, &outRads,
-	    		 			&outRadsInner, withER);
-	   			*/
-	    	}
-	    	///	create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
-	    	//	erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, &outVerts,
-	    	// &outVertsInner, &outRads, &outRadsInner);
+	    	create_neurite_root_vertices(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
+	    		g, sh, erScaleFactor, aaPos, &outVerts, &outVertsInner, &outRads,
+	    		&outRadsInner, withER);
 	    }
 
 	    UG_DLOGN(NC_TNP, 0, " done.");
@@ -3298,17 +3287,21 @@ void create_spline_data_for_neurites
 
 	    /// connect now inner soma to neurites (Note: Old strategy which uses distance not angle based criterion. Change this?)
 	    UG_DLOGN(NC_TNP, 0, "Soma's inner index: " << newSomaIndex);
-	    connect_inner_neurites_to_inner_soma(newSomaIndex, 1, g, aaPos, sh, aaSurfParams, erScaleFactor);
+	    if (withER) {
+	    	connect_inner_neurites_to_inner_soma(newSomaIndex, 1, g, aaPos, sh, aaSurfParams, erScaleFactor);
+	    }
 	    SavePreparedGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_inner_soma_to_outer_ER.ugx");
 
 	    /// Note: Called two times for inner and outer polygon on outer soma but use the same plane defined by the outer soma's inner quad vertices
 	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12, true);
 
 	    /// Extrude ER volume a little bit further into normal direction towards inner soma, like the pyramids to close outer soma, to avoid intersections
-	    extend_ER_within(g, sh, aaPos, aaSurfParams, newSomaIndex, 1, erScaleFactor, outVertsInner);
-	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4, true);
-	    EraseEmptySubsets(sh);
-	    AssignSubsetColors(sh);
+	    if (withER) {
+	    	extend_ER_within(g, sh, aaPos, aaSurfParams, newSomaIndex, 1, erScaleFactor, outVertsInner);
+	    	connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4, true);
+	    	EraseEmptySubsets(sh);
+	    	AssignSubsetColors(sh);
+	    }
 
 	    /// Reassign elements for connecting parts ER and somata to erm subset
 	    sel.clear();

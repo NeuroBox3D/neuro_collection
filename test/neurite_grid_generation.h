@@ -238,6 +238,7 @@ namespace ug {
 		  * \param[out] outVertsInner
 		  * \param[out] outRads
 		  * \param[out] outRadsInner
+		  * \param[in] withER
 		  *
 		  */
 		 void create_neurite_root_vertices
@@ -253,7 +254,8 @@ namespace ug {
 			std::vector<Vertex*>* outVerts,
 			std::vector<Vertex*>* outVertsInner,
 			std::vector<number>* outRads,
-			std::vector<number>* outRadsInner
+			std::vector<number>* outRadsInner,
+			bool withER=true
 		);
 
 		 /*!
