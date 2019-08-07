@@ -1710,17 +1710,15 @@ namespace ug {
 		) {
 			/// vertices of soma volumes
 			for (VertexIterator iter = sh.begin<Vertex>(somaIndex); iter != sh.end<Vertex>(somaIndex); ++iter) {
-			        aaSurfParams[*iter].radial = 1.0;
+			        aaSurfParams[*iter].radial = somaPoint.radius;
 			        aaSurfParams[*iter].axial = -1.0;
-			        aaSurfParams[*iter].scale = somaPoint.radius;
 			        aaSurfParams[*iter].angular = 0;
 			}
 
 		   /// vertices of er volumes
 	       for (VertexIterator iter = sh.begin<Vertex>(erIndex); iter != sh.end<Vertex>(erIndex); ++iter) {
-	               aaSurfParams[*iter].radial = scaleER;
+	               aaSurfParams[*iter].radial = somaPoint.radius * scaleER;
 	               aaSurfParams[*iter].axial = -0.5;
-	               aaSurfParams[*iter].scale = somaPoint.radius * scaleER;
 	               aaSurfParams[*iter].angular = 0;
 	       }
 		}
