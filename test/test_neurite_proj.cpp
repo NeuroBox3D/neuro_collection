@@ -3159,7 +3159,7 @@ void create_spline_data_for_neurites
 	    UG_DLOGN(NC_TNP, 0, "Replaced soma points for neurites to SWC file.")
 	    g.clear_geometry();
 	    import_swc_old(fn_precond_with_soma, vPoints, correct, 1.0);
-	    /// TODO: orthogonalize bps
+	    /// TODO: smooth and regularize bps with smoothing(...) and regularize_bps(...)
 	    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 
 		SubsetHandler psh(g);

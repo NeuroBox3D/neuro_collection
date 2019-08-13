@@ -2371,22 +2371,155 @@ number calculate_length_over_radius
 		}
 
 		////////////////////////////////////////////////////////////////////////
-		/// constrained_smoothing
+		/// regularize_bps
 		////////////////////////////////////////////////////////////////////////
-		void regularize_bps(std::vector<SWCPoint>& vPointsIn) {
+		void regularize_bps
+		(
+			std::vector<SWCPoint>& vPoints,
+			size_t n
+		) {
+			size_t nPts = vPoints.size();
+			std::vector<bool> ptProcessed(nPts, false);
+			size_t nProcessed = 0;
+
+			while (nProcessed != nPts)
+			{
+				// find first soma's root point in geometry and save its index as i
+				size_t i = 0;
+				for (; i < nPts; ++i) {
+					if (vPoints[i].type == SWC_SOMA && !ptProcessed[i])
+						break;
+				}
+
+				// collect neurite root points
+				std::vector<std::pair<size_t, size_t> > rootPts;
+				std::queue<std::pair<size_t, size_t> > soma_queue;
+				soma_queue.push(std::make_pair((size_t)-1, i));
+				while (!soma_queue.empty())
+				{
+					size_t pind = soma_queue.front().first;
+					size_t ind = soma_queue.front().second;
+					soma_queue.pop();
+
+					const SWCPoint& pt = vPoints[ind];
+
+					if (pt.type == SWC_SOMA)
+					{
+						ptProcessed[ind] = true;
+						++nProcessed;
+
+						size_t nConn = pt.conns.size();
+						for (size_t j = 0; j < nConn; ++j)
+							if (pt.conns[j] != pind)
+								soma_queue.push(std::make_pair(ind, pt.conns[j]));
+					}
+					else
+						rootPts.push_back(std::make_pair(pind, ind));
+				}
+
+				std::stack<std::pair<size_t, size_t> > processing_stack;
+				for (size_t i = 0; i < rootPts.size(); ++i)
+					processing_stack.push(rootPts[i]);
+
+				while (!processing_stack.empty())
+				{
+					size_t pind = processing_stack.top().first;
+					size_t ind = processing_stack.top().second;
+					processing_stack.pop();
+
+					ptProcessed[ind] = true;
+					++nProcessed;
+
+					SWCPoint& pt = vPoints[ind];
+
+					UG_COND_THROW(pt.type == SWC_SOMA, "Detected neuron with more than one soma.");
+
+					size_t nConn = pt.conns.size();
+
+					// branching point
+					if (nConn > 2)
+					{
+						// branch with minimal angle will continue current branch
+						vector3 parentDir;
+						VecSubtract(parentDir, pt.coords, vPoints[pind].coords);
+						VecNormalize(parentDir, parentDir);
+
+						size_t parentToBeDiscarded = 0;
+						size_t minAngleInd = 0;
+						number minAngle = std::numeric_limits<number>::infinity();
+
+						for (size_t i = 0; i < nConn; ++i)
+						{
+							if (pt.conns[i] == pind)
+							{
+								parentToBeDiscarded = i;
+								continue;
+							}
+
+							vector3 dir;
+							VecSubtract(dir, vPoints[pt.conns[i]].coords, pt.coords);
+							VecNormalize(dir, dir);
+
+							number angle = acos(VecProd(dir, parentDir));
+							if (angle < minAngle)
+							{
+								minAngle = angle;
+								minAngleInd = i;
+							}
+						}
+
+						for (size_t i = 0; i < nConn; ++i)
+						{
+							if (i == parentToBeDiscarded || i == minAngleInd)
+							{
+								// current pt (branching point) = B
+								// parentToBeDiscarded = P
+								// minAngleInd = Q
+								// pt.conns[i] = element of vector R
+								// add to vPoints
+								const vector3& B = pt.coords;
+								vector3 Bprime;
+								const vector3& Q = pt.conns[minAngleInd];
+								const vector3& P = pt.conns[parentToBeDiscarded];
+								ProjectPointToLine(Bprime, B, P, Q);
+								pt.coords = Bprime;
+								vector3 temp;
+								VecSubtract(temp, P, Q);
+								VecNormalize(temp, temp);
+								vector3 dir(-temp.y(), temp.x(), temp.z());
+								vector3 A;
+								VecAdd(A, Bprime, dir);
+
+								SWCPoint pointA;
+								pointA.coords = A;
+								pointA.radius = vPoints[pt.conns[parentToBeDiscarded]].radius;
+								pointA.type = vPoints[pt.conns[parentToBeDiscarded]].type;
+								std::vector<size_t> Rs;
+
+								for (size_t j = 0; j < nConn; ++i)
+								{
+									if (j != parentToBeDiscarded && j != minAngleInd)
+									{
+										Rs.push_back(pt.conns[i]);
+									}
+								}
+
+								vPoints.push_back(pointA);
+
+								continue;
+							}
+
+							// push new neurite starting point index to stack
+							processing_stack.push(std::make_pair(ind, pt.conns[i]));
+						}
+
+						// push next index of the current neurite to stack
+						processing_stack.push(std::make_pair(ind, pt.conns[minAngleInd]));
+					}
+				}
+			}
 
 
-
-			/// TODO: regularize bps
-			/// 1. Find BP:
-			/// 2. Identify root branch and branching children
-			/// 3. Collect point before branching point (P), branching point itself
-			///    (B) and point on root branch after branching point (Q) and
-			///    collect all other points after branching point in a vector R
-			/// 4. Save branching point B, create edge between P and Q as PQ
-			/// 5. Project B onto PQ as B' and erase B afterwards
-			/// 6. Create additional point A normal to PQ and connect to B'
-			/// 7. Connect A to each point in vector R
 		}
 	}
 }
