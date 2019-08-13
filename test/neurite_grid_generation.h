@@ -295,8 +295,7 @@ namespace ug {
 		 */
 		void regularize_bps
 		(
-			std::vector<SWCPoint>& vPoints,
-			size_t n
+			std::vector<SWCPoint>& vPoints
 		);
 	}
 }

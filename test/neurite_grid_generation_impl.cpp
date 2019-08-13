@@ -2375,8 +2375,7 @@ number calculate_length_over_radius
 		////////////////////////////////////////////////////////////////////////
 		void regularize_bps
 		(
-			std::vector<SWCPoint>& vPoints,
-			size_t n
+			std::vector<SWCPoint>& vPoints
 		) {
 			size_t nPts = vPoints.size();
 			std::vector<bool> ptProcessed(nPts, false);
