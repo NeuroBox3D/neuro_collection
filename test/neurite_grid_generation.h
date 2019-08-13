@@ -278,6 +278,11 @@ namespace ug {
 			number minAngle,
 			number maxRadiusRatio
 		);
+
+		/*!
+		 * \brief
+		 */
+		void regularize_bps(std::vector<SWCPoint>& vPointsIn);
 	}
 }
 

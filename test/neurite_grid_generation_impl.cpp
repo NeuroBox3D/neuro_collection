@@ -2369,5 +2369,24 @@ number calculate_length_over_radius
 				}
 			}
 		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// constrained_smoothing
+		////////////////////////////////////////////////////////////////////////
+		void regularize_bps(std::vector<SWCPoint>& vPointsIn) {
+
+
+
+			/// TODO: regularize bps
+			/// 1. Find BP:
+			/// 2. Identify root branch and branching children
+			/// 3. Collect point before branching point (P), branching point itself
+			///    (B) and point on root branch after branching point (Q) and
+			///    collect all other points after branching point in a vector R
+			/// 4. Save branching point B, create edge between P and Q as PQ
+			/// 5. Project B onto PQ as B' and erase B afterwards
+			/// 6. Create additional point A normal to PQ and connect to B'
+			/// 7. Connect A to each point in vector R
+		}
 	}
 }
