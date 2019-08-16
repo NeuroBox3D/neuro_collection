@@ -2528,6 +2528,7 @@ void create_spline_data_for_neurites
 	// preconditioning
 	//test_smoothing(fileNameIn, 5, 1.0, 1.0);
 
+
 	// read in file to intermediate structure
 	std::vector<SWCPoint> vPoints;
 	std::vector<SWCPoint> vSomaPoints;
@@ -3159,7 +3160,22 @@ void create_spline_data_for_neurites
 	    UG_DLOGN(NC_TNP, 0, "Replaced soma points for neurites to SWC file.")
 	    g.clear_geometry();
 	    import_swc_old(fn_precond_with_soma, vPoints, correct, 1.0);
+
+	    /// DEBUG
+	    ////////////////////////////////////////////////////////////////////////
+	    Grid g3;
+	   	SubsetHandler sh3(g3);
+		swc_points_to_grid(vPoints, g3, sh3);
+		export_to_ugx(g3, sh3, "before_regularize.ugx");
 	    /// TODO: smooth and regularize bps with smoothing(...) and regularize_bps(...)
+		std::cout << "regularize bps" << std::endl;
+	    regularize_bps(vPoints);
+	    Grid g2;
+	   	SubsetHandler sh2(g2);
+		swc_points_to_grid(vPoints, g2, sh2);
+		export_to_ugx(g2, sh2, "after_regularize.ugx");
+	    ////////////////////////////////////////////////////////////////////////
+
 	    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 
 		SubsetHandler psh(g);

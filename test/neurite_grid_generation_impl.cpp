@@ -2408,12 +2408,16 @@ number calculate_length_over_radius
 						++nProcessed;
 
 						size_t nConn = pt.conns.size();
-						for (size_t j = 0; j < nConn; ++j)
-							if (pt.conns[j] != pind)
+						for (size_t j = 0; j < nConn; ++j) {
+							if (pt.conns[j] != pind) {
 								soma_queue.push(std::make_pair(ind, pt.conns[j]));
+							}
+						}
 					}
 					else
+					{
 						rootPts.push_back(std::make_pair(pind, ind));
+					}
 				}
 
 				std::stack<std::pair<size_t, size_t> > processing_stack;
@@ -2426,13 +2430,10 @@ number calculate_length_over_radius
 					size_t ind = processing_stack.top().second;
 					processing_stack.pop();
 
-					ptProcessed[ind] = true;
-					++nProcessed;
-
 					SWCPoint& pt = vPoints[ind];
-
+					UG_LOGN(">>>parent id: " << pind);
+					UG_LOGN(">>>point id: " << ind);
 					UG_COND_THROW(pt.type == SWC_SOMA, "Detected neuron with more than one soma.");
-
 					size_t nConn = pt.conns.size();
 
 					// branching point
@@ -2467,58 +2468,114 @@ number calculate_length_over_radius
 							}
 						}
 
-						for (size_t i = 0; i < nConn; ++i)
+						SWCPoint pointA;
+						std::vector<size_t> Rs;
+						// current pt (branching point) = B
+						// parentToBeDiscarded = P
+						// minAngleInd = Q
+						// pt.conns[i] = element of vector R
+						// add to vPoints
+						const vector3& B = pt.coords;
+						vector3 Bprime;
+						const vector3& Q = vPoints[pt.conns[minAngleInd]].coords;
+						const vector3& P = vPoints[pt.conns[parentToBeDiscarded]].coords;
+						ProjectPointToLine(Bprime, B, P, Q);
+						pt.coords = Bprime;
+						vector3 temp;
+						VecSubtract(temp, P, Q);
+						VecNormalize(temp, temp);
+						/// TODO This seems too far from original point
+						vector3 dir(-temp.y(), temp.x(), temp.z());
+						VecScale(dir, dir, 0.1);
+						vector3 A;
+						VecAdd(A, Bprime, dir);
+						pointA.coords = A;
+						pointA.radius = vPoints[pt.conns[parentToBeDiscarded]].radius;
+						pointA.type = vPoints[pt.conns[minAngleInd]].type;
+
+						size_t newIndex = vPoints.size();
+						std::vector<size_t> Bs;
+						size_t Rindex;
+						for (size_t j = 0; j < nConn; ++j)
 						{
-							if (i == parentToBeDiscarded || i == minAngleInd)
+							if (j == parentToBeDiscarded || j == minAngleInd)
 							{
-								// current pt (branching point) = B
-								// parentToBeDiscarded = P
-								// minAngleInd = Q
-								// pt.conns[i] = element of vector R
-								// add to vPoints
-								const vector3& B = pt.coords;
-								vector3 Bprime;
-								const vector3& Q = pt.conns[minAngleInd];
-								const vector3& P = pt.conns[parentToBeDiscarded];
-								ProjectPointToLine(Bprime, B, P, Q);
-								pt.coords = Bprime;
-								vector3 temp;
-								VecSubtract(temp, P, Q);
-								VecNormalize(temp, temp);
-								vector3 dir(-temp.y(), temp.x(), temp.z());
-								vector3 A;
-								VecAdd(A, Bprime, dir);
+								continue;
+							}
 
-								SWCPoint pointA;
-								pointA.coords = A;
-								pointA.radius = vPoints[pt.conns[parentToBeDiscarded]].radius;
-								pointA.type = vPoints[pt.conns[parentToBeDiscarded]].type;
-								std::vector<size_t> Rs;
+							/// Removes current index of B (ind) from connected
+							/// branching child neurite neighbor (which is neither
+							/// the point after branching point which continues the
+							/// main branch or the point before the branching point
+							/// called parent). The connected branching child neurite
+							/// is connected to the new intermediate point pointA
+							/// with index newIndex instead and not to B anymore
+							vPoints[pt.conns[j]].conns.push_back(newIndex);
+							vPoints[pt.conns[j]].conns.erase(std::remove(vPoints[pt.conns[j]].conns.begin(), vPoints[pt.conns[j]].conns.end(), ind), vPoints[pt.conns[j]].conns.end());
+							pointA.conns.push_back(pt.conns[j]);
+							Rindex = j;
+						}
 
-								for (size_t j = 0; j < nConn; ++i)
-								{
-									if (j != parentToBeDiscarded && j != minAngleInd)
-									{
-										Rs.push_back(pt.conns[i]);
-									}
-								}
+						/// old branching point B (now with new position) is
+						/// still connected to main branch continuation with
+						/// index minAngleInd and is still connected to the
+						/// parent point with index parentToBeDiscarded. in
+						/// addition the old branching point is connected to
+						/// the new intermediate point but not to the other
+						/// point after the branching point which starts a
+						/// new child neurite branch with index pt.conns[j].
+						Rs.resize(3);
+						Rs[minAngleInd] = pt.conns[minAngleInd];
+						Rs[parentToBeDiscarded] = pt.conns[parentToBeDiscarded];
+						Rs[Rindex] = newIndex;
+						pt.conns = Rs;
 
-								vPoints.push_back(pointA);
+						/// pointA is the new intermediate point connected to
+						/// old branching point B and to the start of a new
+						/// branching neurite child point after the original
+						/// branching point B. The intermediate point is only
+						/// connected to these two points: old branching point
+						/// B with index ind and to the branching child neighbor
+						/// with index pt.conns[j] where j is not minAngleIndex
+						/// or parentIndexToDiscard which is the main branch
+						/// continuation and the parent point respectively
+						pointA.conns.push_back(ind);
+						vPoints.push_back(pointA);
 
+						for (size_t j = 0; j < nConn; ++j)
+						{
+							if (j == parentToBeDiscarded || j == minAngleInd)
+							{
 								continue;
 							}
 
 							// push new neurite starting point index to stack
-							processing_stack.push(std::make_pair(ind, pt.conns[i]));
+							// connected to new intermediate point with newIndex
+							processing_stack.push(std::make_pair(ind, newIndex));
 						}
 
 						// push next index of the current neurite to stack
 						processing_stack.push(std::make_pair(ind, pt.conns[minAngleInd]));
 					}
+
+					// root point
+					else if (nConn == 1)
+					{
+						// nothing to do
+					}
+					// normal point
+					else
+					{
+						for (size_t i = 0; i < nConn; ++i)
+						{
+							if (pt.conns[i] != pind)
+							{
+								processing_stack.push(std::make_pair(ind, pt.conns[i]));
+							}
+						}
+					}
 				}
 			}
-
-
 		}
 	}
 }
