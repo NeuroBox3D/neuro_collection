@@ -2375,7 +2375,8 @@ number calculate_length_over_radius
 		////////////////////////////////////////////////////////////////////////
 		void regularize_bps
 		(
-			std::vector<SWCPoint>& vPoints
+			std::vector<SWCPoint>& vPoints,
+			bool orthogonalize
 		) {
 			size_t nPts = vPoints.size();
 			std::vector<bool> ptProcessed(nPts, false);
@@ -2431,10 +2432,9 @@ number calculate_length_over_radius
 					processing_stack.pop();
 
 					SWCPoint& pt = vPoints[ind];
-					UG_LOGN(">>>parent id: " << pind);
-					UG_LOGN(">>>point id: " << ind);
 					UG_COND_THROW(pt.type == SWC_SOMA, "Detected neuron with more than one soma.");
 					size_t nConn = pt.conns.size();
+					++nProcessed;
 
 					// branching point
 					if (nConn > 2)
@@ -2468,8 +2468,7 @@ number calculate_length_over_radius
 							}
 						}
 
-						SWCPoint pointA;
-						std::vector<size_t> Rs;
+						/// project only branching point onto branching edge
 						// current pt (branching point) = B
 						// parentToBeDiscarded = P
 						// minAngleInd = Q
@@ -2481,66 +2480,73 @@ number calculate_length_over_radius
 						const vector3& P = vPoints[pt.conns[parentToBeDiscarded]].coords;
 						ProjectPointToLine(Bprime, B, P, Q);
 						pt.coords = Bprime;
-						vector3 temp;
-						VecSubtract(temp, P, Q);
-						VecNormalize(temp, temp);
-						/// TODO This seems too far from original point
-						vector3 dir(-temp.y(), temp.x(), temp.z());
-						VecScale(dir, dir, 0.1);
-						vector3 A;
-						VecAdd(A, Bprime, dir);
-						pointA.coords = A;
-						pointA.radius = vPoints[pt.conns[parentToBeDiscarded]].radius;
-						pointA.type = vPoints[pt.conns[minAngleInd]].type;
 
-						size_t newIndex = vPoints.size();
-						std::vector<size_t> Bs;
-						size_t Rindex;
-						for (size_t j = 0; j < nConn; ++j)
-						{
-							if (j == parentToBeDiscarded || j == minAngleInd)
+						/// "orthogonalize" branching points
+						if (orthogonalize) {
+							SWCPoint pointA;
+							vector3 temp;
+							VecSubtract(temp, P, Q);
+							VecNormalize(temp, temp);
+							vector3 dir(-temp.y(), temp.x(), temp.z());
+							/// TODO This seems too far from original point: use SMALL not 0.1?
+							VecScale(dir, dir, 0.1);
+							vector3 A;
+							VecAdd(A, Bprime, dir);
+							pointA.coords = A;
+							pointA.radius = vPoints[pt.conns[parentToBeDiscarded]].radius;
+							pointA.type = vPoints[pt.conns[minAngleInd]].type;
+							size_t newIndex = vPoints.size();
+							std::vector<size_t> Bs;
+							size_t Rindex;
+							for (size_t j = 0; j < nConn; ++j)
 							{
-								continue;
+								if (j == parentToBeDiscarded || j == minAngleInd)
+								{
+									continue;
+								}
+
+								/// Removes current index of B (ind) from connected
+								/// branching child neurite neighbor (which is neither
+								/// the point after branching point which continues the
+								/// main branch or the point before the branching point
+								/// called parent). The connected branching child neurite
+								/// is connected to the new intermediate point pointA
+								/// with index newIndex instead and not to B anymore
+								vPoints[pt.conns[j]].conns.push_back(newIndex);
+								vPoints[pt.conns[j]].conns.erase(std::remove(vPoints[pt.conns[j]].conns.begin(), vPoints[pt.conns[j]].conns.end(), ind), vPoints[pt.conns[j]].conns.end());
+								pointA.conns.push_back(pt.conns[j]);
+								nPts++;
+								Rindex = j;
 							}
 
-							/// Removes current index of B (ind) from connected
-							/// branching child neurite neighbor (which is neither
-							/// the point after branching point which continues the
-							/// main branch or the point before the branching point
-							/// called parent). The connected branching child neurite
-							/// is connected to the new intermediate point pointA
-							/// with index newIndex instead and not to B anymore
-							vPoints[pt.conns[j]].conns.push_back(newIndex);
-							vPoints[pt.conns[j]].conns.erase(std::remove(vPoints[pt.conns[j]].conns.begin(), vPoints[pt.conns[j]].conns.end(), ind), vPoints[pt.conns[j]].conns.end());
-							pointA.conns.push_back(pt.conns[j]);
-							Rindex = j;
+							/// old branching point B (now with new position) is
+							/// still connected to main branch continuation with
+							/// index minAngleInd and is still connected to the
+							/// parent point with index parentToBeDiscarded. in
+							/// addition the old branching point is connected to
+							/// the new intermediate point but not to the other
+							/// point after the branching point which starts a
+							/// new child neurite branch with index pt.conns[j].
+							std::vector<size_t> Rs;
+							Rs.resize(nConn);
+							Rs[minAngleInd] = pt.conns[minAngleInd];
+							Rs[parentToBeDiscarded] = pt.conns[parentToBeDiscarded];
+							Rs[Rindex] = newIndex;
+							pt.conns = Rs;
+
+							/// pointA is the new intermediate point connected to
+							/// old branching point B and to the start of a new
+							/// branching neurite child point after the original
+							/// branching point B. The intermediate point is only
+							/// connected to these two points: old branching point
+							/// B with index ind and to the branching child neighbor
+							/// with index pt.conns[j] where j is not minAngleIndex
+							/// or parentIndexToDiscard which is the main branch
+							/// continuation and the parent point respectively
+							pointA.conns.push_back(ind);
+							vPoints.push_back(pointA);
+							ptProcessed.push_back(false);
 						}
-
-						/// old branching point B (now with new position) is
-						/// still connected to main branch continuation with
-						/// index minAngleInd and is still connected to the
-						/// parent point with index parentToBeDiscarded. in
-						/// addition the old branching point is connected to
-						/// the new intermediate point but not to the other
-						/// point after the branching point which starts a
-						/// new child neurite branch with index pt.conns[j].
-						Rs.resize(3);
-						Rs[minAngleInd] = pt.conns[minAngleInd];
-						Rs[parentToBeDiscarded] = pt.conns[parentToBeDiscarded];
-						Rs[Rindex] = newIndex;
-						pt.conns = Rs;
-
-						/// pointA is the new intermediate point connected to
-						/// old branching point B and to the start of a new
-						/// branching neurite child point after the original
-						/// branching point B. The intermediate point is only
-						/// connected to these two points: old branching point
-						/// B with index ind and to the branching child neighbor
-						/// with index pt.conns[j] where j is not minAngleIndex
-						/// or parentIndexToDiscard which is the main branch
-						/// continuation and the parent point respectively
-						pointA.conns.push_back(ind);
-						vPoints.push_back(pointA);
 
 						for (size_t j = 0; j < nConn; ++j)
 						{
@@ -2550,8 +2556,10 @@ number calculate_length_over_radius
 							}
 
 							// push new neurite starting point index to stack
-							// connected to new intermediate point with newIndex
-							processing_stack.push(std::make_pair(ind, newIndex));
+							// connected to new intermediate point with
+							// newIndex = pt.conns[j]
+							processing_stack.push(std::make_pair(ind, pt.conns[j]));
+
 						}
 
 						// push next index of the current neurite to stack

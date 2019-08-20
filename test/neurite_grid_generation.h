@@ -282,7 +282,7 @@ namespace ug {
 		/*!
 		 * \brief regularizes branching points
 		 * \param[in,out] vPoints
-		 * \param[in] n
+		 * \param[in] orthogonalize
 		 *  1. Find BP:
 		 *  2. Identify root branch and branching children by min angle criterion
 		 *  3. Collect point before branching point (P), branching point itself
@@ -290,12 +290,14 @@ namespace ug {
 		 *     collect all other points after branching point in a vector Rs
 		 *  4. Save branching point B, create edge between P and Q as PQ
 	     *  5. Project B onto PQ as B' and erase B afterwards
+	     *  If orthogonalize:
 	     *  6. Create additional point A normal to PQ and connect to B'
 	     *  7. Connect A to each point in vector Rs
 		 */
 		void regularize_bps
 		(
-			std::vector<SWCPoint>& vPoints
+			std::vector<SWCPoint>& vPoints,
+			bool orthogonalize=false
 		);
 	}
 }
