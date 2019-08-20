@@ -352,7 +352,6 @@ namespace ug {
 
 			/// TODO Project root neurite vertices to outer soma surface
 			/// Find minimal angle vertices... and merge them at outer soma surface
-			/// (don't need to introduce factor 1.05 for outer soma, can let at 1.00)
 			std::vector<std::vector<ug::Vertex*> > projectedVertices;
 			std::vector<std::vector<ug::Vertex*> > projectedVertices2;
 			std::vector<std::vector<ug::vector3> > projected;
@@ -523,7 +522,6 @@ namespace ug {
 				/// calculate angles for inner original soma vertices and projected vertices (projectedVertices is ug::Vertex*)
 				std::vector<std::pair<ug::Vertex*, number> > anglesOfProjectedInnerVertices;
 				std::vector<std::pair<ug::Vertex*, number> > anglesOfOrginalSomaInnerVertices;
-
 				/// TODO: Convert angles from -180, 180 to 0, 360 degree interval with deg360 -> check if this method works.
 				/// these are the inner projected vertices
 				ug::vector3 centerOut;
@@ -807,7 +805,8 @@ namespace ug {
 				UG_DLOGN(NC_TNP, 0, "---");
 			}
 
-			/// TODO: Angle calculation here (Conversion from 0, 180 to 0, 360 interval) is wrong: use from connect_outer_* method to convert
+			/// TODO: Angle calculation here (Conversion from 0, 180 to 0, 360 interval)
+			/// is wrong: use from connect_outer_* method to convert the angle instead
 			/// Remember pairs: For each projected vertices to the inner sphere's quad
 			/// plane a corresponding vertices we projected from the outer sphere's quad
 			/// exist these have to be connected by edges / faces to create a hexaeder
@@ -890,11 +889,16 @@ namespace ug {
 				UG_DLOGN(NC_TNP, 0, "***");
 			}
 
-			/// Note: Could also project the inner soma's quad vertices onto the plane defined by two of the inner soma's quad vertices
-			/// (Since two points where taken from each inner soma's quad not all points lie in the plane defined by the normal and the mentioned points)
-			/// Iterate over all neurite connections (numQuads) and get the vertices of the
-			/// inner sphere's quad edge each and find the corresponding unprojected (outer sphere's quad vertices) and form a face
-			/// It is also possible to do the same procedure with the sorted angle differences above to create these faces if angles are correct
+			/// Note: Could also project the inner soma's quad vertices onto the
+			/// plane defined by two of the inner soma's quad vertices
+			/// (Since two points where taken from each inner soma's quad
+			/// not all points lie in the plane defined by the normal and
+			/// the mentioned points) Iterate over all neurite connections
+			/// (numQuads) and get the vertices of the inner sphere's quad
+			/// edge each and find the corresponding unprojected (outer sphere's
+			/// quad vertices) and form a face. It is also possible to do the
+			/// same procedure with the sorted angle differences above to
+			/// create these faces if angles are correct
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "before_projections_inner_connections.ugx");
 			for (size_t i = 1; i < numQuads+1; i++) {
 				sel.clear();
@@ -912,7 +916,8 @@ namespace ug {
 					ug::Vertex* p4 = myPairs2[e->vertex(1)];
 					/// TODO: Change this possibly. Dummy values to pretend to be
 					/// inside soma for SelectElementsByAxialPosition, scale is
-					/// changed later to be the correct value - Check this is true.
+					/// changed later to be the correct value - Check that this
+					/// is true, then the dummy value can be unchanged below
 					aaSurfParams[p1].axial = -scale/2;
 					aaSurfParams[p2].axial = -scale/2;
 					aaSurfParams[p3].axial = -scale/2;
@@ -926,9 +931,11 @@ namespace ug {
 
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "after_projections_inner.ugx");
 
-			/// TODO: Verdrehung kann beseitigt werden wenn man die Knoten des inneren Soma Oberflächenquads
-			/// auf die Ebene projiziert welche durch das innere Oberflächenquads des äußeren Somas definiert wird.
-			/// Evt. muss dann nach der Projektion die Vertices auf das Zentrum des äußeren/inneren Somaoberflächen Quads/Polygons zentrieren.
+			/// TODO: Optimierung: Verdrehung kann beseitigt werden wenn man die
+			/// Knoten des inneren Soma Oberflächenquads auf die Ebene projiziert
+			/// welche durch das innere Oberflächenquads des äußeren Somas definiert
+			/// wird. vt. muss dann nach der Projektion die Vertices auf das Zentrum
+			/// des äußeren/inneren Somaoberflächen Quads/Polygons zentrieren.
 		}
 
 		////////////////////////////////////////////////////////////////////////

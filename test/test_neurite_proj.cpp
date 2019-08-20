@@ -3168,7 +3168,8 @@ void create_spline_data_for_neurites
 		swc_points_to_grid(vPoints, g3, sh3);
 		export_to_ugx(g3, sh3, "before_regularize.ugx");
 	    /// TODO: smooth and regularize bps with smoothing(...) and regularize_bps(...)
-		std::cout << "regularize bps" << std::endl;
+		UG_DLOGN(NC_TNP, 0, "Regularizing branching points...")
+		/// smoothing(vPoints, n, h, gamma);
 	    regularize_bps(vPoints);
 	    Grid g2;
 	   	SubsetHandler sh2(g2);
@@ -3363,7 +3364,6 @@ void create_spline_data_for_neurites
 			neuriteProj->project(*vit);
 		}
 
-		// TODO: Debug projection for soma part in neurite_projector.cpp
 	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
 
