@@ -521,8 +521,8 @@ static void convert_pointlist_to_neuritelist
 						vRadOut[curNeuriteInd].push_back(vPoints[nextParentID].radius);
 
 						// push back new neurite ID to BP at parent
-						size_t nextParentNeuriteID = helperMap[nextParentID].first;
-						size_t nextParentBPID = helperMap[nextParentID].second;
+						size_t nextParentNeuriteID = it->second.first;
+						size_t nextParentBPID = it->second.second;
 						vBPInfoOut[nextParentNeuriteID][nextParentBPID].second.push_back(curNeuriteInd);
 					}
 					// else: the next point is the root point of a root neurite
@@ -569,6 +569,8 @@ static void create_spline_data_for_neurites
 {
     size_t nNeurites = vPos.size();
     vNeuritesOut.resize(nNeurites);
+
+    std::vector<vector3> parentDirections(nNeurites);
 
     // first: reserve memory for branching region vectors
     // (we will point to their elements in BranchingPoints and do not want the vectors to reallocate!)
@@ -620,30 +622,79 @@ static void create_spline_data_for_neurites
             mat(i,i+1) = dt[i+1] / h2;
             mat(i,i-1) = dt[i] / h2;
         }
+
+        // boundary conditions (matrix)
+        bool isRootNeurite = neuriteOut.vBR.size() == 0;
+    	vector3 orthogStartDir(0.0);
+    	if (!isRootNeurite)
+    	{
+    		// prepare boundary conditions
+			vector3 startDir;
+			VecSubtract(startDir, pos[1], pos[0]);
+			const number compInParentDir = VecDot(parentDirections[n], startDir);
+			VecScaleAdd(orthogStartDir, 1.0, startDir, -compInParentDir, parentDirections[n]);
+			VecNormalize(orthogStartDir, orthogStartDir);
+    	}
+
+        if (!isRootNeurite)
+        {
+        	// add suitable flux boundary conditions to ensure orthogonal branching
+        	mat(0,1) = 1.0;
+        	mat(nVrt-1, nVrt-2) = 1.0;
+        }
+
+        // invert matrix
         UG_COND_THROW(!Invert(mat), "Failed to invert moment matrix for spline calculation.")
 
+        // x coord
         for (size_t i = 1; i < nVrt-1; ++i)
             rhs[i] = 6.0 / (tSuppPos[i+1] - tSuppPos[i-1]) *
                      ((pos[i+1][0] - pos[i][0]) / dt[i+1]
-                     - (pos[i][0] - pos[i-1][0]) / dt[i]) ;
+                     - (pos[i][0] - pos[i-1][0]) / dt[i]);
+        rhs[0] = 0.0;
+        rhs[nVrt-1] = 0.0;
+        if (!isRootNeurite)
+        {
+        	// add suitable flux boundary conditions to ensure orthogonal branching
+        	number ddx0 = orthogStartDir[0] * totalLength; // deriv w.r.t. x in pt. 0
+        	rhs[0] = 6.0 / dt[1] * ((pos[1][0] - pos[0][0]) / dt[1] - ddx0);
+        }
         x0 = mat*rhs;
 
+        // y coord
         for (size_t i = 1; i < nVrt-1; ++i)
             rhs[i] = 6.0 / (tSuppPos[i+1] - tSuppPos[i-1]) *
                      ((pos[i+1][1] - pos[i][1]) / dt[i+1]
-                     - (pos[i][1] - pos[i-1][1]) / dt[i]) ;
+                     - (pos[i][1] - pos[i-1][1]) / dt[i]);
+        if (!isRootNeurite)
+        {
+        	// add suitable flux boundary conditions to ensure orthogonal branching
+        	number ddy0 = orthogStartDir[1] * totalLength; // deriv w.r.t. y in pt. 0
+        	rhs[0] = 6.0 / dt[1] * ((pos[1][1] - pos[0][1]) / dt[1] - ddy0);
+        }
         x1 = mat*rhs;
 
+        // z coord
         for (size_t i = 1; i < nVrt-1; ++i)
             rhs[i] = 6.0 / (tSuppPos[i+1] - tSuppPos[i-1]) *
                      ((pos[i+1][2] - pos[i][2]) / dt[i+1]
-                     - (pos[i][2] - pos[i-1][2]) / dt[i]) ;
+                     - (pos[i][2] - pos[i-1][2]) / dt[i]);
+        if (!isRootNeurite)
+		{
+			// add suitable flux boundary conditions to ensure orthogonal branching
+			number ddz0 = orthogStartDir[2] * totalLength; // deriv w.r.t. z in pt. 0
+			rhs[0] = 6.0 / dt[1] * ((pos[1][2] - pos[0][2]) / dt[1] - ddz0);
+		}
         x2 = mat*rhs;
 
+        // radius
         for (size_t i = 1; i < nVrt-1; ++i)
             rhs[i] = 6.0 / (tSuppPos[i+1] - tSuppPos[i-1]) *
                      ((r[i+1] - r[i]) / dt[i+1]
-                     - (r[i] - r[i-1]) / dt[i]) ;
+                     - (r[i] - r[i-1]) / dt[i]);
+        if (!isRootNeurite)
+			rhs[0] = 0.0;
+
         xr = mat*rhs;
 
         // FIXME: find suitable permissible render vector
@@ -725,6 +776,12 @@ static void create_spline_data_for_neurites
                 {
                     size_t childID = *itBranch;
 
+                    // save parent direction for child neurite
+                    parentDirections[childID][0] = -sec.splineParamsX[2];
+                    parentDirections[childID][1] = -sec.splineParamsY[2];
+                    parentDirections[childID][2] = -sec.splineParamsZ[2];
+                	VecNormalize(parentDirections[childID], parentDirections[childID]);
+
                     // save pointer to BP at child neurite's BR
                     NeuriteProjector::BranchingRegion newChildBR;
                     newChildBR.bp = br.bp;
@@ -792,6 +849,9 @@ number calculate_length_over_radius
 
 	std::vector<NeuriteProjector::Section>::const_iterator sec_it = neurite.vSec.begin() + startSec;
 	std::vector<NeuriteProjector::Section>::const_iterator sec_end = neurite.vSec.end();
+
+	while (sec_it->endParam < t_start && sec_it->endParam < 1.0)
+		++sec_it;
 
 	// check that startSec was correct
 	number sec_tstart = startSec > 0 ? (sec_it - 1)->endParam : 0.0;
@@ -872,11 +932,16 @@ void calculate_segment_axial_positions
 	std::vector<NeuriteProjector::Section>::const_iterator sec_it = neurite.vSec.begin() + startSec;
 	std::vector<NeuriteProjector::Section>::const_iterator sec_end = neurite.vSec.end();
 
+	while (sec_it->endParam < t_start && sec_it->endParam < 1.0)
+		++sec_it;
+
 	// check that startSec was correct
 	number sec_tstart = startSec > 0 ? (sec_it - 1)->endParam : 0.0;
 	number sec_tend = sec_it->endParam;
 	UG_COND_THROW(sec_tend < t_start || sec_tstart > t_start,
-		"Wrong section iterator given to calc_length_over_radius().");
+		"Wrong section iterator given to calculate_segment_axial_positions().\n"
+		"Section goes from " << (sec_it-1)->endParam << " to " << sec_it->endParam
+		<< ", but t_start is " << t_start << ".");
 
 	number integral = 0.0;
 	size_t seg = 0;
@@ -1596,9 +1661,7 @@ static void create_neurite_with_er
 		VecSubtract(centerToFirst, aaPos[(*connectingVrts)[0]], center);
 
 		vector2 relCoord;
-		VecScaleAdd(centerToFirst, 1.0, centerToFirst, -VecProd(centerToFirst, vel), vel);
 		relCoord[0] = VecProd(centerToFirst, projRefDir);
-		VecScaleAdd(centerToFirst, 1.0, centerToFirst, -relCoord[0], projRefDir);
 		relCoord[1] = VecProd(centerToFirst, thirdDir);
 		VecNormalize(relCoord, relCoord);
 
