@@ -1878,14 +1878,16 @@ number calculate_length_over_radius
 	std::vector<NeuriteProjector::Section>::const_iterator sec_it = neurite.vSec.begin() + startSec;
 	std::vector<NeuriteProjector::Section>::const_iterator sec_end = neurite.vSec.end();
 
+	while (sec_it->endParam < t_start && sec_it->endParam < 1.0)
+		++sec_it;
+
 	// check that startSec was correct
 	number sec_tstart = startSec > 0 ? (sec_it - 1)->endParam : 0.0;
 	number sec_tend = sec_it->endParam;
-
 	UG_COND_THROW(sec_tend < t_start || sec_tstart > t_start,
-		"Wrong section iterator given to calc_length_over_radius().\n"
+		"Wrong section iterator given to calculate_length_over_radius().\n"
 		"Section goes from " << (sec_it-1)->endParam << " to " << sec_it->endParam
-                        << ", but t_start is " << t_start << ".");
+		<< ", but t_start is " << t_start << ".");
 
                 number integral = 0.0;
                 while (sec_it != sec_end)
@@ -1959,11 +1961,16 @@ number calculate_length_over_radius
                 std::vector<NeuriteProjector::Section>::const_iterator sec_it = neurite.vSec.begin() + startSec;
                 std::vector<NeuriteProjector::Section>::const_iterator sec_end = neurite.vSec.end();
 
+            	while (sec_it->endParam < t_start && sec_it->endParam < 1.0)
+            		++sec_it;
+
                 // check that startSec was correct
                 number sec_tstart = startSec > 0 ? (sec_it - 1)->endParam : 0.0;
                 number sec_tend = sec_it->endParam;
                 UG_COND_THROW(sec_tend < t_start || sec_tstart > t_start,
-                        "Wrong section iterator given to calc_length_over_radius().");
+					"Wrong section iterator given to calculate_segment_axial_positions()."
+					"Section goes from " << (sec_it-1)->endParam << " to " << sec_it->endParam
+					<< ", but t_start is " << t_start << ".");
 
                 number integral = 0.0;
                 size_t seg = 0;
