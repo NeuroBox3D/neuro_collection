@@ -295,7 +295,8 @@ void test_import_swc_general
 	number erScaleFactor,
 	bool withER,
 	number anisotropy = 2.0,
-	size_t numRefs = 1
+	size_t numRefs = 1,
+	bool regularize = false
 );
 
 /*!
