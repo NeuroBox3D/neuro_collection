@@ -2487,7 +2487,9 @@ number calculate_length_over_radius
 							vector3 dir;
 							VecCross(dir, P, Q);
 							VecNormalize(dir, dir);
-							VecScale(dir, dir, 0.1);
+							UG_COND_THROW(VecLength(dir) < 1, "VecLength(dir) < 1."
+									" Minimum length of dir is one however actual"
+									" length is " << VecLength(dir));
 							vector3 A;
 							VecAdd(A, Bprime, dir);
 							pointA.coords = A;

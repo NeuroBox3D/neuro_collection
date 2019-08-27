@@ -3162,20 +3162,18 @@ void create_spline_data_for_neurites
 	    g.clear_geometry();
 	    import_swc_old(fn_precond_with_soma, vPoints, correct, 1.0);
 
-	    ///if (regularize) {
-	    	Grid g3;
-	    	SubsetHandler sh3(g3);
-	    	swc_points_to_grid(vPoints, g3, sh3);
-	    	export_to_ugx(g3, sh3, "before_regularize.ugx");
-	    	/// TODO: debug smooth and regularize bps with smoothing(...) and regularize_bps(...)
-	    	UG_DLOGN(NC_TNP, 0, "Regularizing branching points...")
-	    	/// smoothing(vPoints, n, h, gamma);
-	    	regularize_bps(vPoints, regularize);
-	    	Grid g2;
-	    	SubsetHandler sh2(g2);
-	    	swc_points_to_grid(vPoints, g2, sh2);
-	    	export_to_ugx(g2, sh2, "after_regularize.ugx");
-	    ///}
+	    /// TODO: Smooth before or after regularize?
+    	Grid g3;
+    	SubsetHandler sh3(g3);
+    	swc_points_to_grid(vPoints, g3, sh3);
+    	export_to_ugx(g3, sh3, "before_regularize.ugx");
+    	UG_DLOGN(NC_TNP, 0, "Regularizing branching points...")
+    	/// smoothing(vPoints, n, h, gamma);
+    	regularize_bps(vPoints, regularize);
+    	Grid g2;
+    	SubsetHandler sh2(g2);
+    	swc_points_to_grid(vPoints, g2, sh2);
+    	export_to_ugx(g2, sh2, "after_regularize.ugx");
 	   	/// constrained_smoothing(vPoints, vRootNeuriteIndsOut.size(), 0.1, 0.1, 10, 0.1);
 
 	    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
