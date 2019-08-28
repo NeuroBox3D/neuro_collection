@@ -2484,20 +2484,41 @@ number calculate_length_over_radius
 						/// "orthogonalize" branching points
 						if (orthogonalize) {
 							SWCPoint pointA;
-							vector3 dir;
+							vector3 dir, dirAlt;
 							VecCross(dir, P, Q);
 							VecNormalize(dir, dir);
 							UG_COND_THROW(VecLength(dir) < 1-SMALL, "VecLength(dir) < 1."
 									" Minimum length of dir is one however actual"
 									" length is " << VecLength(dir));
-							vector3 A;
+							vector3 A, Aalt;
 							VecAdd(A, Bprime, dir);
-							pointA.coords = A;
+							dirAlt = -dir;
+							VecAdd(Aalt, Bprime, dirAlt);
+
+							size_t continuation;
+							for (size_t j = 0; j < nConn; ++j)
+							{
+								if (j == parentToBeDiscarded || j == minAngleInd)
+								{
+									continue;
+								}
+								continuation=j;
+							}
+
+							/// Quick fix for 3 way branches - TODO: rotate around axis to find best direction
+							if (VecDistance(vPoints[pt.conns[continuation]].coords, A) <
+								VecDistance(vPoints[pt.conns[continuation]].coords, Aalt)) {
+								pointA.coords = A;
+							} else {
+								pointA.coords = Aalt;
+							}
+
 							pointA.radius = vPoints[pt.conns[parentToBeDiscarded]].radius;
 							pointA.type = vPoints[pt.conns[minAngleInd]].type;
 							size_t newIndex = vPoints.size();
 							std::vector<size_t> Bs;
 							size_t Rindex;
+
 							for (size_t j = 0; j < nConn; ++j)
 							{
 								if (j == parentToBeDiscarded || j == minAngleInd)
