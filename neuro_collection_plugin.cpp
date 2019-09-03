@@ -104,6 +104,7 @@
 #include "util/measurement.h"
 #include "util/ca_wave_util.h"
 #include "util/axon_util.h"
+#include "util/hh_util.h"
 #include "util/misc_util.h"
 #include "util/neurite_axial_refinement_marker.h"
 #include "util/solution_impexp_util.h"
@@ -1010,6 +1011,16 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("MarkNeuriteForAxialRefinement", &MarkNeuriteForAxialRefinement, grp.c_str(), "", "refiner#domain", "");
 	}
 #endif
+
+	// Hodgkin Huxley util
+	{
+		reg.add_function("n_inf", &n_infty, grp.c_str(), "", "vm", "calculate n_inf");
+		reg.add_function("m_inf", &m_infty, grp.c_str(), "", "vm", "calculate m_inf");
+		reg.add_function("h_inf", &h_infty, grp.c_str(), "", "vm", "calculate h_inf");
+		reg.add_function("tau_n", &tau_n, grp.c_str(), "", "vm", "calculate tau_n");
+		reg.add_function("tau_m", &tau_m, grp.c_str(), "", "vm", "calculate tau_m");
+		reg.add_function("tau_h", &tau_h, grp.c_str(), "", "vm", "calculate tau_h");
+	}
 }
 
 }; // end Functionality
