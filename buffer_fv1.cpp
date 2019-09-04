@@ -47,7 +47,6 @@ template<typename TDomain>
 BufferFV1<TDomain>::BufferFV1(const char* subsets)
 : IElemDisc<TDomain>(NULL, subsets), m_bNonRegularGrid(false)
 {
-	register_all_fv1_funcs();
 	m_reactions.reserve(1);
 }
 
@@ -88,7 +87,7 @@ void BufferFV1<TDomain>::prepare_setting(const std::vector<LFEID>& vLfeID, bool 
 	m_bNonRegularGrid = bNonRegularGrid;
 
 	// update assemble functions
-	register_all_fv1_funcs();
+	register_all_fv1_funcs(m_bNonRegularGrid);
 }
 
 template<typename TDomain>
@@ -571,20 +570,93 @@ fsh_err_est_elem_loop()
 // ///////////////////////////////
 
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 //	register assemble functions
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 
-// register
-template<typename TDomain>
-void BufferFV1<TDomain>::
-register_all_fv1_funcs()
+#ifdef UG_DIM_1
+template <>
+void BufferFV1<Domain1d>::
+register_all_fv1_funcs(bool bHang)
 {
-//	get all grid element types in this
-	typedef typename domain_traits<dim>::DimElemList ElemList;
+	if (!bHang)
+		register_fv1_func<RegularEdge, FV1Geometry<RegularEdge, dim> >();
+	else
+		register_fv1_func<RegularEdge, HFV1Geometry<RegularEdge, dim> >();
+}
+#endif
 
-//	switch assemble functions
-	boost::mpl::for_each<ElemList>(RegisterFV1(this));
+#ifdef UG_DIM_2
+template <>
+void BufferFV1<Domain2d>::
+register_all_fv1_funcs(bool bHang)
+{
+	if (!bHang)
+	{
+		register_fv1_func<RegularEdge, FV1Geometry<RegularEdge, dim> >();
+		register_fv1_func<Triangle, FV1Geometry<Triangle, dim> >();
+		register_fv1_func<Quadrilateral, FV1Geometry<Quadrilateral, dim> >();
+	}
+	else
+	{
+		register_fv1_func<RegularEdge, HFV1Geometry<RegularEdge, dim> >();
+		register_fv1_func<Triangle, HFV1Geometry<Triangle, dim> >();
+		register_fv1_func<Quadrilateral, HFV1Geometry<Quadrilateral, dim> >();
+	}
+}
+#endif
+
+#ifdef UG_DIM_3
+template <>
+void BufferFV1<Domain3d>::
+register_all_fv1_funcs(bool bHang)
+{
+	if (!bHang)
+	{
+		register_fv1_func<RegularEdge, FV1Geometry<RegularEdge, dim> >();
+		register_fv1_func<Triangle, FV1Geometry<Triangle, dim> >();
+		register_fv1_func<Quadrilateral, FV1Geometry<Quadrilateral, dim> >();
+		register_fv1_func<Tetrahedron, FV1Geometry<Tetrahedron, dim> >();
+		register_fv1_func<Prism, FV1Geometry<Prism, dim> >();
+		register_fv1_func<Pyramid, FV1Geometry<Pyramid, dim> >();
+		register_fv1_func<Hexahedron, FV1Geometry<Hexahedron, dim> >();
+		register_fv1_func<Octahedron, FV1Geometry<Octahedron, dim> >();
+	}
+	else
+	{
+		register_fv1_func<RegularEdge, HFV1Geometry<RegularEdge, dim> >();
+		register_fv1_func<Triangle, HFV1Geometry<Triangle, dim> >();
+		register_fv1_func<Quadrilateral, HFV1Geometry<Quadrilateral, dim> >();
+		register_fv1_func<Tetrahedron, HFV1Geometry<Tetrahedron, dim> >();
+		register_fv1_func<Prism, HFV1Geometry<Prism, dim> >();
+		register_fv1_func<Pyramid, HFV1Geometry<Pyramid, dim> >();
+		register_fv1_func<Hexahedron, HFV1Geometry<Hexahedron, dim> >();
+		register_fv1_func<Octahedron, HFV1Geometry<Octahedron, dim> >();
+	}
+}
+#endif
+
+template<typename TDomain>
+template <typename TElem, typename TFVGeom>
+void BufferFV1<TDomain>::register_fv1_func()
+{
+	ReferenceObjectID id = geometry_traits<TElem>::REFERENCE_OBJECT_ID;
+
+	this->clear_add_fct(id);
+	this->set_prep_elem_loop_fct(	id, &this_type::template prep_elem_loop<TElem, TFVGeom>);
+	this->set_prep_elem_fct(	 	id, &this_type::template prep_elem<TElem, TFVGeom>);
+	this->set_fsh_elem_loop_fct( 	id, &this_type::template fsh_elem_loop<TElem, TFVGeom>);
+	this->set_add_jac_A_elem_fct(	id, &this_type::template add_jac_A_elem<TElem, TFVGeom>);
+	this->set_add_jac_M_elem_fct(	id, &this_type::template add_jac_M_elem<TElem, TFVGeom>);
+	this->set_add_def_A_elem_fct(	id, &this_type::template add_def_A_elem<TElem, TFVGeom>);
+	this->set_add_def_M_elem_fct(	id, &this_type::template add_def_M_elem<TElem, TFVGeom>);
+	this->set_add_rhs_elem_fct(	 	id, &this_type::template add_rhs_elem<TElem, TFVGeom>);
+
+	// error estimator parts
+	this->set_prep_err_est_elem_loop(	id, &this_type::template prep_err_est_elem_loop<TElem, TFVGeom>);
+	this->set_prep_err_est_elem(		id, &this_type::template prep_err_est_elem<TElem, TFVGeom>);
+	this->set_compute_err_est_A_elem(	id, &this_type::template compute_err_est_A_elem<TElem, TFVGeom>);
+	this->set_fsh_err_est_elem_loop(	id, &this_type::template fsh_err_est_elem_loop<TElem, TFVGeom>);
 }
 
 
