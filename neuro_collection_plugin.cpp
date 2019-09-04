@@ -196,6 +196,12 @@ static void DomainAlgebra(Registry& reg, string grp)
 		"(using the value of the nearest neighbour for each vertex)");
 #endif
 
+	// MarkOutOfRangeElems
+	reg.add_function("MarkOutOfRangeElems", static_cast<void (*) (SmartPtr<IRefiner>, ConstSmartPtr<TGridFunction>, size_t, number, number)>(MarkOutOfRangeElems<TGridFunction>),
+		grp.c_str(), "", "refiner # grid function # component # lower bound # upper bound",
+		"Marks elements next to out-of-range DoFs for refinement");
+
+
 	// export all template realizations of RyRImplicit::calculate_steady_state()
 	{
 		typedef RyRImplicit<TDomain> T;

@@ -86,6 +86,31 @@ void mark_anisotropic_onlyX
 void MarkNeuriteForAxialRefinement(SmartPtr<IRefiner> refiner, SmartPtr<Domain3d> domain);
 
 
+/**
+ *	Marks for refinement all (full-dim) elements neighboring grid elements
+ *	that contain a degree of freedom (Lagrangian) whose value is outside a
+ *	given range.
+ *
+ *	This function can be used to adaptively refine geometries with Q1 shape
+ *	functions, which can become negative, e.g., in diffusion problems.
+ *
+ * @param refiner     refiner for hanging node refinement
+ * @param u           solution grid function
+ * @param cmp         component to check
+ * @param lowerBnd    lower bound
+ * @param upperBnd    upper bound
+ */
+template <typename TGridFunction>
+void MarkOutOfRangeElems
+(
+	SmartPtr<IRefiner> refiner,
+	ConstSmartPtr<TGridFunction> u,
+	size_t cmp,
+	number lowerBnd,
+	number upperBnd
+);
+
+
 template <typename TDomain>
 void RemoveAllNonDefaultRefinementProjectors(SmartPtr<TDomain> dom);
 
@@ -97,5 +122,7 @@ bool SaveGridToFile(Grid& grid, ISubsetHandler& sh, const std::string& fileName)
 } // namespace ug
 } // namespace neuro_collection
 
+
+#include "misc_util_impl.h"
 
 #endif // UG__PLUGINS__NEURO_COLLECTION__UTIL__MISC_UTIL_H
