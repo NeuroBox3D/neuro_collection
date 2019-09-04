@@ -210,8 +210,11 @@ class MembraneTransport1d
 		/// adding density information for pumps/channels in membrane
 		void set_density_function(const char* name);
 
-		/// set radius at which membrane is located
+		/// set radius of plasma membrane
 		void set_radius(number r);
+
+		/// set plasma membrane radius fraction at which membrane (ERM or PM) is located
+		void set_radius_factor(number r);
 
 		/// the flux function
 		/**	This is the actual flux function defining the flux density over the boundary
@@ -242,6 +245,9 @@ class MembraneTransport1d
 
 
 	public:	// inherited from IElemDisc
+		/// @copydoc IElemDisc::approximation_space_changed()
+		virtual void approximation_space_changed();
+
 		///	type of trial space for each function used
 		virtual void prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid);
 
@@ -320,7 +326,12 @@ class MembraneTransport1d
 		void register_assembling_funcs();
 
 	protected:
-		number m_radius;
+		number m_radiusFactor;
+		number m_constRadius;
+		bool m_bConstRadiusSet;
+		ANumber m_aDiameter;									 ///< diameter attachment
+		Grid::AttachmentAccessor<Vertex, ANumber> m_aaDiameter;  ///< diameter attachment accessor
+
 		SmartPtr<CplUserData<number,dim> > m_spDensityFct;
 		SmartPtr<IMembraneTransporter> m_spMembraneTransporter;
 

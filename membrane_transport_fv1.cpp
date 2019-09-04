@@ -39,6 +39,7 @@
 
 #include "membrane_transport_fv1.h"
 #include "lib_disc/spatial_disc/disc_util/geom_provider.h"
+#include "lib_grid/global_attachments.h"  // for GlobalAttachments
 
 namespace ug {
 namespace neuro_collection {
@@ -235,7 +236,9 @@ void MembraneTransportFV1<TDomain>::register_all_fv1_funcs()
 
 template<typename TDomain>
 MembraneTransport1d<TDomain>::MembraneTransport1d(const char* subsets, SmartPtr<IMembraneTransporter> mt)
-: IElemDisc<TDomain>("", ""), m_radius(0.0), m_spDensityFct(SPNULL), m_spMembraneTransporter(mt), m_currSI(-1)
+: IElemDisc<TDomain>("", ""), m_radiusFactor(1.0), m_constRadius(1e-6), m_bConstRadiusSet(false),
+  m_aDiameter(GlobalAttachments::attachment<ANumber>("diameter")),
+  m_spDensityFct(SPNULL), m_spMembraneTransporter(mt), m_currSI(-1)
 {
 	// check validity of transporter setup and then lock
 	mt->check_and_lock();
@@ -246,7 +249,9 @@ MembraneTransport1d<TDomain>::MembraneTransport1d(const char* subsets, SmartPtr<
 
 template<typename TDomain>
 MembraneTransport1d<TDomain>::MembraneTransport1d(const std::vector<std::string>& subsets, SmartPtr<IMembraneTransporter> mt)
-: IElemDisc<TDomain>("", ""), m_radius(0.0), m_spDensityFct(SPNULL), m_spMembraneTransporter(mt), m_currSI(-1)
+: IElemDisc<TDomain>("", ""), m_radiusFactor(1.0), m_constRadius(1e-6), m_bConstRadiusSet(false),
+  m_aDiameter(GlobalAttachments::attachment<ANumber>("diameter")),
+  m_spDensityFct(SPNULL), m_spMembraneTransporter(mt), m_currSI(-1)
 {
 	// check validity of transporter setup and then lock
 	mt->check_and_lock();
@@ -295,7 +300,14 @@ void MembraneTransport1d<TDomain>::set_density_function(const char* name)
 template<typename TDomain>
 void MembraneTransport1d<TDomain>::set_radius(number r)
 {
-	m_radius = r;
+	m_constRadius = r;
+	m_bConstRadiusSet = true;
+}
+
+template<typename TDomain>
+void MembraneTransport1d<TDomain>::set_radius_factor(number r)
+{
+	m_radiusFactor = r;
 }
 
 
@@ -331,7 +343,7 @@ bool MembraneTransport1d<TDomain>::fluxDensityFct
 	// save currents
 	for (size_t i = 0; i < n_flux; ++i)
 	{
-		fc.flux[i] *= density * 2.0*PI*m_radius;
+		fc.flux[i] *= density;
 		fc.from[i] = m_spMembraneTransporter->flux_from_to(i).first;
 		fc.to[i] = m_spMembraneTransporter->flux_from_to(i).second;
 	}
@@ -376,13 +388,37 @@ bool MembraneTransport1d<TDomain>::fluxDensityDerivFct
 	for (size_t i = 0; i < n_flux; ++i)
 	{
 		for (size_t j = 0; j < n_dep; ++j)
-			fdc.fluxDeriv[i][j].second *= density * 2.0*PI*m_radius;
+			fdc.fluxDeriv[i][j].second *= density;
 		fdc.from[i] = m_spMembraneTransporter->flux_from_to(i).first;
 		fdc.to[i] = m_spMembraneTransporter->flux_from_to(i).second;
 	}
 
 	return true;
 }
+
+
+
+template<typename TDomain>
+void MembraneTransport1d<TDomain>::approximation_space_changed()
+{
+	SmartPtr<MultiGrid> grid = this->approx_space()->domain()->grid();
+
+	// handle diameter attachment
+	if (!grid->has_attachment<Vertex>(m_aDiameter))
+		grid->attach_to_vertices_dv(m_aDiameter, m_constRadius);
+	else
+	{
+		if (m_bConstRadiusSet)
+		{
+			UG_LOG("HINT: Even though you have explicitly set a constant diameter to the domain\n"
+				   "      MembraneTransport1d will use the diameter information attached to the grid\n"
+				   "      you specified.\n");
+		}
+	}
+
+    m_aaDiameter = Grid::VertexAttachmentAccessor<ANumber>(*grid, m_aDiameter);
+}
+
 
 template<typename TDomain>
 void MembraneTransport1d<TDomain>::
@@ -464,6 +500,10 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u, GridObject* elem, const Mat
 	// get finite volume geometry
 	const static TFVGeom& fvgeom = GeomProvider<TFVGeom>::get();
 
+	// cast elem to appropriate type (in order to allow access to attachments)
+	TElem* pElem = dynamic_cast<TElem*>(elem);
+	if (!pElem) {UG_THROW("Wrong element type.");}
+
 	for (size_t i = 0; i < fvgeom.num_scv(); ++i)
 	{
 		// get current SCV
@@ -487,7 +527,7 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u, GridObject* elem, const Mat
 							" Call to fluxDensityDerivFct resulted did not succeed.");
 
 		// scale with volume of SCV
-		const number scale = scv.volume();
+		const number scale = scv.volume() * PI * m_aaDiameter[pElem->vertex(co)] * m_radiusFactor;
 
 		// add to Jacobian
 		for (size_t j = 0; j < fdc.fluxDeriv.size(); ++j)
@@ -518,6 +558,10 @@ add_def_A_elem(LocalVector& d, const LocalVector& u, GridObject* elem, const Mat
 	// get finite volume geometry
 	static TFVGeom& fvgeom = GeomProvider<TFVGeom>::get();
 
+	// cast elem to appropriate type (in order to allow access to attachments)
+	TElem* pElem = dynamic_cast<TElem*>(elem);
+	if (!pElem) {UG_THROW("Wrong element type.");}
+
 	// loop boundary Faces
 	for (size_t i = 0; i < fvgeom.num_scv(); ++i)
 	{
@@ -545,7 +589,7 @@ add_def_A_elem(LocalVector& d, const LocalVector& u, GridObject* elem, const Mat
 		}
 
 		// scale with volume of SCV
-		const number scale = scv.volume();
+		const number scale = scv.volume() * PI * m_aaDiameter[pElem->vertex(co)] * m_radiusFactor;
 
 		// add to defect
 		for (size_t j = 0; j < fc.flux.size(); ++j)
