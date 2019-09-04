@@ -60,6 +60,27 @@ namespace ug {
 namespace neuro_collection {
 
 
+/**
+ * @brief This class is used to refine neurites anisotropically in axial direction.
+ *
+ * It is aimed at the refinement of coarse grids created using the neurites_from_swc
+ * functions, which contain anisotropic hexahedra in the neurites, but isotropic hexahedra
+ * in the branching points.
+ * The goal is to automatically detect whether an element belongs to a neurite or a branching
+ * point and refine anisotropically (only axially) in the neurites and by copying (no refinement)
+ * in the branching points.
+ *
+ * The class tries to identify the branching point volumes and does that in a fashion that strongly
+ * depends on the way the coarse grids are created in the neurites_from_swc routines.
+ *
+ * This identification method also requires radial neighbors to stick together during redistribution,
+ * which is why the class inherits from parmetis::IUnificator<Volume>, so that it can be used as such
+ * by a ClusteredDualGraphManager during Parmetis redistribution.
+ *
+ * @note The class only works on neurites_from_swc-created geometries with hexahedral elements.
+ *       It is not perfect. Sometimes, the refinement will not be properly anisotropic.
+ * @note The class should work both on ER-containing and ER-less geometries.
+ */
 class NeuriteAxialRefinementMarker
 #ifdef NC_WITH_PARMETIS
 	: public parmetis::IUnificator<Volume>

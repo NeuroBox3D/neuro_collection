@@ -61,10 +61,18 @@ namespace neuro_collection {
 ///@addtogroup plugin_neuro_collection
 ///@{
 
+
+/// Mark all surface elements for refinement.
 template <typename TDomain>
 void mark_global(SmartPtr<IRefiner> refiner, SmartPtr<TDomain> domain);
 
 
+/**
+ * @brief Mark all anisotropic elements of the surface grid for ansiotropic refinement
+ *
+ * Whether an element is isotropic or not is decided using the is_anisotropic() functions
+ * from lib_grid's anisotropy_util and the given threshold ratio.
+ */
 template <typename TDomain>
 void mark_anisotropic
 (
@@ -74,6 +82,16 @@ void mark_anisotropic
 );
 
 
+/**
+ * @brief Mark all elements that are anisotropic in direction of the x-axis for ansiotropic refinement
+ *
+ * Whether an element is isotropic or not is decided using the is_anisotropic() functions
+ * from lib_grid's anisotropy_util and the given threshold ratio.
+ *
+ * "Anisotropic in direction of the x-axis" means that the long edges (only the first one is checked)
+ * point more or less in x-direction, to be precise: the normalized vector connecting this edge's
+ * vertices has an x-entry of more than 0.9.
+ */
 template <typename TDomain>
 void mark_anisotropic_onlyX
 (
@@ -83,6 +101,19 @@ void mark_anisotropic_onlyX
 );
 
 
+/**
+ * @brief Mark a neurite for axial refinement
+ *
+ * This function is aimed at the refinement of coarse grids created using the neurites_from_swc
+ * functions, which contain anisotropic hexahedra in the neurites, but isotropic hexahedra
+ * in the branching points.
+ * The goal is to automatically detect whether an element belongs to a neurite or a branching
+ * point and refine anisotropically (only axially) in the neurites and by copying (no refinement)
+ * in the branching points.
+ *
+ * @deprecated This function does not work properly and has been replaced by the class
+ *             NeuriteAxialRefinementMarker.
+ */
 void MarkNeuriteForAxialRefinement(SmartPtr<IRefiner> refiner, SmartPtr<Domain3d> domain);
 
 

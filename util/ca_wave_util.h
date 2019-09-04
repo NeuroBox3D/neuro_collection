@@ -50,6 +50,16 @@
 namespace ug {
 namespace neuro_collection {
 
+/*
+ * This file contains very specialized functionality that has been used in the
+ * analysis of calcium waves on model dendrites, the results of which have been
+ * published in:
+ *
+ * M. Breit and G. Queisser: "What is required for neuronal calcium waves?
+ * A numerical parameter study", J. Math. NeuroSci. (2018).
+ */
+
+
 ///@addtogroup plugin_neuro_collection
 ///@{
 

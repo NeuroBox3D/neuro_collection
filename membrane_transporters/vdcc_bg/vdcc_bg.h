@@ -51,7 +51,7 @@ namespace neuro_collection {
 ///@addtogroup plugin_neuro_collection
 ///@{
 
-/// Class interface for Borg Graham type VGCCs of the plasma membrane.
+/// Class interface for Borg Graham type VDCCs of the plasma membrane.
 /** This class is an interface for the Borg-Graham-type voltage-gated calcium channels
  *	in the plasma membrane (see chapter 8 of "Interpretations of data and mechanisms
  *	for hippocampal pyramidal cell models", Borg-Graham (1998) in Cerebral Cortex,
@@ -66,7 +66,7 @@ namespace neuro_collection {
  *
  *	The class implements simple versions of N-, L- and T type channels but may very
  *	well be generalized to more complex models thereof. The type of channel can be set
- *	before calling the init() method, N-type channel parameters are taken as default.
+ *	before calling the init() method, L-type channel parameters are taken as default.
  *
  *	This class does not handle the procuration of the values for the membrane
  *	potential. This must be dealt with in a specialization of this class.

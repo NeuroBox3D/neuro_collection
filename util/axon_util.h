@@ -57,7 +57,18 @@ namespace neuro_collection {
 ///@addtogroup plugin_neuro_collection
 ///@{
 
-
+/**
+ * Highly specialized function for anisotropic and adaptive refinement of
+ * 2D cylinder-symmetric axonal geometries.
+ *
+ * It is used to just make a useful refinement work in this case at all.
+ * Probably not usable in any other situation.
+ *
+ * @param refiner         hanging node refiner
+ * @param approx          approximation space
+ * @param ranvierSubsets  subsets that are considered to be Ranvier nodes
+ * @param doUnmark        whether to unmark elements or not
+ */
 template <typename TDomain>
 void unmark_ranvier_areas
 (

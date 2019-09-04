@@ -50,7 +50,19 @@
 namespace ug {
 
 /**
- * \brief Builds a spine with part of the connected dendrite and ER
+ * \brief Builds a 3D spine geometry with part of the connected dendrite and ER
+ *
+ * The spine is mushroom-like with defined head and neck and contains a piece
+ * of ER growing from the base of the spine up to a specified position in the spine.
+ * A PSD zone is marked by a separate subset at the tip of the spine head.
+ *
+ * The generated geometries are intended to be used for simulations of calcium
+ * dynamics following synaptic release.
+ *
+ * This function has been used for the creation of the geomtries in:
+ * M. Breit et al.: "Spine-to-dendrite calcium modeling discloses relevance for
+ * precise positioning of ryanodine receptor-containing spine endoplasmic
+ * reticulum", Scientific Reports (2018).
  *
  * \param paramVector  Contains geometry parameters in the following order:
  *                       - cytosol radius (um)

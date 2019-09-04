@@ -49,7 +49,20 @@
 namespace ug {
 namespace neuro_collection {
 
-
+/**
+ * @brief Creates cylindrical model dendrite geometries with ER
+ *
+ * The class can create 2D representations of the geometry (sections of
+ * constant angular coordinate) or 1D representations (like a cable).
+ *
+ * The ER can be chosen to be discontinuous (instead of the default continuous
+ * cylinder-within-a-cylinder).
+ * Discrete Ryanodine receptor channels can be incorporated as a separate subset.
+ *
+ * This class has been used to generate the geometries for:
+ * M. Breit and G. Queisser: "What is required for neuronal calcium waves?
+ * A numerical parameter study", J. Math. NeuroSci. (2018).
+ */
 class DendriteGenerator
 {
 	public:
@@ -88,7 +101,7 @@ class DendriteGenerator
 		/// creates a 1d dendrite (with influx to the left)
 		void create_dendrite_1d(const std::string& filename);
 
-		/// creates a 1d dendrite (with influx to the left)
+		/// creates a 2d rotationally symmetric dendrite with discrete RyR channel subsets
 		void create_dendrite_discreteRyR(const std::string& filename, number channelDistance);
 
 	private:
