@@ -49,7 +49,29 @@
 namespace ug {
 namespace neuro_collection {
 
-
+/**
+ * @brief Class for communication between distributed 1d and 3d versions of the same cells
+ *
+ * It is intended for a setting where electrical signals are calculated on a 1d network
+ * and one or more of the network cells have been recreated in 3d to simulate calcium
+ * dynamics on them.
+ * Then VDCCs in the 3d plasma membrane can be given the membrane potential from the 1d
+ * counterpart and synapses from the 1d cells can be mapped to the 3d cell to produce
+ * calcium influxes (and IP3 production) when activated.
+ *
+ * This class serves as interface between the two dimensions. Notably, it organizes all
+ * the communication between involved processes of the 1d and the 3d simulation (which
+ * are both supposed to be carried out in parallel).
+ *
+ * This is done in two steps:
+ *   - The protected methods reinit_potential_mapping() and reinit_synapse_mapping()
+ *     prepare the necessary structures for fast exchange of potential values and
+ *     synapse currents. They are called each time the grid or its distribution is
+ *     altered.
+ *   - The public methods reinit_synapse_mapping() and gather_synaptic_currents()
+ *     perform the actual exchange. They are used by the VDCC implementation VDCC_BG_CN
+ *     as well as the synapse discretization class HybridSynapseCurrentAssembler.
+ */
 template <typename TDomain>
 class HybridNeuronCommunicator
 {

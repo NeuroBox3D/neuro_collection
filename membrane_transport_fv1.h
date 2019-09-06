@@ -61,6 +61,13 @@ class IMembraneTransporter;
  * This class implements the InnerBoundary interface to provide element local
  * assemblings for the unknown-dependent Neumann flux over a membrane, where the flowing
  * unknowns are present on both sides of the membrane.
+ *
+ * It can be used for the discretization of all kinds of trans-membrane transport mechanisms
+ * (channels or pumps), the dynamics of which are defined by objects of the interface class
+ * IMembraneTransporter.
+ * Such an object can be assigned to an object of this class using the method
+ * set_membrane_transporter(). The density of the corresponding channels or pumps needs
+ * to be set using set_density_function().
  */
 template<typename TDomain>
 class MembraneTransportFV1

@@ -52,6 +52,23 @@ namespace ug {
 namespace neuro_collection {
 
 
+/**
+ * @brief Discretization for synapses mapped to 3d from 1d network in a hybrid simulation
+ *
+ * This class can be used in a 3d calcium simulation of a cell that also exists within
+ * a 1d network (hybrid simulation). It will map the activity of the 1d (post-) synapses
+ * of the cell to the 3d cell and release calcium at the synaptic site and produce IP3.
+ *
+ * The amount of released calcium is calculated as a fixed percentage of the synapse current,
+ * which can be chosen by the user (set_current_percentage()).
+ * The IP3 production, meanwhile, is described by simple exponentially decaying dynamics,
+ * parameterizable by set_ip3_production_params().
+ *
+ * As it is not clear, a priori, where the synapses are located, a fortiori not being
+ * in a separate subset, this discretization is realized as a constraint.
+ * The calcium current of an active synapse is distributed over all plasma membrane
+ * elements within a defined radius (settable using set_synaptic_radius()).
+ */
 template <typename TDomain, typename TAlgebra>
 class HybridSynapseCurrentAssembler : public IDomainConstraint<TDomain, TAlgebra>
 {
@@ -190,6 +207,7 @@ class HybridSynapseCurrentAssembler : public IDomainConstraint<TDomain, TAlgebra
 			m_spHNC->set_coordinate_scale_factor_3d_to_1d(m_scaling_3d_to_1d_coordinates);
 		}
 
+		/// set the IDs of 3d-represented 1d network cells
 		void set_3d_neuron_ids(const std::vector<size_t>& ids)
 		{
 			// uint is not registered, we therefore use size_t as param type
