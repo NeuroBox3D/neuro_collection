@@ -1238,7 +1238,7 @@ static void create_neurite
 
 		// to reach the desired anisotropy on the surface in the refinement limit,
 		// it has to be multiplied by pi/2 h
-		size_t nSeg = (size_t) floor(lengthOverRadius / (anisotropy*0.5*PI));
+		size_t nSeg = (size_t) round(lengthOverRadius / (anisotropy*0.5*PI));
 		if (!nSeg)
 			nSeg = 1;
 		number segLength = lengthOverRadius / nSeg;	// segments are between 8 and 16 radii long
@@ -2938,14 +2938,15 @@ void swc_points_to_grid
 
 void import_neurites_from_swc
 (
-	const std::string& fileName,
+	const std::string& fileNameIn,
+	const std::string& fileNameOut,
 	number anisotropy,
 	size_t numRefs
 )
 {
 	// read in file to intermediate structure
-    std::string inFileName = FindFileInStandardPaths(fileName.c_str());
-    UG_COND_THROW(inFileName == "", "File '" << fileName
+    std::string inFileName = FindFileInStandardPaths(fileNameIn.c_str());
+    UG_COND_THROW(inFileName == "", "File '" << fileNameIn
     	<< "' could not be located in standard paths.");
 
 	FileReaderSWC swcFileReader;
@@ -3011,7 +3012,8 @@ void import_neurites_from_swc
 	sh.set_subset_name("neurites", 0);
 
 	// output
-	std::string outFileName = FilenameWithoutPath(std::string("testNeuriteProjector.ugx"));
+	std::string outFileNameBase = FilenameAndPathWithoutExtension(fileNameOut);
+	std::string outFileName = outFileNameBase + ".ugx";
 	GridWriterUGX ugxWriter;
 	ugxWriter.add_grid(g, "defGrid", aPosition);
 	ugxWriter.add_subset_handler(sh, "defSH", 0);
@@ -3019,16 +3021,17 @@ void import_neurites_from_swc
 	if (!ugxWriter.write_to_file(outFileName.c_str()))
 		UG_THROW("Grid could not be written to file '" << outFileName << "'.");
 
+	if (numRefs == 0)
+		return;
 
 	// refinement
 	Domain3d dom;
+	dom.create_additional_subset_handler("projSH");
 	try {LoadDomain(dom, outFileName.c_str());}
 	UG_CATCH_THROW("Failed loading domain from '" << outFileName << "'.");
 
-	std::string curFileName("testNeuriteProjector.ugx");
 	number offset = 5.0;
-
-	curFileName = outFileName.substr(0, outFileName.size()-4) + "_refined_0.ugx";
+	std::string curFileName = outFileName.substr(0, outFileName.size()-4) + "_refined_0.ugx";
 	try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
 	UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
 
@@ -3168,11 +3171,18 @@ void import_er_neurites_from_swc
 
 
 
-void import_1d_neurites_from_swc(const std::string& fileName, number anisotropy, size_t numRefs, number scale)
+void import_1d_neurites_from_swc
+(
+	const std::string& fileNameIn,
+	const std::string& fileNameOut,
+	number anisotropy,
+	size_t numRefs,
+	number scale
+)
 {
 	// read in file to intermediate structure
-	std::string inFileName = FindFileInStandardPaths(fileName.c_str());
-	UG_COND_THROW(inFileName == "", "File '" << fileName
+	std::string inFileName = FindFileInStandardPaths(fileNameIn.c_str());
+	UG_COND_THROW(inFileName == "", "File '" << fileNameIn
 		<< "' could not be located in standard paths.");
 
 	FileReaderSWC swcFileReader;
@@ -3247,7 +3257,8 @@ void import_1d_neurites_from_swc(const std::string& fileName, number anisotropy,
 	sh.set_subset_name("neurites", 0);
 
 	// export geometry
-	std::string outFileName = FilenameWithoutPath(std::string("testNeuriteProjector.ugx"));
+	std::string outFileNameBase = FilenameAndPathWithoutExtension(fileNameOut);
+	std::string outFileName = outFileNameBase + ".ugx";
 	GridWriterUGX ugxWriter;
 	ugxWriter.add_grid(g, "defGrid", aPosition);
 	ugxWriter.add_subset_handler(sh, "defSH", 0);
@@ -3261,9 +3272,8 @@ void import_1d_neurites_from_swc(const std::string& fileName, number anisotropy,
 	try {LoadDomain(dom, outFileName.c_str());}
 	UG_CATCH_THROW("Failed loading domain from '" << outFileName << "'.");
 
-	std::string curFileName("testNeuriteProjector.ugx");
 	number offset = 2.0;
-	curFileName = outFileName.substr(0, outFileName.size()-4) + "_refined_0.ugx";
+	std::string curFileName = outFileName.substr(0, outFileName.size()-4) + "_refined_0.ugx";
 	try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
 	UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
 

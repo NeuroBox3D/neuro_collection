@@ -85,7 +85,8 @@ namespace neurites_from_swc {
  */
 void import_neurites_from_swc
 (
-	const std::string& fileName,
+	const std::string& fileNameIn,
+	const std::string& fileNameOut,
 	number anisotropy = 2.0,
 	size_t numRefs = 0
 );
@@ -161,7 +162,8 @@ void import_er_neurites_from_swc
  */
 void import_1d_neurites_from_swc
 (
-	const std::string& fileName,
+	const std::string& fileNameIn,
+	const std::string& fileNameOut,
 	number anisotropy = 2.0,
 	size_t numRefs = 0,
 	number scale = 1e-6
