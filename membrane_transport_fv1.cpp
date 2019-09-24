@@ -504,6 +504,9 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u, GridObject* elem, const Mat
 	TElem* pElem = dynamic_cast<TElem*>(elem);
 	if (!pElem) {UG_THROW("Wrong element type.");}
 
+	FluxDerivCond fdc;
+	const size_t nFct = u.num_fct();
+	std::vector<LocalVector::value_type> uAtCorner(nFct);
 	for (size_t i = 0; i < fvgeom.num_scv(); ++i)
 	{
 		// get current SCV
@@ -513,18 +516,15 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u, GridObject* elem, const Mat
 		const int co = scv.node_id();
 
 		// get solution at the corner of the scv
-		const size_t nFct = u.num_fct();
-		std::vector<LocalVector::value_type> uAtCorner(nFct);
 		for (size_t fct = 0; fct < nFct; ++fct)
 			uAtCorner[fct] = u(fct, co);
 
 		// get corner coordinates
 		const MathVector<dim>& cc = scv.global_corner(0);
 
-		FluxDerivCond fdc;
 		if (!fluxDensityDerivFct(uAtCorner, elem, cc, m_currSI, fdc))
 			UG_THROW("MembraneTransport1d::add_jac_A_elem:"
-							" Call to fluxDensityDerivFct resulted did not succeed.");
+				" Call to fluxDensityDerivFct resulted did not succeed.");
 
 		// scale with volume of SCV
 		const number scale = scv.volume() * PI * m_aaDiameter[pElem->vertex(co)] * m_radiusFactor;
@@ -562,6 +562,10 @@ add_def_A_elem(LocalVector& d, const LocalVector& u, GridObject* elem, const Mat
 	TElem* pElem = dynamic_cast<TElem*>(elem);
 	if (!pElem) {UG_THROW("Wrong element type.");}
 
+	FluxCond fc;
+	const size_t nFct = u.num_fct();
+	std::vector<LocalVector::value_type> uAtCorner(nFct);
+
 	// loop boundary Faces
 	for (size_t i = 0; i < fvgeom.num_scv(); ++i)
 	{
@@ -572,8 +576,6 @@ add_def_A_elem(LocalVector& d, const LocalVector& u, GridObject* elem, const Mat
 		const int co = scv.node_id();
 
 		// get solution at the corner of the scv
-		const size_t nFct = u.num_fct();
-		std::vector<LocalVector::value_type> uAtCorner(nFct);
 		for (size_t fct = 0; fct < nFct; ++fct)
 			uAtCorner[fct] = u(fct, co);
 
@@ -581,11 +583,10 @@ add_def_A_elem(LocalVector& d, const LocalVector& u, GridObject* elem, const Mat
 		const MathVector<dim>& cc = scv.global_corner(0);
 
 		// get flux densities in that node
-		FluxCond fc;
 		if (!fluxDensityFct(uAtCorner, elem, cc, m_currSI, fc))
 		{
 			UG_THROW("MembraneTransport1d::add_def_A_elem:"
-						" Call to fluxDensityFct did not succeed.");
+				" Call to fluxDensityFct did not succeed.");
 		}
 
 		// scale with volume of SCV
@@ -629,6 +630,7 @@ void MembraneTransport1d<TDomain>::register_assembling_funcs()
 	typedef MembraneTransport1d<TDomain> T;
 	const ReferenceObjectID id = geometry_traits<TElem>::REFERENCE_OBJECT_ID;
 
+	this->clear_add_fct(id);
 	this->set_prep_elem_loop_fct(id, &T::template prep_elem_loop<TElem, TFVGeom>);
 	this->set_prep_elem_fct(id, &T::template prep_elem<TElem, TFVGeom>);
 	this->set_add_def_A_elem_fct(id, &T::template add_def_A_elem<TElem, TFVGeom>);
