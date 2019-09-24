@@ -67,6 +67,16 @@ template <typename TDomain>
 void mark_global(SmartPtr<IRefiner> refiner, SmartPtr<TDomain> domain);
 
 
+/// Mark all surface elements of specific subsets for refinement.
+template <typename TDomain>
+void MarkSubsets
+(
+	SmartPtr<IRefiner> refiner,
+	SmartPtr<TDomain> domain,
+	const std::vector<std::string>& vSubset
+);
+
+
 /**
  * @brief Mark all anisotropic elements of the surface grid for ansiotropic refinement
  *

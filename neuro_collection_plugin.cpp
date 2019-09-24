@@ -627,6 +627,7 @@ static void Domain(Registry& reg, string grp)
 	// mark for refinement functions
 	{
 		reg.add_function("mark_global", &mark_global<TDomain>, grp.c_str(), "", "refiner#domain", "");
+		reg.add_function("MarkSubsets", &MarkSubsets<TDomain>, grp.c_str(), "", "refiner#domain#subset names (as vector of string)", "");
 		reg.add_function("mark_anisotropic", &mark_anisotropic<TDomain>, grp.c_str(), "", "refiner#domain#anisotropy threshold (<=1)", "");
 		reg.add_function("mark_anisotropic_x", &mark_anisotropic_onlyX<TDomain>, grp.c_str(), "", "refiner#domain#anisotropy threshold (<=1)", "");
 		reg.add_function("unmark_ranvier_areas", &unmark_ranvier_areas<TDomain>, grp.c_str(), "", "refiner#approx space#ranvier node subsets#unmark", "");
