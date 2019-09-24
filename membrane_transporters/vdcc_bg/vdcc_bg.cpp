@@ -269,8 +269,8 @@ template<typename TDomain>
 const std::pair<size_t,size_t> VDCC_BG<TDomain>::flux_from_to(size_t flux_i) const
 {
 	size_t from, to;
-	if (allows_flux(_CCYT_)) to = local_fct_index(_CCYT_); else to = InnerBoundaryConstants::_IGNORE_;
-	if (allows_flux(_CEXT_)) from = local_fct_index(_CEXT_); else from = InnerBoundaryConstants::_IGNORE_;
+	if (is_supplied(_CCYT_)) to = local_fct_index(_CCYT_); else to = InnerBoundaryConstants::_IGNORE_;
+	if (is_supplied(_CEXT_)) from = local_fct_index(_CEXT_); else from = InnerBoundaryConstants::_IGNORE_;
 
 	return std::pair<size_t, size_t>(from, to);
 }
@@ -288,14 +288,14 @@ void VDCC_BG<TDomain>::check_supplied_functions() const
 {
 	// Check that not both, inner and outer calcium concentrations are not supplied;
 	// in that case, calculation of a flux would be of no consequence.
-	if (!allows_flux(_CCYT_) && !allows_flux(_CEXT_))
+	if (!is_supplied(_CCYT_) && !is_supplied(_CEXT_))
 	{
 		UG_THROW("Supplying neither cytosolic nor extracellular calcium concentrations is not allowed.\n"
 				"This would mean that the flux calculation would be of no consequence\n"
 				"and this channel would not do anything.");
 	}
-	UG_COND_THROW(!allows_flux(_M_), "Function for gating variable m must be provided.");
-	UG_COND_THROW(has_hGate() && !allows_flux(_H_), "Function for gating variable h must be provided.");
+	UG_COND_THROW(!is_supplied(_M_), "Function for gating variable m must be provided.");
+	UG_COND_THROW(has_hGate() && !is_supplied(_H_), "Function for gating variable h must be provided.");
 }
 
 

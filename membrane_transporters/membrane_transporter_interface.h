@@ -359,6 +359,12 @@ class IMembraneTransporter
 		 * @param i   index to be checked
 		 * @return    true iff the specified index belongs to a supplied function
 		 */
+		bool is_supplied(const size_t i) const;
+
+		/**
+		 * @brief old name for is_supplied
+		 * @deprecated Do not use this any longer. Name is not well-chosen.
+		 */
 		bool allows_flux(const size_t i) const;
 
 		/**

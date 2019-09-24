@@ -179,8 +179,8 @@ size_t NMDAR::n_fluxes() const
 const std::pair<size_t,size_t> NMDAR::flux_from_to(size_t flux_i) const
 {
 	size_t from, to;
-	if (allows_flux(_EXT_)) from = local_fct_index(_EXT_); else from = InnerBoundaryConstants::_IGNORE_;
-	if (allows_flux(_CYT_)) to = local_fct_index(_CYT_); else to = InnerBoundaryConstants::_IGNORE_;
+	if (is_supplied(_EXT_)) from = local_fct_index(_EXT_); else from = InnerBoundaryConstants::_IGNORE_;
+	if (is_supplied(_CYT_)) to = local_fct_index(_CYT_); else to = InnerBoundaryConstants::_IGNORE_;
 
 	return std::pair<size_t, size_t>(from, to);
 }
@@ -194,7 +194,7 @@ void NMDAR::check_supplied_functions() const
 {
 	// Check that not both, inner and outer calcium concentrations are not supplied;
 	// in that case, calculation of a current would be of no consequence.
-	if (!allows_flux(_EXT_) && !allows_flux(_CYT_))
+	if (!is_supplied(_EXT_) && !is_supplied(_CYT_))
 	{
 		UG_THROW("Supplying neither source nor target concentrations is not allowed.\n"
 				"This would mean that the current calculation would be of no consequence\n"

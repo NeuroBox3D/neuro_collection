@@ -223,12 +223,14 @@ bool IMembraneTransporter::has_constant_value(const size_t i) const
 	return true;
 }
 
+bool IMembraneTransporter::is_supplied(const size_t i) const
+{
+	return m_mfInd.find(i) != m_mfInd.end();
+}
+
 bool IMembraneTransporter::allows_flux(const size_t i) const
 {
-	if (m_mfInd.find(i) == m_mfInd.end())
-		return false;
-
-	return true;
+	return m_mfInd.find(i) != m_mfInd.end();
 }
 
 void IMembraneTransporter::print_units() const

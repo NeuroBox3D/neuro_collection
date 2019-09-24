@@ -121,8 +121,8 @@ size_t OhmicLeakage::n_fluxes() const
 const std::pair<size_t,size_t> OhmicLeakage::flux_from_to(size_t flux_i) const
 {
 	size_t from, to;
-	if (allows_flux(_PHII_)) from = local_fct_index(_PHII_); else from = InnerBoundaryConstants::_IGNORE_;
-	if (allows_flux(_PHIO_)) to = local_fct_index(_PHIO_); else to = InnerBoundaryConstants::_IGNORE_;
+	if (is_supplied(_PHII_)) from = local_fct_index(_PHII_); else from = InnerBoundaryConstants::_IGNORE_;
+	if (is_supplied(_PHIO_)) to = local_fct_index(_PHIO_); else to = InnerBoundaryConstants::_IGNORE_;
 
 	return std::pair<size_t, size_t>(from, to);
 }
@@ -136,7 +136,7 @@ void OhmicLeakage::check_supplied_functions() const
 {
 	// Check that not both, inner and outer charge densities are not supplied;
 	// in that case, calculation of a current would be of no consequence.
-	if (!allows_flux(_PHII_) && !allows_flux(_PHIO_))
+	if (!is_supplied(_PHII_) && !is_supplied(_PHIO_))
 	{
 		UG_THROW("Supplying neither source nor target charge densities is not allowed.\n"
 				"This would mean that the current calculation would be of no consequence\n"
@@ -245,8 +245,8 @@ size_t OhmicLeakageCharges::n_fluxes() const
 const std::pair<size_t,size_t> OhmicLeakageCharges::flux_from_to(size_t flux_i) const
 {
 	size_t from, to;
-	if (allows_flux(_RHOI_)) from = local_fct_index(_RHOI_); else from = InnerBoundaryConstants::_IGNORE_;
-	if (allows_flux(_RHOO_)) to = local_fct_index(_RHOO_); else to = InnerBoundaryConstants::_IGNORE_;
+	if (is_supplied(_RHOI_)) from = local_fct_index(_RHOI_); else from = InnerBoundaryConstants::_IGNORE_;
+	if (is_supplied(_RHOO_)) to = local_fct_index(_RHOO_); else to = InnerBoundaryConstants::_IGNORE_;
 
 	return std::pair<size_t, size_t>(from, to);
 }
@@ -260,7 +260,7 @@ void OhmicLeakageCharges::check_supplied_functions() const
 {
 	// Check that not both, inner and outer charge densities are not supplied;
 	// in that case, calculation of a current would be of no consequence.
-	if (!allows_flux(_RHOI_) && !allows_flux(_RHOO_))
+	if (!is_supplied(_RHOI_) && !is_supplied(_RHOO_))
 	{
 		UG_THROW("Supplying neither source nor target charge densities is not allowed.\n"
 				"This would mean that the current calculation would be of no consequence\n"

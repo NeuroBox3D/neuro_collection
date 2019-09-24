@@ -250,14 +250,14 @@ const std::pair<size_t,size_t> MNCX::flux_from_to(size_t flux_i) const
 //	Configuration for Ca2+ flux function flux[0]
 	if(flux_i == 0)
 	{
-		if (allows_flux(_CMIT_)) from = local_fct_index(_CMIT_); else from = InnerBoundaryConstants::_IGNORE_;
-		if (allows_flux(_CCYT_)) to = local_fct_index(_CCYT_); else to = InnerBoundaryConstants::_IGNORE_;
+		if (is_supplied(_CMIT_)) from = local_fct_index(_CMIT_); else from = InnerBoundaryConstants::_IGNORE_;
+		if (is_supplied(_CCYT_)) to = local_fct_index(_CCYT_); else to = InnerBoundaryConstants::_IGNORE_;
 	}
 //	Configuration for Na2+ flux function flux[1]
 	else
 	{
-		if (allows_flux(_NCYT_)) from = local_fct_index(_NCYT_); else from = InnerBoundaryConstants::_IGNORE_;
-		if (allows_flux(_NMIT_)) to = local_fct_index(_NMIT_); else to = InnerBoundaryConstants::_IGNORE_;
+		if (is_supplied(_NCYT_)) from = local_fct_index(_NCYT_); else from = InnerBoundaryConstants::_IGNORE_;
+		if (is_supplied(_NMIT_)) to = local_fct_index(_NMIT_); else to = InnerBoundaryConstants::_IGNORE_;
 	}
 
 	return std::pair<size_t, size_t>(from, to);
@@ -274,14 +274,14 @@ void MNCX::check_supplied_functions() const
 {
 	// Check that not both, inner and outer calcium concentrations are not supplied;
 	// in that case, calculation of a flux would be of no consequence.
-	if (!allows_flux(_CCYT_) && !allows_flux(_CMIT_))
+	if (!is_supplied(_CCYT_) && !is_supplied(_CMIT_))
 	{
 		UG_THROW("Supplying neither cytosolic nor mitochondrial calcium concentrations is not allowed.\n"
 			 	 "This would mean that the flux calculation would be of no consequence\n"
 				 "and this pump mechanism would not do anything.");
 	}
 
-	if (!allows_flux(_NCYT_) && !allows_flux(_NMIT_))
+	if (!is_supplied(_NCYT_) && !is_supplied(_NMIT_))
 	{
 		UG_THROW("Supplying neither cytosolic nor mitochondrial sodium concentrations is not allowed.\n"
 			 	 "This would mean that the flux calculation would be of no consequence\n"
