@@ -306,6 +306,16 @@ class VDCC_BG
 		**/
 		number calc_gating_start(const GatingParams& gp, number Vm) const;
 
+		/// calculates the next state of a gating "particle"
+		/** The calculation is done with respect to the given gating parameters set (which represents
+		*   one gating "particle"), the current value of this gating particle as well as the given membrane
+		*   potential (to be specified in [mV]!). The new value represents the "particle" state
+		*   at current time + dt (to be specified in [ms]!).
+		*   This method is only needed when gates are realized as attachments.
+		**/
+		void calc_gating_step(GatingParams& gp, number Vm, number dt, number& currVal);
+
+
 	public:
 		/// init gating variables to equilibrium
 		template <typename TGridFunction>
@@ -313,6 +323,13 @@ class VDCC_BG
 
 	private:
 		void after_construction();
+
+		/// updates the gating parameters
+		/**
+		 * This method needs to be called before calc_flux().
+		 * It is only needed when gates are realized as attachments.
+		 */
+		void update_gating(side_t* elem);
 
 	protected:
 		/// whether this channel has an inactivating gate
@@ -328,8 +345,13 @@ class VDCC_BG
 		std::vector<std::string> m_vSubset;					//!< subsets this channel exists on
 		size_t m_localIndicesOffset;
 
-		ADouble m_Vm;								//!< membrane voltage (in Volt)
-		Grid::AttachmentAccessor<side_t, ADouble> m_aaVm;		//!< accessor for membrane potential
+		ADouble m_MGate;                            //!< activating gating "particle"
+		ADouble m_HGate;                            //!< inactivating gating "particle"
+		ADouble m_Vm;                               //!< membrane voltage (in Volt)
+
+		Grid::AttachmentAccessor<side_t, ADouble> m_aaMGate;  //!< accessor for activating gate
+		Grid::AttachmentAccessor<side_t, ADouble> m_aaHGate;  //!< accessor for inactivating gate
+		Grid::AttachmentAccessor<side_t, ADouble> m_aaVm;     //!< accessor for membrane potential
 
 		GatingParams m_gpMGate;						//!< gating parameter set for activating gate
 		GatingParams m_gpHGate;						//!< gating parameter set for inactivating gate
@@ -342,6 +364,8 @@ class VDCC_BG
 		int m_mp, m_hp;								//!< powers for gating parameters
 
 		int m_channelType;							//!< channel type
+
+		bool m_bUseGatingAttachments;
 
 		bool m_initiated;							//!< indicates whether channel has been initialized by init()
 };

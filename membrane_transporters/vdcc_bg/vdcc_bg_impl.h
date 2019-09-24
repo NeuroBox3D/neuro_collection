@@ -54,7 +54,16 @@ void VDCC_BG<TDomain>::set_channel_type()
 	}
 
 	m_channelType = TType;
+
+	// check availability of gating functions
+	if (!m_bUseGatingAttachments)
+	{
+		UG_COND_THROW(has_hGate() && !is_supplied(_H_),
+			"You provided the m gating parameter as function, but not the h gating parameter.\n"
+			"This is not allowed. Either provide both or none.");
+	}
 	check_supplied_functions();
+
 
 	switch (TType)
 	{
