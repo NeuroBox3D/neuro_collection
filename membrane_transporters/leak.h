@@ -54,58 +54,90 @@ namespace neuro_collection{
 
 /// Discretization for the leakage flux through a membrane
 /**
- * This class implements the leakage flux through a membrane. It assumes a linear dependency
- * of the flowing substance from the difference between source and target concentrations,
- * i.e. j = c * ([source]-[target]). The constant c can be set using parent class method
- * IMembraneTransporter::set_density_function(). Although this constitutes a slight misuse of
- * terminology (as the constant does not in fact represent a physical density of some kind of
- * "leakage channels" in the membrane), doing so allows a straightforward implementation.
+ * This class implements a leakage flux through a membrane. It assumes a current density
+ * directed from source to target of Goldman-Hodgkin-Katz type, i.e.,
+ *
+ *     j = - p * zF/(RT) * V * (c_s - c_t * exp(zF/(RT)*V)) / (1 - exp(zF/(RT)*V)),
+ *
+ * with a permeability p, the source and target ionic concentrations c_s and c_t
+ * and the membrane voltage V which is defined as V = (Phi_t - Phi_s) (which is not
+ * necessarily the same way it is usually defined on the plasma membrane).
+ *
+ * Both the source and target concentrations as well as the source and target potentials
+ * are functions that can be supplied.
+ * If the potentials are not given, they are assumed to be zero, so the expression
+ * for the current density is reduced to
+ *
+ *     j = p * (c_s - c_t).
+ *
+ * The constant p can either be set using the method
+ *     set_permeability(),
+ * then the output of the calc_flux() method is a molar flux density (units: mol/(m^2 s))
+ * and the density of the mechanism needs to be set to 1 in MembraneTransportFV1
+ * OR by leaving the permeability at its default value of 1 and instead setting the
+ * density to its value using the method
+ *     MembraneTransportFV1::set_density_function(),
+ * whatever the user prefers.
+ * Both ways constitute a slight misuse of terminology. :)
  *
  * Units used in the implementation of this channel:
  * Concentrations:                    mM (= mol/m^3)
+ * Potentials:                        V
  * Leakage constant:                  m/s
- * Output unit of the "flux" method:  mM
+ * Output unit of the "flux" method:  mol/(m^2 s) or mM
  * Resulting flux density:            mol/(m^2 s)
  */
 
 class Leak : public IMembraneTransporter
 {
 	public:
-		enum{_S_=0, _T_};
+		enum{_S_ = 0, _T_, _PHIS_, _PHIT_};
 
 	public:
-	/// @copydoc IMembraneTransporter::IMembraneTransporter(const std::vector<std::string)
-	Leak(const std::vector<std::string>& fcts);
+		/// @copydoc IMembraneTransporter::IMembraneTransporter(const std::vector<std::string)
+		Leak(const std::vector<std::string>& fcts);
 
-	/// @copydoc IMembraneTransporter::IMembraneTransporter()
-	Leak(const char* fcts);
+		/// @copydoc IMembraneTransporter::IMembraneTransporter()
+		Leak(const char* fcts);
 
-	/// @copydoc IMembraneTransporter::IMembraneTransporter()
-	virtual ~Leak();
+		/// @copydoc IMembraneTransporter::IMembraneTransporter()
+		virtual ~Leak();
 
-	/// @copydoc IMembraneTransporter::calc_flux()
-	virtual void calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const;
+		void set_permeability(number p);
 
-	/// @copydoc IMembraneTransporter::calc_flux_deriv()
-	virtual void calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
+		void set_temperature(number t);
 
-	/// @copydoc IMembraneTransporter::n_dependencies()
-	virtual size_t n_dependencies() const;
+		void set_valency(int v);
 
-	/// @copydoc IMembraneTransporter::n_fluxes()
-	virtual size_t n_fluxes() const;
+		/// @copydoc IMembraneTransporter::calc_flux()
+		virtual void calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const;
 
-	/// @copydoc IMembraneTransporter::flux_from_to()
-	virtual const std::pair<size_t,size_t> flux_from_to(size_t flux_i) const;
+		/// @copydoc IMembraneTransporter::calc_flux_deriv()
+		virtual void calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
 
-	/// @copydoc IMembraneTransporter::name()
-	virtual const std::string name() const;
+		/// @copydoc IMembraneTransporter::n_dependencies()
+		virtual size_t n_dependencies() const;
 
-	/// @copydoc IMembraneTransporter::check_supplied_functions()
-	virtual void check_supplied_functions() const;
+		/// @copydoc IMembraneTransporter::n_fluxes()
+		virtual size_t n_fluxes() const;
 
-	/// @copydoc IMembraneTransporter::print_units()
-	virtual void print_units() const;
+		/// @copydoc IMembraneTransporter::flux_from_to()
+		virtual const std::pair<size_t,size_t> flux_from_to(size_t flux_i) const;
+
+		/// @copydoc IMembraneTransporter::name()
+		virtual const std::string name() const;
+
+		/// @copydoc IMembraneTransporter::check_supplied_functions()
+		virtual void check_supplied_functions() const;
+
+		/// @copydoc IMembraneTransporter::print_units()
+		virtual void print_units() const;
+
+	protected:
+		number m_perm;
+		number m_temp;
+		int m_z;
+		bool m_bNoVoltage;
 };
 
 ///@}

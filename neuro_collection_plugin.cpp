@@ -824,10 +824,15 @@ static void Common(Registry& reg, string grp)
 		reg.add_class_<T, TBase>(name, grp)
 			.add_constructor<void (*)(const char*)>
 				("Functions as comma-separated string with the following order: "
-				 "{\"source\", \"target\"}")
+				 "{\"source concentration\", \"target concentration\" [, "
+				 "\"source potential\", \"target potential\"]}")
 			.add_constructor<void (*)(const std::vector<std::string>&)>
 				("Function vector with the following order: "
-				 "{\"source\", \"target\"}")
+				 "{\"source concentration\", \"target concentration\" [, "
+				 "\"source potential\", \"target potential\"]}")
+			.add_method("set_permeability", &T::set_permeability, "", "permeability", "")
+			.add_method("set_temperature", &T::set_temperature, "", "temperature (K)", "")
+			.add_method("set_valency", &T::set_valency, "", "valency", "")
 			.set_construct_as_smart_pointer(true);
 	}
 	{
