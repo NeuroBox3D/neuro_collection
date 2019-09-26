@@ -645,6 +645,7 @@ namespace ug {
 			projected.resize(numQuads);
 			projectedVertices.resize(numQuads);
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, "before_projections_inner.ugx");
+			SaveGridToFile(g, "before_projections_inner.ugx");
 
 			/// find all edges for each inner sphere's surface quad - take two starting at the same vertex to get two edges for normal calculation
 			for (size_t i = 1; i < numQuads+1; i++) {
@@ -764,6 +765,7 @@ namespace ug {
 				}
 			}
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "projection_after_centered.ugx");
+			SaveGridToFile(g, sh, "projection_after_centered.ugx");
 
 			std::vector<std::vector<number> > allAngles;
 			std::vector<std::vector<number> > allAnglesInner;
@@ -804,6 +806,8 @@ namespace ug {
 				}
 				UG_DLOGN(NC_TNP, 0, "---");
 			}
+
+			UG_LOGN("Finding pairs now...");
 
 			/// TODO: Angle calculation here (Conversion from 0, 180 to 0, 360 interval)
 			/// is wrong: use from connect_outer_* method to convert the angle instead
@@ -885,6 +889,7 @@ namespace ug {
 				UG_DLOGN(NC_TNP, 0, "***");
 				for (std::vector<std::pair<ug::vector3, ug::vector3> >::const_iterator it2 = it->begin(); it2 != it->end(); ++it2) {
 					UG_DLOGN(NC_TNP, 0, "Pair " << it2->first << " -> " << it2->second);
+					UG_LOGN("Pair " << it2->first << " -> " << it2->second);
 				}
 				UG_DLOGN(NC_TNP, 0, "***");
 			}
@@ -900,20 +905,29 @@ namespace ug {
 			/// same procedure with the sorted angle differences above to
 			/// create these faces if angles are correct
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "before_projections_inner_connections.ugx");
+			SaveGridToFile(g, sh, "before_projections_inner_connections.ugx");
 			for (size_t i = 1; i < numQuads+1; i++) {
 				sel.clear();
 				UG_DLOGN(NC_TNP, 0, "Selecting now subset: " << somaIndex+i);
+				UG_LOGN("Selecting now subset: " << somaIndex+i);
 				/// Select inner soma quad
 				SelectSubsetElements<Edge>(sel, sh, somaIndex+i, true);
 				eit = sel.edges_begin();
 				eit_end = sel.edges_end();
 				for (; eit != eit_end; ++eit) {
 					UG_DLOGN(NC_TNP, 0, "Edge!");
+					UG_LOGN("Edge!");
 					Edge* e = *eit;
 					ug::Vertex* p1 = e->vertex(0);
 					ug::Vertex* p2 = e->vertex(1);
 					ug::Vertex* p3 = myPairs2[e->vertex(0)];
 					ug::Vertex* p4 = myPairs2[e->vertex(1)];
+					UG_LOGN("Vertices found?");
+					UG_COND_THROW(!p1, "Vertex p1 not found");
+					UG_COND_THROW(!p2, "Vertex p2 not found");
+					UG_COND_THROW(!p3, "Vertex p3 not found");
+					UG_COND_THROW(!p4, "Vertex p4 not found");
+					UG_LOGN("Vertices found!");
 					/// TODO: Change this possibly. Dummy values to pretend to be
 					/// inside soma for SelectElementsByAxialPosition, scale is
 					/// changed later to be the correct value - Check that this
@@ -922,6 +936,7 @@ namespace ug {
 					aaSurfParams[p2].axial = -scale/2;
 					aaSurfParams[p3].axial = -scale/2;
 					aaSurfParams[p4].axial = -scale/2;
+
 					UG_COND_THROW( ! ((p1 != p2) && (p3 != p4)), "Non-unique vertices provided to create quadrilateral.");
 					ug::Face* f = *g.create<Quadrilateral>(QuadrilateralDescriptor(p1, p3, p4, p2));
 					UG_COND_THROW(!f, "Quadrilateral for connecting inner soma sphere (ER) with inner neurite conneting to outer sphere (PM)");
@@ -930,6 +945,7 @@ namespace ug {
 			}
 
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "after_projections_inner.ugx");
+			SaveGridToFile(g, sh, "after_projections_inner.ugx");
 
 			/// TODO: Optimierung: Verdrehung kann beseitigt werden wenn man die
 			/// Knoten des inneren Soma Oberflächenquads auf die Ebene projiziert
@@ -2307,9 +2323,13 @@ namespace ug {
 				 int index = boost::lexical_cast<int>(strs[6]);
 			     if (index == somaIndex) {
 			        	number rad = boost::lexical_cast<number>(strs[5]);
-			        	outFile << lineCnt << " 3 " << vPointsSomaSurface[j].x() << " "
+			        	outFile << lineCnt << " " << strs[1] << " " << vPointsSomaSurface[j].x() << " "
 			        			<< vPointsSomaSurface[j].y() << " " << vPointsSomaSurface[j].z()
 			        			<< " " << rad << " " << somaIndex << std::endl;
+			        	/*outFile << lineCnt << " 3 " << vPointsSomaSurface[j].x() << " "
+			        			<< vPointsSomaSurface[j].y() << " " << vPointsSomaSurface[j].z()
+			        			<< " " << rad << " " << somaIndex << std::endl;
+			        			*/
 			        	///lineCnt++;
 			        	j++;
 			     } else {
@@ -2686,6 +2706,38 @@ namespace ug {
 					}
 				}
 			}
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// RotateVectorAroundAxis
+		////////////////////////////////////////////////////////////////////////
+		void rotate_vector_around_axis
+		(
+			const vector3& y,
+			const vector3& x,
+			const vector3& origin,
+			vector3& xPrime,
+			vector3& xPrime2,
+			const number theta
+		) {
+			UG_COND_THROW(abs(VecDot(x, y)) > SMALL, "Vectors not perpendicular.");
+
+			vector3 z;
+			VecCross(z, x, y);
+			VecNormalize(z, z);
+			VecScaleAdd(xPrime, cos(deg_to_rad(theta)), x, sin(deg_to_rad(theta)), z);
+
+			vector3 rotatedVec;
+			VecSubtract(rotatedVec, origin, xPrime);
+			VecNormalize(rotatedVec, rotatedVec);
+			// rotated vector CCW
+			xPrime = origin;
+			VecAdd(xPrime, xPrime, rotatedVec);
+
+			// rotated vector CW
+			xPrime2 = origin;
+			const vector3& negVec = -rotatedVec;
+			VecAdd(xPrime2, xPrime2, negVec);
 		}
 	}
 }

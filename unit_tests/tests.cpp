@@ -220,6 +220,58 @@ BOOST_FIXTURE_TEST_CASE(DeleteInnerEdgesFromQuadrilateralWithoutInnerEdges, Fixt
 	BOOST_REQUIRE_MESSAGE(g.num<Quadrilateral>() == 1, "Requiring one quadrilateral.");
 }
 
+BOOST_FIXTURE_TEST_CASE(RotateVectorAroundAxis, FixtureEmptyGrid) {
+	ug::RegularVertex* p1 = *g.create<RegularVertex>();
+	ug::RegularVertex* p2 = *g.create<RegularVertex>();
+	ug::RegularVertex* p3 = *g.create<RegularVertex>();
+	ug::RegularVertex* p4 = *g.create<RegularVertex>();
+
+	aaPos[p1] = ug::vector3(0, 0, 0); aaPos[p2] = ug::vector3(0, 1, 0);
+	aaPos[p3] = ug::vector3(0, 1, 0); aaPos[p4] = ug::vector3(0, 1, 1);
+
+	ug::RegularEdge* e1 = *g.create<RegularEdge>(EdgeDescriptor(p1, p2));
+	ug::RegularEdge* e2 = *g.create<RegularEdge>(EdgeDescriptor(p3, p4));
+	sh.assign_grid(g);
+	sh.assign_subset(e1, 0);
+	sh.assign_subset(e2, 0);
+
+	/// before
+	AssignSubsetColors(sh);
+	SaveGridToFile(g, sh, "test_rotate_vector_around_axis.ugx");
+
+	vector3 axis;
+	vector3 vector;
+	VecSubtract(axis, aaPos[p2], aaPos[p1]);
+	VecSubtract(vector, aaPos[p2], aaPos[p4]); // p2 === p3
+
+	BOOST_REQUIRE_SMALL(VecDot(axis, vector), SMALL);
+
+	vector3 origin = aaPos[p3];
+
+	for (int i = 0; i <= 360; i+=10) {
+		vector3 xPrime;
+		vector3 xPrime2;
+		rotate_vector_around_axis(vector, axis, origin, xPrime, xPrime2, i);
+		ug::RegularVertex* p5 = *g.create<RegularVertex>();
+		ug::RegularVertex* p6 = *g.create<RegularVertex>();
+		aaPos[p5] = xPrime;
+		aaPos[p6] = xPrime2;
+		ug::RegularEdge* e3 = *g.create<RegularEdge>(EdgeDescriptor(p3, p5));
+		ug::RegularEdge* e4 = *g.create<RegularEdge>(EdgeDescriptor(p3, p6));
+		sh.assign_subset(e3, 1);
+		sh.assign_subset(e4, 2);
+		sh.assign_subset(p5, 1);
+		sh.assign_subset(p6, 2);
+	}
+
+
+	/// after
+	sh.assign_grid(g);
+	AssignSubsetColors(sh);
+	SaveGridToFile(g, sh, "test_rotated_vector_around_axis.ugx");
+
+}
+
 BOOST_AUTO_TEST_SUITE_END();
 ////////////////////////////////////////////////////////////////////////////////
 /// neuro_collection/test tests

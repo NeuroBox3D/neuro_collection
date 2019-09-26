@@ -2443,6 +2443,8 @@ number calculate_length_over_radius
 					size_t nConn = pt.conns.size();
 					++nProcessed;
 
+					UG_COND_THROW(nConn > 3, "nConn > 3 not supported yet.");
+
 					// branching point
 					if (nConn > 2)
 					{
@@ -2488,15 +2490,22 @@ number calculate_length_over_radius
 						ProjectPointToLine(Bprime, B, P, Q);
 						pt.coords = Bprime;
 
+						number QtoPt = VecDistance(Q, pt.coords) / VecDistance(Q, P);
+						number PtoPt = VecDistance(P, pt.coords) / VecDistance(Q, P);
+						pt.radius = (vPoints[pt.conns[minAngleInd]].radius * QtoPt)
+								+ (vPoints[pt.conns[parentToBeDiscarded]].radius * PtoPt);
+
 						/// "orthogonalize" branching points
 						if (orthogonalize) {
 							SWCPoint pointA;
 							vector3 dir, dirAlt;
 							VecCross(dir, P, Q);
 							VecNormalize(dir, dir);
-							UG_COND_THROW(VecLength(dir) < 1-SMALL, "VecLength(dir) < 1."
+							VecScale(dir, dir, 1.5); // was: 1
+							/*UG_COND_THROW(VecLength(dir) < 1-SMALL, "VecLength(dir) < 1."
 									" Minimum length of dir is one however actual"
 									" length is " << VecLength(dir));
+									*/
 							vector3 A, Aalt;
 							VecAdd(A, Bprime, dir);
 							dirAlt = -dir;
@@ -2520,7 +2529,7 @@ number calculate_length_over_radius
 								pointA.coords = Aalt;
 							}
 
-							pointA.radius = vPoints[pt.conns[parentToBeDiscarded]].radius;
+							pointA.radius = pt.radius; // vPoints[pt.conns[continuation]].radius;
 							pointA.type = vPoints[pt.conns[minAngleInd]].type;
 							size_t newIndex = vPoints.size();
 							std::vector<size_t> Bs;

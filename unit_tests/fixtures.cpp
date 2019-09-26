@@ -46,7 +46,22 @@
 using namespace ug;
 
 /*!
- * \brief grid fixture
+ * \brief empty grid fixture
+ */
+struct FixtureEmptyGrid {
+	Grid g;
+	SubsetHandler sh;
+	Grid::VertexAttachmentAccessor<APosition> aaPos;
+	FixtureEmptyGrid() {
+		g.attach_to_vertices(aPosition);
+		aaPos = Grid::VertexAttachmentAccessor<APosition>(g, aPosition);
+		sh = SubsetHandler(g);
+		sh.set_default_subset_index(0);
+	}
+};
+
+/*!
+ * \brief one grid fixture
  */
 struct FixtureOneGrid {
 	typedef NeuriteProjector::SurfaceParams NPSP;

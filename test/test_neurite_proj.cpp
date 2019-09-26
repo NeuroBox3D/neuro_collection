@@ -3108,7 +3108,11 @@ void create_spline_data_for_neurites
 		std::vector<SWCPoint> vPoints;
 		std::vector<SWCPoint> vSomaPoints;
 		std::string fn_noext = FilenameWithoutExtension(fileName);
+		// presmooth
+		test_smoothing(fileName, 5, 1.0, 1.0);
 		std::string fn_precond = fn_noext + "_precond.swc";
+
+		///std::string fn_precond = fn_noext + ".swc";
 	    std::string fn_precond_with_soma = fn_noext + "_precond_with_soma.swc";
 		import_swc_old(fn_precond, vPoints, correct, 1.0);
 
@@ -3216,6 +3220,8 @@ void create_spline_data_for_neurites
 	    UG_DLOGN(NC_TNP, 0, " done.");
 	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
 
+	    UG_LOGN("neurites added");
+
 	    /// Outer soma
 	    // Note: axisVectors (outer soma) and axisVectorsInner (inner soma) save the
 	    // cylinder center, diameter and length parameters for the CylinderProjectors
@@ -3237,14 +3243,18 @@ void create_spline_data_for_neurites
 	    		4, sh, fileName, 1.0, axisVectors, vNeurites, connectingVertices, connectingVerticesInner,
 	    		connectingEdges, connectingEdgesInner, true, 0.01, 10, 0.00001, 0.5, 12, 1);
 
+	    UG_LOGN("Connected neurites with soma");
+
 	    /// delete old vertices from incorrect neurite starts
 	    g.erase(outVerts.begin(), outVerts.end());
 	    g.erase(outVertsInner.begin(), outVertsInner.end());
 	    outVerts.clear();
 	    outVertsInner.clear();
 	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_finding_initial_edges.ugx");
+	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_finding_initial_edges.ugx");
 
 	    sh.set_default_subset_index(0);
+	    UG_LOGN("Generating neurites...")
 	    UG_DLOGN(NC_TNP, 0, "Generating neurites...")
 	    /// for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 	    for (size_t i = 0; i < 1; ++i) {
@@ -3258,6 +3268,7 @@ void create_spline_data_for_neurites
 	    	}
 	    }
 	    UG_DLOGN(NC_TNP, 0, " done.");
+	    UG_LOGN("Generating inner soma");
 
 	    /// Inner soma
 	    UG_DLOGN(NC_TNP, 0, "Creating inner soma...")
@@ -3271,6 +3282,7 @@ void create_spline_data_for_neurites
 	    std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > > axisVectorsInner;
 	    /// connect inner soma with neurites (actually just finds/creates the surface quads on the inner soma)
 	    connect_neurites_with_soma(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRadsInner, outQuadsInner2, newSomaIndex, sh, fileName, scaleER, axisVectorsInner, vNeurites, connectingVertices, connectingVerticesInner, connectingEdges, connectingEdgesInner, false);
+	    UG_LOGN("Connected inner soma");
 
 		// assign subset
 		AssignSubsetColors(sh);
@@ -3289,6 +3301,8 @@ void create_spline_data_for_neurites
 		   	sh.set_subset_name(ss.str().c_str(), i);
 		 }
 		IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_renaming.ugx");
+		UG_LOGN("After inner connex");
+		 SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_renaming.ugx");
 
 		/// Double Vertices might occur during Qhull gen faces -> remove these here
 		/// RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aaPos, 0.0001);
@@ -3302,12 +3316,15 @@ void create_spline_data_for_neurites
 	     	sh.set_subset_name(ss.str().c_str(), i);
 	    }
 
+	    /// TODO: Debug from here for segfault during connect method...
 	    /// connect now inner soma to neurites (Note: Old strategy which uses distance not angle based criterion. Change this?)
 	    UG_DLOGN(NC_TNP, 0, "Soma's inner index: " << newSomaIndex);
 	    if (withER) {
 	    	connect_inner_neurites_to_inner_soma(newSomaIndex, 1, g, aaPos, sh, aaSurfParams, erScaleFactor);
 	    }
 	    SavePreparedGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_inner_soma_to_outer_ER.ugx");
+
+		UG_LOGN("After adding neurites and connecting inner soma to outer ER");
 
 	    /// Note: Called two times for inner and outer polygon on outer soma but use the same plane defined by the outer soma's inner quad vertices
 	    connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12, true);
@@ -3338,6 +3355,8 @@ void create_spline_data_for_neurites
 
 	    /// assign SurfParams for all vertices from tetrahedralize call (now in subset 4 and 5)
 	    fix_axial_parameters(g, sh, aaSurfParams, aaPos, 4, 5, savedSomaPoint[0], scaleER);
+
+	    UG_LOGN("After tetrahedralize");
 
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma.ugx");
 		/// After merge doubles might occur, delete them. Boundary faces are retained,
