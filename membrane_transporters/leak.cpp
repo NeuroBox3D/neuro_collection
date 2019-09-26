@@ -113,10 +113,10 @@ void Leak::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vec
 		{
 			flux_derivs[0][i].first = local_fct_index(_S_);
 			flux_derivs[0][i].second = m_perm;
+			++i;
 		}
 		if (!has_constant_value(_T_))
 		{
-			++i;
 			flux_derivs[0][i].first = local_fct_index(_T_);
 			flux_derivs[0][i].second = -m_perm;
 		}
@@ -160,22 +160,22 @@ void Leak::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vec
 	{
 		flux_derivs[0][i].first = local_fct_index(_S_);
 		flux_derivs[0][i].second = dcs;
+		++i;
 	}
 	if (!has_constant_value(_T_))
 	{
-		++i;
 		flux_derivs[0][i].first = local_fct_index(_T_);
 		flux_derivs[0][i].second = dct;
+		++i;
 	}
 	if (!has_constant_value(_PHIS_))
 	{
-		++i;
 		flux_derivs[0][i].first = local_fct_index(_PHIS_);
 		flux_derivs[0][i].second = dps;
+		++i;
 	}
 	if (!has_constant_value(_PHIT_))
 	{
-		++i;
 		flux_derivs[0][i].first = local_fct_index(_PHIT_);
 		flux_derivs[0][i].second = dpt;
 	}
