@@ -842,11 +842,15 @@ namespace ug {
 				UG_DLOGN(NC_TNP, 0, "***");
 			}
 
-			/// find closest vertex instead of minimum angle difference: this should be safe for the inner sphere and outer sphere ER part connection. Note reference point has to be the same to make sense.
+			/// find closest vertex instead of minimum angle difference:
+			/// this should be safe for the inner sphere and outer sphere ER part
+			/// connection. Note reference point has to be the same to make sense
+			/// for distance or angle calculation however. TODO this might fail in silly cases.
 			j = 1;
 			std::vector<std::vector<std::pair<ug::vector3, ug::vector3> > > myPairs;
 			std::map<Vertex*, Vertex*> myPairs2;
-			for (size_t i = 0; i < projected.size(); i++) { /// each outer quad projected vertices (now on inner soma)
+			/// each outer quad projected vertices (now on inner soma)
+			for (size_t i = 0; i < projected.size(); i++) {
 				sel.clear();
 				SelectSubsetElements<Vertex>(sel, sh, somaIndex+j, true);
 				vit = sel.vertices_begin();
@@ -888,8 +892,8 @@ namespace ug {
 			for (std::vector<std::vector<std::pair<ug::vector3, ug::vector3 > > >::const_iterator it = myPairs.begin(); it != myPairs.end(); ++it) {
 				UG_DLOGN(NC_TNP, 0, "***");
 				for (std::vector<std::pair<ug::vector3, ug::vector3> >::const_iterator it2 = it->begin(); it2 != it->end(); ++it2) {
-					UG_DLOGN(NC_TNP, 0, "Pair " << it2->first << " -> " << it2->second);
-					UG_LOGN("Pair " << it2->first << " -> " << it2->second);
+					UG_DLOGN(NC_TNP, 0, "Pair (Vector) " << it2->first << " -> " << it2->second);
+					UG_LOGN("Pair (Vector) " << it2->first << " -> " << it2->second);
 				}
 				UG_DLOGN(NC_TNP, 0, "***");
 			}
@@ -909,34 +913,39 @@ namespace ug {
 			for (size_t i = 1; i < numQuads+1; i++) {
 				sel.clear();
 				UG_DLOGN(NC_TNP, 0, "Selecting now subset: " << somaIndex+i);
-				UG_LOGN("Selecting now subset: " << somaIndex+i);
 				/// Select inner soma quad
 				SelectSubsetElements<Edge>(sel, sh, somaIndex+i, true);
 				eit = sel.edges_begin();
 				eit_end = sel.edges_end();
+
 				for (; eit != eit_end; ++eit) {
-					UG_DLOGN(NC_TNP, 0, "Edge!");
-					UG_LOGN("Edge!");
+					UG_DLOGN(NC_TNP, 0, "Getting edge... ");
 					Edge* e = *eit;
 					ug::Vertex* p1 = e->vertex(0);
 					ug::Vertex* p2 = e->vertex(1);
 					ug::Vertex* p3 = myPairs2[e->vertex(0)];
 					ug::Vertex* p4 = myPairs2[e->vertex(1)];
-					UG_LOGN("Vertices found?");
-					UG_COND_THROW(!p1, "Vertex p1 not found");
-					UG_COND_THROW(!p2, "Vertex p2 not found");
-					UG_COND_THROW(!p3, "Vertex p3 not found");
-					UG_COND_THROW(!p4, "Vertex p4 not found");
-					UG_LOGN("Vertices found!");
+					/// If the distance-based method (see above) to find vertex-vertex
+					/// pairs, then one of the vertices (p3 or p4) will be not available
+					UG_COND_THROW(!p3, "Vertex p3 not found. This means that the "
+							"projection method did not yield unique pairs. But for "
+							"each vertex of one quad to connect to another quad"
+							"we need to have a 1 to 1 relationship for the vertices.");
+					UG_COND_THROW(!p4, "Vertex p4 not found. This means that the"
+							"projection method did not yield unique pairs. But for "
+							"each vertex of one quad to connect to another quad"
+							"we need to have a 1 to 1 relationship for the vertices.");
+
 					/// TODO: Change this possibly. Dummy values to pretend to be
 					/// inside soma for SelectElementsByAxialPosition, scale is
-					/// changed later to be the correct value - Check that this
-					/// is true, then the dummy value can be unchanged below
+					/// changed later to the correct value - Check that this
+					/// is true, then the dummy value can be used below safely
 					aaSurfParams[p1].axial = -scale/2;
 					aaSurfParams[p2].axial = -scale/2;
 					aaSurfParams[p3].axial = -scale/2;
 					aaSurfParams[p4].axial = -scale/2;
 
+					/// consistency check and face creation
 					UG_COND_THROW( ! ((p1 != p2) && (p3 != p4)), "Non-unique vertices provided to create quadrilateral.");
 					ug::Face* f = *g.create<Quadrilateral>(QuadrilateralDescriptor(p1, p3, p4, p2));
 					UG_COND_THROW(!f, "Quadrilateral for connecting inner soma sphere (ER) with inner neurite conneting to outer sphere (PM)");

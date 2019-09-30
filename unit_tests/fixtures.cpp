@@ -57,6 +57,7 @@ struct FixtureEmptyGrid {
 		aaPos = Grid::VertexAttachmentAccessor<APosition>(g, aPosition);
 		sh = SubsetHandler(g);
 		sh.set_default_subset_index(0);
+		BOOST_REQUIRE_MESSAGE(g.num<Vertex>() == 0, "Grid not empty.");
 	}
 };
 
