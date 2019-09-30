@@ -188,13 +188,11 @@ static void DomainAlgebra(Registry& reg, string grp)
 	reg.add_function("exportSolution", &exportSolution<TGridFunction>, grp.c_str(),
 		"", "solution#time#subsetNames#functionNames#outFileName", "outputs solutions to file");
 
-#ifdef NC_WITH_MPM
 	reg.add_function("importSolution", &importSolution<TGridFunction>, grp.c_str(),
 		"", "solution#subset names#function name#input file name",
 		"writes values for the given function and on the given subsets "
 		"from the given file to the given solution vector "
-		"(using the value of the nearest neighbour for each vertex)");
-#endif
+		"(using the value of the nearest neighbor for each vertex)");
 
 	// MarkOutOfRangeElems
 	reg.add_function("MarkOutOfRangeElems", static_cast<void (*) (SmartPtr<IRefiner>, ConstSmartPtr<TGridFunction>, size_t, number, number)>(MarkOutOfRangeElems<TGridFunction>),
