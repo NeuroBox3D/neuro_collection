@@ -104,6 +104,7 @@
 #include "util/measurement.h"
 #include "util/ca_wave_util.h"
 #include "util/axon_util.h"
+#include "util/hh_util.h"
 #include "util/misc_util.h"
 #include "util/neurite_axial_refinement_marker.h"
 #include "util/solution_impexp_util.h"
@@ -194,6 +195,12 @@ static void DomainAlgebra(Registry& reg, string grp)
 		"from the given file to the given solution vector "
 		"(using the value of the nearest neighbour for each vertex)");
 #endif
+
+	// MarkOutOfRangeElems
+	reg.add_function("MarkOutOfRangeElems", static_cast<void (*) (SmartPtr<IRefiner>, ConstSmartPtr<TGridFunction>, size_t, number, number)>(MarkOutOfRangeElems<TGridFunction>),
+		grp.c_str(), "", "refiner # grid function # component # lower bound # upper bound",
+		"Marks elements next to out-of-range DoFs for refinement");
+
 
 	// export all template realizations of RyRImplicit::calculate_steady_state()
 	{
@@ -620,6 +627,7 @@ static void Domain(Registry& reg, string grp)
 	// mark for refinement functions
 	{
 		reg.add_function("mark_global", &mark_global<TDomain>, grp.c_str(), "", "refiner#domain", "");
+		reg.add_function("MarkSubsets", &MarkSubsets<TDomain>, grp.c_str(), "", "refiner#domain#subset names (as vector of string)", "");
 		reg.add_function("mark_anisotropic", &mark_anisotropic<TDomain>, grp.c_str(), "", "refiner#domain#anisotropy threshold (<=1)", "");
 		reg.add_function("mark_anisotropic_x", &mark_anisotropic_onlyX<TDomain>, grp.c_str(), "", "refiner#domain#anisotropy threshold (<=1)", "");
 		reg.add_function("unmark_ranvier_areas", &unmark_ranvier_areas<TDomain>, grp.c_str(), "", "refiner#approx space#ranvier node subsets#unmark", "");
@@ -816,10 +824,15 @@ static void Common(Registry& reg, string grp)
 		reg.add_class_<T, TBase>(name, grp)
 			.add_constructor<void (*)(const char*)>
 				("Functions as comma-separated string with the following order: "
-				 "{\"source\", \"target\"}")
+				 "{\"source concentration\", \"target concentration\" [, "
+				 "\"source potential\", \"target potential\"]}")
 			.add_constructor<void (*)(const std::vector<std::string>&)>
 				("Function vector with the following order: "
-				 "{\"source\", \"target\"}")
+				 "{\"source concentration\", \"target concentration\" [, "
+				 "\"source potential\", \"target potential\"]}")
+			.add_method("set_permeability", &T::set_permeability, "", "permeability", "")
+			.add_method("set_temperature", &T::set_temperature, "", "temperature (K)", "")
+			.add_method("set_valency", &T::set_valency, "", "valency", "")
 			.set_construct_as_smart_pointer(true);
 	}
 	{
@@ -1010,6 +1023,16 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("MarkNeuriteForAxialRefinement", &MarkNeuriteForAxialRefinement, grp.c_str(), "", "refiner#domain", "");
 	}
 #endif
+
+	// Hodgkin Huxley util
+	{
+		reg.add_function("n_inf", &n_infty, grp.c_str(), "", "vm", "calculate n_inf");
+		reg.add_function("m_inf", &m_infty, grp.c_str(), "", "vm", "calculate m_inf");
+		reg.add_function("h_inf", &h_infty, grp.c_str(), "", "vm", "calculate h_inf");
+		reg.add_function("tau_n", &tau_n, grp.c_str(), "", "vm", "calculate tau_n");
+		reg.add_function("tau_m", &tau_m, grp.c_str(), "", "vm", "calculate tau_m");
+		reg.add_function("tau_h", &tau_h, grp.c_str(), "", "vm", "calculate tau_h");
+	}
 }
 
 }; // end Functionality

@@ -58,6 +58,9 @@ namespace neuro_collection {
  * This class implements the MembraneTransport interface to provide current densities
  * and their derivatives for the Hodgkin-Huxley model of voltage-dependent channels.
  *
+ * Current densities go directly to the inner and outer potentials, respectively, instead
+ * of to inner and outer charge densities as in HHCharges or HHSpecies.
+ *
  * Units used in the implementation of this channel:
  * membrane potential     V
  * conductances           S/m^2

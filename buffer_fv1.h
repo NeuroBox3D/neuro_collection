@@ -253,41 +253,9 @@ class BufferFV1
 
 
 	private:
-		void register_all_fv1_funcs();
+		void register_all_fv1_funcs(bool bHang);
 
-		struct RegisterFV1
-		{
-			RegisterFV1(this_type* pThis) : m_pThis(pThis) {};
-			this_type* m_pThis;
-			template<typename TElem > void operator()(TElem&)
-			{
-				if (m_pThis->m_bNonRegularGrid)
-					m_pThis->register_fv1_func<TElem, HFV1Geometry<TElem, dim> >();
-				else
-					m_pThis->register_fv1_func<TElem, FV1Geometry<TElem, dim> >();
-			}
-		};
-
-		template <typename TElem, typename TFVGeom> void register_fv1_func()
-		{
-			ReferenceObjectID id = geometry_traits<TElem>::REFERENCE_OBJECT_ID;
-
-			this->clear_add_fct(id);
-			this->set_prep_elem_loop_fct(	id, &this_type::template prep_elem_loop<TElem, TFVGeom>);
-			this->set_prep_elem_fct(	 	id, &this_type::template prep_elem<TElem, TFVGeom>);
-			this->set_fsh_elem_loop_fct( 	id, &this_type::template fsh_elem_loop<TElem, TFVGeom>);
-			this->set_add_jac_A_elem_fct(	id, &this_type::template add_jac_A_elem<TElem, TFVGeom>);
-			this->set_add_jac_M_elem_fct(	id, &this_type::template add_jac_M_elem<TElem, TFVGeom>);
-			this->set_add_def_A_elem_fct(	id, &this_type::template add_def_A_elem<TElem, TFVGeom>);
-			this->set_add_def_M_elem_fct(	id, &this_type::template add_def_M_elem<TElem, TFVGeom>);
-			this->set_add_rhs_elem_fct(	 	id, &this_type::template add_rhs_elem<TElem, TFVGeom>);
-
-			// error estimator parts
-			this->set_prep_err_est_elem_loop(	id, &this_type::template prep_err_est_elem_loop<TElem, TFVGeom>);
-			this->set_prep_err_est_elem(		id, &this_type::template prep_err_est_elem<TElem, TFVGeom>);
-			this->set_compute_err_est_A_elem(	id, &this_type::template compute_err_est_A_elem<TElem, TFVGeom>);
-			this->set_fsh_err_est_elem_loop(	id, &this_type::template fsh_err_est_elem_loop<TElem, TFVGeom>);
-		}
+		template <typename TElem, typename TFVGeom> void register_fv1_func();
 
 		/// struct holding values of shape functions in IPs
 		struct ShapeValues

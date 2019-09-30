@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 2009-2019: G-CSC, Goethe University Frankfurt
  *
- * Author: Markus Breit
- * Creation date: 2018-10-29
+ * Author: Myra Huymayer
+ * Creation date: 2017-09-21
  *
  * This file is part of NeuroBox, which is based on UG4.
  *
@@ -37,53 +37,85 @@
  * GNU Lesser General Public License for more details.
  */
 
-#ifndef UG__PLUGINS__NEURO_COLLECTION__UTIL__AXON_UTIL_H
-#define UG__PLUGINS__NEURO_COLLECTION__UTIL__AXON_UTIL_H
-
-#include <string>
-
-#include "common/util/smart_pointer.h"  // for SmartPtr, ConstSmartPtr
-#include "lib_grid/refinement/refiner_interface.h"  // for IRefiner (ptr only), Refinement...
+#include "hh_util.h"
+#include <cmath>
 
 
 namespace ug {
-
-// forward declarations
-class IRefiner;
-template <typename TDomain> class ApproximationSpace;
-
 namespace neuro_collection {
 
-///@addtogroup plugin_neuro_collection
-///@{
 
-/**
- * Highly specialized function for anisotropic and adaptive refinement of
- * 2D cylinder-symmetric axonal geometries.
- *
- * It is used to just make a useful refinement work in this case at all.
- * Probably not usable in any other situation.
- *
- * @param refiner         hanging node refiner
- * @param approx          approximation space
- * @param ranvierSubsets  subsets that are considered to be Ranvier nodes
- * @param doUnmark        whether to unmark elements or not
- */
-template <typename TDomain>
-void unmark_ranvier_areas
-(
-	SmartPtr<IRefiner> refiner,
-	SmartPtr<ApproximationSpace<TDomain> > approx,
-	const std::string& ranvierSubsets,
-	bool doUnmark = true
-);
+number alpha_n(number vm)
+{
+	number x = 10.0 - (vm + 65.0);
+	if (std::abs(x) > 1e-7)
+		return 0.01 * x/(std::exp(x/10.0)-1.0);
+
+	return 0.1 - 0.005*x;
+}
+
+number beta_n(number vm)
+{
+	return 0.125*std::exp(-(vm + 65.0)/80.0);
+}
+
+number n_infty(number vm)
+{
+	return alpha_n(vm)/(alpha_n(vm) + beta_n(vm));
+}
+
+number tau_n(number vm)
+{
+	return 1.0/(alpha_n(vm)+beta_n(vm));
+}
 
 
+number alpha_m(number vm)
+{
+	number x = 25.0 - (vm + 65.0);
+	if (fabs(x) > 1e-7)
+		return 0.1 * x/(std::exp(x/10.0)-1.0);
 
-///@}
+	return 1.0 - 0.05*x;
+}
+
+number beta_m(number vm)
+{
+	return 4.0 * std::exp(-(vm + 65.0)/18.0);
+}
+
+number m_infty(number vm)
+{
+	return alpha_m(vm)/(alpha_m(vm) + beta_m(vm));
+}
+
+number tau_m(number vm)
+{
+	return 1.0/(alpha_m(vm) + beta_m(vm));
+}
+
+
+number alpha_h(number vm)
+{
+	return 0.07*std::exp(-(vm + 65.0)/20.0);
+}
+
+number beta_h(number vm)
+{
+	return 1/(std::exp((30.0 - (vm +65.0))/ 10.0 ) + 1.0 );
+}
+
+number h_infty(number vm)
+{
+	return alpha_h(vm)/(alpha_h(vm) + beta_h(vm));
+}
+
+number tau_h(number vm)
+{
+	return 1.0/(alpha_h(vm) + beta_h(vm));
+}
+
+
 
 } // namespace neuro_collection
 } // namespace ug
-
-
-#endif // UG__PLUGINS__NEURO_COLLECTION__UTIL__AXON_UTIL_H

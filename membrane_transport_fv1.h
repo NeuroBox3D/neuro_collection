@@ -61,6 +61,13 @@ class IMembraneTransporter;
  * This class implements the InnerBoundary interface to provide element local
  * assemblings for the unknown-dependent Neumann flux over a membrane, where the flowing
  * unknowns are present on both sides of the membrane.
+ *
+ * It can be used for the discretization of all kinds of trans-membrane transport mechanisms
+ * (channels or pumps), the dynamics of which are defined by objects of the interface class
+ * IMembraneTransporter.
+ * Such an object can be assigned to an object of this class using the method
+ * set_membrane_transporter(). The density of the corresponding channels or pumps needs
+ * to be set using set_density_function().
  */
 template<typename TDomain>
 class MembraneTransportFV1
@@ -210,8 +217,11 @@ class MembraneTransport1d
 		/// adding density information for pumps/channels in membrane
 		void set_density_function(const char* name);
 
-		/// set radius at which membrane is located
+		/// set radius of plasma membrane
 		void set_radius(number r);
+
+		/// set plasma membrane radius fraction at which membrane (ERM or PM) is located
+		void set_radius_factor(number r);
 
 		/// the flux function
 		/**	This is the actual flux function defining the flux density over the boundary
@@ -242,6 +252,9 @@ class MembraneTransport1d
 
 
 	public:	// inherited from IElemDisc
+		/// @copydoc IElemDisc::approximation_space_changed()
+		virtual void approximation_space_changed();
+
 		///	type of trial space for each function used
 		virtual void prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid);
 
@@ -320,7 +333,12 @@ class MembraneTransport1d
 		void register_assembling_funcs();
 
 	protected:
-		number m_radius;
+		number m_radiusFactor;
+		number m_constRadius;
+		bool m_bConstRadiusSet;
+		ANumber m_aDiameter;									 ///< diameter attachment
+		Grid::AttachmentAccessor<Vertex, ANumber> m_aaDiameter;  ///< diameter attachment accessor
+
 		SmartPtr<CplUserData<number,dim> > m_spDensityFct;
 		SmartPtr<IMembraneTransporter> m_spMembraneTransporter;
 

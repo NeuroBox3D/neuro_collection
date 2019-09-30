@@ -107,8 +107,8 @@ size_t NCX::n_fluxes() const
 const std::pair<size_t,size_t> NCX::flux_from_to(size_t flux_i) const
 {
 	size_t from, to;
-	if (allows_flux(_CCYT_)) from = local_fct_index(_CCYT_); else from = InnerBoundaryConstants::_IGNORE_;
-	if (allows_flux(_CEXT_)) to = local_fct_index(_CEXT_); else to = InnerBoundaryConstants::_IGNORE_;
+	if (is_supplied(_CCYT_)) from = local_fct_index(_CCYT_); else from = InnerBoundaryConstants::_IGNORE_;
+	if (is_supplied(_CEXT_)) to = local_fct_index(_CEXT_); else to = InnerBoundaryConstants::_IGNORE_;
 
 	return std::pair<size_t, size_t>(from, to);
 }
@@ -124,7 +124,7 @@ void NCX::check_supplied_functions() const
 {
 	// Check that not both, inner and outer calcium concentrations are not supplied;
 	// in that case, calculation of a flux would be of no consequence.
-	if (!allows_flux(_CCYT_) && !allows_flux(_CEXT_))
+	if (!is_supplied(_CCYT_) && !is_supplied(_CEXT_))
 	{
 		UG_THROW("Supplying neither cytosolic nor extracellular calcium concentrations is not allowed.\n"
 				"This would mean that the flux calculation would be of no consequence\n"

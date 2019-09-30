@@ -58,7 +58,12 @@ template <typename TDomain> class ApproximationSpace;
 namespace neuro_collection {
 
 
-/// mark elements adjacent to given surfaces
+/**
+ * @brief Mark elements adjacent to given surfaces
+ *
+ * This marking strategy is useful to refine the vicinity of a membrane,
+ * which is useful as most of the intracellular activity happens at the membranes.
+ */
 template <typename TDomain>
 class SurfaceMarking : public IElementMarkingStrategy<TDomain>
 {

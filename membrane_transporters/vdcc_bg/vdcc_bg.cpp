@@ -41,8 +41,8 @@
 #include "lib_disc/spatial_disc/disc_util/geom_provider.h"  // for GeomProvider
 #include "lib_disc/spatial_disc/elem_disc/inner_boundary/inner_boundary.h"	// InnerBoundaryConstants
 
-namespace ug{
-namespace neuro_collection{
+namespace ug {
+namespace neuro_collection {
 
 
 static std::vector<std::string> removeEmptyFunctionNames(const std::vector<std::string>& vFct)
@@ -70,7 +70,9 @@ VDCC_BG<TDomain>::VDCC_BG
   m_sh(m_dom->subset_handler()), m_aaPos(m_dom->position_accessor()), m_vSubset(subsets),
   m_localIndicesOffset(0),
   m_gpMGate(3.4, -21.0, 1.5), m_gpHGate(-2.0, -40.0, 75.0), m_time(0.0), m_oldTime(0.0),
-  m_perm(3.8e-19), m_mp(2), m_hp(1), m_channelType(BG_Ltype), m_initiated(false)
+  m_perm(3.8e-19), m_mp(2), m_hp(1), m_channelType(BG_Ltype),
+  m_bUseGatingAttachments(true),
+  m_initiated(false)
 {
 	after_construction();
 }
@@ -89,7 +91,9 @@ VDCC_BG<TDomain>::VDCC_BG
   m_sh(m_dom->subset_handler()), m_aaPos(m_dom->position_accessor()), m_vSubset(TokenizeString(subsets)),
   m_localIndicesOffset(0),
   m_gpMGate(3.4, -21.0, 1.5), m_gpHGate(-2.0, -40.0, 75.0), m_time(0.0), m_oldTime(0.0),
-  m_perm(3.8e-19), m_mp(2), m_hp(1), m_channelType(BG_Ltype), m_initiated(false)
+  m_perm(3.8e-19), m_mp(2), m_hp(1), m_channelType(BG_Ltype),
+  m_bUseGatingAttachments(true),
+  m_initiated(false)
 {
 	after_construction();
 }
@@ -103,11 +107,11 @@ void VDCC_BG<TDomain>::after_construction()
 	for (size_t i = 0; i < m_vSubset.size(); ++i)
 		RemoveWhitespaceFromString(m_vSubset[i]);
 
-	//	if no subset passed, clear subsets
+	// if no subset passed, clear subsets
 	if (m_vSubset.size() == 1 && m_vSubset[0].empty())
 		m_vSubset.clear();
 
-	//	if subsets passed with separator, but not all tokens filled, throw error
+	// if subsets passed with separator, but not all tokens filled, throw error
 	for (size_t i = 0; i < m_vSubset.size(); ++i)
 	{
 		if (m_vSubset[i].empty())
@@ -118,10 +122,37 @@ void VDCC_BG<TDomain>::after_construction()
 		}
 	}
 
-	// if a subset is empty (that can only be one of the first)
-	// the IElemDisc local indices are set off by 1
-	if (!allows_flux(_CCYT_) || !allows_flux(_CEXT_))
+	// if a function name is empty the IElemDisc local indices are set off by 1
+	if (!is_supplied(_CCYT_) || !is_supplied(_CEXT_))
 		m_localIndicesOffset = 1;
+
+	// if all gating variables are provided, use them instead of attachments
+	// we initialize with an L-type channel which does not have an h-gate,
+	// so we only check for m here; if the channel type is reset, we need to recheck!
+	if (is_supplied(_M_))
+		m_bUseGatingAttachments = false;
+	else
+	{
+		// attach attachments
+		if (m_mg->template has_attachment<side_t>(this->m_MGate))
+			UG_THROW("Attachment necessary for Borg-Graham channel dynamics "
+				"could not be made, since it already exists.");
+		m_mg->template attach_to<side_t>(this->m_MGate);
+
+		if (has_hGate())
+		{
+			if (m_mg->template has_attachment<side_t>(this->m_HGate))
+				UG_THROW("Attachment necessary for Borg-Graham channel dynamics "
+					"could not be made, since it already exists.");
+			m_mg->template attach_to<side_t>(this->m_HGate);
+		}
+
+		// create attachment accessors
+		m_aaMGate = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_MGate);
+		if (has_hGate())
+			m_aaHGate = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_HGate);
+	}
+
 
 	// attach voltage attachment and create accessor
 	if (m_mg->template has_attachment<side_t>(this->m_Vm))
@@ -138,6 +169,11 @@ void VDCC_BG<TDomain>::after_construction()
 template<typename TDomain>
 VDCC_BG<TDomain>::~VDCC_BG()
 {
+	if (m_bUseGatingAttachments)
+	{
+		m_mg->template detach_from<side_t>(this->m_MGate);
+		m_mg->template detach_from<side_t>(this->m_HGate);
+	}
 	m_mg->template detach_from<side_t>(this->m_Vm);
 }
 
@@ -150,16 +186,96 @@ number VDCC_BG<TDomain>::calc_gating_start(const GatingParams& gp, number Vm) co
 
 
 template<typename TDomain>
+void VDCC_BG<TDomain>::calc_gating_step(GatingParams& gp, number Vm, number dt, number& currVal)
+{
+	const number gp_inf = calc_gating_start(gp,Vm);
+
+	// forward step: implicit
+	if (dt >= 0)
+	{
+		// For calculating the next gating step it is recommended to use a time step
+		// size no larger than 1e-5s = 1e-2ms in order to meet a sufficient accuracy.
+		if (dt > 1e-2)
+		{
+			number vdcc_dt = 1e-2;
+			number t0 = 0.0;
+
+			// loop intermediate time steps until the current intermediate time point
+			// is the final time point dt
+			while (t0 < dt)
+			{
+				// compute next time point
+				number t = t0 + vdcc_dt;
+
+				// check if out of bounds, if yes:
+				// set to final time point and adjust step size accordingly
+				if (t > dt)
+				{
+					t = dt;
+					vdcc_dt = dt - t0;
+				}
+
+				// compute next gating value
+				currVal = (gp.tau_0*currVal + vdcc_dt*gp_inf) / (gp.tau_0 + vdcc_dt);
+
+				// save new time as current time
+				t0 = t;
+			}
+		}
+		// sufficiently small time step size already specified
+		else
+			currVal = (gp.tau_0*currVal + dt*gp_inf) / (gp.tau_0 + dt);
+	}
+
+	// backward step: explicit
+	else
+	{
+		// For calculating the next gating step it is recommended to use a time step
+		// size no larger than 1e-5s = 1e-2ms in order to meet a sufficient accuracy.
+		if (dt < -1e-2)
+		{
+			number vdcc_dt = -1e-2;
+			number t0 = 0.0;
+
+			// loop intermediate time steps until the current intermediate time point
+			// is the final time point dt
+			while (t0 > dt)
+			{
+				// compute next time point
+				number t = t0 + vdcc_dt;
+
+				// check if out of bounds, if yes:
+				// set to final time point and adjust step size accordingly
+				if (t < dt)
+				{
+					t = dt;
+					vdcc_dt = dt - t0;
+				}
+
+				// compute next gating value
+				currVal += vdcc_dt/gp.tau_0 * (gp_inf - currVal);
+
+				// save new time as current time
+				t0 = t;
+			}
+		}
+		// sufficiently small time step size already specified
+		currVal += dt/gp.tau_0 * (gp_inf - currVal);
+	}
+}
+
+
+template<typename TDomain>
 void VDCC_BG<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
 {
 	side_t* elem = dynamic_cast<side_t*>(e);
 	if (!elem) UG_THROW("OneSidedBorgGrahamFV1 fluxDensityFunction called with the wrong type of element.");
 
-	const number mGate = u[_M_];
+	const number mGate = m_bUseGatingAttachments ? m_aaMGate[elem] : u[_M_];
 	number gating = pow(mGate, m_mp);
 	if (has_hGate())
 	{
-		const number hGate = u[_H_];
+		const number hGate = m_bUseGatingAttachments ? m_aaHGate[elem] : u[_H_];
 		gating *= pow(hGate, m_hp);
 	}
 
@@ -189,13 +305,13 @@ void VDCC_BG<TDomain>::calc_flux_deriv(const std::vector<number>& u, GridObject*
 	side_t* elem = dynamic_cast<side_t*>(e);
 	if (!elem) UG_THROW("OneSidedBorgGrahamFV1 fluxDensityFunction called with the wrong type of element.");
 
-	const number mGate = u[_M_];
+	const number mGate = m_bUseGatingAttachments ? m_aaMGate[elem] : u[_M_];
 	number gating = pow(mGate, m_mp);
 	number dGatingdM = m_mp * pow(mGate, m_mp - 1);
 	number dGatingdH = gating;
 	if (has_hGate())
 	{
-		const number hGate = u[_H_];
+		const number hGate = m_bUseGatingAttachments ? m_aaHGate[elem] : u[_H_];
 		gating *= pow(hGate, m_hp);
 		dGatingdM *= pow(hGate, m_hp);
 		dGatingdH *= m_hp * pow(hGate, m_hp - 1);
@@ -226,22 +342,26 @@ void VDCC_BG<TDomain>::calc_flux_deriv(const std::vector<number>& u, GridObject*
 	{
 		flux_derivs[0][i].first = local_fct_index(_CCYT_);
 		flux_derivs[0][i].second = gating * dMaxFlux_dCyt;
-		++i;
 	}
 	if (!has_constant_value(_CEXT_))
 	{
+		++i;
 		flux_derivs[0][i].first = local_fct_index(_CEXT_);
 		flux_derivs[0][i].second = gating * dMaxFlux_dExt;
-		++i;
 	}
-	flux_derivs[0][i].first = local_fct_index(_M_);
-	flux_derivs[0][i].second = dGatingdM * maxFlux;
-	++i;
-	if (has_hGate())
+
+	if (!m_bUseGatingAttachments)
 	{
-		flux_derivs[0][i].first = local_fct_index(_H_);
-		flux_derivs[0][i].second = dGatingdH * maxFlux;
 		++i;
+		flux_derivs[0][i].first = local_fct_index(_M_);
+		flux_derivs[0][i].second = dGatingdM * maxFlux;
+
+		if (has_hGate())
+		{
+			++i;
+			flux_derivs[0][i].first = local_fct_index(_H_);
+			flux_derivs[0][i].second = dGatingdH * maxFlux;
+		}
 	}
 }
 
@@ -252,7 +372,11 @@ size_t VDCC_BG<TDomain>::n_dependencies() const
 	size_t n = 4;
 	if (has_constant_value(_CCYT_)) --n;
 	if (has_constant_value(_CEXT_)) --n;
-	if (!has_hGate()) --n;
+	if (m_bUseGatingAttachments)
+		n -= 2;
+	else
+		if (!has_hGate())
+			--n;
 
 	return n;
 }
@@ -269,8 +393,8 @@ template<typename TDomain>
 const std::pair<size_t,size_t> VDCC_BG<TDomain>::flux_from_to(size_t flux_i) const
 {
 	size_t from, to;
-	if (allows_flux(_CCYT_)) to = local_fct_index(_CCYT_); else to = InnerBoundaryConstants::_IGNORE_;
-	if (allows_flux(_CEXT_)) from = local_fct_index(_CEXT_); else from = InnerBoundaryConstants::_IGNORE_;
+	if (is_supplied(_CCYT_)) to = local_fct_index(_CCYT_); else to = InnerBoundaryConstants::_IGNORE_;
+	if (is_supplied(_CEXT_)) from = local_fct_index(_CEXT_); else from = InnerBoundaryConstants::_IGNORE_;
 
 	return std::pair<size_t, size_t>(from, to);
 }
@@ -288,14 +412,17 @@ void VDCC_BG<TDomain>::check_supplied_functions() const
 {
 	// Check that not both, inner and outer calcium concentrations are not supplied;
 	// in that case, calculation of a flux would be of no consequence.
-	if (!allows_flux(_CCYT_) && !allows_flux(_CEXT_))
+	if (!is_supplied(_CCYT_) && !is_supplied(_CEXT_))
 	{
 		UG_THROW("Supplying neither cytosolic nor extracellular calcium concentrations is not allowed.\n"
 				"This would mean that the flux calculation would be of no consequence\n"
 				"and this channel would not do anything.");
 	}
-	UG_COND_THROW(!allows_flux(_M_), "Function for gating variable m must be provided.");
-	UG_COND_THROW(has_hGate() && !allows_flux(_H_), "Function for gating variable h must be provided.");
+	if (!m_bUseGatingAttachments)
+	{
+		UG_COND_THROW(!is_supplied(_M_), "Function for gating variable m must be provided.");
+		UG_COND_THROW(has_hGate() && !is_supplied(_H_), "Function for gating variable h must be provided.");
+	}
 }
 
 
@@ -343,11 +470,38 @@ void VDCC_BG<TDomain>::init(number time)
 		itType iterBegin = m_dd->template begin<side_t>(ssGrp[si]);
 		itType iterEnd = m_dd->template end<side_t>(ssGrp[si]);
 		for (itType iter = iterBegin; iter != iterEnd; ++iter)
+		{
 			update_potential(*iter);
+
+			if (m_bUseGatingAttachments)
+			{
+				// calculate corresponding start condition for gates
+				const number vm = m_aaVm[*iter];
+				m_aaMGate[*iter] = calc_gating_start(m_gpMGate, 1e3*vm);
+				if (has_hGate())
+					m_aaHGate[*iter] = calc_gating_start(m_gpHGate, 1e3*vm);
+			}
+		}
 	}
 
 	this->m_initiated = true;
 }
+
+
+template<typename TDomain>
+void VDCC_BG<TDomain>::update_gating(side_t* elem)
+{
+	if (!this->m_initiated)
+		UG_THROW("Borg-Graham not initialized.\n"
+			<< "Do not forget to do so before any updates by calling init(initTime).");
+
+	// set new gating particle values
+	number dt = 1e3*(m_time - m_oldTime);   // calculating in ms
+	calc_gating_step(m_gpMGate, 1e3*m_aaVm[elem], dt, m_aaMGate[elem]);
+	if (has_hGate())
+		calc_gating_step(m_gpHGate, 1e3*m_aaVm[elem], dt, m_aaHGate[elem]);
+}
+
 
 template<typename TDomain>
 void VDCC_BG<TDomain>::update_time(const number newTime)
@@ -366,27 +520,55 @@ void VDCC_BG<TDomain>::prepare_timestep
 )
 {
     // initiate if this has not already been done (or init again; stationary case)
-    if (!m_initiated || future_time == m_initTime)
-        init(time);
+	if (!m_initiated || future_time == m_initTime)
+		init(time);
 
 	update_time(future_time);
+	const bool backwardsStep = m_time < m_oldTime;
 
     // TODO: Think about updating only on the base level and then propagating upwards.
     //       Typically, the potential does not need very fine resolution.
     //       This would save a lot of work for very fine surface levels.
-    typedef typename DoFDistribution::traits<side_t>::const_iterator it_type;
+	typedef typename DoFDistribution::traits<side_t>::const_iterator it_type;
 	SubsetGroup ssGrp;
-    try { ssGrp = SubsetGroup(m_dom->subset_handler(), this->m_vSubset);}
-    UG_CATCH_THROW("Subset group creation failed.");
-    const size_t nSs = ssGrp.size();
-    for (size_t si = 0; si < nSs; ++si)
-    {
-        // loop sides and update potential
-        it_type it = m_dd->begin<side_t>(ssGrp[si]);
-        it_type it_end = m_dd->end<side_t>(ssGrp[si]);
-        for (; it != it_end; ++it)
-			update_potential(*it);
-    }
+	try { ssGrp = SubsetGroup(m_dom->subset_handler(), this->m_vSubset);}
+	UG_CATCH_THROW("Subset group creation failed.");
+	const size_t nSs = ssGrp.size();
+	for (size_t si = 0; si < nSs; ++si)
+	{
+		// loop sides and update potential (and gatings, if needed)
+		it_type it = m_dd->begin<side_t>(ssGrp[si]);
+		it_type it_end = m_dd->end<side_t>(ssGrp[si]);
+		if (m_bUseGatingAttachments)
+		{
+			// in case of a backwards step, we have to first rewind the gating
+			// with the latest potential, then the potential itself,
+			// otherwise, we can update the potential and then the gatings
+			//
+			if (backwardsStep)
+			{
+				for (; it != it_end; ++it)
+				{
+					update_gating(*it);
+					update_potential(*it);
+				}
+			}
+			else
+			{
+				for (; it != it_end; ++it)
+				{
+					update_potential(*it);
+					update_gating(*it);
+				}
+			}
+		}
+		else
+		{
+			// we simply update all potentials
+			for (; it != it_end; ++it)
+				update_potential(*it);
+		}
+	}
 }
 
 
@@ -398,6 +580,13 @@ void VDCC_BG<TDomain>::prepare_timestep
 template<typename TDomain>
 void VDCC_BG<TDomain>::prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid)
 {
+	// check that we are not using attachment mode
+	UG_COND_THROW(m_bUseGatingAttachments,
+		"The VDCC_BG class is using attachments for the gating variables.\n"
+		"It can therefore not be used as an element discretization for their update.\n"
+		"Either do not add it to the domain discretization or provide the necessary\n"
+		"gating variable functions in the constructor.");
+
 	// check that Lagrange 1st order
 	for (size_t i = 0; i < vLfeID.size(); ++i)
 		if (vLfeID[i].type() != LFEID::LAGRANGE || vLfeID[i].order() != 1)

@@ -91,6 +91,7 @@ set(SOURCES neuro_collection_plugin.cpp
             grid_generation/dendrite_generator.cpp
             grid_generation/spine_generation.cpp
             util/axon_util.cpp
+            util/hh_util.cpp
             util/misc_util.cpp
             util/neurite_axial_refinement_marker.cpp
    )

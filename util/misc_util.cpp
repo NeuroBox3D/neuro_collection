@@ -74,6 +74,44 @@ void mark_global(SmartPtr<IRefiner> refiner, SmartPtr<TDomain> domain)
 
 
 template <typename TDomain>
+void MarkSubsets
+(
+	SmartPtr<IRefiner> refiner,
+	SmartPtr<TDomain> domain,
+	const std::vector<std::string>& vSubset
+)
+{
+	typedef typename domain_traits<TDomain::dim>::element_type elem_type;
+	typedef typename SurfaceView::traits<elem_type>::const_iterator const_iterator;
+
+	// get subset handler
+	SmartPtr<MGSubsetHandler> sh = domain->subset_handler();
+
+	// transform subset names to indices
+	std::vector<bool> contained(sh->num_subsets(), false);
+	{
+		SubsetGroup ssg(sh);
+		try {ssg.add(vSubset);}
+		UG_CATCH_THROW("MarkSubsets failed to add subsets.");
+
+		const size_t nSs = ssg.size();
+		for (size_t i = 0; i < nSs; ++i)
+			contained[ssg[i]] = true;
+	}
+
+	// get surface view
+	SurfaceView sv(sh);
+
+	// loop elements for marking
+	const_iterator iter = sv.begin<elem_type>(GridLevel(), SurfaceView::ALL_BUT_SHADOW_COPY);
+	const_iterator iterEnd = sv.end<elem_type>(GridLevel(), SurfaceView::ALL_BUT_SHADOW_COPY);
+	for (; iter != iterEnd; ++iter)
+		if (contained[sh->get_subset_index(*iter)])
+			refiner->mark(*iter, RM_FULL);
+}
+
+
+template <typename TDomain>
 void mark_anisotropic
 (
 	SmartPtr<IRefiner> refiner,
@@ -434,18 +472,21 @@ bool SaveGridToFile(Grid& grid, ISubsetHandler& sh, const std::string& fileName)
 // explicit template specializations
 #ifdef UG_DIM_1
 	template void mark_global<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>);
+	template void MarkSubsets<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>, const std::vector<std::string>&);
 	template void mark_anisotropic<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>, number);
 	template void mark_anisotropic_onlyX<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>, number);
 	template void RemoveAllNonDefaultRefinementProjectors(SmartPtr<Domain1d>);
 #endif
 #ifdef UG_DIM_2
 	template void mark_global<Domain2d>(SmartPtr<IRefiner>, SmartPtr<Domain2d>);
+	template void MarkSubsets<Domain2d>(SmartPtr<IRefiner>, SmartPtr<Domain2d>, const std::vector<std::string>&);
 	template void mark_anisotropic<Domain2d>(SmartPtr<IRefiner>, SmartPtr<Domain2d>, number);
 	template void mark_anisotropic_onlyX<Domain2d>(SmartPtr<IRefiner>, SmartPtr<Domain2d>, number);
 	template void RemoveAllNonDefaultRefinementProjectors(SmartPtr<Domain2d>);
 #endif
 #ifdef UG_DIM_3
 	template void mark_global<Domain3d>(SmartPtr<IRefiner>, SmartPtr<Domain3d>);
+	template void MarkSubsets<Domain3d>(SmartPtr<IRefiner>, SmartPtr<Domain3d>, const std::vector<std::string>&);
 	template void mark_anisotropic<Domain3d>(SmartPtr<IRefiner>, SmartPtr<Domain3d>, number);
 	template void mark_anisotropic_onlyX<Domain3d>(SmartPtr<IRefiner>, SmartPtr<Domain3d>, number);
 	template void RemoveAllNonDefaultRefinementProjectors(SmartPtr<Domain3d>);

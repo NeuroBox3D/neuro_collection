@@ -59,7 +59,7 @@ namespace neuro_collection {
 /// Borg Graham type VGCCs with membrane potential supply by UG's cable_neuron project.
 /** This class is a specialization of the Borg-Graham interface.
  *  It supplies the channel with the necessary membrane potential values by an object of
- *  cable_neuron::CableEquation object discretizing a 1d representation of a 3d geometry.
+ *  cable_neuron::CableEquation class discretizing a 1d representation of a 3d geometry.
 **/
 
 template <typename TDomain>

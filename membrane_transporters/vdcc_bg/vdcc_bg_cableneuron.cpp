@@ -268,7 +268,11 @@ void VDCC_BG_CN<TDomain>::prepare_timestep(number future_time, const number time
     if (future_time <= m_curTime)
     {
         // we may need to update the potential mapping (after redistribution)
-        m_spHNC->coordinate_potential_values();
+        // more importantly: in case of adaptive refinement!
+    	m_spHNC->coordinate_potential_values();
+
+        // call regular prep timestep from base class
+        VDCC_BG<TDomain>::prepare_timestep(future_time, time, upb);
 
         return;
     }

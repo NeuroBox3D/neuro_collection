@@ -61,10 +61,28 @@ namespace neuro_collection {
 ///@addtogroup plugin_neuro_collection
 ///@{
 
+
+/// Mark all surface elements for refinement.
 template <typename TDomain>
 void mark_global(SmartPtr<IRefiner> refiner, SmartPtr<TDomain> domain);
 
 
+/// Mark all surface elements of specific subsets for refinement.
+template <typename TDomain>
+void MarkSubsets
+(
+	SmartPtr<IRefiner> refiner,
+	SmartPtr<TDomain> domain,
+	const std::vector<std::string>& vSubset
+);
+
+
+/**
+ * @brief Mark all anisotropic elements of the surface grid for ansiotropic refinement
+ *
+ * Whether an element is isotropic or not is decided using the is_anisotropic() functions
+ * from lib_grid's anisotropy_util and the given threshold ratio.
+ */
 template <typename TDomain>
 void mark_anisotropic
 (
@@ -74,6 +92,16 @@ void mark_anisotropic
 );
 
 
+/**
+ * @brief Mark all elements that are anisotropic in direction of the x-axis for ansiotropic refinement
+ *
+ * Whether an element is isotropic or not is decided using the is_anisotropic() functions
+ * from lib_grid's anisotropy_util and the given threshold ratio.
+ *
+ * "Anisotropic in direction of the x-axis" means that the long edges (only the first one is checked)
+ * point more or less in x-direction, to be precise: the normalized vector connecting this edge's
+ * vertices has an x-entry of more than 0.9.
+ */
 template <typename TDomain>
 void mark_anisotropic_onlyX
 (
@@ -83,7 +111,45 @@ void mark_anisotropic_onlyX
 );
 
 
+/**
+ * @brief Mark a neurite for axial refinement
+ *
+ * This function is aimed at the refinement of coarse grids created using the neurites_from_swc
+ * functions, which contain anisotropic hexahedra in the neurites, but isotropic hexahedra
+ * in the branching points.
+ * The goal is to automatically detect whether an element belongs to a neurite or a branching
+ * point and refine anisotropically (only axially) in the neurites and by copying (no refinement)
+ * in the branching points.
+ *
+ * @deprecated This function does not work properly and has been replaced by the class
+ *             NeuriteAxialRefinementMarker.
+ */
 void MarkNeuriteForAxialRefinement(SmartPtr<IRefiner> refiner, SmartPtr<Domain3d> domain);
+
+
+/**
+ *	Marks for refinement all (full-dim) elements neighboring grid elements
+ *	that contain a degree of freedom (Lagrangian) whose value is outside a
+ *	given range.
+ *
+ *	This function can be used to adaptively refine geometries with Q1 shape
+ *	functions, which can become negative, e.g., in diffusion problems.
+ *
+ * @param refiner     refiner for hanging node refinement
+ * @param u           solution grid function
+ * @param cmp         component to check
+ * @param lowerBnd    lower bound
+ * @param upperBnd    upper bound
+ */
+template <typename TGridFunction>
+void MarkOutOfRangeElems
+(
+	SmartPtr<IRefiner> refiner,
+	ConstSmartPtr<TGridFunction> u,
+	size_t cmp,
+	number lowerBnd,
+	number upperBnd
+);
 
 
 template <typename TDomain>
@@ -97,5 +163,7 @@ bool SaveGridToFile(Grid& grid, ISubsetHandler& sh, const std::string& fileName)
 } // namespace ug
 } // namespace neuro_collection
 
+
+#include "misc_util_impl.h"
 
 #endif // UG__PLUGINS__NEURO_COLLECTION__UTIL__MISC_UTIL_H

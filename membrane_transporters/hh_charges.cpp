@@ -214,8 +214,8 @@ const std::pair<size_t,size_t> HHCharges<TDomain>::flux_from_to(size_t flux_i) c
 {
 	// current goes from the inside charge density to the outside charge density
 	size_t from, to;
-	if (allows_flux(_RHOO_)) to = local_fct_index(_RHOO_); else to = InnerBoundaryConstants::_IGNORE_;
-	if (allows_flux(_RHOI_)) from = local_fct_index(_RHOI_); else from = InnerBoundaryConstants::_IGNORE_;
+	if (is_supplied(_RHOO_)) to = local_fct_index(_RHOO_); else to = InnerBoundaryConstants::_IGNORE_;
+	if (is_supplied(_RHOI_)) from = local_fct_index(_RHOI_); else from = InnerBoundaryConstants::_IGNORE_;
 
 	return std::pair<size_t, size_t>(from, to);
 }
@@ -233,7 +233,7 @@ void HHCharges<TDomain>::check_supplied_functions() const
 {
 	// Check that not both, inner and outer charge are not supplied;
 	// in that case, calculation of a current would be of no consequence.
-	if (!allows_flux(_RHOI_) && !allows_flux(_RHOO_))
+	if (!is_supplied(_RHOI_) && !is_supplied(_RHOO_))
 	{
 		UG_THROW("Supplying neither inner nor outer charge density is not allowed.\n"
 				"This would mean that the current calculation would be of no consequence\n"

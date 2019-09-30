@@ -276,13 +276,13 @@ const std::pair<size_t,size_t> HHSpecies<TDomain>::flux_from_to(size_t flux_i) c
 	size_t from, to;
 	if (flux_i == 0)
 	{
-		to = allows_flux(_KO_) ? local_fct_index(_KO_) : InnerBoundaryConstants::_IGNORE_;
-		from = allows_flux(_KI_) ? local_fct_index(_KI_) : InnerBoundaryConstants::_IGNORE_;
+		to = is_supplied(_KO_) ? local_fct_index(_KO_) : InnerBoundaryConstants::_IGNORE_;
+		from = is_supplied(_KI_) ? local_fct_index(_KI_) : InnerBoundaryConstants::_IGNORE_;
 	}
 	else if (flux_i == 1)
 	{
-		to = allows_flux(_NAO_) ? local_fct_index(_NAO_) : InnerBoundaryConstants::_IGNORE_;
-		from = allows_flux(_NAI_) ? local_fct_index(_NAI_) : InnerBoundaryConstants::_IGNORE_;
+		to = is_supplied(_NAO_) ? local_fct_index(_NAO_) : InnerBoundaryConstants::_IGNORE_;
+		from = is_supplied(_NAI_) ? local_fct_index(_NAI_) : InnerBoundaryConstants::_IGNORE_;
 	}
 	else UG_THROW("Flux only has 2 components, but component " << flux_i << " was queried for.");
 
@@ -302,13 +302,13 @@ void HHSpecies<TDomain>::check_supplied_functions() const
 {
 	// Check that not both, inner and outer K+/Na+ concentrations are not supplied;
 	// in that case, calculation of a current would be of no consequence.
-	if (!allows_flux(_KI_) && !allows_flux(_KO_))
+	if (!is_supplied(_KI_) && !is_supplied(_KO_))
 	{
 		UG_THROW("Supplying neither inner nor outer Na concentration is not allowed.\n"
 				"This would mean that the current calculation would be of no consequence\n"
 				"and this channel would not do anything.");
 	}
-	if (!allows_flux(_NAI_) && !allows_flux(_NAO_))
+	if (!is_supplied(_NAI_) && !is_supplied(_NAO_))
 	{
 		UG_THROW("Supplying neither inner nor outer Na concentration is not allowed.\n"
 				"This would mean that the current calculation would be of no consequence\n"

@@ -44,14 +44,20 @@ namespace ug{
 namespace neuro_collection{
 
 
-Leak::Leak(const std::vector<std::string>& fcts) : IMembraneTransporter(fcts)
+Leak::Leak(const std::vector<std::string>& fcts)
+: IMembraneTransporter(fcts),
+  m_perm(1.0), m_temp(298.15), m_z(1), m_bNoVoltage(false)
 {
-	// nothing to do
+	if (!is_supplied(_PHIS_) && !is_supplied(_PHIT_))
+		m_bNoVoltage = true;
 }
 
-Leak::Leak(const char* fcts) : IMembraneTransporter(fcts)
+Leak::Leak(const char* fcts)
+: IMembraneTransporter(fcts),
+  m_perm(1.0), m_temp(298.15), m_z(1), m_bNoVoltage(false)
 {
-	// nothing to do
+	if (!is_supplied(_PHIS_) && !is_supplied(_PHIT_))
+		m_bNoVoltage = true;
 }
 
 Leak::~Leak()
@@ -59,37 +65,122 @@ Leak::~Leak()
 	// nothing to do
 }
 
+void Leak::set_permeability(number p)
+{
+	m_perm = p;
+}
+
+
+void Leak::set_temperature(number t)
+{
+	m_temp = t;
+}
+
+void Leak::set_valency(int v)
+{
+	m_z = v;
+}
+
+
 void Leak::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
 {
 	number source_conc = u[_S_];	// source concentration
 	number target_conc = u[_T_];	// target concentration
+	if (m_bNoVoltage)
+	{
+		flux[0] = m_perm * (source_conc - target_conc);
+		return;
+	}
 
-	// membrane current corresponding to diffusion pressure
-	// cheating a little here: utilizing density for leakage flux "density" constant,
-	// since the leakage flux is not really caused by a density, but depends of course
-	// on the densities of all the pumps/channels in the membrane and is therefore
-	// position/subset dependent
+	number source_pot = u[_PHIS_];	// source potential
+	number target_pot = u[_PHIT_];	// target potential
 
-	// the actual flux density is flux[0] * density_fct
-	flux[0] = source_conc-target_conc;
+	const number zfrt = m_z*96485.0 / (8.31451 * m_temp);
+	const number v =  target_pot - source_pot;
+	if (fabs(v) < 1e-8)
+		flux[0] = m_perm * (source_conc - target_conc) * (1.0 - 0.5*v*zfrt);
+	else
+		flux[0] = - m_perm * zfrt * v * (source_conc - target_conc * exp(zfrt*v)) / (1.0 - exp(zfrt*v));
 }
 
 
 void Leak::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
+	if (m_bNoVoltage)
+	{
+		size_t i = 0;
+		if (!has_constant_value(_S_))
+		{
+			flux_derivs[0][i].first = local_fct_index(_S_);
+			flux_derivs[0][i].second = m_perm;
+			++i;
+		}
+		if (!has_constant_value(_T_))
+		{
+			flux_derivs[0][i].first = local_fct_index(_T_);
+			flux_derivs[0][i].second = -m_perm;
+		}
+
+		return;
+	}
+
+	number source_conc = u[_S_];	// source concentration
+	number target_conc = u[_T_];	// target concentration
+	number source_pot = u[_PHIS_];	// source potential
+	number target_pot = u[_PHIT_];	// target potential
+
+	const number zfrt = m_z*96485.0 / (8.31451 * m_temp);
+	const number v =  target_pot - source_pot;
+
+	number dcs = 0.0;
+	number dct = 0.0;
+	number dps = 0.0;
+	number dpt = 0.0;
+	if (fabs(v) < 1e-8)
+	{
+		dcs = m_perm * (1.0 - 0.5*v*zfrt);
+		dct = - dcs;
+		dps = 0.5 * m_perm * (source_conc - target_conc) * zfrt;
+		dpt = -dps;
+	}
+	else
+	{
+		dcs = - m_perm * zfrt * v / (1.0 - exp(zfrt*v));
+		dct = - m_perm * zfrt * v / (1.0 - exp(-zfrt*v));
+
+		number in = zfrt*v;
+		number ex = exp(in);
+		dps = m_perm * zfrt * (source_conc*(1.0 - (1.0 - in)*ex) + target_conc*ex*(ex - 1.0 - in))
+						/ ((1.0 - ex) * (1.0 - ex));
+		dpt = - dps;
+	}
+
 	size_t i = 0;
 	if (!has_constant_value(_S_))
 	{
 		flux_derivs[0][i].first = local_fct_index(_S_);
-		flux_derivs[0][i].second = 1.0;
-		i++;
+		flux_derivs[0][i].second = dcs;
+		++i;
 	}
 	if (!has_constant_value(_T_))
 	{
 		flux_derivs[0][i].first = local_fct_index(_T_);
-		flux_derivs[0][i].second = -1.0;
-		i++;
+		flux_derivs[0][i].second = dct;
+		++i;
 	}
+	if (!has_constant_value(_PHIS_))
+	{
+		flux_derivs[0][i].first = local_fct_index(_PHIS_);
+		flux_derivs[0][i].second = dps;
+		++i;
+	}
+	if (!has_constant_value(_PHIT_))
+	{
+		flux_derivs[0][i].first = local_fct_index(_PHIT_);
+		flux_derivs[0][i].second = dpt;
+	}
+
+	return;
 }
 
 
@@ -98,9 +189,18 @@ size_t Leak::n_dependencies() const
 {
 	size_t n = 2;
 	if (has_constant_value(_S_))
-		n--;
+		--n;
 	if (has_constant_value(_T_))
-		n--;
+		--n;
+
+	if (!m_bNoVoltage)
+	{
+		n += 2;
+		if (has_constant_value(_PHIS_))
+			--n;
+		if (has_constant_value(_PHIT_))
+			--n;
+	}
 
 	return n;
 }
@@ -115,8 +215,8 @@ size_t Leak::n_fluxes() const
 const std::pair<size_t,size_t> Leak::flux_from_to(size_t flux_i) const
 {
 	size_t from, to;
-	if (allows_flux(_S_)) from = local_fct_index(_S_); else from = InnerBoundaryConstants::_IGNORE_;
-	if (allows_flux(_T_)) to = local_fct_index(_T_); else to = InnerBoundaryConstants::_IGNORE_;
+	if (is_supplied(_S_)) from = local_fct_index(_S_); else from = InnerBoundaryConstants::_IGNORE_;
+	if (is_supplied(_T_)) to = local_fct_index(_T_); else to = InnerBoundaryConstants::_IGNORE_;
 
 	return std::pair<size_t, size_t>(from, to);
 }
@@ -130,7 +230,7 @@ void Leak::check_supplied_functions() const
 {
 	// Check that not both, inner and outer calcium concentrations are not supplied;
 	// in that case, calculation of a flux would be of no consequence.
-	if (!allows_flux(_S_) && !allows_flux(_T_))
+	if (!is_supplied(_S_) && !is_supplied(_T_))
 	{
 		UG_THROW("Supplying neither source nor target concentrations is not allowed.\n"
 				"This would mean that the flux calculation would be of no consequence\n"
@@ -149,9 +249,10 @@ void Leak::print_units() const
 	UG_LOG("|------------------------------------------------------------------------------|"<< std::endl);
 	UG_LOG("|    Input                                                                     |"<< std::endl);
 	UG_LOG("|      Concentrations     mM (= mol/m^3)                                       |"<< std::endl);
-	UG_LOG("|      Leakage constant   m/s                                                  |"<< std::endl);
+	UG_LOG("|      Potentials         V                                                    |"<< std::endl);
+	UG_LOG("|      Permeability       m/s                                                  |"<< std::endl);
 	UG_LOG("|                                                                              |"<< std::endl);
-	UG_LOG("|    Output (in TwoSidedMembraneTransport)                                     |"<< std::endl);
+	UG_LOG("|    Output (in MembraneTransportFV1)                                          |"<< std::endl);
 	UG_LOG("|      flux DENSITY       mol/(m^2 s)                                          |"<< std::endl);
 	UG_LOG("+------------------------------------------------------------------------------+"<< std::endl);
 	UG_LOG(std::endl);

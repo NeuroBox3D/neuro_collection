@@ -56,12 +56,72 @@ namespace neuro_collection {
 namespace neurites_from_swc {
 
 
+/**
+ * @brief Creates a 3D grid representation of a cable geometry given as SWC file.
+ *
+ * The position and radius information of the SWC file is interpolated using
+ * cubic splines. These define a kind of backbone of the neurites (dendrites or
+ * axons), around which the volume of the cytosol is inflated with the appropriate
+ * radius.
+ *
+ * To make the grid as coarse as possible, the mesh consists of anisotropic
+ * hexahedral elements that each connect two locations sampled from the backbone
+ * splines. Rather isotropic hexahedra are used to mesh branching points.
+ *
+ * In a simulation, the geometry will be continually refined anisotropically
+ * first, so as to reduce the anisotropy of the elements until all of them are
+ * relatively isotropic.
+ * The grid is created with a NeuriteProjector that can be used during refinement
+ * to move vertices created in the refinement to appropriate positions along the
+ * smooth model spline.
+ *
+ * For testing purposes, one can directly have the geometry refined (but only
+ * isotropically) here.
+ *
+ * @param fileName    input file (SWC)
+ * @param anisotropy  target anisotropy (ratio longest edge / shortest edge) of
+ *                    the elements in the coarse grid
+ * @param numRefs     number of isotropic refinements to perform
+ */
 void import_neurites_from_swc
 (
-	const std::string& fileName,
+	const std::string& fileNameIn,
+	const std::string& fileNameOut,
 	number anisotropy = 2.0,
 	size_t numRefs = 0
 );
+
+/**
+ * @brief Creates a 3D grid representation of a cable geometry given as SWC file.
+ *
+ * The position and radius information of the SWC file is interpolated using
+ * cubic splines. These define a kind of backbone of the neurites (dendrites or
+ * axons), around which the volume of the cytosol is inflated with the appropriate
+ * radius.
+ * The mesh contains a centrally positioned ER, which is a scaled version of the
+ * cytosol.
+ *
+ * To make the grid as coarse as possible, the mesh consists of anisotropic
+ * hexahedral elements that each connect two locations sampled from the backbone
+ * splines. Rather isotropic hexahedra are used to mesh branching points.
+ *
+ * In a simulation, the geometry will be continually refined anisotropically
+ * first, so as to reduce the anisotropy of the elements until all of them are
+ * relatively isotropic.
+ * The grid is created with a NeuriteProjector that can be used during refinement
+ * to move vertices created in the refinement to appropriate positions along the
+ * smooth model spline.
+ *
+ * For testing purposes, one can directly have the geometry refined (but only
+ * isotropically) here.
+ *
+ * @param fileNameIn     input file (SWC)
+ * @param fileNameOut    output file (UGX)
+ * @param erScaleFactor  ratio ER radius / cytosol radius (must be < 1)
+ * @param anisotropy     target anisotropy (ratio longest edge / shortest edge) of
+ *                       the elements in the coarse grid
+ * @param numRefs        number of isotropic refinements to perform
+ */
 void import_er_neurites_from_swc
 (
 	const std::string& fileNameIn,
@@ -70,9 +130,40 @@ void import_er_neurites_from_swc
 	number anisotropy = 2.0,
 	size_t numRefs = 0
 );
+
+/**
+ * @brief Creates a 1D grid representation of a cable geometry given as SWC file.
+ *
+ * The position and radius information of the SWC file is interpolated using
+ * cubic splines. These define a kind of backbone of the neurites (dendrites or
+ * axons), around which the volume of the cytosol is inflated with the appropriate
+ * radius.
+ *
+ * The spline backbone is sampled at regular intervals and these are connected by
+ * edges. The sampling frequency is determined by the desired ratio between the
+ * length of the edges and the radius of the neurites at their locations.
+ *
+ * The grid is created with a NeuriteProjector that can be used during refinement
+ * to move vertices created in the refinement to appropriate positions along the
+ * smooth model spline.
+ *
+ * For testing purposes, one can directly have the geometry refined (but only
+ * isotropically) here.
+ *
+ * As the resulting geometries are usually meant for simulation with the
+ * cable_neuron plugin, the geometry is scaled (default from um scale to m scale)
+ * in the end.
+ *
+ * @param fileName    input file (SWC)
+ * @param anisotropy  target anisotropy (ratio edge length / radius) of the
+ *                    elements in the coarse grid
+ * @param numRefs     number of isotropic refinements to perform
+ * @param scale       factor for final scaling of the geometry
+ */
 void import_1d_neurites_from_swc
 (
-	const std::string& fileName,
+	const std::string& fileNameIn,
+	const std::string& fileNameOut,
 	number anisotropy = 2.0,
 	size_t numRefs = 0,
 	number scale = 1e-6

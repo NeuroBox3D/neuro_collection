@@ -73,7 +73,6 @@ namespace neuro_collection {
  *
  * @todo: Is it better to scale ODE assemblings with bf.volume() or not?
  *        What about possible scaling of the channel state unknowns?
- *
  */
 
 template<typename TDomain>

@@ -55,11 +55,19 @@ namespace neuro_collection {
 ///@addtogroup plugin_neuro_collection
 ///@{
 
-/// Finite Volume element discretization for discrete RyR channels
 /**
- * This class implements the InnerBoundary interface to provide element local
- * assemblings for the unknown-dependent Neumann flux over a membrane, where the flowing
- * unknowns are present on both sides of the membrane.
+ *  @brief Discretization for discretely distributed ryanodine receptor channels
+ *
+ *  The discrete RyR channels are represented as vertices in the grid.
+ *  To assemble suitable defect and Jacobian terms there, the usual IMembraneTransporter
+ *  interface cannot be used (cannot assemble over 0d elements).
+ *  So here we choose a constraint to do the discretization. We write directly to the
+ *  defect and matrix and need to take care of proper handling of the mass scales.
+ *
+ *  In order to really close a channel (non-trivial equilibrium state otherwise), we
+ *  supply a method set_cutoff_open_probability that set open probability below which
+ *  the channel is supposed to be certainly closed.
+ *
  */
 template <typename TDomain, typename TAlgebra>
 class RyRDiscrete
