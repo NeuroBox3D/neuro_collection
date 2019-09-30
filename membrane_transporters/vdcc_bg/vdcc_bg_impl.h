@@ -53,6 +53,8 @@ void VDCC_BG<TDomain>::set_channel_type()
 				 "Call set_channel_type() BEFORE init().");
 	}
 
+	const bool had_hGate = has_hGate();
+
 	m_channelType = TType;
 
 	// check availability of gating functions
@@ -64,6 +66,20 @@ void VDCC_BG<TDomain>::set_channel_type()
 	}
 	check_supplied_functions();
 
+	if (m_bUseGatingAttachments)
+	{
+		if (has_hGate() && !had_hGate)
+		{
+			if (!m_mg->template has_attachment<side_t>(this->m_HGate))
+				m_mg->template attach_to<side_t>(this->m_HGate);
+			m_aaHGate = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_HGate);
+		}
+		else if (!has_hGate() && had_hGate)
+		{
+			if (m_mg->template has_attachment<side_t>(this->m_HGate))
+				m_mg->detach_from<side_t>(this->m_HGate);
+		}
+	}
 
 	switch (TType)
 	{

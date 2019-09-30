@@ -972,7 +972,7 @@ static void Common(Registry& reg, string grp)
 			.add_method("num_segments", &T::num_segments, "", "", "")
 			.add_method("create_dendrite_middle_influx", &T::create_dendrite_middle_influx, "", "", "")
 			.add_method("create_dendrite", &T::create_dendrite, "", "", "")
-			.add_method("create_dendrite_1d", &T::create_dendrite, "", "", "")
+			.add_method("create_dendrite_1d", &T::create_dendrite_1d, "", "", "")
 			.add_method("create_dendrite_discreteRyR", &T::create_dendrite_discreteRyR, "", "", "")
 			.add_method("set_bobbel_er", &T::set_bobbel_er, "", "numSeg / ER block # numSeg / hole block", "")
 			.set_construct_as_smart_pointer(true);
