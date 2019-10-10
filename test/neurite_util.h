@@ -944,23 +944,28 @@ namespace ug {
 
 		/*!
 		 * \brief Rotates vector around axis
-		 * End point of rotated vector (origin, xPrime) is returned as xPrime and xPrime2
-		 * \param[in] y vector to be rotated
-		 * \param[in] x axis
-		 * \param[in] origin of vector and axis
-		 * \param[out] xPrime rotated vector CCW
-		 * \param[out] xPrime2 rotated vector CW
+		 * The rotated vectors (CW and CCW) are stored as xPrime and xPrime2
+		 * \param[in] vector the vector to be rotated around an axis
+		 * \param[in] axis the axis a vector will be rotated around
+		 * \param[in] origin of vector as well as axis
+		 * \param[out] xPrime rotated vector by theta CCW
+		 * \param[out] xPrime2 rotated vector by theta CW
 		 * \param[in] theta angle in degree
 		 */
 		void rotate_vector_around_axis
 		(
-			const vector3& y,
-			const vector3& x,
+			const vector3& vector,
+			const vector3& axis,
 			const vector3& origin,
 			vector3& xPrime,
 			vector3& xPrime2,
 			number theta
 		);
+
+		/*!
+		 * \brief Find a render vector
+		 */
+		void FindRenderVector();
 	}
 }
 

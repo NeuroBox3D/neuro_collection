@@ -226,48 +226,71 @@ BOOST_FIXTURE_TEST_CASE(RotateVectorAroundAxis, FixtureEmptyGrid) {
 	ug::RegularVertex* p3 = *g.create<RegularVertex>();
 	ug::RegularVertex* p4 = *g.create<RegularVertex>();
 
-	aaPos[p1] = ug::vector3(0, 0, 0); aaPos[p2] = ug::vector3(0, 1, 0);
-	aaPos[p3] = ug::vector3(0, 1, 0); aaPos[p4] = ug::vector3(0, 1, 1);
+	aaPos[p1] = ug::vector3(0, 0, 0); aaPos[p2] = ug::vector3(0, 200, 0);
+	aaPos[p3] = ug::vector3(0, 200, 0); aaPos[p4] = ug::vector3(0, 200, 200);
+
+	/*
+	aaPos[p1] = ug::vector3(-55.1278, 88.6838, 29.1456);
+	aaPos[p2] = ug::vector3(-54.2767, 89.0939, 29.4736);
+	aaPos[p3] = aaPos[p2];
+	aaPos[p4] = ug::vector3(-54.8022, 90.4714, 29.1151);
+	*/
+
+
 
 	ug::RegularEdge* e1 = *g.create<RegularEdge>(EdgeDescriptor(p1, p2));
 	ug::RegularEdge* e2 = *g.create<RegularEdge>(EdgeDescriptor(p3, p4));
 	sh.assign_grid(g);
 	sh.assign_subset(e1, 0);
-	sh.assign_subset(e2, 0);
+	sh.assign_subset(e2, 1);
 
-	/// before
+	/// grid before rotation
+	sh.subset_info(0).name = "vector";
+	sh.subset_info(1).name = "axis";
 	AssignSubsetColors(sh);
 	SaveGridToFile(g, sh, "test_rotate_vector_around_axis.ugx");
 
-	vector3 axis;
-	vector3 vector;
-	VecSubtract(axis, aaPos[p2], aaPos[p1]);
-	VecSubtract(vector, aaPos[p2], aaPos[p4]); // p2 === p3
-
-	BOOST_REQUIRE_SMALL(VecDot(axis, vector), SMALL);
-
+	vector3 axis, vector;
+	VecSubtract(axis, aaPos[p1], aaPos[p2]);
+	VecSubtract(vector, aaPos[p4], aaPos[p2]); // p2 === p3
+	///BOOST_REQUIRE_SMALL(VecDot(axis, vector), SMALL);
 	vector3 origin = aaPos[p3];
 
-	for (int i = 0; i <= 360; i+=10) {
-		vector3 xPrime;
-		vector3 xPrime2;
-		rotate_vector_around_axis(vector, axis, origin, xPrime, xPrime2, i);
+	for (int angle = 10; angle <= 360; angle+=10) {
+		vector3 xPrime, xPrime2;
+		rotate_vector_around_axis(vector, axis, origin, xPrime, xPrime2, angle);
 		ug::RegularVertex* p5 = *g.create<RegularVertex>();
 		ug::RegularVertex* p6 = *g.create<RegularVertex>();
-		aaPos[p5] = xPrime;
-		aaPos[p6] = xPrime2;
+		aaPos[p5] = xPrime; aaPos[p6] = xPrime2;
 		ug::RegularEdge* e3 = *g.create<RegularEdge>(EdgeDescriptor(p3, p5));
 		ug::RegularEdge* e4 = *g.create<RegularEdge>(EdgeDescriptor(p3, p6));
-		sh.assign_subset(e3, 1);
-		sh.assign_subset(e4, 2);
-		sh.assign_subset(p5, 1);
-		sh.assign_subset(p6, 2);
+		sh.assign_subset(e3, 2); sh.assign_subset(e4, 3);
+		sh.assign_subset(p5, 2); sh.assign_subset(p6, 3);
+		if ( angle == 20) {
+			///break;
+		}
 	}
 
+	/// normal vector
+	vector3 z;
+	VecCross(z, axis, vector);
+	UG_LOGN("VecLength(axis): " << VecLength(axis));
+	/// Before (VecScale(z, z, 1/Veclength/z)); did not work for large 200 example
+	/// New: Works for large 200 example now
+	VecScale(z, z, VecLength(axis)/VecLength(z));
+	VecAdd(z, z, origin);
+	UG_LOGN("VecLength(z): " << VecLength(z));
+	ug::RegularVertex* p7 = *g.create<RegularVertex>();
+	aaPos[p7] = z;
+	ug::RegularEdge* e4 = *g.create<RegularEdge>(EdgeDescriptor(p7, p3));
+	sh.assign_subset(p7, 4); sh.assign_subset(e4, 4);
 
-	/// after
+	/// grid after rotation
 	sh.assign_grid(g);
+	sh.subset_info(2).name = "rotated CW vectors";
+	sh.subset_info(3).name = "rotated CCW vectors";
 	AssignSubsetColors(sh);
+	sh.subset_info(4).name = "normal";
 	SaveGridToFile(g, sh, "test_rotated_vector_around_axis.ugx");
 
 }

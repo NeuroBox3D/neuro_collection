@@ -2497,19 +2497,46 @@ number calculate_length_over_radius
 
 						/// "orthogonalize" branching points
 						if (orthogonalize) {
+#if 0
 							SWCPoint pointA;
-							vector3 dir, dirAlt;
-							VecCross(dir, P, Q);
+							vector3 dir;
+							VecCross(dir, Bprime, Q); // Bprime is projected point onto line
 							VecNormalize(dir, dir);
-							VecScale(dir, dir, 1.5); // was: 1
-							/*UG_COND_THROW(VecLength(dir) < 1-SMALL, "VecLength(dir) < 1."
-									" Minimum length of dir is one however actual"
-									" length is " << VecLength(dir));
-									*/
-							vector3 A, Aalt;
-							VecAdd(A, Bprime, dir);
-							dirAlt = -dir;
-							VecAdd(Aalt, Bprime, dirAlt);
+
+							vector3 A, vector, axis;
+							VecAdd(A, Bprime, dir); // new point A orthogonal to Bprime and edge PQ
+
+							VecSubtract(axis, A, Bprime);
+							VecSubtract(vector, Q, Bprime);
+
+							/// rotated vectors
+							vector3 xPrime;
+							vector3 xPrime2;
+							rotate_vector_around_axis(vector, axis, Bprime, xPrime, xPrime2, 90);
+
+							Grid g;
+							SubsetHandler sh;
+							Grid::VertexAttachmentAccessor<APosition> aaPos;
+							g.attach_to_vertices(aPosition);
+							aaPos = Grid::VertexAttachmentAccessor<APosition>(g, aPosition);
+							sh = SubsetHandler(g);
+							sh.set_default_subset_index(0);
+
+							Vertex* p1, *p2, *p3, *p4;
+							p1 = *g.create<RegularVertex>(); p2 = *g.create<RegularVertex>();
+							p3 = *g.create<RegularVertex>(); p4 = *g.create<RegularVertex>();
+							aaPos[p1] = Bprime;
+							aaPos[p2] = xPrime;
+							aaPos[p3] = A;
+							aaPos[p4] = Q;
+
+							ug::RegularEdge* e3 = *g.create<RegularEdge>(EdgeDescriptor(p1, p2));
+							ug::RegularEdge* e4 = *g.create<RegularEdge>(EdgeDescriptor(p1, p3));
+							ug::RegularEdge* e5 = *g.create<RegularEdge>(EdgeDescriptor(p1, p4));
+
+							sh.assign_grid(g);
+							AssignSubsetColors(sh);
+							SaveGridToFile(g, sh, "test_rotation_with_real_grid.ugx");
 
 							size_t continuation;
 							for (size_t j = 0; j < nConn; ++j)
@@ -2521,6 +2548,71 @@ number calculate_length_over_radius
 								continuation=j;
 							}
 
+							pointA.coords = xPrime;
+#endif
+
+#if 0
+							vector3 xPrime;
+							vector3 xPrime2;
+							number minDist = std::numeric_limits<number>::infinity();
+							vector3 minPt;
+							for (int i = 0; i < 180; i++) {
+								rotate_vector_around_axis(axis, dir, Bprime, xPrime, xPrime2, i);
+								number dist1 = VecDistance(vPoints[pt.conns[continuation]].coords, xPrime);
+								number dist2 = VecDistance(vPoints[pt.conns[continuation]].coords, xPrime2);
+								if (dist1 < dist2) {
+									if (dist1 < minDist) {
+										minPt = xPrime;
+										minDist = dist1;
+									}
+									if (dist2 < minDist) {
+										minPt = xPrime2;
+										minDist = dist2;
+									}
+								}
+								/*
+								 minDist = std::min(dist1, dist2);
+								 minPt = (minDist == dist1 ? xPrime : xPrime2);
+
+								 */
+							}
+
+							pointA.coords = minPt;
+#endif
+
+
+							#if 1
+							SWCPoint pointA;
+							vector3 dir, dirAlt;
+							VecCross(dir, P, Q);
+							VecNormalize(dir, dir);
+
+
+							size_t continuation;
+							for (size_t j = 0; j < nConn; ++j)
+							{
+								if (j == parentToBeDiscarded || j == minAngleInd)
+								{
+									continue;
+								}
+								continuation=j;
+							}
+
+							/// Could scale with distance from original point B to continuation point of branch
+							number scaleFactor = VecDistance(vPoints[pt.conns[continuation]].coords, B);
+							VecScale(dir, dir, scaleFactor);
+							///VecScale(dir, dir, 1.5); // was: 1
+							/// VecDistance(vPoints[pt.conns[continuation]].coords, B);
+							/*UG_COND_THROW(VecLength(dir) < 1-SMALL, "VecLength(dir) < 1."
+									" Minimum length of dir is one however actual"
+									" length is " << VecLength(dir));
+									*/
+
+							vector3 A, Aalt;
+							VecAdd(A, Bprime, dir);
+							dirAlt = -dir;
+							VecAdd(Aalt, Bprime, dirAlt);
+
 							/// Quick fix for 3 way branches - TODO: rotate around axis to find best direction
 							if (VecDistance(vPoints[pt.conns[continuation]].coords, A) <
 								VecDistance(vPoints[pt.conns[continuation]].coords, Aalt)) {
@@ -2528,6 +2620,7 @@ number calculate_length_over_radius
 							} else {
 								pointA.coords = Aalt;
 							}
+							#endif
 
 							pointA.radius = pt.radius; // vPoints[pt.conns[continuation]].radius;
 							pointA.type = vPoints[pt.conns[minAngleInd]].type;
