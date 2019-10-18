@@ -51,7 +51,7 @@ using namespace ug;
 using namespace ug::neuro_collection;
 
 ////////////////////////////////////////////////////////////////////////////////
-/// neuro_collection/test tests
+/// TESTSUITE test (util and grid generation)
 ////////////////////////////////////////////////////////////////////////////////
 BOOST_AUTO_TEST_SUITE(test);
 ////////////////////////////////////////////////////////////////////////////////
@@ -212,6 +212,7 @@ BOOST_FIXTURE_TEST_CASE(DeleteInnerEdgesFromQuadrilateralWithInnerEdges, Fixture
 	BOOST_REQUIRE_MESSAGE(g.num<Quadrilateral>() == 1, "Requiring one quadrilateral.");
 }
 
+////////////////////////////////////////////////////////////////////////////////
 BOOST_FIXTURE_TEST_CASE(DeleteInnerEdgesFromQuadrilateralWithoutInnerEdges, FixtureQuadrilateralWithoutInnerEdges) {
 	BOOST_REQUIRE_MESSAGE(g.num<Edge>() == 4, "Requiring a quadrilateral with no additional inner edges.");
 	BOOST_REQUIRE_MESSAGE(g.num<Quadrilateral>() == 1, "Requiring one quadrilateral.");
@@ -220,7 +221,29 @@ BOOST_FIXTURE_TEST_CASE(DeleteInnerEdgesFromQuadrilateralWithoutInnerEdges, Fixt
 	BOOST_REQUIRE_MESSAGE(g.num<Quadrilateral>() == 1, "Requiring one quadrilateral.");
 }
 
-BOOST_FIXTURE_TEST_CASE(RotateVectorAroundAxis, FixtureEmptyGrid) {
+////////////////////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_CASE(AdaptSurfaceGridToSquare) {
+	for (size_t i = 0; i < 20; i++)
+		adapt_surface_grid_to_square(i);
+	/// TODO: Implement
+}
+
+////////////////////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_CASE(ConnectNew) {
+	/// TODO: Implement
+}
+////////////////////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_CASE(ConnectPolygonWithPolygon) {
+	/// TODO: Implement
+}
+
+BOOST_AUTO_TEST_SUITE_END();
+////////////////////////////////////////////////////////////////////////////////
+/// TESTSUITE math util
+////////////////////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_SUITE(util);
+////////////////////////////////////////////////////////////////////////////////
+BOOST_FIXTURE_TEST_CASE(RotateVectorAroundAxisOld, FixtureEmptyGrid) {
 	ug::RegularVertex* p1 = *g.create<RegularVertex>();
 	ug::RegularVertex* p2 = *g.create<RegularVertex>();
 	ug::RegularVertex* p3 = *g.create<RegularVertex>();
@@ -235,8 +258,6 @@ BOOST_FIXTURE_TEST_CASE(RotateVectorAroundAxis, FixtureEmptyGrid) {
 	aaPos[p3] = aaPos[p2];
 	aaPos[p4] = ug::vector3(-54.8022, 90.4714, 29.1151);
 	*/
-
-
 
 	ug::RegularEdge* e1 = *g.create<RegularEdge>(EdgeDescriptor(p1, p2));
 	ug::RegularEdge* e2 = *g.create<RegularEdge>(EdgeDescriptor(p3, p4));
@@ -295,7 +316,24 @@ BOOST_FIXTURE_TEST_CASE(RotateVectorAroundAxis, FixtureEmptyGrid) {
 
 }
 
+////////////////////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_CASE(FindPermissibleRenderVector) {
+	/// TODO: Implement
+}
+
+////////////////////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_CASE(RotateVectorAroundAxis) {
+	/// TODO: Implement
+}
+
+////////////////////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_CASE(FindAngleBetweenDirections) {
+	/// TODO: Implement
+}
+
+////////////////////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_CASE(FindClosestPointToRotatedVector) {
+
+}
+
 BOOST_AUTO_TEST_SUITE_END();
-////////////////////////////////////////////////////////////////////////////////
-/// neuro_collection/test tests
-////////////////////////////////////////////////////////////////////////////////

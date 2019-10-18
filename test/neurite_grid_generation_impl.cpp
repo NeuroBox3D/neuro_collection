@@ -2199,7 +2199,7 @@ number calculate_length_over_radius
                 }
 
                 ////////////////////////////////////////////////////////////////////////
-                /// constrained_smoothing
+                /// constrained_smoothing TODO: test
                 ////////////////////////////////////////////////////////////////////////
                 void constrained_smoothing
                 (

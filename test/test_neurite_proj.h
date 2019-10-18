@@ -371,6 +371,19 @@ void test_convert_swc_to_ugx
 	const std::string& fileName
 );
 
+/*!
+ * \brief new strategy
+ */
+void test_import_swc_general_var(
+	const std::string& fileName,
+	bool correct,
+	number erScaleFactor,
+	bool withER,
+	number anisotropy,
+	size_t numRefs,
+	bool regularize
+);
+
 } // namespace neuro_collection
 } // namespace ug
 

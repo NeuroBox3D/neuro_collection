@@ -943,7 +943,7 @@ namespace ug {
 		);
 
 		/*!
-		 * \brief Rotates vector around axis
+		 * \brief Rotates vector around axis TODO: Old and deprecated
 		 * The rotated vectors (CW and CCW) are stored as xPrime and xPrime2
 		 * \param[in] vector the vector to be rotated around an axis
 		 * \param[in] axis the axis a vector will be rotated around
@@ -963,9 +963,82 @@ namespace ug {
 		);
 
 		/*!
-		 * \brief Find a render vector
+		 * \brief Adapts the surface grid to square
 		 */
-		void FindRenderVector();
+		void adapt_surface_grid_to_square(size_t i);
+
+		/*!
+		 * \brief new strategy
+		 */
+		void connect_neurites_with_soma_var
+		(
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			std::vector<Vertex*> outVerts,
+			std::vector<Vertex*> outVertsInner,
+			std::vector<number> outRads,
+			std::vector<Vertex*>& smallerQuadVerts,
+			int si,
+			SubsetHandler& sh,
+			const std::string& fileName,
+			number rimSnapThresholdFactor,
+			std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > >& axisVectors,
+			std::vector<NeuriteProjector::Neurite>& vNeurites,
+			std::vector<std::vector<ug::Vertex*> >& connectingVertices,
+			std::vector<std::vector<ug::Vertex*> >& connectingVerticesInner,
+			std::vector<std::vector<ug::Edge*> >& connectingEdges,
+			std::vector<std::vector<ug::Edge*> >& connectingEdgesInner,
+			bool createInner,
+			number alpha,
+			int numIterations,
+			number resolveThreshold,
+			number scale,
+			size_t numVerts,
+			size_t numDodecagons
+		);
+
+
+		/*!
+		 * \brief new prototype to implement
+		 */
+		void connect_polygon_with_polygon
+		(
+			const std::vector<Vertex*>& from,
+			const std::vector<Vertex*>& to,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			std::vector<std::pair<Vertex*, Vertex*> >& pairs
+		);
+
+		/*!
+		 * \brief new strategy
+		 */
+		void connect_new
+		(
+			Grid& g,
+			SubsetHandler& sh,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			size_t newSomaIndex,
+			size_t numDodecagons
+		);
+
+		void connect_pm_with_soma
+		(
+			size_t somaIndex,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			SubsetHandler& sh,
+			std::vector<std::vector<ug::Vertex*> >& rootNeurites
+		);
+
+		void connect_er_with_er
+		(
+			size_t somaIndex,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			SubsetHandler& sh,
+			std::vector<std::vector<ug::Vertex*> >& rootNeuritesInner
+		);
 	}
 }
 

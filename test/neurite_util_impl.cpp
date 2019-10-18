@@ -50,6 +50,9 @@
 #include <cmath>
 /// #include "nc_config.h"
 #include <boost/lexical_cast.hpp>
+#include <boost/foreach.hpp>
+
+#include "neurite_math_util.h"
 
 /// neuro_collection's test neurite projector debug ID
 extern ug::DebugID NC_TNP;
@@ -579,7 +582,8 @@ namespace ug {
 					for (; vit != vit_end; ++vit) { array.push_back(*vit); }
 					int index = FindClosestVertexInArray(array, p1, aaPos, 10); /// closest soma vertex of inner quad to outer soma quad: this is safe if inner and outer quads have same number of vertices
 
-					UG_COND_THROW(!array[index], "Not found!");
+					UG_COND_THROW(!array[index], "Not found!"); /// TODO: this is unsafe
+					UG_COND_THROW(index == -1, "Not found!");
 					UG_COND_THROW(!projectedToUnprojectedInner[p2], "Not found!");
 					innerToOuter2[array[index]] = projectedToUnprojectedInner[projectedToUnprojected[temp]]; /// soma inner quad vertex => rootneurite inner vertex
 				}
@@ -715,7 +719,7 @@ namespace ug {
 					aaPos[projVert] = vProjected;
 					projected[i-1].push_back(vProjected);
 					projectedVertices[i-1].push_back(*vit); /// save original vertex from which we projected
-					g.erase(projVert); /// delete projected vertex (only used during debugging)
+					///g.erase(projVert); /// delete projected vertex (only used during debugging)
 				}
 				normals.push_back(normal);
 				UG_DLOGN(NC_TNP, 0, "First projection!");
@@ -838,6 +842,7 @@ namespace ug {
 				UG_DLOGN(NC_TNP, 0, "***");
 				for (std::vector<std::pair<size_t, size_t> >::const_iterator it2 = it->begin(); it2 != it->end(); ++it2) {
 					UG_DLOGN(NC_TNP, 0, "Pair " << it2->first << " -> " << it2->second);
+					UG_LOGN("Pair (Angle): "  << it2->first << " -> " << it2->second);
 				}
 				UG_DLOGN(NC_TNP, 0, "***");
 			}
@@ -1331,6 +1336,7 @@ namespace ug {
 						IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
 					}
 				}
+
 
 				/// refine outer polygon once to get 12 vertices
 				beginningOfQuads = si+1; // subset index where outer quads are stored
@@ -2472,6 +2478,7 @@ namespace ug {
 	    	outVertsInner.clear();
 			Grid::traits<Quadrilateral>::secure_container quadCont;
 			find_quadrilaterals_constrained(grid, aaSurfParams, quadCont, 0.0, scale, 0);
+			/// TODO: The throw is not correct, because method finds all quadrilaterals, we need to iterate over subset of quads for each soma connection -> change the method above
 			UG_COND_THROW(quadCont.size() != 1, "Only one quad should be available for the ER");
 			ug::vector3 vNormOut;
 			CalculateNormal(vNormOut, quadCont[0], aaPos);
@@ -2765,10 +2772,522 @@ namespace ug {
 		}
 
 		////////////////////////////////////////////////////////////////////////
-		/// FindRenderVector
+		/// AdaptSurfaceGridToSquare (Prototype)
 		////////////////////////////////////////////////////////////////////////
-		void FindRenderVector() {
+		void adapt_surface_grid_to_square(size_t i) {
+			/// grid mgmt
+			Grid g;
+			SubsetHandler sh(g);
+			Selector sel(g);
+			g.attach_to_vertices(aPosition);
+			Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+			vector3 normal;
+			number radiusOfDend = 3.0;
 
+			/// point of interest
+			ug::RegularVertex* p = *g.create<RegularVertex>();
+			vector3 coords(3.57698, 10.5182, -0.869805);
+			aaPos[p] = coords;
+			sel.select(p);
+			AssignSelectionToSubset(sel, sh, 2);
+			sel.clear();
+
+			/// first sphere (0, 0, 0), 1
+			GenerateIcosphere(g, vector3(4.64, -7.52, -19.54), 8.00565/2.0, 3, aPosition, &sel);
+			AssignSelectionToSubset(sel, sh, 0);
+			SelectSubset(sel, sh, 0, true);
+
+			Grid::traits<Vertex>::iterator vit;
+			Grid::traits<Vertex>::iterator vit_end;
+			std::vector<Vertex*> array;
+			vit = sel.begin<Vertex>();
+			vit_end = sel.end<Vertex>();
+
+			for (; vit != vit_end; ++vit) { array.push_back(*vit); }
+			coords = aaPos[array[rand() % array.size()]];
+			aaPos[p] = coords;
+			int index = FindClosestVertexInArray(array, p, aaPos, 30);
+			CalculateVertexNormal(normal, g, array[index], aaPos);
+			AdaptSurfaceGridToCylinder(sel, g, array[index], normal, radiusOfDend/2.0, 0.01, aPosition);
+			sel.clear();
+			sel.select(array[index]);
+			ExtendSelection(sel, 1, true);
+			CloseSelection(sel);
+			AssignSelectionToSubset(sel, sh, 3);
+			g.erase(array[index]);
+			array.clear();
+
+			/// second sphere (0, 0, 0), 5
+			GenerateIcosphere(g, vector3(4.64, -7.52, -19.54), 8.00565, 3, aPosition, &sel);
+			AssignSelectionToSubset(sel, sh, 1);
+			SelectSubset(sel, sh, 1, true);
+			vit = sel.begin<Vertex>();
+			vit_end = sel.end<Vertex>();
+			for (; vit != vit_end; ++vit) { array.push_back(*vit); }
+
+
+			int index2 = FindClosestVertexInArray(array, p, aaPos, 10);
+			CalculateVertexNormal(normal, g, array[index2], aaPos);
+			AdaptSurfaceGridToCylinder(sel, g, array[index2], normal, radiusOfDend, 0.01, aPosition);
+			sel.clear();
+			sel.select(array[index2]);
+			ExtendSelection(sel, 1, true);
+			CloseSelection(sel);
+			AssignSelectionToSubset(sel, sh, 4);
+			g.erase(array[index2]);
+			array.clear();
+
+			/// now collapse edges
+
+			size_t numEdges = sh.num<Edge>(3);
+			size_t j = 0;
+			while (numEdges > 4) {
+				SubsetHandler::traits<Edge>::iterator eit = sh.begin<Edge>(3);
+				SubsetHandler::traits<Edge>::iterator end = sh.end<Edge>(3);
+				number bestLength = -1;
+				Edge* eBest = NULL;
+				for (; eit != end; ++eit) {
+					const Edge* ee = *eit;
+					Vertex* const* verts = ee->vertices();
+					if (bestLength == -1) {
+						bestLength = VecDistance(aaPos[verts[0]], aaPos[verts[1]]);
+						eBest = *eit;
+					} else {
+						number length = VecDistance(aaPos[verts[0]], aaPos[verts[1]]);
+						if (length < bestLength) {
+							eBest = *eit;
+							bestLength = length;
+							}
+						}
+					}
+					CollapseEdge(g, eBest, eBest->vertex(0));
+					numEdges--;
+					j++;
+			}
+
+			numEdges = sh.num<Edge>(4);
+			j = 0;
+			while (numEdges > 4) {
+				SubsetHandler::traits<Edge>::iterator eit = sh.begin<Edge>(4);
+				SubsetHandler::traits<Edge>::iterator end = sh.end<Edge>(4);
+				number bestLength = -1;
+				Edge* eBest = NULL;
+				for (; eit != end; ++eit) {
+					const Edge* ee = *eit;
+					Vertex* const* verts = ee->vertices();
+					if (bestLength == -1) {
+						bestLength = VecDistance(aaPos[verts[0]], aaPos[verts[1]]);
+						eBest = *eit;
+					} else {
+						number length = VecDistance(aaPos[verts[0]], aaPos[verts[1]]);
+						if (length < bestLength) {
+							eBest = *eit;
+							bestLength = length;
+							}
+						}
+					}
+					CollapseEdge(g, eBest, eBest->vertex(0));
+					numEdges--;
+					j++;
+			}
+
+			/// store
+			AssignSubsetColors(sh);
+			stringstream ss;
+			ss << "SphereAdaptionToSquare_i=" << i << ".ugx";
+			SaveGridToFile(g, sh, ss.str().c_str());
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// connect_neurites_with_soma
+		////////////////////////////////////////////////////////////////////////
+		void connect_neurites_with_soma_var
+		(
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			std::vector<Vertex*> outVerts,
+			std::vector<Vertex*> outVertsInner,
+			std::vector<number> outRads,
+			std::vector<Vertex*>& smallerQuadVerts,
+			int si,
+			SubsetHandler& sh,
+			const std::string& fileName,
+			number rimSnapThresholdFactor,
+			std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > >& axisVectors,
+			std::vector<NeuriteProjector::Neurite>& vNeurites,
+			std::vector<std::vector<ug::Vertex*> >& connectingVertices,
+			std::vector<std::vector<ug::Vertex*> >& connectingVerticesInner,
+			std::vector<std::vector<ug::Edge*> >& connectingEdges,
+			std::vector<std::vector<ug::Edge*> >& connectingEdgesInner,
+			bool createInner,
+			number alpha,
+			int numIterations,
+			number resolveThreshold,
+			number scale,
+			size_t numVerts,
+			size_t numDodecagons
+		) {
+			/// popule dodecagons
+			std::vector<std::vector<ug::vector3> > dodecagons;
+			std::vector<number> dodecagonRadii;
+
+			for (size_t i = 0; i < numDodecagons; i++) {
+				std::vector<ug::vector3> temp;
+				for (size_t j = 0; j < numVerts; j++) {
+					temp.push_back(aaPos[outVerts[(i*12)+j]]);
+				}
+				dodecagons.push_back(temp);
+			}
+
+			std::vector<ug::vector3> centerOuts;
+			std::vector<ug::vector3> centerOuts2;
+			std::vector<Vertex*> bestVertices;
+			for (size_t i = 0; i < numDodecagons; i++) {
+				const ug::vector3* pointSet = &(dodecagons[i][0]);
+				ug::vector3 centerOut;
+				CalculateCenter(centerOut, pointSet, numVerts);
+				centerOuts.push_back(centerOut);
+				Selector sel(g);
+				SelectSubsetElements<Vertex>(sel, sh, si, true);
+				Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
+				Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
+				number best = std::numeric_limits<number>::max();
+				ug::Vertex* best_vertex = NULL;
+				for (; vit != vit_end; ++vit) {
+					number dist = VecDistance(aaPos[*vit], centerOut);
+					if (dist < best) {
+						best = dist;
+						best_vertex = *vit;
+					}
+				}
+				UG_COND_THROW(!best_vertex, "No best vertex found for dodecagon >>" << i << "<<.");
+				bestVertices.push_back(best_vertex);
+			}
+
+			AssignSubsetColors(sh);
+			std::stringstream ss;
+			ss << fileName << "_best_vertices.ugx";
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
+			ss.str(""); ss.clear();
+
+			UG_DLOGN(NC_TNP, 0, "3. AdaptSurfaceGridToCylinder")
+			UG_DLOGN(NC_TNP, 0, "Best vertices size: " << bestVertices.size());
+			/// 3. Für jeden Vertex v führe AdaptSurfaceGridToCylinder mit Radius entsprechend
+			///    dem anzuschließenden Dendritenende aus. Dadurch entsteht auf der Icosphere
+			///    um jedes v ein trianguliertes 6- bzw. 5-Eck.
+			Selector sel(g);
+			for (size_t i = 0; i < bestVertices.size(); i++) {
+				sel.clear();
+				ug::vector3 normal;
+				CalculateVertexNormal(normal, g, bestVertices[i], aaPos);
+				number radius = outRads[i];
+				AdaptSurfaceGridToCylinder(sel, g, bestVertices[i], normal, radius, 1.0*rimSnapThresholdFactor, aPosition);
+			}
+
+			AssignSubsetColors(sh);
+			ss << fileName << "_before_deleting_center_vertices.ugx";
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
+			ss.str(""); ss.clear();
+
+			UG_DLOGN(NC_TNP, 0, "5. MergeVertices")
+			/// 5. Wandle die stückweise linearen Ringe um die Anschlusslöcher per
+			///    MergeVertices zu Vierecken um.
+			sel.clear();
+				for (std::vector<Vertex*>::iterator it = bestVertices.begin(); it != bestVertices.end(); ++it) {
+				sel.select(*it);
+				ExtendSelection(sel, 1, true);
+				CloseSelection(sel);
+				AssignSelectionToSubset(sel, sh, sh.num_subsets()+1);
+				sel.clear();
+			}
+
+			AssignSubsetColors(sh);
+			ss << fileName << "_before_getting_neighborhoods.ugx";
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
+			ss.str(""); ss.clear();
+
+			UG_DLOGN(NC_TNP, 0, "4. Remove each vertex. Creates holes in soma")
+			/// 4. Lösche jedes v, sodass im Soma Anschlusslöcher für die Dendriten entstehen.
+			sel.clear();
+			for (std::vector<Vertex*>::iterator it = bestVertices.begin(); it != bestVertices.end(); ++it) {
+				sel.select(*it);
+			}
+
+			size_t numSubsets = sh.num_subsets();
+			AssignSelectionToSubset(sel, sh, numSubsets);
+			EraseElements<Vertex>(g, sh.begin<Vertex>(numSubsets), sh.end<Vertex>(numSubsets));
+			EraseEmptySubsets(sh);
+			AssignSubsetColors(sh);
+			ss << fileName << "_after_deleting_center_vertices.ugx";
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
+			ss.str(""); ss.clear();
+
+			/// refine outer polygon once to get 12 vertices
+			int beginningOfQuads = si+1+numDodecagons; // subset index where inner quads are stored in
+			beginningOfQuads = si+1; // subset index where outer quads are stored
+			for (size_t i = 0; i < numDodecagons; i++) {
+				int si = beginningOfQuads+i;
+				sel.clear();
+				SelectSubsetElements<Vertex>(sel, sh, si, true);
+				SelectSubsetElements<Edge>(sel, sh, si, true);
+				Refine(g, sel, NULL, false);
+			}
+
+			EraseEmptySubsets(sh);
+			AssignSubsetColors(sh);
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// connect_new
+		////////////////////////////////////////////////////////////////////////
+		void connect_new
+		(
+			Grid& g,
+			SubsetHandler& sh,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			size_t newSomaIndex,
+			size_t numDodecagons,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams
+		) {
+		for (size_t i = 0; i < numDodecagons; i++) {
+			size_t siOuter = newSomaIndex-numDodecagons+i;
+			size_t siInner = newSomaIndex+1+i;
+			UG_LOGN("Calculating center of subset: " << siOuter);
+			UG_LOGN("Calculating center of subset: " << siInner);
+			vector3 c1 = CalculateCenter(sh.begin<Vertex>(siOuter), sh.end<Vertex>(siOuter), aaPos);
+			vector3 c2 = CalculateCenter(sh.begin<Vertex>(siInner), sh.end<Vertex>(siInner), aaPos);
+			vector3 dir;
+			VecSubtract(dir, c1, c2); // vec pointing towards outer soma sphere's dodecagon
+
+			Grid::traits<Vertex>::iterator vit = sh.begin<Vertex>(siInner);
+			Grid::traits<Vertex>::iterator vit_end = sh.end<Vertex>(siInner);
+			/// Store mapping of vertices
+			std::map<Vertex*, RegularVertex*> vertices;
+			for (; vit != vit_end; ++vit) {
+				Vertex* e = *vit;
+				ug::RegularVertex* v = *g.create<RegularVertex>();
+				sh.assign_subset(v, siOuter);
+				VecAdd(aaPos[v], aaPos[e], dir);
+				vertices[e] = v;
+			}
+
+			Grid::traits<Edge>::iterator eit = sh.begin<Edge>(siInner);
+			Grid::traits<Edge>::iterator eit_end = sh.end<Edge>(siInner);
+			size_t siOuterSphereInnerQuad = sh.num_subsets();
+			for (; eit != eit_end; ++eit) {
+				Edge* e = *eit;
+				Vertex* v1 = e->vertex(0);
+				Vertex* v2 = e->vertex(1);
+				RegularEdge* v = *g.create<RegularEdge>(EdgeDescriptor(vertices[v1], vertices[v2]));
+				sh.assign_subset(v, siOuter);
+				UG_LOGN(aaPos[e->vertex(0)]);
+				UG_LOGN(aaPos[e->vertex(1)]);
+				UG_LOGN(aaPos[vertices[e->vertex(0)]]);
+				UG_LOGN(aaPos[vertices[e->vertex(1)]]);
+				Quadrilateral* q = *g.create<Quadrilateral>(QuadrilateralDescriptor(
+						e->vertex(0), e->vertex(1), vertices[e->vertex(1)], vertices[e->vertex(0)]));
+				Selector sel(g);
+				sel.select(q);
+				sel.select(g.get_edge(e->vertex(0), vertices[e->vertex(0)]));
+				sel.select(g.get_edge(e->vertex(1), vertices[e->vertex(1)]));
+
+				AssignSelectionToSubset(sel, sh, 3); /// erm
+				sel.clear();
+				sel.select(vertices[e->vertex(1)]);
+				sel.select(vertices[e->vertex(0)]);
+				sel.select(g.get_edge(vertices[e->vertex(0)], vertices[e->vertex(1)]));
+				AssignSelectionToSubset(sel, sh, siOuterSphereInnerQuad);
+				/// TODO: Dummy values to pretend to be inside soma for tetrahedralize
+				aaSurfParams[e->vertex(0)] = -0.5; /// on inner sphere (ER) surface
+				aaSurfParams[e->vertex(1)] = -0.5; /// on inner sphere (ER) surface
+				aaSurfParams[vertices[e->vertex(0)]] = -0.25; /// close to outer sphere (PM) surface
+				aaSurfParams[vertices[e->vertex(1)]] = -0.25; /// close to outer sphere (PM) surface
+			}
+
+
+			/*
+			pair<Vertex*, Vertex*> me;
+			BOOST_FOREACH(me, vertices) {
+			  v.push_back(me.first);
+			  v.push_back(me.second);
+			}
+			*/
+
+			//Hexahedron* h = *g.create<Hexahedron>(HexahedronDescriptor(v[0], v[2], v[4], v[6], v[1], v[3], v[5], v[7]));
+			//sh.assign_subset(h, siOuter);
+			}
+		}
+
+		void connect_er_with_er
+		(
+			size_t somaIndex,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			SubsetHandler& sh,
+			std::vector<std::vector<ug::Vertex*> >& rootNeuritesInner
+		) {
+			connect_pm_with_soma(somaIndex, g, aaPos, sh, rootNeuritesInner);
+		}
+
+		void connect_pm_with_soma
+		(
+			size_t somaIndex,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			SubsetHandler& sh,
+			std::vector<std::vector<ug::Vertex*> >& rootNeurites
+		) {
+			Selector sel(g);
+			Selector::traits<Vertex>::iterator vit;
+			Selector::traits<Vertex>::iterator vit_end;
+			Selector::traits<Edge>::iterator eit;
+			Selector::traits<Edge>::iterator eit_end;
+
+			size_t numNeurites = rootNeurites.size();
+
+			for (size_t i = 0; i < numNeurites; i++) {
+				UG_LOGN("Selecting index " << somaIndex-numNeurites+i << " as index for projection to plane");
+				SelectSubsetElements<Vertex>(sel, sh, somaIndex-numNeurites+i, true);
+				vector<Vertex*> unprojectedVertices;
+				vit = sel.begin<Vertex>();
+				vit_end = sel.end<Vertex>();
+				for (; vit != vit_end; ++vit) {
+					unprojectedVertices.push_back(*vit);
+				}
+				sel.clear();
+				SelectSubsetElements<Vertex>(sel, sh, somaIndex-numNeurites+i, true);
+				vector3 v0, v1, v2;
+				v0 = CalculateCenter(sel.vertices_begin(), sel.vertices_end(), aaPos);
+				vit = sel.begin<Vertex>();
+				v1 = aaPos[*vit];
+				vit++;
+				v2 = aaPos[*vit];
+				sel.clear();
+
+				vector3 p1, p2, normal, vProjected;
+				VecSubtract(p1, v1, v0);
+				VecSubtract(p2, v2, v0);
+				VecCross(normal, p1, p2);
+				VecNormalize(normal, normal);
+				size_t numVerts = rootNeurites[i].size();
+				vector<Vertex*> projectedVertices;
+				for (size_t l = 0; l < numVerts; l++) {
+					Vertex* vit = rootNeurites[i][l];
+					vector3 v;
+					VecSubtract(v, aaPos[vit], p1);
+					number dot = VecDot(v, normal);
+					vProjected = aaPos[vit];
+					VecScaleAdd(vProjected, 1.0, vProjected, dot, normal);
+					Vertex* projVert = *g.create<ug::RegularVertex>();
+					const vector3& n = -normal;
+					ProjectPointToPlane(vProjected, aaPos[vit], v0, n);
+					aaPos[projVert] = vProjected;
+					sh.assign_subset(projVert, 100);
+					projectedVertices.push_back(projVert);
+				}
+
+				vector3 dir;
+				sel.clear();
+				/// outer soma inner quad center
+				SelectSubsetElements<Vertex>(sel, sh, somaIndex-numNeurites+i, true);
+				vector3 centerOut = CalculateCenter(sel.begin<Vertex>(), sel.end<Vertex>(), aaPos);
+
+				// projected neurite vertices center
+				vector3 centerOut2 = CalculateCenter(projectedVertices.begin(), projectedVertices.end(), aaPos);
+				VecSubtract(dir, centerOut2, centerOut);
+				UG_DLOGN(NC_TNP, 0, "dir: " << dir);
+
+				for (size_t j = 0; j < numVerts; j++) {
+					UG_DLOGN(NC_TNP, 0, "pos: " << aaPos[projectedVertices[i][j]]);
+					VecSubtract(aaPos[projectedVertices[j]], aaPos[projectedVertices[j]], dir);
+				}
+				std::vector<std::pair<Vertex*, Vertex*> > pairs;
+				connect_polygon_with_polygon(unprojectedVertices, projectedVertices, aaPos, pairs);
+				std::vector<std::pair<Vertex*, Vertex*> >::iterator it = pairs.begin();
+				size_t numMax = 2;
+				size_t numSoFar = 0;
+				for (; it != pairs.end(); ++it) {
+					UG_LOGN("Creating edge between: " << aaPos[it->first] << " and " << aaPos[it->second]);
+					Edge* e = *g.create<RegularEdge>(EdgeDescriptor(it->first, it->second));
+					sh.assign_subset(e, 101);
+					numSoFar++;
+					if (numSoFar > numMax) {
+					//	break;
+					}
+				}
+			}
+		}
+
+		typedef std::pair<Vertex*, number> MyPairType;
+		struct CompareSecond
+		{
+		    bool operator()(const MyPairType& left, const MyPairType& right) const
+		    {
+		        return fabs(left.second - right.second) < SMALL;
+		    }
+		};
+
+		void connect_polygon_with_polygon
+		(
+			const std::vector<Vertex*>& from,
+			const std::vector<Vertex*>& to,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			std::vector<std::pair<Vertex*, Vertex*> >& pairs
+		) {
+			UG_COND_THROW(from.size() != to.size(), "Can only connect two "
+					"n-polygons, but provided was a " << from.size() << "-"
+					"polygon and a " << to.size() << "-polygon instead. Abort.");
+
+			size_t numVerts = from.size();
+			std::vector<vector3> dirs;
+
+			vector3 centerOut;
+			centerOut = CalculateCenter(from.begin(), from.end(), aaPos);
+			UG_LOGN("center:" << centerOut);
+
+			for (size_t i = 0; i < numVerts; i++) {
+				vector3 temp;
+				VecSubtract(temp, aaPos[from[i]], centerOut);
+				dirs.push_back(temp);
+			}
+
+			for (size_t i = 0; i < numVerts; i++) {
+				vector3 temp;
+				VecSubtract(temp, aaPos[to[i]], centerOut);
+				dirs.push_back(temp);
+			}
+
+			vector3 normal;
+			VecCross(normal, dirs[0], dirs[1]);
+			UG_LOGN("normal: " << normal);
+			vector3 refVec = dirs[0];
+			map<number, Vertex*> angleMapFrom, angleMapTo;
+
+			for (size_t i = 0; i < numVerts; i++) {
+				number fromAngle = SignedAngleBetweenDirsInPlane(dirs[i], normal, refVec);
+				angleMapFrom[fromAngle] = from[i];
+			}
+
+			for (size_t i = 0; i < numVerts; i++) {
+				number toAngle = SignedAngleBetweenDirsInPlane(dirs[i+numVerts], normal, refVec);
+				angleMapTo[toAngle] = to[i];
+			}
+
+			vector<Vertex*> fromSorted, toSorted;
+			for (map<number, Vertex*>::iterator it=angleMapFrom.begin(); it!=angleMapFrom.end(); ++it) {
+				UG_LOGN("AngleMapFrom: " << it->first);
+				fromSorted.push_back(it->second);
+			}
+
+			for (map<number, Vertex*>::iterator it=angleMapTo.begin(); it!=angleMapTo.end(); ++it) {
+				UG_LOGN("AngleMapTo: " << it->first);
+				toSorted.push_back(it->second);
+			}
+
+			for (size_t i = 0; i < numVerts; i++) {
+				pairs.push_back(make_pair(fromSorted[i], toSorted[i]));
+			}
 		}
 	}
 }
