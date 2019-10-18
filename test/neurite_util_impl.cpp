@@ -223,6 +223,7 @@ namespace ug {
 			return a;
 		}
 
+		/// TODO: delete unused old method stuff
 		////////////////////////////////////////////////////////////////////////
 		/// connect_outer_and_inner_root_neurites_to_outer_soma_variant
 		////////////////////////////////////////////////////////////////////////
@@ -961,7 +962,7 @@ namespace ug {
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "after_projections_inner.ugx");
 			SaveGridToFile(g, sh, "after_projections_inner.ugx");
 
-			/// TODO: Optimierung: Verdrehung kann beseitigt werden wenn man die
+			/// TODO: Optimierung: Verdrehung kann beseitigt werden wenn man digge
 			/// Knoten des inneren Soma Oberflächenquads auf die Ebene projiziert
 			/// welche durch das innere Oberflächenquads des äußeren Somas definiert
 			/// wird. vt. muss dann nach der Projektion die Vertices auf das Zentrum
@@ -2463,6 +2464,7 @@ namespace ug {
 
 		////////////////////////////////////////////////////////////////////////
 		/// extend_ER_within
+		/// TODO: Correct for throw below
 		////////////////////////////////////////////////////////////////////////
 	    void extend_ER_within
 		(
@@ -2478,7 +2480,8 @@ namespace ug {
 	    	outVertsInner.clear();
 			Grid::traits<Quadrilateral>::secure_container quadCont;
 			find_quadrilaterals_constrained(grid, aaSurfParams, quadCont, 0.0, scale, 0);
-			/// TODO: The throw is not correct, because method finds all quadrilaterals, we need to iterate over subset of quads for each soma connection -> change the method above
+			/// TODO: The throw is not correct, because method finds all quadrilaterals,
+			/// we need to iterate over subset of quads for each soma connection -> change this
 			UG_COND_THROW(quadCont.size() != 1, "Only one quad should be available for the ER");
 			ug::vector3 vNormOut;
 			CalculateNormal(vNormOut, quadCont[0], aaPos);
@@ -2726,6 +2729,7 @@ namespace ug {
 
 		////////////////////////////////////////////////////////////////////////
 		/// RotateVectorAroundAxis
+		/// TODO: Delete method and use from neurite math util
 		////////////////////////////////////////////////////////////////////////
 		void rotate_vector_around_axis
 		(
@@ -2773,6 +2777,7 @@ namespace ug {
 
 		////////////////////////////////////////////////////////////////////////
 		/// AdaptSurfaceGridToSquare (Prototype)
+		/// TODO: Delete method
 		////////////////////////////////////////////////////////////////////////
 		void adapt_surface_grid_to_square(size_t i) {
 			/// grid mgmt
@@ -2900,6 +2905,7 @@ namespace ug {
 
 		////////////////////////////////////////////////////////////////////////
 		/// connect_neurites_with_soma
+		/// TODO: Cleanup method
 		////////////////////////////////////////////////////////////////////////
 		void connect_neurites_with_soma_var
 		(
@@ -3040,6 +3046,7 @@ namespace ug {
 
 		////////////////////////////////////////////////////////////////////////
 		/// connect_new
+		/// TODO: Cleanup and rename method
 		////////////////////////////////////////////////////////////////////////
 		void connect_new
 		(
@@ -3119,6 +3126,9 @@ namespace ug {
 			}
 		}
 
+		////////////////////////////////////////////////////////////////////////
+		/// connect_er_with_er
+		////////////////////////////////////////////////////////////////////////
 		void connect_er_with_er
 		(
 			size_t somaIndex,
@@ -3130,6 +3140,10 @@ namespace ug {
 			connect_pm_with_soma(somaIndex, g, aaPos, sh, rootNeuritesInner);
 		}
 
+		////////////////////////////////////////////////////////////////////////
+		/// connect_pm_with_soma
+		/// TODO: cleanup method
+		////////////////////////////////////////////////////////////////////////
 		void connect_pm_with_soma
 		(
 			size_t somaIndex,
@@ -3228,6 +3242,10 @@ namespace ug {
 		    }
 		};
 
+		////////////////////////////////////////////////////////////////////////
+		/// connect_polygon_with_polygon
+		/// TODO cleanup method
+		////////////////////////////////////////////////////////////////////////
 		void connect_polygon_with_polygon
 		(
 			const std::vector<Vertex*>& from,

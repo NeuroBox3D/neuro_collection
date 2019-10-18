@@ -128,6 +128,7 @@ namespace ug {
 
 		////////////////////////////////////////////////////////////////////////
 		/// FindPermissibleRenderVector
+		/// TODO: Test in grid generation method test_import_swc_general_var
 		////////////////////////////////////////////////////////////////////////
 		void FindPermissibleRenderVector
 		(
@@ -167,5 +168,3 @@ namespace ug {
 		}
 	}
 }
-
-

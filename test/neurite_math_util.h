@@ -85,7 +85,7 @@ namespace ug {
 		 *
 		 * \param[in] p
 		 * \param[in] q
-		 * \return \c angle in radians
+		 * \return \c angle in radians [0, 2*pi]
 		 */
 		number AngleBetweenDirections
 		(
@@ -99,7 +99,7 @@ namespace ug {
 		 * \param[in] p
 		 * \param[in] n normal of plane
 		 * \param[in] s reference point in plane
-		 * \return \c angle in radians
+		 * \return \c angle in degree [0, 360]
 		 */
 		number SignedAngleBetweenDirsInPlane
 		(
