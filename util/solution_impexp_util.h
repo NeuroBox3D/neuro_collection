@@ -44,9 +44,6 @@
 #include "common/util/smart_pointer.h"  // for SmartPtr
 #include "lib_disc/function_spaces/approximation_space.h"
 
-// configuration file for compile options
-#include "nc_config.h"
-
 
 namespace ug {
 namespace neuro_collection {
@@ -72,11 +69,13 @@ namespace neuro_collection {
  * \param time			the simulation time which the averaged value is taken at
  * 						and shall be accorded to in the output file
  * \param subsetNames	contains the names of the subsets that the averaging
- * 						is to be performed on, separated by commas
+ * 						is to be performed on, separated by commas;
+ * 						empty string for all subsets
  * \param functionNames	contains the names of the functions that the averaging
  * 						is to be performed for, separated by commas;
  * 						for each function, a separate file with the function name
- * 						as a suffix will be created
+ * 						as a suffix will be created;
+ * 						empty string for all functions
  * \param outFileName	the name of the output file(s), i.e. their prefix
  *
  * \warning This function is very old and will probably not work properly.
@@ -92,7 +91,6 @@ void exportSolution
 );
 
 
-#ifdef NC_WITH_MPM
 /**
  * \brief Inputs solution for a specified function on specified subsets from file
  * 		  and sets them as a constraint to the solution.
@@ -114,7 +112,6 @@ void importSolution
 	const char* functionName,
 	const char* inFileName
 );
-#endif
 
 /// @}
 
