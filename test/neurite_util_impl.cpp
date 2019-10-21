@@ -3245,6 +3245,9 @@ namespace ug {
 		////////////////////////////////////////////////////////////////////////
 		/// connect_polygon_with_polygon
 		/// TODO cleanup method
+		/// TODO Note the smallest starting angle is assumed to arise if we use
+		/// as a reference vector the dirs[0] vector, but in principle there
+		/// is a better reference vector, e.g. can try dirs[0] ... dirs[numVerts]
 		////////////////////////////////////////////////////////////////////////
 		void connect_polygon_with_polygon
 		(
