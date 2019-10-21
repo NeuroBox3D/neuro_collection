@@ -3294,7 +3294,7 @@ void create_spline_data_for_neurites
 	    UG_LOGN("Connected inner soma");
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_finding_surface_quads.ugx");
 
-	    connect_new(g, sh, aaPos, newSomaIndex, 1);
+	    connect_new(g, sh, aaPos, newSomaIndex, 1, aaSurfParams);
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_finding_surface_quads_and_connect_new.ugx");
 	    return;
 

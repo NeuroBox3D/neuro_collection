@@ -3106,10 +3106,10 @@ namespace ug {
 				sel.select(g.get_edge(vertices[e->vertex(0)], vertices[e->vertex(1)]));
 				AssignSelectionToSubset(sel, sh, siOuterSphereInnerQuad);
 				/// TODO: Dummy values to pretend to be inside soma for tetrahedralize
-				aaSurfParams[e->vertex(0)] = -0.5; /// on inner sphere (ER) surface
-				aaSurfParams[e->vertex(1)] = -0.5; /// on inner sphere (ER) surface
-				aaSurfParams[vertices[e->vertex(0)]] = -0.25; /// close to outer sphere (PM) surface
-				aaSurfParams[vertices[e->vertex(1)]] = -0.25; /// close to outer sphere (PM) surface
+				aaSurfParams[e->vertex(0)].axial = -0.5; /// on inner sphere (ER) surface
+				aaSurfParams[e->vertex(1)].axial = -0.5; /// on inner sphere (ER) surface
+				aaSurfParams[vertices[e->vertex(0)]].axial = -0.25; /// close to outer sphere (PM) surface
+				aaSurfParams[vertices[e->vertex(1)]].axial = -0.25; /// close to outer sphere (PM) surface
 			}
 
 
@@ -3244,10 +3244,9 @@ namespace ug {
 
 		////////////////////////////////////////////////////////////////////////
 		/// connect_polygon_with_polygon
-		/// TODO cleanup method
-		/// TODO Note the smallest starting angle is assumed to arise if we use
-		/// as a reference vector the dirs[0] vector, but in principle there
-		/// is a better reference vector, e.g. can try dirs[0] ... dirs[numVerts]
+		/// Note the smallest starting angle is assumed to arise if we use
+		/// as a reference vector the dirs[i] vector. The index i is found by a
+		/// preprocessing step through try-and-error of all possibe reference vecs
 		////////////////////////////////////////////////////////////////////////
 		void connect_polygon_with_polygon
 		(
@@ -3265,7 +3264,7 @@ namespace ug {
 
 			vector3 centerOut;
 			centerOut = CalculateCenter(from.begin(), from.end(), aaPos);
-			UG_LOGN("center:" << centerOut);
+			UG_DLOGN(NC_TNP, 0, "Center:" << centerOut);
 
 			for (size_t i = 0; i < numVerts; i++) {
 				vector3 temp;
@@ -3281,28 +3280,64 @@ namespace ug {
 
 			vector3 normal;
 			VecCross(normal, dirs[0], dirs[1]);
-			UG_LOGN("normal: " << normal);
+			UG_DLOGN(NC_TNP, 0, "Normal: " << normal);
 			vector3 refVec = dirs[0];
-			map<number, Vertex*> angleMapFrom, angleMapTo;
 
-			for (size_t i = 0; i < numVerts; i++) {
-				number fromAngle = SignedAngleBetweenDirsInPlane(dirs[i], normal, refVec);
-				angleMapFrom[fromAngle] = from[i];
+			map<number, Vertex*> angleMapFrom, angleMapTo;
+			size_t optimal = 0;
+			number minAngle = numeric_limits<number>::infinity();
+			for (size_t j = 0; j < numVerts; j++) {
+				angleMapFrom.clear(); angleMapTo.clear();
+
+				for (size_t i = 0; i < numVerts; i++) {
+					number fromAngle = SignedAngleBetweenDirsInPlane(dirs[i], normal, refVec);
+					angleMapFrom[fromAngle] = from[i];
+				}
+
+
+				for (size_t i = 0; i < numVerts; i++) {
+					number toAngle = SignedAngleBetweenDirsInPlane(dirs[i+numVerts], normal, refVec);
+					angleMapTo[toAngle] = to[i];
+				}
+
+				size_t l = 0;
+				for (map<number, Vertex*>::iterator it=angleMapTo.begin(); it!=angleMapTo.end(); ++it) {
+					if (l == 1) {
+						if (fabs(minAngle-it->first) < SMALL) {
+							optimal = j;
+							minAngle = it->first;
+							break;
+						}
+					}
+				}
 			}
 
-			for (size_t i = 0; i < numVerts; i++) {
-				number toAngle = SignedAngleBetweenDirsInPlane(dirs[i+numVerts], normal, refVec);
-				angleMapTo[toAngle] = to[i];
+			UG_DLOGN(NC_TNP, 0, "Optimal direction index " << optimal " with "
+					"vector coordinates " << refVec << "found for polygon");
+			refVec = dirs[optimal];
+			for (size_t j = 0; j < numVerts; j++) {
+				angleMapFrom.clear(); angleMapTo.clear();
+
+				for (size_t i = 0; i < numVerts; i++) {
+					number fromAngle = SignedAngleBetweenDirsInPlane(dirs[i], normal, refVec);
+					angleMapFrom[fromAngle] = from[i];
+				}
+
+
+				for (size_t i = 0; i < numVerts; i++) {
+					number toAngle = SignedAngleBetweenDirsInPlane(dirs[i+numVerts], normal, refVec);
+					angleMapTo[toAngle] = to[i];
+				}
 			}
 
 			vector<Vertex*> fromSorted, toSorted;
 			for (map<number, Vertex*>::iterator it=angleMapFrom.begin(); it!=angleMapFrom.end(); ++it) {
-				UG_LOGN("AngleMapFrom: " << it->first);
+				UG_DLOGN(NC_TNP, 0, "AngleMapFrom: " << it->first);
 				fromSorted.push_back(it->second);
 			}
 
 			for (map<number, Vertex*>::iterator it=angleMapTo.begin(); it!=angleMapTo.end(); ++it) {
-				UG_LOGN("AngleMapTo: " << it->first);
+				UG_DLOGN(NC_TNP, 0, "AngleMapTo: " << it->first);
 				toSorted.push_back(it->second);
 			}
 

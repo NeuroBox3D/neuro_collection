@@ -1019,7 +1019,8 @@ namespace ug {
 			SubsetHandler& sh,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			size_t newSomaIndex,
-			size_t numDodecagons
+			size_t numDodecagons,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams
 		);
 
 		void connect_pm_with_soma
