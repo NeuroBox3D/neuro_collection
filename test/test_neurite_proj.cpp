@@ -3695,7 +3695,7 @@ void create_spline_data_for_neurites
 			outVertsClean.push_back(std::vector<ug::Vertex*>(outVerts.begin() + (i*12), outVerts.begin() + (i+1)*12));
 		}
 
-		connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean);
+		connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, true);
 		SaveGridToFile(g, sh, "after_connect_pm_with_soma.ugx");
 
 		/// Note: Tested up to here - will greatly simplify grid generation
@@ -3726,6 +3726,8 @@ void create_spline_data_for_neurites
 	    CloseSelection(sel);
 	    AssignSelectionToSubset(sel, sh, 3);
 	    SavePreparedGridToFile(g, sh, "before_tetrahedralize_and_after_reassigned.ugx");
+
+	    return;
 
 
 		/// assign correct axial parameters for "somata"

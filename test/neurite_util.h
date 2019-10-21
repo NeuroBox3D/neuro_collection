@@ -1029,7 +1029,8 @@ namespace ug {
 			Grid& g,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			SubsetHandler& sh,
-			std::vector<std::vector<ug::Vertex*> >& rootNeurites
+			std::vector<std::vector<ug::Vertex*> >& rootNeurites,
+			bool merge=false
 		);
 
 		void connect_er_with_er
@@ -1038,7 +1039,8 @@ namespace ug {
 			Grid& g,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			SubsetHandler& sh,
-			std::vector<std::vector<ug::Vertex*> >& rootNeuritesInner
+			std::vector<std::vector<ug::Vertex*> >& rootNeuritesInner,
+			bool merge=false
 		);
 	}
 }

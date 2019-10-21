@@ -3135,14 +3135,22 @@ namespace ug {
 			Grid& g,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			SubsetHandler& sh,
-			std::vector<std::vector<ug::Vertex*> >& rootNeuritesInner
+			std::vector<std::vector<ug::Vertex*> >& rootNeuritesInner,
+			bool merge
 		) {
-			connect_pm_with_soma(somaIndex, g, aaPos, sh, rootNeuritesInner);
+			connect_pm_with_soma(somaIndex, g, aaPos, sh, rootNeuritesInner, merge);
 		}
 
 		////////////////////////////////////////////////////////////////////////
 		/// connect_pm_with_soma
-		/// TODO: cleanup method
+		/// Note: unprojectedVertices are the vertices on the soma surface,
+		/// projectedVertices are the root neurite vertices which have been
+		/// projected onto the plane which is defined by the unprojectedVertices
+		/// of the soma surface. Thus, one finds correspondence between the
+		/// projected vertices (u) and unprojected vertices (v). Since the
+		/// projected vertex (u) is just a helper and corresponds to a root
+		/// neurite (r) we store a mapping u, r as a helper map and connect
+		/// then vertex r of the root neurite with the soma surface vertex (v).
 		////////////////////////////////////////////////////////////////////////
 		void connect_pm_with_soma
 		(
@@ -3150,7 +3158,8 @@ namespace ug {
 			Grid& g,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			SubsetHandler& sh,
-			std::vector<std::vector<ug::Vertex*> >& rootNeurites
+			std::vector<std::vector<ug::Vertex*> >& rootNeurites,
+			bool merge
 		) {
 			Selector sel(g);
 			Selector::traits<Vertex>::iterator vit;
@@ -3161,7 +3170,9 @@ namespace ug {
 			size_t numNeurites = rootNeurites.size();
 
 			for (size_t i = 0; i < numNeurites; i++) {
-				UG_LOGN("Selecting index " << somaIndex-numNeurites+i << " as index for projection to plane");
+				map<Vertex*, Vertex*> mapVertices;
+				UG_LOGN("Selecting index " << somaIndex-numNeurites+i
+						<< " as index for projection to plane");
 				SelectSubsetElements<Vertex>(sel, sh, somaIndex-numNeurites+i, true);
 				vector<Vertex*> unprojectedVertices;
 				vit = sel.begin<Vertex>();
@@ -3199,35 +3210,38 @@ namespace ug {
 					aaPos[projVert] = vProjected;
 					sh.assign_subset(projVert, 100);
 					projectedVertices.push_back(projVert);
+					mapVertices[projVert] = vit;
 				}
 
 				vector3 dir;
 				sel.clear();
 				/// outer soma inner quad center
 				SelectSubsetElements<Vertex>(sel, sh, somaIndex-numNeurites+i, true);
-				vector3 centerOut = CalculateCenter(sel.begin<Vertex>(), sel.end<Vertex>(), aaPos);
+				vector3 centerOut = CalculateCenter(sel.begin<Vertex>(),
+						sel.end<Vertex>(), aaPos);
 
 				// projected neurite vertices center
-				vector3 centerOut2 = CalculateCenter(projectedVertices.begin(), projectedVertices.end(), aaPos);
+				vector3 centerOut2 = CalculateCenter(projectedVertices.begin(),
+						projectedVertices.end(), aaPos);
 				VecSubtract(dir, centerOut2, centerOut);
-				UG_DLOGN(NC_TNP, 0, "dir: " << dir);
+				UG_DLOGN(NC_TNP, 0, "Projection direction: " << dir);
 
 				for (size_t j = 0; j < numVerts; j++) {
-					UG_DLOGN(NC_TNP, 0, "pos: " << aaPos[projectedVertices[i][j]]);
+					UG_DLOGN(NC_TNP, 0, "Position of projected vertex: " << aaPos[projectedVertices[i][j]]);
 					VecSubtract(aaPos[projectedVertices[j]], aaPos[projectedVertices[j]], dir);
 				}
 				std::vector<std::pair<Vertex*, Vertex*> > pairs;
 				connect_polygon_with_polygon(unprojectedVertices, projectedVertices, aaPos, pairs);
 				std::vector<std::pair<Vertex*, Vertex*> >::iterator it = pairs.begin();
-				size_t numMax = 2;
-				size_t numSoFar = 0;
 				for (; it != pairs.end(); ++it) {
-					UG_LOGN("Creating edge between: " << aaPos[it->first] << " and " << aaPos[it->second]);
-					Edge* e = *g.create<RegularEdge>(EdgeDescriptor(it->first, it->second));
-					sh.assign_subset(e, 101);
-					numSoFar++;
-					if (numSoFar > numMax) {
-					//	break;
+					if (merge) {
+						UG_DLOGN(NC_TNP, 0, "Creating edge between: " << aaPos[it->first]
+						                     << " and " << aaPos[mapVertices[it->second]]);
+						Edge* e = *g.create<RegularEdge>(EdgeDescriptor(it->first,
+								mapVertices[it->second]));
+						sh.assign_subset(e, 101);
+					} else {
+						MergeVertices(g, it->first, mapVertices[it->second]);
 					}
 				}
 			}
