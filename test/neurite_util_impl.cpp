@@ -3136,9 +3136,10 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			SubsetHandler& sh,
 			std::vector<std::vector<ug::Vertex*> >& rootNeuritesInner,
+			size_t offset,
 			bool merge
 		) {
-			connect_pm_with_soma(somaIndex, g, aaPos, sh, rootNeuritesInner, merge);
+			connect_pm_with_soma(somaIndex, g, aaPos, sh, rootNeuritesInner, merge, offset);
 		}
 
 		////////////////////////////////////////////////////////////////////////
@@ -3159,7 +3160,8 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			SubsetHandler& sh,
 			std::vector<std::vector<ug::Vertex*> >& rootNeurites,
-			bool merge
+			bool merge,
+			size_t offset
 		) {
 			Selector sel(g);
 			Selector::traits<Vertex>::iterator vit;
@@ -3173,7 +3175,7 @@ namespace ug {
 				map<Vertex*, Vertex*> mapVertices;
 				UG_LOGN("Selecting index " << somaIndex-numNeurites+i
 						<< " as index for projection to plane");
-				SelectSubsetElements<Vertex>(sel, sh, somaIndex-numNeurites+i, true);
+				SelectSubsetElements<Vertex>(sel, sh, somaIndex-numNeurites+offset+i, true);
 				vector<Vertex*> unprojectedVertices;
 				vit = sel.begin<Vertex>();
 				vit_end = sel.end<Vertex>();
@@ -3181,7 +3183,7 @@ namespace ug {
 					unprojectedVertices.push_back(*vit);
 				}
 				sel.clear();
-				SelectSubsetElements<Vertex>(sel, sh, somaIndex-numNeurites+i, true);
+				SelectSubsetElements<Vertex>(sel, sh, somaIndex-numNeurites+offset+i, true);
 				vector3 v0, v1, v2;
 				v0 = CalculateCenter(sel.vertices_begin(), sel.vertices_end(), aaPos);
 				vit = sel.begin<Vertex>();

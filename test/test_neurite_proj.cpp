@@ -3675,31 +3675,21 @@ void create_spline_data_for_neurites
 		   	sh.set_subset_name(ss.str().c_str(), i);
 		 }
 
-	    /// TODO: new strategy needs different connect method: connect method suffer
-	    /// from bug that distance based criterion and angle based criterion does not work
-	    /// Implement new prototype here
-	    UG_DLOGN(NC_TNP, 0, "Soma's inner index: " << newSomaIndex);
-		UG_LOGN("somaIndex: " << newSomaIndex);
-
 		SavePreparedGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_inner_soma_to_outer_ER.ugx");
-
 		UG_LOGN("After adding neurites and connecting inner soma to outer ER");
 
-		// This connects the outer dodecagon with the soma surface (plasma membrane)
-	    /// Note: Called two times for inner and outer polygon on outer soma but use the same plane defined by the outer soma's inner quad vertices
-	    ///connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12, true);
 		UG_LOGN("somaIndex before connect pm with soma: " << newSomaIndex);
-
 		std::vector<std::vector<ug::Vertex*> > outVertsClean;
 		for (size_t i = 0; i < outVerts.size() / 12; i++) {
 			outVertsClean.push_back(std::vector<ug::Vertex*>(outVerts.begin() + (i*12), outVerts.begin() + (i+1)*12));
 		}
 
-		connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, true);
+		// This connects the outer dodecagon with the soma surface (plasma membrane)
+		// The indices start from 5 (4 is outer sphere) up to 5+numRootNeurites (5+numRootNeurites+1 is inner sphere)
+	    /// connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12, true);
+		connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, true, 0);
 		SaveGridToFile(g, sh, "after_connect_pm_with_soma.ugx");
 
-		/// Note: Tested up to here - will greatly simplify grid generation
-		return;
 
 	    // This connects the inner quad with the soma surface (ER)
 	    /// Extrude ER volume a little bit further into normal direction towards
@@ -3709,13 +3699,16 @@ void create_spline_data_for_neurites
 	    	/// TODO: Check also that aaSurfParams are set accordingly for neurite projection later
 	    	extend_ER_within(g, sh, aaPos, aaSurfParams, newSomaIndex, 1, erScaleFactor, outVertsInner);
 	    	SavePreparedGridToFile(g, sh, "after_extend_ER_and_before_connect_outer.ugx");
-	    	/// TODO: test new method (subset indices in connect_with_er method might differ now compared to old connect method)
-	    	///connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4, true);
 			std::vector<std::vector<ug::Vertex*> > outVertsInnerClean;
-			for (size_t i = 0; i < outVerts.size() / 4; i++) {
-				outVertsClean.push_back(std::vector<ug::Vertex*>(outVerts.begin() + (i*4), outVerts.begin() + (i+1)*4));
+			for (size_t i = 0; i < outVertsInner.size() / 4; i++) {
+				outVertsInnerClean.push_back(std::vector<ug::Vertex*>(outVertsInner.begin() + (i*4), outVertsInner.begin() + (i+1)*4));
 			}
-	    	connect_er_with_er(newSomaIndex, g, aaPos, sh, outVertsInnerClean);
+			UG_LOGN("newSomaIndex (er with er): " << newSomaIndex);
+	    	// The indices start from 5+2*numRootNeurites+1 (newSomaIndex is 5+numRootNeurites) up to 5+3*numRootNeurites
+	    	/// connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4, true);
+			size_t numQuads = outVertsInnerClean.size();
+	    	connect_er_with_er(newSomaIndex+2*numQuads, g, aaPos, sh, outVertsInnerClean, 2*numQuads-1, true);
+	    	SaveGridToFile(g, sh, "after_connect_er_with_er.ugx");
 	    	EraseEmptySubsets(sh);
 	    	AssignSubsetColors(sh);
 	    }
@@ -3727,8 +3720,8 @@ void create_spline_data_for_neurites
 	    AssignSelectionToSubset(sel, sh, 3);
 	    SavePreparedGridToFile(g, sh, "before_tetrahedralize_and_after_reassigned.ugx");
 
+		/// TODO: tested until here
 	    return;
-
 
 		/// assign correct axial parameters for "somata"
 		set_somata_axial_parameters(g, sh, aaSurfParams, 4, 5);
