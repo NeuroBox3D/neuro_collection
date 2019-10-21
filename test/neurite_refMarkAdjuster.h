@@ -60,7 +60,7 @@ namespace neuro_collection {
  * At some point, the original anisotropy of the neurite mesh will have been "refined out"
  * and this refinement mark adjuster can be switched off using disable().
  *
- * @todo: Have the refinement mark adjuster decide on when it switches itself off.
+ * TODO: Have the refinement mark adjuster decide on when it switches itself off.
  */
 class NeuriteRefMarkAdjuster
 : public IRefMarkAdjuster

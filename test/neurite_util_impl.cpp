@@ -3187,6 +3187,7 @@ namespace ug {
 				vector3 v0, v1, v2;
 				v0 = CalculateCenter(sel.vertices_begin(), sel.vertices_end(), aaPos);
 				vit = sel.begin<Vertex>();
+				/// TODO: this is not optimal! direction might blow up, take an edge and it's vertices
 				v1 = aaPos[*vit];
 				vit++;
 				v2 = aaPos[*vit];
@@ -3235,6 +3236,7 @@ namespace ug {
 				std::vector<std::pair<Vertex*, Vertex*> > pairs;
 				connect_polygon_with_polygon(unprojectedVertices, projectedVertices, aaPos, pairs);
 				std::vector<std::pair<Vertex*, Vertex*> >::iterator it = pairs.begin();
+				SaveGridToFile(g, sh, "before_connecting.ugx");
 				for (; it != pairs.end(); ++it) {
 					if (merge) {
 						UG_DLOGN(NC_TNP, 0, "Creating edge between: " << aaPos[it->first]
@@ -3263,6 +3265,7 @@ namespace ug {
 		/// Note the smallest starting angle is assumed to arise if we use
 		/// as a reference vector the dirs[i] vector. The index i is found by a
 		/// preprocessing step through try-and-error of all possibe reference vecs
+		/// TODO: merge at root neurite vertices not soma surface
 		////////////////////////////////////////////////////////////////////////
 		void connect_polygon_with_polygon
 		(
@@ -3302,6 +3305,7 @@ namespace ug {
 			map<number, Vertex*> angleMapFrom, angleMapTo;
 			size_t optimal = 0;
 			number minAngle = numeric_limits<number>::infinity();
+			/// TODO: this needs to cycle accordingly through the vertex list
 			for (size_t j = 0; j < numVerts; j++) {
 				angleMapFrom.clear(); angleMapTo.clear();
 
@@ -3350,11 +3354,13 @@ namespace ug {
 			for (map<number, Vertex*>::iterator it=angleMapFrom.begin(); it!=angleMapFrom.end(); ++it) {
 				UG_DLOGN(NC_TNP, 0, "AngleMapFrom: " << it->first);
 				fromSorted.push_back(it->second);
+				UG_LOGN("angleMapFrom: " << it->first);
 			}
 
 			for (map<number, Vertex*>::iterator it=angleMapTo.begin(); it!=angleMapTo.end(); ++it) {
 				UG_DLOGN(NC_TNP, 0, "AngleMapTo: " << it->first);
 				toSorted.push_back(it->second);
+				UG_LOGN("angleMapTo: " << it->first)
 			}
 
 			for (size_t i = 0; i < numVerts; i++) {
