@@ -3194,7 +3194,9 @@ namespace ug {
 				vector3 p1, p2, normal, vProjected;
 				VecSubtract(p1, v1, v0);
 				VecSubtract(p2, v2, v0);
-				UG_COND_THROW(fabs((fabs(VecDot(p1, p2)/(VecLength(p1) * VecLength(p2)))-1)) < SMALL, "Nearly parallel!");
+				UG_COND_THROW(fabs((fabs(VecDot(p1, p2)/(VecLength(p1) * VecLength(p2)))-1)) < SMALL,
+						"Co-linear vectors selected for normal calculation via cross product."
+						"This will result in faulty null vector for the desired plane.");
 				VecCross(normal, p1, p2);
 				VecNormalize(normal, normal);
 				size_t numVerts = rootNeurites[i].size();
