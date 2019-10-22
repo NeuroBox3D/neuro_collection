@@ -3184,18 +3184,17 @@ namespace ug {
 				}
 				sel.clear();
 				SelectSubsetElements<Vertex>(sel, sh, somaIndex-numNeurites+offset+i, true);
-				vector3 v0, v1, v2;
-				v0 = CalculateCenter(sel.vertices_begin(), sel.vertices_end(), aaPos);
-				vit = sel.begin<Vertex>();
-				/// TODO: this is not optimal! direction might blow up, take an edge and it's vertices
-				v1 = aaPos[*vit];
-				vit++;
-				v2 = aaPos[*vit];
+				vector3 v0 = CalculateCenter(sel.vertices_begin(), sel.vertices_end(), aaPos);
 				sel.clear();
-
+				SelectSubsetElements<Edge>(sel, sh, somaIndex-numNeurites+offset+i, true);
+				Edge* e = *sel.begin<Edge>(somaIndex-numNeurites+offset+i);
+				vector3 v1 = aaPos[e->vertex(0)];
+				vector3 v2 = aaPos[e->vertex(1)];
+				sel.clear();
 				vector3 p1, p2, normal, vProjected;
 				VecSubtract(p1, v1, v0);
 				VecSubtract(p2, v2, v0);
+				UG_COND_THROW(fabs((fabs(VecDot(p1, p2)/(VecLength(p1) * VecLength(p2)))-1)) < SMALL, "Nearly parallel!");
 				VecCross(normal, p1, p2);
 				VecNormalize(normal, normal);
 				size_t numVerts = rootNeurites[i].size();

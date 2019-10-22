@@ -123,7 +123,16 @@ namespace ug {
 			VecCross(cross, s, p);
 			int signum = boost::math::sign(VecDot(n, cross) / (VecLength(n) * VecLength(cross)));
 
-			return fmod(signum * rad_to_deg(AngleBetweenDirections(s, p)), 360);
+			return signum * fmod(rad_to_deg(AngleBetweenDirections(s, p)), 360);
+
+			/// TODO: fmod(.,.) does not behave as expected - why? Angle not in [0,360]
+			/*
+			 * if (signum == -1) {
+			 * 		return fmod(rad_to_deg(AngleBetweenDirections(s, p)), 360) + 360
+			 * } else {
+			 * 		return fmod(rad_to_deg(AngleBetweenDirections(s, p)), 360);
+			 * }
+			 */
 		}
 
 		////////////////////////////////////////////////////////////////////////

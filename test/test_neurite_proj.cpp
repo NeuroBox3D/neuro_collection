@@ -3687,7 +3687,7 @@ void create_spline_data_for_neurites
 		// This connects the outer dodecagon with the soma surface (plasma membrane)
 		// The indices start from 5 (4 is outer sphere) up to 5+numRootNeurites (5+numRootNeurites+1 is inner sphere)
 	    /// connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12, true);
-		connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, false, 0);
+		connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, true, 0);
 		SaveGridToFile(g, sh, "after_connect_pm_with_soma.ugx");
 
 
