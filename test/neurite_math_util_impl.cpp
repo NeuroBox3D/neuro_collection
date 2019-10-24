@@ -118,14 +118,18 @@ namespace ug {
 			const vector3& n,
 			const vector3& s
 		) {
-
+			/// TODO: replace VecCross with VecDot and take sign of this expression
 			vector3 cross;
 			VecCross(cross, s, p);
+			UG_COND_WARNING(VecLength(cross) < SMALL, "Potential null-vector encountered. "
+					"Expect bogus output / behaviour from the underlying algorithm relying"
+					"on the angle.")
+
 			int signum = boost::math::sign(VecDot(n, cross) / (VecLength(n) * VecLength(cross)));
-			number mod = fmod(rad_to_deg(AngleBetweenDirections(s, p)), 360);
+			number mod = fmod(signum * rad_to_deg(AngleBetweenDirections(s, p)), 360);
 
 			if (signum == -1) {
-				return mod + 360;
+				return fmod(mod + 360, 360);
 			} else {
 				return mod;
 			}

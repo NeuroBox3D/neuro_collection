@@ -3137,9 +3137,10 @@ namespace ug {
 			SubsetHandler& sh,
 			std::vector<std::vector<ug::Vertex*> >& rootNeuritesInner,
 			size_t offset,
-			bool merge
+			bool merge,
+			bool mergeFirst
 		) {
-			connect_pm_with_soma(somaIndex, g, aaPos, sh, rootNeuritesInner, merge, offset);
+			connect_pm_with_soma(somaIndex, g, aaPos, sh, rootNeuritesInner, merge, offset, mergeFirst);
 		}
 
 		////////////////////////////////////////////////////////////////////////
@@ -3161,7 +3162,8 @@ namespace ug {
 			SubsetHandler& sh,
 			std::vector<std::vector<ug::Vertex*> >& rootNeurites,
 			bool merge,
-			size_t offset
+			size_t offset,
+			bool mergeFirst
 		) {
 			Selector sel(g);
 			Selector::traits<Vertex>::iterator vit;
@@ -3173,7 +3175,7 @@ namespace ug {
 
 			for (size_t i = 0; i < numNeurites; i++) {
 				map<Vertex*, Vertex*> mapVertices;
-				UG_LOGN("Selecting index " << somaIndex-numNeurites+i
+				UG_LOGN("Selecting index " << somaIndex-numNeurites+offset+i
 						<< " as index for projection to plane");
 				SelectSubsetElements<Vertex>(sel, sh, somaIndex-numNeurites+offset+i, true);
 				vector<Vertex*> unprojectedVertices;
@@ -3220,7 +3222,7 @@ namespace ug {
 				vector3 dir;
 				sel.clear();
 				/// outer soma inner quad center
-				SelectSubsetElements<Vertex>(sel, sh, somaIndex-numNeurites+i, true);
+				SelectSubsetElements<Vertex>(sel, sh, somaIndex-numNeurites+offset+i, true);
 				vector3 centerOut = CalculateCenter(sel.begin<Vertex>(),
 						sel.end<Vertex>(), aaPos);
 
@@ -3234,9 +3236,9 @@ namespace ug {
 					UG_DLOGN(NC_TNP, 0, "Position of projected vertex: " << aaPos[projectedVertices[i][j]]);
 					VecSubtract(aaPos[projectedVertices[j]], aaPos[projectedVertices[j]], dir);
 				}
-				std::vector<std::pair<Vertex*, Vertex*> > pairs;
+				vector<pair<Vertex*, Vertex*> > pairs;
 				connect_polygon_with_polygon(unprojectedVertices, projectedVertices, aaPos, pairs);
-				std::vector<std::pair<Vertex*, Vertex*> >::iterator it = pairs.begin();
+				vector<pair<Vertex*, Vertex*> >::iterator it = pairs.begin();
 				SaveGridToFile(g, sh, "before_connecting.ugx");
 				for (; it != pairs.end(); ++it) {
 					if (merge) {
@@ -3246,8 +3248,17 @@ namespace ug {
 								mapVertices[it->second]));
 						sh.assign_subset(e, 101);
 					} else {
-						MergeVertices(g, it->first, mapVertices[it->second]);
+						if (mergeFirst) {
+							MergeVertices(g, it->first, mapVertices[it->second]);
+						} else {
+							UG_LOGN("Merging: " << mapVertices[it->second] << "with " << it->first);
+							MergeVertices(g, mapVertices[it->second], it->first);
+						}
 					}
+				}
+				/// Delete debugging vertices
+				for (vector<Vertex*>::iterator it = projectedVertices.begin(); it != projectedVertices.end(); ++it) {
+					///g.erase(*it);
 				}
 			}
 		}
@@ -3306,12 +3317,18 @@ namespace ug {
 			map<number, Vertex*> angleMapFrom, angleMapTo;
 			size_t optimal = 0;
 			number minAngle = numeric_limits<number>::infinity();
-			/// TODO: this needs to cycle accordingly through the vertex list
+			UG_LOGN("center: " << centerOut);
+			/// FIXME Ref vector with zero components might be troublesome - throw for now
+			/// In this case sometimes and if vectors (ref and dirs[i]) are colinear then
+			/// VecCross will result in the (faulty) null vector and this is problematic
+			UG_COND_THROW(fabs(refVec.x()) < SMALL || fabs(refVec.y()) < SMALL || fabs(refVec.z()) < SMALL,
+					"Need full-dimensional reference vector for angle calculation in general.");
 			for (size_t j = 0; j < numVerts; j++) {
 				angleMapFrom.clear(); angleMapTo.clear();
 
 				for (size_t i = 0; i < numVerts; i++) {
 					number fromAngle = SignedAngleBetweenDirsInPlane(dirs[i], normal, refVec);
+					UG_LOGN("dir: " << dirs[i]);
 					angleMapFrom[fromAngle] = from[i];
 				}
 

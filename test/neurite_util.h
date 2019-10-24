@@ -1031,7 +1031,8 @@ namespace ug {
 			SubsetHandler& sh,
 			std::vector<std::vector<ug::Vertex*> >& rootNeurites,
 			bool merge=false,
-			size_t offset=0
+			size_t offset=0,
+			bool mergeFirst=true
 		);
 
 		void connect_er_with_er
@@ -1042,7 +1043,8 @@ namespace ug {
 			SubsetHandler& sh,
 			std::vector<std::vector<ug::Vertex*> >& rootNeuritesInner,
 			size_t offset,
-			bool merge=false
+			bool merge=false,
+			bool mergeFirst=false
 		);
 	}
 }

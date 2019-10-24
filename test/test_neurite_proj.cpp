@@ -3243,16 +3243,7 @@ void create_spline_data_for_neurites
 	    		4, sh, fileName, 1.0, axisVectors, vNeurites, connectingVertices, connectingVerticesInner,
 	    		connectingEdges, connectingEdgesInner, true, 0.01, 10, 0.00001, 0.5, 12, 1);
 
-	    ///UG_LOGN("Connected neurites with soma");
-
-	    /// A test for new strategy
-	    /*
-	   connect_neurites_with_soma_var(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRads, outQuadsInner,
-	    	    		4, sh, fileName, erScaleFactor, axisVectors, vNeurites, connectingVertices, connectingVerticesInner,
-	    	    		connectingEdges, connectingEdgesInner, true, 0.01, 10, 0.00001, 0.5, 12, 1);
-	    	    		*/
-
-
+	    UG_LOGN("Connected neurites with soma");
 
 	    /// delete old vertices from incorrect neurite starts
 	    g.erase(outVerts.begin(), outVerts.end());
@@ -3294,9 +3285,11 @@ void create_spline_data_for_neurites
 	    UG_LOGN("Connected inner soma");
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_finding_surface_quads.ugx");
 
+	    /*
 	    connect_new(g, sh, aaPos, newSomaIndex, 1, aaSurfParams);
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_finding_surface_quads_and_connect_new.ugx");
 	    return;
+	    */
 
 		// assign subset
 		AssignSubsetColors(sh);
@@ -3687,16 +3680,15 @@ void create_spline_data_for_neurites
 		// This connects the outer dodecagon with the soma surface (plasma membrane)
 		// The indices start from 5 (4 is outer sphere) up to 5+numRootNeurites (5+numRootNeurites+1 is inner sphere)
 	    /// connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12, true);
-		connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, true, 0);
-		SaveGridToFile(g, sh, "after_connect_pm_with_soma.ugx");
+		connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, false, 0, false);
+		SavePreparedGridToFile(g, sh, "after_connect_pm_with_soma.ugx");
 
 
+		/// TODO: assure subset indices are *ALWAYS* correct...
 	    // This connects the inner quad with the soma surface (ER)
 	    /// Extrude ER volume a little bit further into normal direction towards
 		/// inner soma, like the pyramids to close outer soma, to avoid intersections
 	    if (withER) {
-	    	/// TODO: Check that this still works, probably it will:
-	    	/// TODO: Check also that aaSurfParams are set accordingly for neurite projection later
 	    	extend_ER_within(g, sh, aaPos, aaSurfParams, newSomaIndex, 1, erScaleFactor, outVertsInner);
 	    	SavePreparedGridToFile(g, sh, "after_extend_ER_and_before_connect_outer.ugx");
 			std::vector<std::vector<ug::Vertex*> > outVertsInnerClean;
@@ -3705,13 +3697,14 @@ void create_spline_data_for_neurites
 			}
 			UG_LOGN("newSomaIndex (er with er): " << newSomaIndex);
 	    	// The indices start from 5+2*numRootNeurites+1 (newSomaIndex is 5+numRootNeurites) up to 5+3*numRootNeurites
-	    	/// connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4, true);
+	    	///connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4, true);
 			size_t numQuads = outVertsInnerClean.size();
-	    	connect_er_with_er(newSomaIndex+2*numQuads, g, aaPos, sh, outVertsInnerClean, 2*numQuads-1, true);
-	    	SaveGridToFile(g, sh, "after_connect_er_with_er.ugx");
-	    	EraseEmptySubsets(sh);
-	    	AssignSubsetColors(sh);
+	    	connect_er_with_er(newSomaIndex+2*numQuads-1, g, aaPos, sh, outVertsInnerClean, 2*numQuads-1, false, false);
+	    	SavePreparedGridToFile(g, sh, "after_connect_er_with_er.ugx");
 	    }
+
+		/// TODO: tested until here
+	    UG_LOGN("Success for file with name: " << fileName);
 
 	    /// Reassign elements for connecting parts ER and somata to erm subset
 	    sel.clear();
@@ -3720,10 +3713,7 @@ void create_spline_data_for_neurites
 	    AssignSelectionToSubset(sel, sh, 3);
 	    SavePreparedGridToFile(g, sh, "before_tetrahedralize_and_after_reassigned.ugx");
 
-		/// TODO: tested until here
-	    return;
-
-		/// assign correct axial parameters for "somata"
+		/// assign correct axial parameters for "somata" regions (TODO: Verify!)
 		set_somata_axial_parameters(g, sh, aaSurfParams, 4, 5);
 
 	    /// tetrahedralizes somata with specified and fixed indices 4 and 5
