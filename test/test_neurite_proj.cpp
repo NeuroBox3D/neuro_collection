@@ -3500,7 +3500,8 @@ void create_spline_data_for_neurites
 		Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
 		aaSurfParams.access(g, aSP);
 
-		/// TODO: Check that this new scaling does not interfere with grid generation, then remove this noop
+		/// TODO: Check that this new scaling does not interfere with grid generation,
+		/// then remove this noop -> will introduce dints into soma if merging at root neurites
 		somaPoint[0].radius *= 1.00;
 		UG_DLOGN(NC_TNP, 0, "Creating (outer sphere) soma in subset 1");
 	    create_soma(somaPoint, g, aaPos, sh, 1);
@@ -3547,7 +3548,6 @@ void create_spline_data_for_neurites
 			vNeurites[i].vSR = somaRegions;
 		}
 
-
 		// helper vectors to store radii and verts for soma/neurite connection
 		vector<Vertex*> outVerts;
 		vector<number> outRads;
@@ -3581,11 +3581,9 @@ void create_spline_data_for_neurites
 	   	vector<vector<Edge*> > connectingEdges(vRootNeuriteIndsOut.size());
 	    vector<vector<Edge*> > connectingEdgesInner(vRootNeuriteIndsOut.size());
 
-	    /// TODO: Remove obsolete parameters
-		connect_neurites_with_soma_var(g, aaPos, aaSurfParams, outVerts, outVertsInner, outRads, outQuadsInner,
-		    	    		4, sh, fileName, erScaleFactor, axisVectors, vNeurites, connectingVertices, connectingVerticesInner,
-		    	    		connectingEdges, connectingEdgesInner, true, 0.01, 10, 0.00001, 0.5, 12, 1);
-
+	    /// Finds (outer sphere) soma dodecagons
+		connect_neurites_with_soma_var(g, aaPos, aaSurfParams, outVerts, outRads,
+		    	    		4, sh, fileName, erScaleFactor, vNeurites, 12, 1);
 		UG_DLOGN(NC_TNP, 0, "Found (outer sphere) soma dodecagons to connect neurite with");
 
 	    // delete old vertices from incorrect neurite starts
@@ -3631,6 +3629,7 @@ void create_spline_data_for_neurites
 
 		/// Connects (inner sphere) ER with ER part of dendrite
 		if (withER) {
+			/// TODO: here we need to add the axis and radii of connecting element to the neurite projector
 			connect_new(g, sh, aaPos, newSomaIndex, 1, aaSurfParams);
 		}
 		SaveGridToFile(g, sh, "testNeuriteProjector_after_finding_surface_quads_and_connect_new.ugx");

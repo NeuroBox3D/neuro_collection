@@ -125,6 +125,13 @@ namespace ug {
 					"Expect bogus output / behaviour from the underlying algorithm relying"
 					"on the angle.")
 
+			/// TODO replace and test if vectors are parallel or antiparallel => 180 or -180 degree
+			/*
+			if (VecLength(cross) < SMALL) {
+				return 180;
+			}
+			*/
+
 			int signum = boost::math::sign(VecDot(n, cross) / (VecLength(n) * VecLength(cross)));
 			number mod = fmod(signum * rad_to_deg(AngleBetweenDirections(s, p)), 360);
 

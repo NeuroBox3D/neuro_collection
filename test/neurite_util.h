@@ -976,28 +976,15 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 			std::vector<Vertex*> outVerts,
-			std::vector<Vertex*> outVertsInner,
 			std::vector<number> outRads,
-			std::vector<Vertex*>& smallerQuadVerts,
 			int si,
 			SubsetHandler& sh,
 			const std::string& fileName,
 			number rimSnapThresholdFactor,
-			std::vector<std::pair<size_t, std::pair<ug::vector3, ug::vector3> > >& axisVectors,
 			std::vector<NeuriteProjector::Neurite>& vNeurites,
-			std::vector<std::vector<ug::Vertex*> >& connectingVertices,
-			std::vector<std::vector<ug::Vertex*> >& connectingVerticesInner,
-			std::vector<std::vector<ug::Edge*> >& connectingEdges,
-			std::vector<std::vector<ug::Edge*> >& connectingEdgesInner,
-			bool createInner,
-			number alpha,
-			int numIterations,
-			number resolveThreshold,
-			number scale,
 			size_t numVerts,
 			size_t numDodecagons
 		);
-
 
 		/*!
 		 * \brief new prototype to implement
