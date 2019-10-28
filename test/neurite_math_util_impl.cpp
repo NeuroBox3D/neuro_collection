@@ -132,6 +132,7 @@ namespace ug {
 			}
 			*/
 
+			/*
 			int signum = boost::math::sign(VecDot(n, cross) / (VecLength(n) * VecLength(cross)));
 			number mod = fmod(signum * rad_to_deg(AngleBetweenDirections(s, p)), 360);
 
@@ -139,7 +140,17 @@ namespace ug {
 				return fmod(mod + 360, 360);
 			} else {
 				return mod;
+			}*/
+
+			int signum = boost::math::sign(VecDot(n, cross));
+			number mod = fmod(signum * rad_to_deg(AngleBetweenDirections(s, p)), 360);
+
+			if (signum == -1) {
+				return fmod(mod + 360, 360);
+			} else {
+				return mod;
 			}
+
 		}
 
 		////////////////////////////////////////////////////////////////////////

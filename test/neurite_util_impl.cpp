@@ -3298,7 +3298,8 @@ namespace ug {
 			}
 
 			vector3 normal;
-			VecCross(normal, dirs[0], dirs[1]);
+			VecCross(normal, aaPos[from[0]], aaPos[from[1]]);
+			VecNormalize(normal, normal);
 			UG_DLOGN(NC_TNP, 0, "Normal: " << normal);
 			vector3 refVec = dirs[0];
 
@@ -3309,8 +3310,8 @@ namespace ug {
 			/// FIXME Ref vector with zero components might be troublesome - throw for now
 			/// In this case sometimes and if vectors (ref and dirs[i]) are colinear then
 			/// VecCross will result in the (faulty) null vector and this is problematic
-			UG_COND_THROW(fabs(refVec.x()) < SMALL || fabs(refVec.y()) < SMALL || fabs(refVec.z()) < SMALL,
-					"Need full-dimensional reference vector for angle calculation in general.");
+			//UG_COND_THROW(fabs(refVec.x()) < SMALL || fabs(refVec.y()) < SMALL || fabs(refVec.z()) < SMALL,
+				//	"Need full-dimensional reference vector for angle calculation in general.");
 			for (size_t j = 0; j < numVerts; j++) {
 				angleMapFrom.clear(); angleMapTo.clear();
 

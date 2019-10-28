@@ -3524,6 +3524,10 @@ void create_spline_data_for_neurites
 	    // Regularize, smooth possibly again, then convert to neuritelist
 	    /// TODO: Smooth before or after regularize?
 	    regularize_bps(vPoints, regularize);
+    	Grid g2;
+    	SubsetHandler sh2(g2);
+    	swc_points_to_grid(vPoints, g2, sh2);
+    	export_to_ugx(g2, sh2, "after_regularize.ugx");
 		/// constrained_smoothing(vPoints, vRootNeuriteIndsOut.size(), 0.1, 0.1, 10, 0.1);
 	    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 
@@ -3555,7 +3559,7 @@ void create_spline_data_for_neurites
 		vector<number> outRadsInner;
 
 	    UG_DLOGN(NC_TNP, 0, "Generating neurites...");
-	    /// for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
+	    ///for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 	    for (size_t i = 0; i < 1; ++i) {
 		   	create_neurite_root_vertices(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   		g, sh, erScaleFactor, aaPos, &outVerts, &outVertsInner, &outRads,
