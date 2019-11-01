@@ -3043,7 +3043,8 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			size_t newSomaIndex,
 			size_t numDodecagons,
-			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			SmartPtr<NeuriteProjector> neuriteProj
 		) {
 		for (size_t i = 0; i < numDodecagons; i++) {
 			size_t siOuter = newSomaIndex-numDodecagons+i;
@@ -3054,6 +3055,8 @@ namespace ug {
 			vector3 c2 = CalculateCenter(sh.begin<Vertex>(siInner), sh.end<Vertex>(siInner), aaPos);
 			vector3 dir;
 			VecSubtract(dir, c1, c2); // vec pointing towards outer soma sphere's dodecagon
+			neuriteProj->neurites()[i].vSBR.push_back(NeuriteProjector::SomaBranchingRegion(c2, -1, -1)); /// inner sphere
+			neuriteProj->neurites()[i].vSBR.push_back(NeuriteProjector::SomaBranchingRegion(c1, -1, -0.5)); /// outer sphere
 
 			Grid::traits<Vertex>::iterator vit = sh.begin<Vertex>(siInner);
 			Grid::traits<Vertex>::iterator vit_end = sh.end<Vertex>(siInner);

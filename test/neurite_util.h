@@ -1007,7 +1007,8 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			size_t newSomaIndex,
 			size_t numDodecagons,
-			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			SmartPtr<NeuriteProjector>
 		);
 
 		void connect_pm_with_soma
