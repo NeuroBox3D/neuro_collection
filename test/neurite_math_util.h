@@ -129,6 +129,33 @@ namespace ug {
 			size_t maxIter,
 			vector3& v_permissible
 		);
+
+		/*!
+		 * \brief Determines if two cylinders a and b are separated
+		 * \param[in] a - first cylinder
+		 * \param[in] b - second cylinder
+		 *
+		 * \return \c true if separated otherwise false
+		 */
+		struct Cylinder;
+		bool CylinderCylinderSeparationTest
+		(
+			const Cylinder& a,
+			const Cylinder& b
+		);
+
+		struct Cylinder {
+			vector3 c; //<! center (point)
+			vector3 w; //<! unit-length axis (vector)
+			number r; //<! radius
+			number h; //<! height
+			Cylinder(const vector3& c, const vector3& w, number r, number h)
+			: c(c),
+			  w(w),
+			  r(r),
+			  h(h)
+			{ }
+		};
 	}
 }
 

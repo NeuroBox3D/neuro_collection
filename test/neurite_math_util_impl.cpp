@@ -43,6 +43,7 @@
 #include "common/math/math_vector_matrix/math_vector_functions.h"
 #include <boost/algorithm/clamp.hpp>
 #include <boost/math/special_functions/sign.hpp>
+#include <lib_algebra/vector_interface/vec_functions.h>
 
 namespace ug {
 	namespace neuro_collection {
@@ -192,6 +193,149 @@ namespace ug {
 				UG_COND_THROW((std::abs(angleMin) <= SMALL * std::abs(angleMin)),
 						"No permissible render vector found for minimal angle");
 			}
+		}
+
+		ostream& operator<< (ostream &os, const Cylinder& cyl) {
+		    return (os << "Cylinder (" << cyl.c << ", " << cyl.w << " with radius "
+		    		<< cyl.r << " and height " << cyl.h << std::endl);
+		}
+
+
+		bool SeparatedByFirstCylindersUnitAxis
+		(
+			const Cylinder& a,
+			const Cylinder& b
+		) {
+			vector3 cross;
+			VecCross(cross, a.w, b.w);
+			number dot = VecDot(a.w, b.w);
+
+			vector3 diff;
+			VecSubtract(diff, a.c, b.c);
+			vector1 awScaled = VecDot(a.w, diff);
+			return std::fabs(b.r*VecNorm2(cross)+a.h/2+b.h/2*dot-VecNorm2(awScaled)) < SMALL;
+		}
+
+
+		bool SeparatedBySecondCylindersUnitAxis
+		(
+			const Cylinder& a,
+			const Cylinder& b
+		) {
+			vector3 cross;
+			VecCross(cross, a.w, b.w);
+			number dot = VecDot(a.w, b.w);
+
+			vector3 diff;
+			VecSubtract(diff, a.c, b.c);
+			vector1 awScaled = VecDot(b.w, diff);
+			return std::fabs(a.r*VecNorm2(cross)+a.h/2+b.h/2*dot-VecNorm2(awScaled)) < SMALL;
+		}
+
+		bool SeparatedByUnitAxesCrossed
+		(
+			const Cylinder& a,
+			const Cylinder& b
+		) {
+			vector3 cross;
+			VecCross(cross, a.w, b.w);
+			vector3 diff;
+			VecSubtract(diff, a.c, b.c);
+			vector1 dot = VecDot(cross, diff);
+			return std::fabs((a.r+b.r)*VecNorm2(cross)-VecNorm2(dot)) < SMALL;
+		}
+
+		bool SeparatedByFirstCylinderPerpendicular
+		(
+			const Cylinder& a,
+			const Cylinder& b
+		) {
+			/// TODO: Implement: This will be more involving as an iterative method, bisect is used
+			UG_THROW("Not implemented!");
+			return false;
+		}
+
+		bool SeparatedBySecondCylinderPerpendicular
+		(
+			const Cylinder& a,
+			const Cylinder& b
+		) {
+			/// TODO: Implement: This will be more involving as an iterative method, bisect is used
+			UG_THROW("Not implemented!");
+			return false;
+
+		}
+
+		bool SeparatedByOtherDirections
+		(
+			const Cylinder& a,
+			const Cylinder& b
+		) {
+			/// TODO: Implement: This will be more involving as an iterative method, e.g. CG is used
+			UG_THROW("Not implemented!");
+			return false;
+		}
+
+		bool SeparatedByHeight
+		(
+			const Cylinder& a,
+			const Cylinder& b
+		) {
+			vector3 diff;
+			VecSubtract(diff, a.c, b.c);
+			vector1 dot = VecDot(a.w, diff);
+		    return std::fabs((a.h/2+b.h/2 - VecNorm2(dot)) < SMALL);
+		}
+
+		bool SeparatedRadially
+		(
+			const Cylinder& a,
+			const Cylinder& b
+		) {
+			vector3 diff;
+			VecSubtract(diff, a.c, b.c);
+			vector3 diffdot;
+			vector3 dotVec;
+			VecScale(dotVec, a.w, VecDot(a.w, diff));
+			VecSubtract(diffdot, diff, dotVec);
+			return std::fabs((a.r+b.r-VecNorm2(diffdot)) < SMALL);
+		}
+
+
+
+		bool CylinderCylinderSeparationTest
+		(
+			const Cylinder& a,
+			const Cylinder& b
+		) {
+			/// test functions
+			const size_t numPar = 2;
+			const size_t numOther = 5;
+			bool (*cylTestPar[numPar])(const Cylinder&, const Cylinder&);
+			bool (*cylTestOther[numOther])(const Cylinder&, const Cylinder&);
+			cylTestPar[0] = SeparatedByHeight;
+			cylTestPar[1] = SeparatedRadially;
+			cylTestOther[0] = SeparatedByFirstCylindersUnitAxis;
+			cylTestOther[1] = SeparatedBySecondCylindersUnitAxis;
+			cylTestOther[2] = SeparatedByUnitAxesCrossed;
+			cylTestOther[3] = SeparatedByFirstCylinderPerpendicular;
+			cylTestOther[4] = SeparatedBySecondCylinderPerpendicular;
+			cylTestOther[5] = SeparatedByOtherDirections;
+
+			vector3 cross;
+			VecCross(cross, a.w, b.w);
+			if (VecNorm2(cross) > 0) {
+				// All other directions
+				for (size_t i = 0; i < numOther; i++) {
+					if ((*cylTestOther[i])(a, b)) return true;
+				}
+			} else {
+				/// Parallel cases
+				for (size_t i = 0; i < numPar; i++) {
+					if ((*cylTestPar[i])(a, b)) return true;
+				}
+			}
+			return false;
 		}
 	}
 }

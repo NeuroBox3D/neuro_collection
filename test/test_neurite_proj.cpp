@@ -3543,12 +3543,14 @@ void create_spline_data_for_neurites
 		vector<number> outRadsInner;
 
 	    UG_DLOGN(NC_TNP, 0, "Generating neurites...");
-	    ///for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
-	    for (size_t i = 0; i < 1; ++i) {
+	    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
+	    //for (size_t i = 0; i < 1; ++i) {
 		   	create_neurite_root_vertices(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   		g, sh, erScaleFactor, aaPos, &outVerts, &outVertsInner, &outRads,
 		   		&outRadsInner, withER);
 		 }
+
+	    UG_LOGN("Generated root neurites");
 
 		 UG_DLOGN(NC_TNP, 0, " done.");
 		 IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
@@ -3571,7 +3573,7 @@ void create_spline_data_for_neurites
 
 	    /// Finds (outer sphere) soma dodecagons
 		connect_neurites_with_soma_var(g, aaPos, aaSurfParams, outVerts, outRads,
-		    	    		4, sh, fileName, erScaleFactor, vNeurites, 12, 1);
+		    	    		4, sh, fileName, erScaleFactor, vNeurites, 12, 5);
 		UG_DLOGN(NC_TNP, 0, "Found (outer sphere) soma dodecagons to connect neurite with");
 
 	    // delete old vertices from incorrect neurite starts
@@ -3585,9 +3587,9 @@ void create_spline_data_for_neurites
 	    sh.set_default_subset_index(0);
 	    UG_LOGN("Generating neurites...")
 	    UG_DLOGN(NC_TNP, 0, "Generating neurites...")
-		///for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
+		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 	    /// TODO: include check to see if radii at beginning of neurite (at soma) intersects with other neurite
-		for (size_t i = 0; i < 1; ++i) {
+		///for (size_t i = 0; i < 1; ++i) {
 		 	if (withER) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, &outVerts,
@@ -3624,9 +3626,9 @@ void create_spline_data_for_neurites
 			/// This means we store for each neurite two NeuriteProjector::Sections, one for the inner sphere and one for ther outer sphere
 			/// Then we can use a SectionCompare comparator to find the corresponding section
 			/// The same can be done for SomaBranchingRegions which we store per neurite and use a SomaBranchingRegionCompare to determine if we are in soma branching region actually
-			connect_new(g, sh, aaPos, newSomaIndex, 1, aaSurfParams, neuriteProj);
-			for (size_t i = 0; i < 1; ++i) {
-			///for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
+			connect_new(g, sh, aaPos, newSomaIndex, vRootNeuriteIndsOut.size(), aaSurfParams, neuriteProj);
+			///for (size_t i = 0; i < 1; ++i) {
+			for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 				neuriteProj->neurites()[i].vSBR.back().radius = outRads[i];
 				neuriteProj->neurites()[i].vSBR.front().radius = outRadsInner[i];
 				neuriteProj->neurites()[i].vSBR.back().somaPt = make_sp(new NeuriteProjector::SomaPoint(somaPoint[0].coords, somaPoint[0].radius));
@@ -3639,7 +3641,6 @@ void create_spline_data_for_neurites
 		}
 		SaveGridToFile(g, sh, "testNeuriteProjector_after_finding_surface_quads_and_connect_new.ugx");
 		/// TODO: debugged until here for subset indices
-		///return;
 
 		// assign subset
 		AssignSubsetColors(sh);
@@ -3652,7 +3653,7 @@ void create_spline_data_for_neurites
 		sh.set_subset_name("soma (inner)", newSomaIndex);
 
 		/// Note: Neurite connections get their names respectively subset assignment above in the connect methods
-		for (int i = newSomaIndex+1; i < sh.num_subsets(); i++) {
+		for (int i = newSomaIndex+1; i < newSomaIndex+1+vRootNeuriteIndsOut.size(); i++) {
 		  	stringstream ss;
 		   	ss << "inner-connex #" << i;
 		   	sh.set_subset_name(ss.str().c_str(), i);
@@ -3667,7 +3668,7 @@ void create_spline_data_for_neurites
 
 	    EraseEmptySubsets(sh);
 	    AssignSubsetColors(sh);
-	    for (size_t i = newSomaIndex+vRootNeuriteIndsOut.size(); i < (size_t)sh.num_subsets(); i++) {
+	    for (size_t i = newSomaIndex+vRootNeuriteIndsOut.size()+1; i < (size_t)sh.num_subsets(); i++) {
 	    	stringstream ss;
 		   	ss << "inter-soma-connex #" << i;
 		   	sh.set_subset_name(ss.str().c_str(), i);
@@ -3688,26 +3689,31 @@ void create_spline_data_for_neurites
 		connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, false, 0, false);
 		SavePreparedGridToFile(g, sh, "after_connect_pm_with_soma.ugx");
 
-		/// TODO: assure subset indices are *ALWAYS* correct... might still fail if vRootNeuriteIndsOut.size() is used
 	    // This connects the inner quad with the soma surface (ER)
 	    /// Extrude ER volume a little bit further into normal direction towards
 		/// inner soma, like the pyramids to close outer soma, to avoid intersections
+		/// TODO: extend er needs to extend all quads
 	    if (withER) {
-	    	extend_ER_within(g, sh, aaPos, aaSurfParams, newSomaIndex, 1, erScaleFactor, outVertsInner);
+	    	extend_ER_within(g, sh, aaPos, aaSurfParams, newSomaIndex, 5, erScaleFactor, outVertsInner);
 	    	SavePreparedGridToFile(g, sh, "after_extend_ER_and_before_connect_outer.ugx");
+	    	UG_LOGN("Size of outvertsInner: " << outVertsInner.size());
 			std::vector<std::vector<ug::Vertex*> > outVertsInnerClean;
 			for (size_t i = 0; i < outVertsInner.size() / 4; i++) {
 				outVertsInnerClean.push_back(std::vector<ug::Vertex*>(outVertsInner.begin() + (i*4), outVertsInner.begin() + (i+1)*4));
 			}
-			UG_LOGN("newSomaIndex (er with er): " << newSomaIndex);
 	    	// The indices start from 5+2*numRootNeurites+1 (newSomaIndex is 5+numRootNeurites) up to 5+3*numRootNeurites
 	    	///connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4, true);
 			size_t numQuads = outVertsInnerClean.size();
-	    	connect_er_with_er(newSomaIndex+2*numQuads-1, g, aaPos, sh, outVertsInnerClean, 2*numQuads-1, false, false);
+			UG_LOGN("newSomaIndex (er with er): " << newSomaIndex);
+			UG_LOGN(newSomaIndex+2*numQuads-1);
+			UG_LOGN(2*numQuads-1);
+	    	///connect_er_with_er(newSomaIndex+2*numQuads-1, g, aaPos, sh, outVertsInnerClean, 2*numQuads-1, false, false);
+	    	connect_er_with_er(newSomaIndex, g, aaPos, sh, outVertsInnerClean, numQuads+1, false, false);
 	    	SavePreparedGridToFile(g, sh, "after_connect_er_with_er.ugx");
 	    }
 
-		/// TODO: tested until here (but not for subset indices problem)
+		/// TODO: up to here indices okay: Need to erase debugging vertices, check if this interfers with grid generation above
+	    /// TODO: need to correct all hardcoded numQuads above...
 	    UG_LOGN("Success for file with name: " << fileName);
 
 	    /// Reassign elements for connecting parts ER and somata to erm subset
@@ -3757,6 +3763,7 @@ void create_spline_data_for_neurites
 
 	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
+	    return;
 
 		// output
 		string outFileNameBase = FilenameAndPathWithoutExtension(fileName);

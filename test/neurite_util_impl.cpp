@@ -1081,7 +1081,9 @@ namespace ug {
 			/// 1. Finde die 4 Vertices die den Dendritenanschluss darstellen zum Soma
 			std::vector<std::vector<ug::vector3> > quads;
 			std::vector<number> quadsRadii;
-			numQuads = 1;
+			///numQuads = 1;
+
+			UG_LOGN("Num Quads: " << numQuads);
 
 			for (size_t i = 0; i < numQuads; i++) {
 				std::vector<ug::vector3> temp;
@@ -2480,27 +2482,27 @@ namespace ug {
 	    	outVertsInner.clear();
 			Grid::traits<Quadrilateral>::secure_container quadCont;
 			find_quadrilaterals_constrained(grid, aaSurfParams, quadCont, 0.0, scale, 0);
-			/// TODO: The throw is not correct, because method finds all quadrilaterals,
-			/// we need to iterate over subset of quads for each soma connection -> change this
-			UG_COND_THROW(quadCont.size() != 1, "Only one quad should be available for the ER");
-			ug::vector3 vNormOut;
-			CalculateNormal(vNormOut, quadCont[0], aaPos);
-			//ug::vector3 center = CalculateCenter(quadCont[0], aaPos);
-			std::vector<Edge*> vEdges;
-            Grid::traits<Edge>::secure_container edges;
-            grid.associated_elements(edges, quadCont[0]);
-			std::vector<Vertex*> vertices;
+			UG_COND_THROW(quadCont.size() != numQuads, "We require " << numQuads << ", however "
+					"only " << quadCont.size() << " quads are found!");
+			for (size_t i = 0; i < numQuads; i++) {
+				vector3 vNormOut;
+				CalculateNormal(vNormOut, quadCont[i], aaPos);
+				vector<Edge*> vEdges;
+				Grid::traits<Edge>::secure_container edges;
+				grid.associated_elements(edges, quadCont[i]);
+				vector<Vertex*> vertices;
 
-			for (size_t i = 0; i < quadCont[0]->size(); i++) vertices.push_back(quadCont[0]->vertex(i));
-			for (size_t i = 0; i < edges.size(); i++) vEdges.push_back(edges[i]);
+				for (size_t j = 0; j < quadCont[i]->size(); j++) vertices.push_back(quadCont[i]->vertex(j));
+				for (size_t j = 0; j < edges.size(); j++) vEdges.push_back(edges[j]);
 
-			/// extrude in normal direction with amount of "scale" of ER
-			Extrude(grid, &vertices, &vEdges, NULL, -vNormOut, aaPos, EO_CREATE_FACES | EO_CREATE_VOLUMES);
-			SavePreparedGridToFile(grid, sh, "after_extend_ER_within.ugx");
-			for (size_t i = 0; i < vertices.size(); i++) {
-				aaSurfParams[vertices[i]].axial = -scale/2.0;
+				/// extrude in normal direction with amount of "scale" of ER
+				Extrude(grid, &vertices, &vEdges, NULL, -vNormOut, aaPos, EO_CREATE_FACES | EO_CREATE_VOLUMES);
+				SavePreparedGridToFile(grid, sh, "after_extend_ER_within.ugx");
+				for (size_t j = 0; j < vertices.size(); j++) {
+					aaSurfParams[vertices[j]].axial = -scale/2.0;
+				}
+				outVertsInner.insert(outVertsInner.end(), vertices.begin(), vertices.end());
 			}
-			outVertsInner.assign(vertices.begin(), vertices.end());
 	    }
 
 		////////////////////////////////////////////////////////////////////////
@@ -3165,6 +3167,7 @@ namespace ug {
 			size_t numNeurites = rootNeurites.size();
 
 			for (size_t i = 0; i < numNeurites; i++) {
+				sel.clear();
 				map<Vertex*, Vertex*> mapVertices;
 				UG_LOGN("Selecting index " << somaIndex-numNeurites+offset+i
 						<< " as index for projection to plane");
@@ -3175,6 +3178,7 @@ namespace ug {
 				for (; vit != vit_end; ++vit) {
 					unprojectedVertices.push_back(*vit);
 				}
+				UG_LOGN("Num vertices: " << unprojectedVertices.size());
 				sel.clear();
 				SelectSubsetElements<Vertex>(sel, sh, somaIndex-numNeurites+offset+i, true);
 				vector3 v0 = CalculateCenter(sel.vertices_begin(), sel.vertices_end(), aaPos);

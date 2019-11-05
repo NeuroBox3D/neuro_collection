@@ -364,7 +364,7 @@ namespace ug {
 		   number resolveThreshold=0.00001,
 		   number scale=0.5,
 		   size_t numVerts=4,
-		   size_t numQuads=1
+		   size_t numQuads=5
 		);
 
 		/*!

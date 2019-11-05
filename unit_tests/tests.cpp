@@ -45,6 +45,7 @@
 #include <lib_grid/grid/grid.h>
 
 #include "../test/neurite_util.h"
+#include "../test/neurite_math_util.h"
 #include "fixtures.cpp"
 
 using namespace ug;
@@ -334,6 +335,15 @@ BOOST_AUTO_TEST_CASE(FindAngleBetweenDirections) {
 ////////////////////////////////////////////////////////////////////////////////
 BOOST_AUTO_TEST_CASE(FindClosestPointToRotatedVector) {
 
+}
+
+////////////////////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_CASE(CylinderCylinderSeparation) {
+	Cylinder a(vector3(0,0,0), vector3(0,0,1), 1, 1);
+	Cylinder b(vector3(1,1,1), vector3(0,0,1), 1, 1);
+	Cylinder c(vector3(0,0,0), vector3(0,0,1), 1, 1);
+	BOOST_REQUIRE_MESSAGE(CylinderCylinderSeparationTest(a, b), "Separated cylinders.");
+	BOOST_REQUIRE_MESSAGE(!CylinderCylinderSeparationTest(a, c), "Non-separated cylinders.");
 }
 
 BOOST_AUTO_TEST_SUITE_END();
