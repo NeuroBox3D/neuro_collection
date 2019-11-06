@@ -1069,19 +1069,18 @@ namespace ug {
 			std::vector<std::vector<ug::Vertex*> >& connectingVerticesInner,
 			std::vector<std::vector<ug::Edge*> >& connectingEdges,
 			std::vector<std::vector<ug::Edge*> >& connectingEdgesInner,
+			size_t numQuads,
 			bool createInner,
 			number alpha,
 			int numIterations,
 			number resolveThreshold,
 			number scale,
-			size_t numVerts,
-			size_t numQuads
+			size_t numVerts
 		) {
 			UG_DLOGN(NC_TNP, 0, "1. Find the vertices representing dendrite connection to soma.");
 			/// 1. Finde die 4 Vertices die den Dendritenanschluss darstellen zum Soma
 			std::vector<std::vector<ug::vector3> > quads;
 			std::vector<number> quadsRadii;
-			///numQuads = 1;
 
 			UG_LOGN("Num Quads: " << numQuads);
 
@@ -3314,11 +3313,11 @@ namespace ug {
 			size_t optimal = 0;
 			number minAngle = numeric_limits<number>::infinity();
 			UG_LOGN("center: " << centerOut);
-			/// FIXME Ref vector with zero components might be troublesome - throw for now
+			/// FIXME Ref vector with zero components might be troublesome - warn for now
 			/// In this case sometimes and if vectors (ref and dirs[i]) are colinear then
 			/// VecCross will result in the (faulty) null vector and this is problematic
-			//UG_COND_THROW(fabs(refVec.x()) < SMALL || fabs(refVec.y()) < SMALL || fabs(refVec.z()) < SMALL,
-				//	"Need full-dimensional reference vector for angle calculation in general.");
+			UG_COND_WARNING(fabs(refVec.x()) < SMALL || fabs(refVec.y()) < SMALL || fabs(refVec.z()) < SMALL,
+					"Need full-dimensional reference vector for angle calculation in general.");
 			for (size_t j = 0; j < numVerts; j++) {
 				angleMapFrom.clear(); angleMapTo.clear();
 

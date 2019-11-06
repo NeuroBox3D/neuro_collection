@@ -358,13 +358,13 @@ namespace ug {
 		   std::vector<std::vector<ug::Vertex*> >& connectingVerticesInner,
 		   std::vector<std::vector<ug::Edge*> >& connectingEdges,
 	       std::vector<std::vector<ug::Edge*> >& connectingEdgesInner,
+		   size_t numQuads,
 		   bool createInner=true,
 		   number alpha=0.01,
 		   int numIterations=10,
 		   number resolveThreshold=0.00001,
 		   number scale=0.5,
-		   size_t numVerts=4,
-		   size_t numQuads=5
+		   size_t numVerts=4
 		);
 
 		/*!

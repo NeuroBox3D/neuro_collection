@@ -310,7 +310,7 @@ namespace ug {
 		) {
 			/// test functions
 			const size_t numPar = 2;
-			const size_t numOther = 5;
+			const size_t numOther = 6;
 			bool (*cylTestPar[numPar])(const Cylinder&, const Cylinder&);
 			bool (*cylTestOther[numOther])(const Cylinder&, const Cylinder&);
 			cylTestPar[0] = SeparatedByHeight;
