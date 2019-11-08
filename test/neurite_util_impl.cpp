@@ -3025,6 +3025,13 @@ namespace ug {
 				int si = beginningOfQuads+i;
 				sel.clear();
 				SelectSubsetElements<Vertex>(sel, sh, si, true);
+				/// TODO: FIXME: Edges are considered from root neurite face creation.
+				/// This was previously not detected since vertices are deleted later
+				/// TODO: Do not create faces during create_root_neurites call
+				UG_COND_THROW(sel.num<Vertex>() != 5 || sel.num<Vertex>() != 6,
+						"Candidate dodecagon size needs to be 12 but actually is: "
+						<< sel.num<Vertex>());
+				/// TODO: if only 5 vertices, need to introduce an additional vertex by splitting an edge
 				SelectSubsetElements<Edge>(sel, sh, si, true);
 				Refine(g, sel, NULL, false);
 			}
@@ -3250,8 +3257,11 @@ namespace ug {
 						}
 					}
 				}
-				/// Delete debugging vertices
+				/// Delete temporary vertices used to find pairs to connect
 				for (vector<Vertex*>::iterator it = projectedVertices.begin(); it != projectedVertices.end(); ++it) {
+					/*IF_DEBUG(NC_TNP, 0);
+					else g.erase(*it);
+					*/
 					///g.erase(*it);
 				}
 			}
@@ -3316,7 +3326,7 @@ namespace ug {
 			/// FIXME Ref vector with zero components might be troublesome - warn for now
 			/// In this case sometimes and if vectors (ref and dirs[i]) are colinear then
 			/// VecCross will result in the (faulty) null vector and this is problematic
-			UG_COND_WARNING(fabs(refVec.x()) < SMALL || fabs(refVec.y()) < SMALL || fabs(refVec.z()) < SMALL,
+			UG_COND_THROW(fabs(refVec.x()) < SMALL || fabs(refVec.y()) < SMALL || fabs(refVec.z()) < SMALL,
 					"Need full-dimensional reference vector for angle calculation in general.");
 			for (size_t j = 0; j < numVerts; j++) {
 				angleMapFrom.clear(); angleMapTo.clear();

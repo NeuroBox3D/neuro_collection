@@ -3494,7 +3494,7 @@ void create_spline_data_for_neurites
 
 		/// TODO: Check that this new scaling does not interfere with grid generation,
 		/// then remove this noop -> will introduce dints into soma if merging at root neurites
-		somaPoint[0].radius *= 1.00;
+		///somaPoint[0].radius *= 1.00;
 		UG_DLOGN(NC_TNP, 0, "Creating (outer sphere) soma in subset 1");
 	    create_soma(somaPoint, g, aaPos, sh, 1);
 
@@ -3561,6 +3561,7 @@ void create_spline_data_for_neurites
 	    sh.set_default_subset_index(4); /// soma starts now at 4
 	    somaPoint = vSomaPoints;
 	    create_soma(somaPoint, g, aaPos, sh, 4, 3);
+	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_first_soma.ugx");
 	    UG_DLOGN(NC_TNP, 0, " done.");
 	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_testNeuriteProjector_after_adding_neurites_and_connecting_inner_soma_to_outer_ER.ugxafter_adding_neurites_and_soma.ugx");
 	    vector<Vertex*> outQuadsInner;
@@ -3600,6 +3601,7 @@ void create_spline_data_for_neurites
 
 	    UG_DLOGN(NC_TNP, 0, " done.");
 	    UG_LOGN("Generating inner soma");
+	    SaveGridToFile(g, sh, "testNeuriteProjector_after_generating_neurites.ugx");
 
 	    /// (Inner sphere) ER
 	    UG_DLOGN(NC_TNP, 0, "Creating (inner sphere) ER");
@@ -3701,7 +3703,7 @@ void create_spline_data_for_neurites
 	    }
 
 		/// TODO: up to here indices okay: Need to erase debugging vertices, check if this interfers with grid generation above (subset indices)
-	    /// TODO: need to correct all hardcoded numQuads above...
+	    /// TODO: need to correct all hardcoded numQuads above... unconnected vertices are the debugging vertices
 	    UG_LOGN("Success for file with name: " << fileName);
 
 	    /// Reassign elements for connecting parts ER and somata to erm subset
@@ -3709,6 +3711,9 @@ void create_spline_data_for_neurites
 	    SelectSubset(sel, sh, 3, true);
 	    CloseSelection(sel);
 	    AssignSelectionToSubset(sel, sh, 3);
+	    /// TODO Last two subsets are the debugging vertices. Could be removed earlier since they are not responsible for -1 parent face normals
+	    g.erase(sh.begin<Vertex>(sh.num_subsets()-1), sh.end<Vertex>(sh.num_subsets()-1));
+	    g.erase(sh.begin<Vertex>(sh.num_subsets()-2), sh.end<Vertex>(sh.num_subsets()-2));
 	    SavePreparedGridToFile(g, sh, "before_tetrahedralize_and_after_reassigned.ugx");
 
 		/// assign correct axial parameters for "somata" regions (TODO: Verify to be correct!)
@@ -3751,7 +3756,6 @@ void create_spline_data_for_neurites
 
 	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
-	    return;
 
 		// output
 		string outFileNameBase = FilenameAndPathWithoutExtension(fileName);
@@ -3766,6 +3770,8 @@ void create_spline_data_for_neurites
 
 		if (numRefs == 0)
 			return;
+
+	    return;
 
 		// refinement
 		Domain3d dom;
