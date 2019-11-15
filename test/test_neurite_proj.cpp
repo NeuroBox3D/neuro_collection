@@ -37,6 +37,9 @@
  * GNU Lesser General Public License for more details.
  */
 
+/// Run example via: ../bin/ugshell -call "test_import_swc_general_var(\"files/10-6vkd1m.CNG.swc\", false, 0.5, true, 16, 0, true)"
+
+
 /// plugin and configuration
 #include "test_neurite_proj.h"
 #include "neurite_refMarkAdjuster.h"
@@ -3162,9 +3165,9 @@ void create_spline_data_for_neurites
 	    UG_LOGN("Found " << vPointSomaSurface2.size() << "soma points!");
 	    UG_DLOGN(NC_TNP, 0, "Got closest points on soma with size: " << vPointSomaSurface.size());
 	    /// add_soma_surface_to_swc(lines, fn_precond, fn_precond_with_soma, vPointSomaSurface);
-	    std::vector<ug::vector3> newVerts = find_quad_verts_on_soma(g, aaPos, vPointSomaSurface2, vRad, 1, sh, 1.0, vPos.size());
+	    std::vector<ug::vector3> newVerts = FindSomaSurfaceCenters(g, aaPos, vPointSomaSurface2, vRad, 1, sh, 1.0, vPos.size());
 
-	    replace_first_root_neurite_vertex_in_swc(lines, fn_precond, fn_precond_with_soma, newVerts);
+	    ReplaceFirstRootNeuriteVertexInSWC(lines, fn_precond, fn_precond_with_soma, newVerts);
 	    UG_DLOGN(NC_TNP, 0, "Replaced soma points for neurites to SWC file.")
 	    g.clear_geometry();
 	    import_swc_old(fn_precond_with_soma, vPoints, correct, 1.0);
@@ -3430,7 +3433,6 @@ void create_spline_data_for_neurites
 	}
 	}
 
-
 	////////////////////////////////////////////////////////////////////////////
 	/// test_import_swc_general_var
 	////////////////////////////////////////////////////////////////////////////
@@ -3444,29 +3446,30 @@ void create_spline_data_for_neurites
 		bool regularize
 	) {
 		using namespace std;
-		// read in file to intermediate structure
+		// Read in SWC file to intermediate structure (May contain multiple soma points)
 		vector<SWCPoint> vPoints;
 		vector<SWCPoint> vSomaPoints;
 		string fn_noext = FilenameWithoutExtension(fileName);
 
-		// presmooth whole structure
+		// Pre-smooth whole structure (May be omitted)
 		test_smoothing(fileName, 5, 1.0, 1.0);
 		string fn_precond = fn_noext + "_precond.swc";
 
-		// import preconditioned swc structure
+		// Import preconditioned SWC structure (Now contains only one soma point)
 		std::string fn_precond_with_soma = fn_noext + "_precond_with_soma.swc";
 		import_swc_old(fn_precond, vPoints, correct, 1.0);
 
-		// this finds the closest points towards soma
+		// Find the closest points towards soma
 		vector<vector3> vSurfacePoints;
 		vector<vector3> vPosSomaClosest;
 		size_t lines;
 	    get_closest_points_to_soma(fn_precond, vPosSomaClosest, lines);
-	    UG_DLOGN(NC_TNP, 0, "We found #" << vPosSomaClosest.size() << " soma " <<
+	    UG_DLOGN(NC_TNP, 0, "Found # " << vPosSomaClosest.size() << " soma " <<
 	    		"points. This means there are " << vPosSomaClosest.size() <<
-	    		"neurites starting from soma");
+	    		"neurites starting from the soma and we need to find the surface"
+	    		"points for them in the next step.");
 
-		// convert intermediate structure to neurite data
+		// Convert intermediate structure to neurite data
 		vector<vector<vector3> > vPos;
 		vector<vector<number> > vRad;
 		vector<vector<pair<size_t, vector<size_t> > > > vBPInfo;
@@ -3476,76 +3479,77 @@ void create_spline_data_for_neurites
 	    vector<SWCPoint> somaPoint = vSomaPoints;
 	    vector<SWCPoint> savedSomaPoint = vSomaPoints;
 
-		// prepare grid and projector
+		// Prepare grid (selector and attachments)
 		Grid g;
 		SubsetHandler sh(g);
 		sh.set_default_subset_index(0);
 		g.attach_to_vertices(aPosition);
 		Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
-
 		Selector sel(g);
 		typedef NeuriteProjector::SurfaceParams NPSP;
 		UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
 		              "GlobalAttachment 'npSurfParams' not declared.");
 		Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
-		if (!g.has_vertex_attachment(aSP)) {
-			g.attach_to_vertices(aSP);
-		}
+		if (!g.has_vertex_attachment(aSP)) { g.attach_to_vertices(aSP); }
 
 		Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
 		aaSurfParams.access(g, aSP);
 
-		/// TODO: Check that this new scaling does not interfere with grid generation,
-		/// then remove this noop -> will introduce dints into soma if merging at root neurites
-		///somaPoint[0].radius *= 1.00;
+		/// TODO: Check that not scaling the soma does not interfer with grid
+		///       generation. It might create dints in the soma surface which
+		///       can lead to intersections on the soma surface when connecting
+		///       somaPoint[0].radius *= 1.05;
 		UG_DLOGN(NC_TNP, 0, "Creating (outer sphere) soma in subset 1");
 	    create_soma(somaPoint, g, aaPos, sh, 1);
 
-	    // Get closest _vertices_ on soma surface
+	    // Get closest _vertices_ on soma surface for each connecting neurite
 		vector<Vertex*> vPointSomaSurface2;
 		get_closest_vertices_on_soma(vPosSomaClosest, vPointSomaSurface2, g, aaPos, sh, 1);
-	    UG_DLOGN(NC_TNP, 0, "Got " << "# " << vPointSomaSurface2.size() << "closest vertices on (outer sphere) soma");
-	    UG_LOGN("Found " << vPointSomaSurface2.size() << " soma points!");
+	    UG_DLOGN(NC_TNP, 0, "Found " << "# " << vPointSomaSurface2.size()
+	    		<< " closest vertices on (outer sphere) soma in subset 1");
 
+	    // (TODO: Deprecated, thus remove soon) Add soma surface to swc
 		// add_soma_surface_to_swc(lines, fn_precond, fn_precond_with_soma, vPointSomaSurface);
-	    // Replace first vertex of root neurite with soma surface vertex
-	    std::vector<ug::vector3> newVerts = find_quad_verts_on_soma(g, aaPos, vPointSomaSurface2, vRad, 1, sh, 1.0, vPos.size());
-	    UG_LOGN("Found quad verts...")
-	    replace_first_root_neurite_vertex_in_swc(lines, fn_precond, fn_precond_with_soma, newVerts);
-	    UG_DLOGN(NC_TNP, 0, "Replaced soma points for root neurites to SWC file.")
-	    g.clear_geometry();
-	    UG_LOGN("Replaced soma points!");
 
-	    // re-read the now correct SWC file with soma
+	    // Replace first vertex of each root neurite (starting at soma) with the closest soma surface vertex
+	    std::vector<ug::vector3> centers = FindSomaSurfaceCenters(g, aaPos, vPointSomaSurface2, vRad, 1, sh, 1.0, vPos.size());
+	    UG_DLOGN(NC_TNP, 0, "Found soma surface centers...");
+	    ReplaceFirstRootNeuriteVertexInSWC(lines, fn_precond, fn_precond_with_soma, centers);
+	    g.clear_geometry();
+	    UG_DLOGN(NC_TNP, 0, "Replaced soma points for root neurites to SWC file.")
+
+	    // Re-read the now correct SWC file with soma
 	    import_swc_old(fn_precond_with_soma, vPoints, correct, 1.0);
 
 	    /// TODO: Check if swc is cyclic
-	    UG_LOG("Checking for cycles...")
+	    UG_DLOG(NC_TNP, 0, "Checking for cycles...")
 	    UG_COND_THROW(ContainsCycle(vPoints), "Grid contains at least one cycle!");
-	    UG_LOGN(" passed!");
+	    UG_DLOGN(NC_TNP, 0, " passed!");
 
 	    // TODO: Finish implementation of cylinder-cylinder intersection
-	    UG_LOG("Checking for intersections...")
+	    UG_DLOG(NC_TNP, 0, "Checking for intersections...")
 	    UG_COND_THROW(!CylinderCylinderSeparationTest(vPoints), "Cylinders intersect!");
-	    UG_LOGN(" passed!");
+	    UG_DLOGN(NC_TNP, 0, " passed!");
 
 	    // Regularize, smooth possibly again, then convert to neuritelist
 	    /// TODO: Smooth before or after regularize? Test...
-	    UG_LOG("Regularizing branching points...")
+	    UG_DLOG(NC_TNP, 0, "Regularizing branching points...")
 	    RegularizeBranchingPoints(vPoints, regularize);
-	    UG_LOGN(" passed!");
+	    UG_DLOGN(NC_TNP, 0, " passed!");
+
 	    /// TODO: Fix root neurites (Test this method)
-	    UG_LOG("Fixing root branching neurites...")
+	    UG_DLOG(NC_TNP, 0, "Mitigating root branching neurites...")
 	    MitigateRootBranchingNeurites(vPoints);
-	    UG_LOGN(" passed!");
+	    UG_DLOGN(NC_TNP, 0, " passed!");
     	Grid g2;
     	SubsetHandler sh2(g2);
     	swc_points_to_grid(vPoints, g2, sh2);
     	export_to_ugx(g2, sh2, "after_regularize.ugx");
+    	/// TODO Smooth again? Or smooth much before
 		/// constrained_smoothing(vPoints, vRootNeuriteIndsOut.size(), 0.1, 0.1, 10, 0.1);
 	    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 
-	    // Projection handling
+	    // Projection handling setup
 		SubsetHandler psh(g);
 		psh.set_default_subset_index(0);
 		ProjectionHandler projHandler(&psh);
@@ -3554,11 +3558,11 @@ void create_spline_data_for_neurites
 		SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
 		projHandler.set_projector(0, neuriteProj);
 
-		// create spline data
+		// Create spline data for neurites
 		vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
 		create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
 
-		// helper vectors to store radii and verts for soma/neurite connection
+		// Helper vectors to store radii and verts for soma/neurite connection
 		vector<Vertex*> outVerts;
 		vector<number> outRads;
 		vector<Vertex*> outVertsInner;
@@ -3569,10 +3573,7 @@ void create_spline_data_for_neurites
 		   	create_neurite_root_vertices(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   		g, sh, erScaleFactor, aaPos, &outVerts, &outVertsInner, &outRads,
 		   		&outRadsInner, withER);
-		 }
-
-	    UG_LOGN("Generated root neurites");
-
+		}
 		UG_DLOGN(NC_TNP, 0, " done.");
 		IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
 

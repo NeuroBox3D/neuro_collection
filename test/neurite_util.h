@@ -298,7 +298,7 @@ namespace ug {
 		 * \param[in] numQuads
 		 * \param[in] numVerts
 		 */
-		std::vector<ug::vector3> find_quad_verts_on_soma
+		std::vector<ug::vector3> FindSomaSurfaceCenters
 		(
 		   Grid& grid,
 		   Grid::VertexAttachmentAccessor<APosition>& aaPos,
@@ -690,7 +690,7 @@ namespace ug {
 		 * \param[in] fn_precond_with_soma
 		 * \param[in] vPointsSomaSurface
 		 */
-		void replace_first_root_neurite_vertex_in_swc
+		void ReplaceFirstRootNeuriteVertexInSWC
 		(
 			const size_t& lines,
 			const std::string& fn_precond,
@@ -988,11 +988,17 @@ namespace ug {
 
 		/*!
 		 * \brief Adapts the surface grid to square
+		 * \param[in] i
+		 * TODO: Documentation
 		 */
-		void adapt_surface_grid_to_square(size_t i);
+		void adapt_surface_grid_to_square
+		(
+			size_t i
+		);
 
 		/*!
-		 * \brief new strategy
+		 * \brief new strategy: TODO refactor
+		 * TODO: DOcumentation
 		 */
 		void connect_neurites_with_soma_var
 		(
@@ -1011,7 +1017,8 @@ namespace ug {
 		);
 
 		/*!
-		 * \brief new prototype to implement
+		 * \brief TODO refactor
+		 * TODO: Documentation
 		 */
 		void connect_polygon_with_polygon
 		(
@@ -1022,7 +1029,8 @@ namespace ug {
 		);
 
 		/*!
-		 * \brief new strategy
+		 * \brief connew new TODO refactor
+		 * TODO: Documentation
 		 */
 		void connect_new
 		(
@@ -1035,6 +1043,10 @@ namespace ug {
 			SmartPtr<NeuriteProjector>
 		);
 
+		/*!
+		 * \brief connects the plasma membrane with the soma surface
+		 * TODO: Documentation
+		 */
 		void connect_pm_with_soma
 		(
 			size_t somaIndex,
@@ -1047,6 +1059,11 @@ namespace ug {
 			bool mergeFirst=true
 		);
 
+
+		/*!
+		 * \brief connects the er with the inner sphere surface (er)
+		 * TODO: Documentation
+		 */
 		void connect_er_with_er
 		(
 			size_t somaIndex,

@@ -53,6 +53,8 @@
 #include "lib_grid/multi_grid.h"
 #include "lib_grid/refinement/projectors/neurite_projector.h"
 
+/// TODO: Delete all
+
 namespace ug {
 	namespace neuro_collection {
 		using namespace std;

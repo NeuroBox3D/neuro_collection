@@ -970,9 +970,9 @@ namespace ug {
 		}
 
 		////////////////////////////////////////////////////////////////////////
-		/// find_quad_verts_on_soma
+		/// FindSomaSurfaceCenters
 		////////////////////////////////////////////////////////////////////////
-		std::vector<ug::vector3> find_quad_verts_on_soma
+		std::vector<ug::vector3> FindSomaSurfaceCenters
 		(
 			Grid& g,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
@@ -1005,6 +1005,7 @@ namespace ug {
 				UG_DLOGN(NC_TNP, 0, "num edges: " << sel.num<Edge>());
 				size_t numEdges = sel.num<Edge>();
 				size_t j = 0;
+				/// TODO: Collapsing is actually not necessary to get the center
 				while (numEdges > numVerts) {
 					SubsetHandler::traits<Edge>::iterator eit = sel.begin<Edge>();
 					SubsetHandler::traits<Edge>::iterator end = sel.end<Edge>();
@@ -2245,7 +2246,7 @@ namespace ug {
 		}
 
 		////////////////////////////////////////////////////////////////////////
-		/// replace_first_root_neurite_vertex_in_swc
+		/// get_closest_points_on_soma
 		////////////////////////////////////////////////////////////////////////
 		void get_closest_points_on_soma
 		(
@@ -2283,9 +2284,9 @@ namespace ug {
 		}
 
 		////////////////////////////////////////////////////////////////////////
-		/// replace_first_root_neurite_vertex_in_swc
+		/// ReplaceFirstRootNeuriteVertexInSWC
 		////////////////////////////////////////////////////////////////////////
-		void replace_first_root_neurite_vertex_in_swc
+		void ReplaceFirstRootNeuriteVertexInSWC
 		(
 			const size_t& lines,
 			const std::string& fn_precond,
@@ -3409,6 +3410,9 @@ namespace ug {
 			}
 		}
 
+		////////////////////////////////////////////////////////////////////////
+		/// CompareSecond functor
+		////////////////////////////////////////////////////////////////////////
 		typedef std::pair<Vertex*, number> MyPairType;
 		struct CompareSecond
 		{
