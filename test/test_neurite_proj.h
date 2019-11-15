@@ -48,38 +48,10 @@
 #include <string>
 #include <list>
 #include <utility>
+#include "types.h"
 
 namespace ug {
 namespace neuro_collection {
-
-/// Edge comparable
-struct EdgeLengthCompare
-{
-	bool operator()(const std::pair<Edge*, number> e1, const std::pair<Edge*, number> e2)
-	{return e1.second > e2.second;}
-};
-
-/// SWC types
-enum swc_type
-{
-    SWC_UNDF = 0,
-    SWC_SOMA = 1,
-    SWC_AXON = 2,
-    SWC_DEND = 3,
-    SWC_APIC = 4,
-    SWC_FORK = 5,
-    SWC_END = 6,
-    SWC_CUSTOM = 7
-};
-
-/// SWC point
-struct SWCPoint
-{
-    vector3 coords;
-    number radius;
-    swc_type type;
-    std::vector<size_t> conns;
-};
 
 /*!
  * \brief import a SWC file

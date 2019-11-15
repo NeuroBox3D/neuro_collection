@@ -37,13 +37,14 @@
  * GNU Lesser General Public License for more details.
  */
 
-#include "neurite_math_util.h"
 #include "common/error.h"
 #include "common/math/misc/math_util.h"
 #include "common/math/math_vector_matrix/math_vector_functions.h"
+#include <lib_algebra/vector_interface/vec_functions.h>
+#include <queue>
 #include <boost/algorithm/clamp.hpp>
 #include <boost/math/special_functions/sign.hpp>
-#include <lib_algebra/vector_interface/vec_functions.h>
+#include "neurite_math_util.h"
 
 namespace ug {
 	namespace neuro_collection {
@@ -58,7 +59,8 @@ namespace ug {
 			const vector3& o,
 			number theta,
 			vector3 v_rot
-		) {
+		)
+		{
 			// axis and vector
 			vector3 v, k;
 			VecSubtract(v, p, o);
@@ -86,7 +88,8 @@ namespace ug {
 			const vector3& r,
 			number step,
 			vector3& v_closest
-		) {
+		)
+		{
 			number dist = numeric_limits<number>::infinity();
 			for (size_t theta = 0; theta < 2*PI; theta+=step) {
 				vector3 v_rot;
@@ -106,7 +109,8 @@ namespace ug {
 		(
 			const vector3& p,
 			const vector3& q
-		) {
+		)
+		{
 			return acos(boost::algorithm::clamp(VecDot(p, q) / (VecLength(p) * VecLength(q)), -1, 1));
 		}
 
@@ -118,7 +122,8 @@ namespace ug {
 			const vector3& p,
 			const vector3& n,
 			const vector3& s
-		) {
+		)
+		{
 			/// TODO: replace VecCross with VecDot and take sign of this expression
 			vector3 cross;
 			VecCross(cross, s, p);
@@ -164,7 +169,8 @@ namespace ug {
 			number minAngle,
 			size_t maxIter,
 			vector3& v_permissible
-		) {
+		)
+		{
 			number angleMin = minAngle;
 			vector<vector3>::const_iterator it = directions.begin();
 			bool found = false;
@@ -195,12 +201,9 @@ namespace ug {
 			}
 		}
 
-		ostream& operator<< (ostream &os, const Cylinder& cyl) {
-		    return (os << "Cylinder (" << cyl.c << ", " << cyl.w << " with radius "
-		    		<< cyl.r << " and height " << cyl.h << std::endl);
-		}
-
-
+		////////////////////////////////////////////////////////////////////////
+		/// SeparatedByFirstCylindersUnitAxis
+		////////////////////////////////////////////////////////////////////////
 		bool SeparatedByFirstCylindersUnitAxis
 		(
 			const Cylinder& a,
@@ -217,6 +220,9 @@ namespace ug {
 		}
 
 
+		////////////////////////////////////////////////////////////////////////
+		/// SeparatedBySecondCylindersUnitAxis
+		////////////////////////////////////////////////////////////////////////
 		bool SeparatedBySecondCylindersUnitAxis
 		(
 			const Cylinder& a,
@@ -232,6 +238,9 @@ namespace ug {
 			return std::fabs(a.r*VecNorm2(cross)+a.h/2+b.h/2*dot-VecNorm2(awScaled)) < SMALL;
 		}
 
+		////////////////////////////////////////////////////////////////////////
+		/// SeparatedByUnitAxesCrossed
+		////////////////////////////////////////////////////////////////////////
 		bool SeparatedByUnitAxesCrossed
 		(
 			const Cylinder& a,
@@ -245,6 +254,9 @@ namespace ug {
 			return std::fabs((a.r+b.r)*VecNorm2(cross)-VecNorm2(dot)) < SMALL;
 		}
 
+		////////////////////////////////////////////////////////////////////////
+		/// SeparatedByFirstCylinderPerpendicular
+		////////////////////////////////////////////////////////////////////////
 		bool SeparatedByFirstCylinderPerpendicular
 		(
 			const Cylinder& a,
@@ -255,6 +267,9 @@ namespace ug {
 			return false;
 		}
 
+		////////////////////////////////////////////////////////////////////////
+		/// SeparatedBySecondCylinderPerpendicular
+		////////////////////////////////////////////////////////////////////////
 		bool SeparatedBySecondCylinderPerpendicular
 		(
 			const Cylinder& a,
@@ -266,6 +281,9 @@ namespace ug {
 
 		}
 
+		////////////////////////////////////////////////////////////////////////
+		/// SeparatedByOtherDirections
+		////////////////////////////////////////////////////////////////////////
 		bool SeparatedByOtherDirections
 		(
 			const Cylinder& a,
@@ -276,6 +294,9 @@ namespace ug {
 			return false;
 		}
 
+		////////////////////////////////////////////////////////////////////////
+		/// SeparatedByHeight
+		////////////////////////////////////////////////////////////////////////
 		bool SeparatedByHeight
 		(
 			const Cylinder& a,
@@ -287,6 +308,9 @@ namespace ug {
 		    return std::fabs((a.h/2+b.h/2 - VecNorm2(dot)) < SMALL);
 		}
 
+		////////////////////////////////////////////////////////////////////////
+		/// SeparatedRadially
+		////////////////////////////////////////////////////////////////////////
 		bool SeparatedRadially
 		(
 			const Cylinder& a,
@@ -301,8 +325,9 @@ namespace ug {
 			return std::fabs((a.r+b.r-VecNorm2(diffdot)) < SMALL);
 		}
 
-
-
+		////////////////////////////////////////////////////////////////////////
+		/// CylinderCylinderSeparationTest
+		////////////////////////////////////////////////////////////////////////
 		bool CylinderCylinderSeparationTest
 		(
 			const Cylinder& a,
@@ -336,6 +361,159 @@ namespace ug {
 				}
 			}
 			return false;
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// operator<< for Cylinder
+		////////////////////////////////////////////////////////////////////////
+		ostream& operator<< (ostream &os, const Cylinder& cyl) {
+		    return (os << "Cylinder (" << cyl.c << ", " << cyl.w << " with radius "
+		    		<< cyl.r << " and height " << cyl.h << std::endl);
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// is_cyclic
+		////////////////////////////////////////////////////////////////////////
+		bool is_cyclic
+		(
+			const vector<int> adj[],
+			const int s,
+            const int V,
+            vector<bool>& visited
+        ) {
+			vector<int> parent(V, -1);
+			std::queue<int> q;
+			visited[s] = true;
+			q.push(s);
+
+			while (!q.empty()) {
+
+			   int u = q.front();
+			   q.pop();
+
+			   for (size_t i = 0; i < adj[u].size(); i++) {
+			      if (!visited[adj[u][i]]) {
+			           visited[adj[u][i]] = true;
+			            q.push(adj[u][i]);
+			            parent[adj[u][i]] = u;
+			       }
+			       else if (parent[u] != adj[u][i])
+			             return true;
+			       }
+			    }
+			   return false;
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// is_cyclic
+		////////////////////////////////////////////////////////////////////////
+		bool is_cyclic
+		(
+			const vector<int> adj[],
+			const int V
+		)
+		{
+		    vector<bool> visited(V, false);
+
+		    for (int i = 0; i < V; i++) {
+		        if (!visited[i] && is_cyclic(adj, i, V, visited)) {
+		            return true;
+		        }
+		    }
+
+		    return false;
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// makeCombiUtil
+		////////////////////////////////////////////////////////////////////////
+		void makeCombiUtil
+		(
+			vector<vector<int> >& ans,
+		    vector<int>& tmp,
+		    const int n,
+		    const int left,
+		    const int k
+		)
+		{
+		    if (k == 0)
+		    {
+		        ans.push_back(tmp);
+		        return;
+		    }
+
+		    for (int i = left; i <= n; ++i)
+		    {
+		        tmp.push_back(i);
+		        makeCombiUtil(ans, tmp, n, i + 1, k - 1);
+		        tmp.pop_back();
+		    }
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// makeCombi
+		////////////////////////////////////////////////////////////////////////
+		vector<vector<int> > makeCombi
+		(
+			const int n,
+			const int k
+		)
+		{
+		    vector<vector<int> > ans;
+		    vector<int> tmp;
+		    makeCombiUtil(ans, tmp, n, 1, k);
+		    return ans;
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// ContainsCycle
+		////////////////////////////////////////////////////////////////////////
+		bool ContainsCycle
+		(
+			const vector<SWCPoint>& vPoints
+		)
+		{
+			int V = vPoints.size();
+			std::vector<int> adj[V];
+			size_t nPts = vPoints.size();
+			for (size_t i = 0; i < nPts; i++) {
+				const vector<size_t>& conns = vPoints[i].conns;
+				for (size_t j = 0; j < conns.size(); j++) {
+					adj[i].push_back(conns[j]);
+					adj[conns[j]].push_back(i);
+				}
+			}
+			return !is_cyclic(adj, V);
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// CylinderCylinderSeparationTest
+		////////////////////////////////////////////////////////////////////////
+		bool CylinderCylinderSeparationTest
+		(
+			const vector<SWCPoint>& vPoints
+		)
+		{
+			typedef vector<vector<int> > combination_t;
+			typedef vector<vector<int> >::const_iterator combination_iter;
+			std::vector<Cylinder> cylinders;
+			size_t nPts = vPoints.size();
+			for (size_t i = 0; i < nPts; i++) {
+				/// Regular points and root points only, since BPs may overlap usually
+				if (vPoints[i].conns.size() == 2) {
+						/// TODO: Create Cylinders compatible with Cylinder description
+					}
+				}
+			// create all pairwise cylinders, then test for intersection
+			combination_t combinations = makeCombi(cylinders.size(), 2);
+			combination_iter it = combinations.begin();
+			while (it != combinations.end()) {
+				if (!CylinderCylinderSeparationTest(cylinders[(*it)[0]], cylinders[(*it)[1]])) {
+					return false;
+				}
+				++it;
+			}
+			return true;
 		}
 	}
 }

@@ -43,6 +43,7 @@
 #include <boost/test/parameterized_test.hpp>
 #include <common/math/ugmath.h>
 #include <lib_grid/grid/grid.h>
+#include <vector>
 
 #include "../test/neurite_util.h"
 #include "../test/neurite_math_util.h"
@@ -63,7 +64,7 @@ BOOST_FIXTURE_TEST_CASE(CreatePyramid, FixtureOneGrid) {
 	vector3 top = aaPos[p->vertex(4)]; //!< last vertex is top vertex
 	BOOST_CHECK_EQUAL(top.x(), 0.5);
 	BOOST_CHECK_EQUAL(top.y(), 0.5);
-	BOOST_CHECK_EQUAL(top.z(), -1.0);
+	BOOST_CHECK_EQUAL(top.z(), -0.25);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -334,7 +335,7 @@ BOOST_AUTO_TEST_CASE(FindAngleBetweenDirections) {
 
 ////////////////////////////////////////////////////////////////////////////////
 BOOST_AUTO_TEST_CASE(FindClosestPointToRotatedVector) {
-
+	/// TODO: Implement
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -342,8 +343,35 @@ BOOST_AUTO_TEST_CASE(CylinderCylinderSeparation) {
 	Cylinder a(vector3(0,0,0), vector3(0,0,1), 1, 1);
 	Cylinder b(vector3(1,1,1), vector3(0,0,1), 1, 1);
 	Cylinder c(vector3(0,0,0), vector3(0,0,1), 1, 1);
-	BOOST_REQUIRE_MESSAGE(CylinderCylinderSeparationTest(a, b), "Separated cylinders.");
-	BOOST_REQUIRE_MESSAGE(!CylinderCylinderSeparationTest(a, c), "Non-separated cylinders.");
+	BOOST_REQUIRE_MESSAGE(CylinderCylinderSeparationTest(a, b), "Separated cylinders required.");
+	BOOST_REQUIRE_MESSAGE(!CylinderCylinderSeparationTest(a, c), "Non-separated cylinders required.");
 }
+
+
+void addEdge(std::vector<int> adj[], int u, int v)
+{
+    adj[u].push_back(v);
+    adj[v].push_back(u);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_CASE(GraphAcylic) {
+	int V = 5;
+    std::vector<int> adj[V];
+    addEdge(adj, 0, 1);
+    addEdge(adj, 1, 2);
+    addEdge(adj, 2, 3);
+    addEdge(adj, 3, 4);
+    BOOST_REQUIRE_MESSAGE(!is_cyclic(adj, V), "Graph supposed to contain cycle.");
+
+	V = 4;
+    std::vector<int> adj2[V];
+    addEdge(adj2, 0, 1);
+    addEdge(adj2, 1, 2);
+    addEdge(adj2, 2, 0);
+    addEdge(adj2, 3, 0);
+    BOOST_REQUIRE_MESSAGE(is_cyclic(adj2, V), "Graph supposed to contain no cycle.");
+}
+
 
 BOOST_AUTO_TEST_SUITE_END();

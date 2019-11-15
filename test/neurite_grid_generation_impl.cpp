@@ -42,6 +42,7 @@
 #include "lib_grid/algorithms/extrusion/extrude.h"
 #include "lib_grid/grid/neighborhood_util.h"
 #include "lib_disc/quadrature/gauss_legendre/gauss_legendre.h"
+#include "neurite_math_util.h"
 #include <algorithm>
 
 namespace ug {
@@ -2200,10 +2201,10 @@ number calculate_length_over_radius
                 }
 
                 ////////////////////////////////////////////////////////////////////////
-                /// constrained_smoothing
-                /// TODO: test in new test_import_swc_general_var method to see if useful
+                /// ConstrainedSmoothingAlongRootBranch
+                /// TODO: Test in test_import_swc_general_var to see if improves grids
                 ////////////////////////////////////////////////////////////////////////
-                void constrained_smoothing
+                void ConstrainedSmoothingAlongRootBranch
                 (
                 	std::vector<SWCPoint>& vPointsIn,
                     size_t n,
@@ -2321,7 +2322,7 @@ number calculate_length_over_radius
                                                 }
                                         }
 
-                                        /// min angle branch which matches the largest diameter deemed as root branch continuation
+                                        /// min angle branch which matches the largest diameter deemed to be root branch continuation
                                         if ((minPair.second == (size_t) max) || (minPair.first == (size_t) max)) {
                                                 conns.erase(conns.begin() + max);
                                         }
@@ -2379,13 +2380,13 @@ number calculate_length_over_radius
 		}
 
 		////////////////////////////////////////////////////////////////////////
-		/// regularize_bps
-        /// TODO: Use RotateVectorAroundAxis(...) to find better position
+		/// RegularizeBranchingPoints
+        /// TODO: Use RotateVectorAroundAxis(...) to find even better position
 		////////////////////////////////////////////////////////////////////////
-		void regularize_bps
+		void RegularizeBranchingPoints
 		(
 			std::vector<SWCPoint>& vPoints,
-			bool orthogonalize
+			const bool orthogonalize
 		) {
 			size_t nPts = vPoints.size();
 			std::vector<bool> ptProcessed(nPts, false);
@@ -2497,7 +2498,6 @@ number calculate_length_over_radius
 						pt.radius = (vPoints[pt.conns[minAngleInd]].radius * QtoPt)
 								+ (vPoints[pt.conns[parentToBeDiscarded]].radius * PtoPt);
 
-						/// "orthogonalize" branching points
 						if (orthogonalize) {
 #if 0
 							SWCPoint pointA;
@@ -2553,37 +2553,6 @@ number calculate_length_over_radius
 							pointA.coords = xPrime;
 #endif
 
-#if 0
-							vector3 xPrime;
-							vector3 xPrime2;
-							number minDist = std::numeric_limits<number>::infinity();
-							vector3 minPt;
-							for (int i = 0; i < 180; i++) {
-								rotate_vector_around_axis(axis, dir, Bprime, xPrime, xPrime2, i);
-								number dist1 = VecDistance(vPoints[pt.conns[continuation]].coords, xPrime);
-								number dist2 = VecDistance(vPoints[pt.conns[continuation]].coords, xPrime2);
-								if (dist1 < dist2) {
-									if (dist1 < minDist) {
-										minPt = xPrime;
-										minDist = dist1;
-									}
-									if (dist2 < minDist) {
-										minPt = xPrime2;
-										minDist = dist2;
-									}
-								}
-								/*
-								 minDist = std::min(dist1, dist2);
-								 minPt = (minDist == dist1 ? xPrime : xPrime2);
-
-								 */
-							}
-
-							pointA.coords = minPt;
-#endif
-
-
-							#if 1
 							SWCPoint pointA;
 							vector3 dir, dirAlt;
 							VecCross(dir, P, Q);
@@ -2603,7 +2572,7 @@ number calculate_length_over_radius
 							/// Could scale with distance from original point B to continuation point of branch
 							number scaleFactor = VecDistance(vPoints[pt.conns[continuation]].coords, B);
 							VecScale(dir, dir, scaleFactor);
-							///VecScale(dir, dir, 1.5); // was: 1
+							/// VecScale(dir, dir, 1.5); // was: 1
 							/// VecDistance(vPoints[pt.conns[continuation]].coords, B);
 							/*UG_COND_THROW(VecLength(dir) < 1-SMALL, "VecLength(dir) < 1."
 									" Minimum length of dir is one however actual"
@@ -2615,16 +2584,16 @@ number calculate_length_over_radius
 							dirAlt = -dir;
 							VecAdd(Aalt, Bprime, dirAlt);
 
-							/// Quick fix for 3 way branches - TODO: rotate around axis to find best direction
+							/// Quick fix for 3 way branches find
 							if (VecDistance(vPoints[pt.conns[continuation]].coords, A) <
 								VecDistance(vPoints[pt.conns[continuation]].coords, Aalt)) {
 								pointA.coords = A;
 							} else {
 								pointA.coords = Aalt;
 							}
-							#endif
 
-							pointA.radius = pt.radius; // vPoints[pt.conns[continuation]].radius;
+							pointA.radius = pt.radius;
+							// vPoints[pt.conns[continuation]].radius;
 							pointA.type = vPoints[pt.conns[minAngleInd]].type;
 							size_t newIndex = vPoints.size();
 							std::vector<size_t> Bs;
@@ -2701,7 +2670,7 @@ number calculate_length_over_radius
 					// root point
 					else if (nConn == 1)
 					{
-						// nothing to do
+
 					}
 					// normal point
 					else
@@ -2717,5 +2686,172 @@ number calculate_length_over_radius
 				}
 			}
 		}
-	}
-}
+
+		////////////////////////////////////////////////////////////////////////
+		/// MitigateRootBranchingNeurites
+		////////////////////////////////////////////////////////////////////////
+		void MitigateRootBranchingNeurites
+		(
+			std::vector<SWCPoint>& vPoints
+		) {
+			size_t nPts = vPoints.size();
+			std::vector<bool> ptProcessed(nPts, false);
+			size_t nProcessed = 0;
+
+			while (nProcessed != nPts)
+			{
+				// find first soma's root point in geometry and save its index as i
+				size_t i = 0;
+				for (; i < nPts; ++i) {
+					if (vPoints[i].type == SWC_SOMA && !ptProcessed[i])
+						break;
+				}
+
+				// collect neurite root points
+				std::vector<std::pair<size_t, size_t> > rootPts;
+				std::queue<std::pair<size_t, size_t> > soma_queue;
+				soma_queue.push(std::make_pair((size_t)-1, i));
+				while (!soma_queue.empty())
+				{
+					size_t pind = soma_queue.front().first;
+					size_t ind = soma_queue.front().second;
+					soma_queue.pop();
+
+					const SWCPoint& pt = vPoints[ind];
+
+					if (pt.type == SWC_SOMA)
+					{
+						ptProcessed[ind] = true;
+						++nProcessed;
+
+						size_t nConn = pt.conns.size();
+						for (size_t j = 0; j < nConn; ++j) {
+							if (pt.conns[j] != pind) {
+								soma_queue.push(std::make_pair(ind, pt.conns[j]));
+								}
+							}
+						}
+					else
+					{
+						rootPts.push_back(std::make_pair(pind, ind));
+					}
+				}
+
+				std::stack<std::pair<size_t, size_t> > processing_stack;
+				for (size_t i = 0; i < rootPts.size(); ++i)
+					processing_stack.push(rootPts[i]);
+
+				while (!processing_stack.empty())
+				{
+					size_t pind = processing_stack.top().first;
+					size_t ind = processing_stack.top().second;
+					processing_stack.pop();
+
+					SWCPoint& pt = vPoints[ind];
+					UG_COND_THROW(pt.type == SWC_SOMA, "Detected neuron with more than one soma.");
+					size_t nConn = pt.conns.size();
+					++nProcessed;
+
+					UG_COND_THROW(nConn > 3, "nConn > 3 not supported yet.");
+
+					size_t parentToBeDiscarded;
+					for (size_t i = 0; i < nConn; ++i)
+					{
+						if (pt.conns[i] == pind) {
+							parentToBeDiscarded = i;
+							continue;
+						}
+					}
+
+
+					if (nConn > 2)
+					{
+						// branch with minimal angle will continue current branch
+						vector3 parentDir;
+						VecSubtract(parentDir, pt.coords, vPoints[pind].coords);
+						VecNormalize(parentDir, parentDir);
+
+						size_t minAngleInd = 0;
+						number minAngle = std::numeric_limits<number>::infinity();
+
+						for (size_t i = 0; i < nConn; ++i)
+						{
+							if (pt.conns[i] == pind)
+							{
+								parentToBeDiscarded = i;
+								continue;
+							}
+
+							vector3 dir;
+							VecSubtract(dir, vPoints[pt.conns[i]].coords, pt.coords);
+							VecNormalize(dir, dir);
+
+							number angle = acos(VecProd(dir, parentDir));
+							if (angle < minAngle)
+							{
+								minAngle = angle;
+								minAngleInd = i;
+							}
+						}
+
+						/// ROOT NEURITE BRANCH
+						if (vPoints[parentToBeDiscarded].conns.size() == 1) {
+							nPts++;
+							size_t newIndex = vPoints.size();
+							/// Intermediate point between pind (current parent) -- newIndex -- ind (current point)
+							SWCPoint newPoint;
+							newPoint.type = pt.type;
+							VecScaleAdd(newPoint.coords, 0.5, vPoints[pt.conns[parentToBeDiscarded]].coords, 0.5, pt.coords);
+							/// Current point (With index ind) was connected to parent (pind) before not newIndex, thus removing pind and adding newIndex of intermediate point
+							vPoints[ind].conns.push_back(newIndex);
+							vPoints[ind].conns.erase(std::remove(vPoints[ind].conns.begin(), vPoints[ind].conns.end(), pind), vPoints[ind].conns.end());
+							/// New intermediate point in between parent and ind thus adding connections
+							newPoint.conns.push_back(pind);
+							newPoint.conns.push_back(ind);
+							vPoints.push_back(newPoint);
+							/// root point now connected to new intermediate point not to current point with index ind
+							vPoints[parentToBeDiscarded].conns.push_back(newIndex);
+							ptProcessed.push_back(false);
+							processing_stack.push(std::make_pair(pind, newIndex));
+						/// REGULAR BRANCHING
+						} else {
+							for (size_t j = 0; j < nConn; ++j)
+							{
+								if (j == parentToBeDiscarded || j == minAngleInd)
+								{
+									continue;
+								}
+
+								// push new neurite starting point index to stack
+								// connected to new intermediate point with
+								// newIndex = pt.conns[j]
+								processing_stack.push(std::make_pair(ind, pt.conns[j]));
+
+							}
+
+							// push next index of the current neurite to stack
+							processing_stack.push(std::make_pair(ind, pt.conns[minAngleInd]));
+							}
+						}
+
+					// root point
+					else if (nConn == 1)
+					{
+						/// Nothing to do here since we dont collect root points at this point
+					}
+					// normal point (nConn == 2)
+					else
+					{
+						for (size_t i = 0; i < nConn; ++i)
+						{
+							if (pt.conns[i] != pind)
+							{
+								processing_stack.push(std::make_pair(ind, pt.conns[i]));
+							}
+						}
+					}
+				}
+			}
+		}
+	} // end namespace neuro_collection
+} // end namespace ug

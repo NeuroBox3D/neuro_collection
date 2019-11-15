@@ -930,6 +930,30 @@ namespace ug {
 		);
 
 		/*!
+		 * \brief selects elements whose axial surface parameter is smaller than given by axial parameter
+		 * \param[in] grid
+		 * \param[out] sel
+		 * \param[in] axial
+		 * \param[in,out] aaPos
+		 * \param[in] aaSurfParams
+		 * \param[in] sh
+		 * \param[in] si
+		 * \param[in] scale
+		 */
+		template <class TElem>
+		void SelectElementsByAxialPositionInSubset
+		(
+			Grid& grid,
+			Selector& sel,
+			const number axial,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			SubsetHandler& sh,
+			const int si,
+			const number scale
+		);
+
+		/*!
 		 * \brief Deletes inner edges from quadrilaterals
 		 * \param[in,out] grid
 		 * \param[in,out] sh

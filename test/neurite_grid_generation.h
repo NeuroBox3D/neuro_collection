@@ -41,16 +41,10 @@
 #define UG__PLUGINS__NEURO_COLLECTION__TEST__NEURITE_GRID_GENERATION_H
 
 #include "lib_grid/grid/grid.h"
-#include "lib_grid/file_io/file_io_ugx.h"
-#include "lib_grid/file_io/file_io.h"
 #include "lib_grid/grid/geometry.h"
-#include "lib_grid/global_attachments.h"
-#include "common/math/ugmath_types.h"
-#include "lib_grid/algorithms/subset_color_util.h"
-#include "lib_grid/algorithms/remeshing/resolve_intersections.h"
 #include "lib_grid/refinement/projectors/neurite_projector.h"
-#include "test_neurite_proj.h"
-#include "neurite_util.h"
+#include "common/math/ugmath_types.h"
+#include "types.h"
 
 namespace ug {
 	namespace neuro_collection {
@@ -269,7 +263,7 @@ namespace ug {
 		  * \param[in] minAngle min angle for root branch detection
 		  * \param[in] maxRadiusRatio max radii ratio for root branch detection
 		  */
-		void constrained_smoothing
+		void ConstrainedSmoothingAlongRootBranch
 		(
 			std::vector<SWCPoint>& vPointsIn,
 			size_t n,
@@ -283,7 +277,7 @@ namespace ug {
 		 * \brief regularizes branching points
 		 * \param[in,out] vPoints
 		 * \param[in] orthogonalize
-		 *  1. Find BP:
+		 *  1. Find BP.
 		 *  2. Identify root branch and branching children by min angle criterion
 		 *  3. Collect point before branching point (P), branching point itself
 		 *     (B) and point on root branch after branching point (Q) and
@@ -292,15 +286,27 @@ namespace ug {
 	     *  5. Project B onto PQ as B' and erase B afterwards
 	     *  If orthogonalize:
 	     *  6. Create additional point A normal to PQ and connect to B'
-	     *  7. Connect A to each point in vector Rs
+	     *  7. Before connecting orthogonal point A is rotated (orthogonally)
+	     *  to find the best connection angle towards B'
+	     *  8. Connect A to each point in vector Rs
 		 */
-		void regularize_bps
+		void RegularizeBranchingPoints
 		(
 			std::vector<SWCPoint>& vPoints,
 			bool orthogonalize=false
 		);
-	}
-}
+
+		/*!
+		 * \brief Inserts a vertex at root branching neurites
+		 * \param[in,out] vPoints list of SWC points
+		 */
+		void MitigateRootBranchingNeurites
+		(
+			std::vector<SWCPoint>& vPoints
+		);
+
+	} // end namespace neuro_collection
+} // end namespace ug
 
 
 #endif // UG__PLUGINS__NEURO_COLLECTION__TEST__NEURITE_GRID_GENERATION_H

@@ -2376,7 +2376,7 @@ namespace ug {
 			CalculateNormal(vNormOut, quad, aaPos);
 			ug::vector3 center = CalculateCenter(quad, aaPos);
 			aaPos[top] = center;
-			VecScaleAdd(aaPos[top], 1.0, aaPos[top], scale, vNormOut);
+			VecScaleAdd(aaPos[top], 1.0, aaPos[top], scale*0.25, vNormOut);
 			if (aaSurfParams) {
 				(*aaSurfParams)[top].axial = -scale/VecLength(vNormOut);
 			}
@@ -2405,22 +2405,39 @@ namespace ug {
 			Triangulate(grid, sel.begin<Quadrilateral>(), sel.end<Quadrilateral>(), &aaPos);
 			sel.clear();
 
-			// assign quadrilterals to soma part
+			// assign quadrilaterals to soma part
 			Grid::traits<Quadrilateral>::secure_container quadCont;
 			find_quadrilaterals_constrained(grid, aaSurfParams, quadCont);
+
+			Grid::traits<Quadrilateral>::secure_container quadCont2;
+			find_quadrilaterals_constrained(grid, aaSurfParams, quadCont2, 0.0, 1.0, 4);
+			UG_LOGN("Quadcont2 size: " << quadCont2.size());
+			sel.clear();
+
+			/*
+			for (size_t i = 0; i < quadCont2.size(); i++) {
+				sel.select(quadCont2[i]);
+				AssignSelectionToSubset(sel, sh, 200);
+			}
+
+			SaveGridToFile(grid, sh, "before_creating_new_pyramids.ugx");
+			*/
+
 			sh.set_default_subset_index(somaIndex);
 			sel.clear();
-			for (size_t i = 0; i < quadCont.size(); i++) {
-				sel.select(quadCont[i]);
+			for (size_t i = 0; i < quadCont2.size(); i++) {
+				sel.select(quadCont2[i]);
 				SelectAssociatedElements(sel, true, true, true, true);
 				CloseSelection(sel);
 				AssignSelectionToSubset(sel, sh, somaIndex);
 			}
 
+			SaveGridToFile(grid, sh, "before_creating_all_pyramids.ugx");
+
 			// Create pyramids at connectiong region of soma and dendrite
-			for (size_t i = 0; i < quadCont.size(); i++) {
-				sh.assign_subset(quadCont[i], somaIndex);
-				create_pyramid(grid, quadCont[i], aaPos, scale, &aaSurfParams);
+			for (size_t i = 0; i < quadCont2.size(); i++) {
+				sh.assign_subset(quadCont2[i], somaIndex);
+				create_pyramid(grid, quadCont2[i], aaPos, scale, &aaSurfParams);
 			}
 
 			// Save old quadrilalterals
@@ -2433,21 +2450,50 @@ namespace ug {
 				oldQuads.push_back(temp);
 			}
 
+
+			SaveGridToFile(grid, sh, "after_creating_all_pyramids.ugx");
+
 			// Create selection of soma and ER - ignoring the neurites
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "before_tetrahedralize_soma.ugx");
 			sel.clear();
+			/// Selects all elements smaller or equal to axial=0.0
 			SelectElementsByAxialPosition<Face>(grid, sel, 0.0, aaPos, aaSurfParams);
 			CloseSelection(sel);
+
+			AssignSelectionToSubset(sel, sh, 100);
+			SaveGridToFile(grid, sh, "before_tetrahedralize"
+								"_soma_and_after_selecting.ugx");
+
+			sel.clear();
+			/// TODO This removes the surface connecting faces from selection for triangulation which is correct, but leads to bad PCLs in Tetgen somehow
+			/*
+			SelectElementsByAxialPositionInSubset<Face>(grid, sel, 0.0, aaPos, aaSurfParams, sh, 3, scale);
+			CloseSelection(sel);
+			AssignSelectionToSubset(sel, sh, 200);
+			*/
+
+			SaveGridToFile(grid, sh, "before_tetrahedralize"
+									"_soma_and_after_selecting_take2.ugx");
+
+			sel.clear();
+			SelectSubset(sel, sh, 100, true);
+			AssignSelectionToSubset(sel, sh, 4);
+
+			SavePreparedGridToFile(grid, sh, "before_tetrahedralize"
+												"_soma_and_after_selecting_take3.ugx");
 
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "before_tetrahedralize"
 					"_soma_and_after_selecting.ugx");
 			UG_DLOGN(NC_TNP, 0, "num vertices before tet call: " << grid.num<Vertex>());
-			Tetrahedralize(sel, grid, &sh, 2, true, true, aPosition, 0);
+			RemoveDoubles<3>(grid, grid.begin<Vertex>(), grid.end<Vertex>(), aaPos, 0.00001);
+			Tetrahedralize(sel, grid, &sh, 1, true, true, aPosition, 10);
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "after_tetrahedralize_"
 					"soma_and_before_fix_axial_parameters.ugx");
 			UG_DLOGN(NC_TNP, 0, "num vertices after tet call: " << grid.num<Vertex>());
 
+
 			// restore old quadrilaterals
+			UG_LOGN("oldQuads.size() " << oldQuads.size());
 			for (size_t i = 0; i < oldQuads.size(); i++) {
 				std::vector<Vertex*> temp = oldQuads[i];
 				Quadrilateral* l = *grid.create<Quadrilateral>
@@ -2543,6 +2589,7 @@ namespace ug {
 					}
 				}
 
+				/// TODO: refactor into one method which can do both. Note: scale is wrong, since we set soma rad to -0.5 inner and -1.0 outer
 				// if at soma, check that we have only outer quads around the ER part -> this can be checked by using radial
 				if (atSoma) {
 					std::vector<number> scales;
@@ -2620,6 +2667,42 @@ namespace ug {
 		}
 
 		////////////////////////////////////////////////////////////////////////
+		/// SelectElementsByAxialPositionInSubset
+		////////////////////////////////////////////////////////////////////////
+		template <class TElem>
+		void SelectElementsByAxialPositionInSubset
+		(
+			Grid& grid,
+			Selector& sel,
+			const number axial,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			SubsetHandler& sh,
+			const int si,
+			const number scale
+		) {
+			for (typename Grid::traits<TElem>::iterator iter = grid.begin<TElem>();
+					iter != grid.end<TElem>(); ++iter)
+			{
+				bool select = true;
+				TElem* elem = *iter;
+				for (size_t i = 0; i < elem->num_vertices(); ++i) {
+					if (! (std::fabs(aaSurfParams[elem->vertex(i)].axial-axial) < SMALL)) {
+						select = false;
+						break;
+					}
+				}
+				if (select) {
+					//if (sh.get_suAbset_index(*iter) == si) {
+						///if ((aaSurfParams[elem->vertex(0)].radial-scale) < SMALL) {
+							sel.select(*iter);
+					///	}
+					//}
+				}
+			}
+		}
+
+		////////////////////////////////////////////////////////////////////////
 		/// SelectElementsByAxialPosition
 		////////////////////////////////////////////////////////////////////////
 		template <class TElem>
@@ -2664,8 +2747,34 @@ namespace ug {
 			for (VertexIterator::iterator iter = grid.vertices_begin();
 					iter != grid.vertices_end(); ++iter)
 			{
-				if (aaSurfParams[*iter].axial <= axial) {
+				if (aaSurfParams[*iter].axial < axial) {
 					sel.select(*iter);
+				}
+			}
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// SelectElementsByAxialPosition
+		////////////////////////////////////////////////////////////////////////
+		template <>
+		void SelectElementsByAxialPositionInSubset<Vertex>
+		(
+			Grid& grid,
+			Selector& sel,
+			number axial,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			SubsetHandler& sh,
+			const int si,
+			const number scale
+		) {
+			for (VertexIterator::iterator iter = grid.vertices_begin();
+					iter != grid.vertices_end(); ++iter)
+			{
+				if (aaSurfParams[*iter].axial <= axial) {
+					if (sh.get_subset_index(*iter) == si) {
+						sel.select(*iter);
+					}
 				}
 			}
 		}
@@ -2682,6 +2791,22 @@ namespace ug {
 		template void SelectElementsByAxialPosition<Volume>(Grid&, Selector&, number,
 				Grid::VertexAttachmentAccessor<APosition>&,
 				Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >&);
+
+		////////////////////////////////////////////////////////////////////////
+		/// SelectElementsByAxialPositionInSubset
+		////////////////////////////////////////////////////////////////////////
+		template void SelectElementsByAxialPositionInSubset<Edge>(Grid&, Selector&, number,
+				Grid::VertexAttachmentAccessor<APosition>&,
+				Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >&,
+				SubsetHandler&, const int, const number);
+		template void SelectElementsByAxialPositionInSubset<Face>(Grid&, Selector&, number,
+				Grid::VertexAttachmentAccessor<APosition>&,
+				Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >&,
+				SubsetHandler&, const int, const number);
+		template void SelectElementsByAxialPositionInSubset<Volume>(Grid&, Selector&, number,
+				Grid::VertexAttachmentAccessor<APosition>&,
+				Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >&,
+				SubsetHandler&, const int, const number);
 
 
 		////////////////////////////////////////////////////////////////////////
@@ -3016,6 +3141,7 @@ namespace ug {
 			AssignSubsetColors(sh);
 			ss << fileName << "_after_deleting_center_vertices.ugx";
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
+			SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
 			/// refine outer polygon once to get 12 vertices
@@ -3025,13 +3151,28 @@ namespace ug {
 				int si = beginningOfQuads+i;
 				sel.clear();
 				SelectSubsetElements<Vertex>(sel, sh, si, true);
-				/// TODO: FIXME: Edges are considered from root neurite face creation.
-				/// This was previously not detected since vertices are deleted later
-				/// TODO: Do not create faces during create_root_neurites call
-				UG_COND_THROW(sel.num<Vertex>() != 5 || sel.num<Vertex>() != 6,
-						"Candidate dodecagon size needs to be 12 but actually is: "
-						<< sel.num<Vertex>());
-				/// TODO: if only 5 vertices, need to introduce an additional vertex by splitting an edge
+				/// We need to refine to create a dodecagon to connect to the cytosolic plasma membrane
+				UG_COND_THROW((sel.num<Vertex>()) != 5 && (sel.num<Vertex>() != 6 && (sel.num<Vertex>() != 7)),
+						"Candidate dodecagon size needs to be 5, 6 or 7 but actually is: " << sel.num<Vertex>()
+						<< " This might indicate, that the 'radii' of two or more docedagons on the soma surface "
+						   " are intersecting and thus are not dodecagons and cannot be connected with the neurite "
+						   "starts or root neurites which are dodecagon!");
+
+				if (sel.num<Vertex>() == 5) {
+					Edge* e = *sh.begin<Edge>(si);
+					Vertex* v = SplitEdge<RegularVertex>(g, e, true);
+					sh.assign_subset(v, si);
+					vector3 avg;
+					VecScaleAdd(avg, 0.5, aaPos[e->vertex(0)], 0.5, aaPos[e->vertex(1)]);
+					aaPos[v] = avg;
+				}
+
+				if (sel.num<Vertex>() == 7) {
+					Edge* e = *sh.begin<Edge>(si);
+					Vertex* v = e->vertex(0);
+					CollapseEdge(g, e, v);
+					sh.assign_subset(v, si);
+				}
 				SelectSubsetElements<Edge>(sel, sh, si, true);
 				Refine(g, sel, NULL, false);
 			}
@@ -3109,6 +3250,7 @@ namespace ug {
 				aaSurfParams[e->vertex(1)].axial = -0.5; /// on inner sphere (ER) surface
 				aaSurfParams[vertices[e->vertex(0)]].axial = -0.25; /// close to outer sphere (PM) surface
 				aaSurfParams[vertices[e->vertex(1)]].axial = -0.25; /// close to outer sphere (PM) surface
+				SaveGridToFile(g, sh, "after_first_connect.ugx");
 			}
 
 
@@ -3326,6 +3468,7 @@ namespace ug {
 			/// FIXME Ref vector with zero components might be troublesome - warn for now
 			/// In this case sometimes and if vectors (ref and dirs[i]) are colinear then
 			/// VecCross will result in the (faulty) null vector and this is problematic
+			UG_LOGN("refVec: " << refVec)
 			UG_COND_THROW(fabs(refVec.x()) < SMALL || fabs(refVec.y()) < SMALL || fabs(refVec.z()) < SMALL,
 					"Need full-dimensional reference vector for angle calculation in general.");
 			for (size_t j = 0; j < numVerts; j++) {

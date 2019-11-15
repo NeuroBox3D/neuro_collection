@@ -41,6 +41,7 @@
 #define UG__PLUGINS__NEURO_COLLECTION__TEST__NEURITE_MATH_UTIL_H
 
 #include "common/math/ugmath_types.h"
+#include "types.h"
 
 namespace ug {
 	namespace neuro_collection {
@@ -156,6 +157,80 @@ namespace ug {
 			  h(h)
 			{ }
 		};
+
+		/*!
+		 * \brief create a cylinder from SWC point
+		 * \param[in] p SWC point
+		 * \return Cylinder
+		 */
+		Cylinder makeCyl
+		(
+			const SWCPoint& p
+		);
+
+		/*!
+		 * \brief creates combinations by a DFS algorithm
+		 * \param[in] n
+		 * \param[in] k
+		 * \return \c (n over k) combinations
+		 */
+		std::vector<std::vector<int> > makeCombi
+		(
+			int n,
+			int k
+		);
+
+		/*!
+		 * \brief utility function which actually creates the combinations
+		 * \param[in] ans
+		 * \param[in] tmp
+		 * \param[in] n
+		 * \param[in] left
+		 * \param[in] k
+		 */
+		void makeCombiUtil(
+			std::vector<std::vector<int> >& ans,
+		    std::vector<int>& tmp,
+		    int n,
+		    int left,
+		    int k
+		);
+
+		/*!
+		 * \brief Check for a cycle in a graph given by an adjacency list
+		 * \param[in] adj adjacency list
+		 * \param[in] V index of vertex to start BFS
+		 * The function returns true if at least one cycle found otherwise false
+		 * Runtime complexity of this BFS algorithm: O(|V|+|E|)
+		 * \return \c \bool
+		 */
+		bool is_cyclic
+		(
+			const std::vector<int> adj[],
+			int V
+		);
+
+		/*!
+		 * \brief Check for a cycle in the SWC graph
+		 * The function returns true if at least one cycle found otherwise false
+		 * \param[in] vPoints lis of SWC points
+		 * \return \c bool
+		 */
+		bool ContainsCycle
+		(
+			const std::vector<SWCPoint>& vPoints
+		);
+
+		/*!
+		 * \brief Check for any intersection of two SWC cylinders
+		 * The function returns true if at least one intersection found else false
+		 * \param[in] vPoints list of SWC points
+		 * \return \c bool
+		 */
+		bool CylinderCylinderSeparationTest
+		(
+			const std::vector<SWCPoint>& vPoints
+		);
 	}
 }
 
