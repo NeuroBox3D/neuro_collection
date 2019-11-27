@@ -3445,6 +3445,7 @@ void create_spline_data_for_neurites
 		size_t numRefs,
 		bool regularize
 	) {
+		/// TODO: Add variable to build only n neurites
 		using namespace std;
 		// Read in SWC file to intermediate structure (May contain multiple soma points)
 		vector<SWCPoint> vPoints;
@@ -3498,7 +3499,7 @@ void create_spline_data_for_neurites
 		/// TODO: Check that not scaling the soma does not interfer with grid
 		///       generation. It might create dints in the soma surface which
 		///       can lead to intersections on the soma surface when connecting
-		///       somaPoint[0].radius *= 1.05;
+		///somaPoint[0].radius *= 1.05;
 		UG_DLOGN(NC_TNP, 0, "Creating (outer sphere) soma in subset 1");
 	    create_soma(somaPoint, g, aaPos, sh, 1);
 
@@ -3539,7 +3540,7 @@ void create_spline_data_for_neurites
 
 	    /// TODO: Fix root neurites (Test this method)
 	    UG_DLOG(NC_TNP, 0, "Mitigating root branching neurites...")
-	    MitigateRootBranchingNeurites(vPoints);
+	    ///MitigateRootBranchingNeurites(vPoints);
 	    UG_DLOGN(NC_TNP, 0, " passed!");
     	Grid g2;
     	SubsetHandler sh2(g2);
@@ -3743,7 +3744,15 @@ void create_spline_data_for_neurites
 		/// assign correct axial parameters for "somata" regions (TODO: Verify to be correct!)
 		set_somata_axial_parameters(g, sh, aaSurfParams, 4, 5);
 
-	    /// tetrahedralizes somata with specified and fixed indices 4 and 5
+		SaveGridToFile(g, sh, "after_selecting_boundary_elements.ugx");
+
+		/// TODO: Remove connecting faces but keep volumes
+		//g.set_options(VOLOPT_AUTOGENERATE_FACES )
+		/*
+		UG_LOGN("Grid options: " << g.get_options());
+		g.disable_options(VOLOPT_STORE_ASSOCIATED_FACES);
+		g.disable_options(VOLOPT_AUTOGENERATE_FACES);
+		*/
 	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 5, savedSomaPoint);
 
 	    SavePreparedGridToFile(g, sh, "after_tetrahedralize_and_before_reassign_volumes.ugx");

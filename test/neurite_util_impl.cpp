@@ -2377,10 +2377,11 @@ namespace ug {
 			CalculateNormal(vNormOut, quad, aaPos);
 			ug::vector3 center = CalculateCenter(quad, aaPos);
 			aaPos[top] = center;
-			VecScaleAdd(aaPos[top], 1.0, aaPos[top], scale*0.25, vNormOut);
+			VecScaleAdd(aaPos[top], 1.0, aaPos[top], scale*0.25*0.1, vNormOut); /// TODO: should depends on radius or so
 			if (aaSurfParams) {
 				(*aaSurfParams)[top].axial = -scale/VecLength(vNormOut);
 			}
+
 			return *grid.create<Pyramid>(PyramidDescriptor(quad->vertex(0),
 					quad->vertex(1), quad->vertex(2), quad->vertex(3), top));
 		}
@@ -2409,6 +2410,7 @@ namespace ug {
 			// assign quadrilaterals to soma part
 			Grid::traits<Quadrilateral>::secure_container quadCont;
 			find_quadrilaterals_constrained(grid, aaSurfParams, quadCont);
+			UG_LOGN("QuadCont size: " << quadCont.size());
 
 			Grid::traits<Quadrilateral>::secure_container quadCont2;
 			find_quadrilaterals_constrained(grid, aaSurfParams, quadCont2, 0.0, 1.0, 4);
@@ -2435,11 +2437,13 @@ namespace ug {
 
 			SaveGridToFile(grid, sh, "before_creating_all_pyramids.ugx");
 
+			//grid.disable_options(EO_CREATE_VOLUMES);
 			// Create pyramids at connectiong region of soma and dendrite
 			for (size_t i = 0; i < quadCont2.size(); i++) {
 				sh.assign_subset(quadCont2[i], somaIndex);
 				create_pyramid(grid, quadCont2[i], aaPos, scale, &aaSurfParams);
 			}
+			//grid.enable_options(EO_CREATE_VOLUMES);
 
 			// Save old quadrilalterals
 			std::vector<std::vector<Vertex*> > oldQuads;
@@ -2467,11 +2471,9 @@ namespace ug {
 
 			sel.clear();
 			/// TODO This removes the surface connecting faces from selection for triangulation which is correct, but leads to bad PCLs in Tetgen somehow
-			/*
 			SelectElementsByAxialPositionInSubset<Face>(grid, sel, 0.0, aaPos, aaSurfParams, sh, 3, scale);
-			CloseSelection(sel);
+			///CloseSelection(sel);
 			AssignSelectionToSubset(sel, sh, 200);
-			*/
 
 			SaveGridToFile(grid, sh, "before_tetrahedralize"
 									"_soma_and_after_selecting_take2.ugx");
@@ -2479,6 +2481,7 @@ namespace ug {
 			sel.clear();
 			SelectSubset(sel, sh, 100, true);
 			AssignSelectionToSubset(sel, sh, 4);
+			CloseSelection(sel);
 
 			SavePreparedGridToFile(grid, sh, "before_tetrahedralize"
 												"_soma_and_after_selecting_take3.ugx");
@@ -2487,11 +2490,40 @@ namespace ug {
 					"_soma_and_after_selecting.ugx");
 			UG_DLOGN(NC_TNP, 0, "num vertices before tet call: " << grid.num<Vertex>());
 			RemoveDoubles<3>(grid, grid.begin<Vertex>(), grid.end<Vertex>(), aaPos, 0.00001);
-			Tetrahedralize(sel, grid, &sh, 1, true, true, aPosition, 10);
+			sel.clear();
+			SavePreparedGridToFile(grid, sh, "before_tetrahedralize"
+					"_soma_and_after_selecting_take4.ugx");
+			SelectSubset(sel, sh, 4, true);
+
+			UG_LOGN("deselecting quadconts...")
+			grid.disable_options(VOLOPT_STORE_ASSOCIATED_FACES);
+			grid.disable_options(VOLOPT_AUTOGENERATE_FACES);
+			for (size_t i = 0; i < quadCont2.size(); i++) {
+				grid.erase(quadCont2[i]);
+			}
+
+			/*
+			UG_LOGN("deselecting quadconts2...")
+			for (size_t i = 0; i < quadCont2.size(); i++) {
+				grid.erase(quadCont2[i]);
+			}
+			*/
+
+			grid.enable_options(VOLOPT_STORE_ASSOCIATED_FACES);
+			///grid.enable_options(VOLOPT_AUTOGENERATE_FACES);
+
+			/// Reassign volumes
+
+			AssignSelectionToSubset(sel, sh, 100);
+
+			SavePreparedGridToFile(grid, sh, "before_tetrahedralize"
+					"_soma_and_after_selecting_take5.ugx");
+
+
+			Tetrahedralize(sel, grid, &sh, 20, false, false, aPosition, 10); /// 10, false, false
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "after_tetrahedralize_"
 					"soma_and_before_fix_axial_parameters.ugx");
 			UG_DLOGN(NC_TNP, 0, "num vertices after tet call: " << grid.num<Vertex>());
-
 
 			// restore old quadrilaterals
 			UG_LOGN("oldQuads.size() " << oldQuads.size());
@@ -3473,8 +3505,10 @@ namespace ug {
 			/// In this case sometimes and if vectors (ref and dirs[i]) are colinear then
 			/// VecCross will result in the (faulty) null vector and this is problematic
 			UG_LOGN("refVec: " << refVec)
-			UG_COND_THROW(fabs(refVec.x()) < SMALL || fabs(refVec.y()) < SMALL || fabs(refVec.z()) < SMALL,
+			/// TODO: Throw or warn?
+	/*		UG_COND_THROW(fabs(refVec.x()) < SMALL || fabs(refVec.y()) < SMALL || fabs(refVec.z()) < SMALL,
 					"Need full-dimensional reference vector for angle calculation in general.");
+					*/
 			for (size_t j = 0; j < numVerts; j++) {
 				angleMapFrom.clear(); angleMapTo.clear();
 
