@@ -2853,5 +2853,12 @@ number calculate_length_over_radius
 				}
 			}
 		}
+		////////////////////////////////////////////////////////////////////////
+		/// RetriangulateConnectingRegions
+		////////////////////////////////////////////////////////////////////////
+		void RetriangulateConnectingRegions()
+		{
+			/// TODO: Implement
+		}
 	} // end namespace neuro_collection
 } // end namespace ug

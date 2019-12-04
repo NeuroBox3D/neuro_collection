@@ -231,6 +231,17 @@ namespace ug {
 		(
 			const std::vector<SWCPoint>& vPoints
 		);
+
+		/*!
+		 * \brief Check ratio of soma and neurites
+		 * \param[in] radii diameter of root neurite vertices
+		 * \param[in] somaRadius soma's radius
+		 */
+		void CheckRootToSomaNeuriteDiameters
+		(
+			const std::vector<number>& radii,
+			number somaRadius
+		);
 	}
 }
 

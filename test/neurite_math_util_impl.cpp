@@ -515,5 +515,24 @@ namespace ug {
 			}
 			return true;
 		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// CheckRootToSomaNeuriteDiameters
+		////////////////////////////////////////////////////////////////////////
+		void  CheckRootToSomaNeuriteDiameters
+		(
+			const std::vector<number>& radii,
+			const number somaRadius
+		)
+		{
+			for (size_t i = 0; i < radii.size()/12; i++) {
+				UG_LOGN("Soma/Neurite ratio for neurite with index #" << i+1 << ": " << somaRadius/radii[i*12]);
+				UG_COND_WARNING(somaRadius/ radii[i*12] > 10, "Soma/Neurite ratio highly "
+						"anistropic for neurite with index " << i+1 << " thus one might "
+						"expect non-optimal meshes at connecting region. Refine "
+						"mesh (locally) adaptive around connecting region or choose"
+						"less soma refinements. Consider enabling tapering toggle.");
+			}
+		}
 	}
 }

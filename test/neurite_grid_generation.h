@@ -305,6 +305,11 @@ namespace ug {
 			std::vector<SWCPoint>& vPoints
 		);
 
+		/*!
+		 * \brief Retriangulates connecting regions
+		 */
+		void RetriangulateConnectingRegions();
+
 	} // end namespace neuro_collection
 } // end namespace ug
 

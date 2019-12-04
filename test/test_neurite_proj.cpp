@@ -3569,13 +3569,21 @@ void create_spline_data_for_neurites
 		vector<Vertex*> outVertsInner;
 		vector<number> outRadsInner;
 
-	    UG_DLOGN(NC_TNP, 0, "Generating neurites...");
+	    UG_DLOG(NC_TNP, 0, "Generating neurites...");
 	    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 		   	create_neurite_root_vertices(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   		g, sh, erScaleFactor, aaPos, &outVerts, &outVertsInner, &outRads,
 		   		&outRadsInner, withER);
 		}
 		UG_DLOGN(NC_TNP, 0, " done.");
+
+	    UG_DLOG(NC_TNP, 0, "Checking diameters...")
+		/// TODO: Eventually handle very large ratios by a diameter tapering
+		/// Base Refinement of soma has to be chosen depending on diameter ratios,
+		/// otherwise we introduce unnecessary level of detail (DoFs) on the soma surface
+	    CheckRootToSomaNeuriteDiameters(outRads, somaPoint.front().radius);
+	    UG_DLOGN(NC_TNP, 0, " done.");
+
 		IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
 
 	    /// (Outer sphere) Soma
@@ -3753,6 +3761,10 @@ void create_spline_data_for_neurites
 		g.disable_options(VOLOPT_STORE_ASSOCIATED_FACES);
 		g.disable_options(VOLOPT_AUTOGENERATE_FACES);
 		*/
+
+		/// TODO: refine around connecting regions (Retriangulate with high min angle value)
+		RetriangulateConnectingRegions();
+
 	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 5, savedSomaPoint);
 
 	    SavePreparedGridToFile(g, sh, "after_tetrahedralize_and_before_reassign_volumes.ugx");
