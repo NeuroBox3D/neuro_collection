@@ -2452,6 +2452,7 @@ void create_spline_data_for_neurites
 	if (!g.has_vertex_attachment(aSP))
 		g.attach_to_vertices(aSP);
 
+
 	Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
 	aaSurfParams.access(g, aSP);
 
@@ -3153,6 +3154,16 @@ void create_spline_data_for_neurites
 	    Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
 	    aaSurfParams.access(g, aSP);
 
+	    typedef NeuriteProjector::Mapping NPMapping;
+	    UG_COND_THROW(!GlobalAttachments::is_declared("npMappingParams"),
+	    		"GlobalAttachment 'npMapping' was not declared.");
+	    Attachment<NPMapping> aNPMapping = GlobalAttachments::attachment<Attachment<NPMapping> >("npMappingParams");
+	    if (!g.has_vertex_attachment(aNPMapping)) {
+	    	g.attach_to_vertices(aNPMapping);
+	    }
+	    Grid::VertexAttachmentAccessor<Attachment<NPMapping> > aaMapping;
+	    aaMapping.access(g, aNPMapping);
+
 		/// FIXME: In new implementation radius should be possible to scale with
 	    /// 1.0 not 1.05 -> might create intersections which lead to segfault
 	    somaPoint[0].radius *= 1.05;
@@ -3620,7 +3631,9 @@ void create_spline_data_for_neurites
 	    UG_LOGN("Generating neurites...")
 	    UG_DLOGN(NC_TNP, 0, "Generating neurites...")
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
-	    /// TODO: include check to see if radii at beginning of neurite (at soma) intersects with other neurite
+			std::stringstream ss;
+			UG_LOGN(i << "-th neurite");
+			/// TODO: include check to see if radii at beginning of neurite (at soma) intersects with other neurite
 		 	if (withER) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, &outVerts,
@@ -3629,6 +3642,9 @@ void create_spline_data_for_neurites
 		   		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   				anisotropy, g, aaPos, aaSurfParams);
 		   	}
+		 	ss << "testNeuriteProjector_after_generating_neurite_no=" << i <<  ".ugx";
+		    SaveGridToFile(g, sh, ss.str());
+		    ss.str(""); ss.clear();
 		}
 
 	    UG_DLOGN(NC_TNP, 0, " done.");
@@ -3654,11 +3670,18 @@ void create_spline_data_for_neurites
 			connect_new(g, sh, aaPos, newSomaIndex, vRootNeuriteIndsOut.size(), aaSurfParams, neuriteProj);
 			/// This adds the soma branching region sections information (spline data) to the neurites
 			for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
+				neuriteProj->neurites()[i].vSBR.reserve(2);
 				neuriteProj->neurites()[i].vSBR.back().radius = outRads[i];
 				neuriteProj->neurites()[i].vSBR.front().radius = outRadsInner[i];
+				/// TODO set center correctly, outVerts is outer sphere outer dodecagon
+				neuriteProj->neurites()[i].vSBR.back().center = vPos[i][0];
+				/// TODO set center correctly, need to get inner sphere surface quads center
+				neuriteProj->neurites()[i].vSBR.front().center = vPos[i][0];
+
 				neuriteProj->neurites()[i].vSBR.back().somaPt = make_sp(new NeuriteProjector::SomaPoint(somaPoint[0].coords, somaPoint[0].radius));
 				neuriteProj->neurites()[i].vSBR.front().somaPt = make_sp(new NeuriteProjector::SomaPoint(somaPoint[0].coords, somaPoint[0].radius/erScaleFactor));
 				UG_COND_THROW(neuriteProj->neurites()[i].vSBR.size() != 2, "Each neurite should only contain one soma/er and thus only two branching regions.")
+				neuriteProj->neurites()[i].vSomaSec.reserve(2);
 				neuriteProj->neurites()[i].vSomaSec.push_back(neuriteProj->neurites()[i].vSec.front());
 				neuriteProj->neurites()[i].vSomaSec.push_back(neuriteProj->neurites()[i].vSec.front());
 				UG_COND_THROW(neuriteProj->neurites()[i].vSomaSec.size() != 2, "Each neurite should only contain two sections for determining if at soma.")
@@ -3763,7 +3786,7 @@ void create_spline_data_for_neurites
 		*/
 
 		/// TODO: refine around connecting regions (Retriangulate with high min angle value)
-		RetriangulateConnectingRegions();
+		///RetriangulateConnectingRegions();
 
 	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 5, savedSomaPoint);
 
@@ -3856,3 +3879,4 @@ void create_spline_data_for_neurites
 	}
 	} // namespace neuro_collection
 } // namespace ug
+

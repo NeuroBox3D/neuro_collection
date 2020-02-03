@@ -41,6 +41,7 @@
 #include "lib_algebra/common/operations_vec.h"
 #include "lib_grid/algorithms/extrusion/extrude.h"
 #include "lib_grid/grid/neighborhood_util.h"
+#include "lib_grid/algorithms/remeshing/delaunay_triangulation.h"
 #include "lib_disc/quadrature/gauss_legendre/gauss_legendre.h"
 #include "neurite_math_util.h"
 #include <algorithm>
@@ -70,6 +71,8 @@ namespace ug {
 	const NeuriteProjector::Neurite& neurite = vNeurites[nid];
 	const std::vector<vector3>& pos = vPos[nid];
 	const std::vector<number>& r = vR[nid];
+
+	Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::Mapping> > aaMappingParams;
 
 	number neurite_length = 0.0;
 	for (size_t i = 1; i < pos.size(); ++i)
@@ -176,6 +179,10 @@ namespace ug {
 			aaSurfParams[v].axial = 0.0;
 			aaSurfParams[v].angular = angle;
 			aaSurfParams[v].radial = erScaleFactor;
+			// 1d<->2d mapping params
+			aaMappingParams[v].v1 = pos[0];
+			aaMappingParams[v].v2 = pos[0];
+			aaMappingParams[v].lambda = 0;
 			sh.assign_subset(v, 3);
 			if (outVertsInner) {
 				outVertsInner->push_back(v);
@@ -197,6 +204,11 @@ namespace ug {
 			aaSurfParams[v].axial = 0.0;
 			aaSurfParams[v].angular = angle;
 			aaSurfParams[v].radial = 1.0;
+			// 1d<->2d mapping params
+			aaMappingParams[v].v1 = pos[0];
+			aaMappingParams[v].v2 = pos[0];
+			aaMappingParams[v].lambda = 0;
+
 			sh.assign_subset(v, 2);
 			if (outVerts) {
 				outVerts->push_back(v);
@@ -251,6 +263,8 @@ namespace ug {
 	vector3 lastPos = pos[0];
 	size_t curSec = 0;
 
+
+	UG_COND_THROW(!brit->bp.get(), "BP is null. This can happen for bogus input geometries.");
 	while (true) {
 		t_start = t_end;
 
@@ -263,11 +277,10 @@ namespace ug {
 		number surfBPoffset;
 
 		// last section: create until tip
-		if (brit == brit_end)
+		if (brit == brit_end) {
 			t_end = 1.0;
-
+		} else {
 		// otherwise: section goes to next branching point
-		else {
 			// calculate the exact position of the branching point,
 			// i.e., the axial position of the intersection of the branching neurite's
 			// spline with the surface of the current neurite
@@ -554,6 +567,11 @@ namespace ug {
 					aaSurfParams[v].axial = segAxPos;
 					aaSurfParams[v].angular = angle;
 					aaSurfParams[v].radial = erScaleFactor;
+
+					// 1d<->2d mapping params
+					aaMappingParams[v].v1 = pos[curSec];
+					aaMappingParams[v].v2 = pos[curSec];
+					aaMappingParams[v].lambda = 0;
 				}
 				for (size_t j = 0; j < 12; ++j) {
 					number angle = PI * ((number) j / 6) + angleOffset;
@@ -569,6 +587,11 @@ namespace ug {
 					aaSurfParams[v].axial = segAxPos;
 					aaSurfParams[v].angular = angle;
 					aaSurfParams[v].radial = 1.0;
+
+					// 1d<->2d mapping params
+					aaMappingParams[v].v1 = pos[curSec];
+					aaMappingParams[v].v2 = pos[curSec];
+					aaMappingParams[v].lambda = 0;
 				}
 
 				// ensure correct volume orientation
@@ -696,6 +719,12 @@ namespace ug {
 					aaSurfParams[v].axial = segAxPos;
 					aaSurfParams[v].angular = angle;
 					aaSurfParams[v].radial = erScaleFactor;
+
+					// 1d<->2d mapping params
+					aaMappingParams[v].v1 = pos[curSec];
+					aaMappingParams[v].v2 = pos[curSec];
+					aaMappingParams[v].lambda = 0;
+
 				}
 				for (size_t j = 0; j < 12; ++j) {
 					number angle = PI * ((number) j / 6) + angleOffset;
@@ -711,6 +740,11 @@ namespace ug {
 					aaSurfParams[v].axial = segAxPos;
 					aaSurfParams[v].angular = angle;
 					aaSurfParams[v].radial = 1.0;
+
+					// 1d<->2d mapping params
+					aaMappingParams[v].v1 = pos[curSec];
+					aaMappingParams[v].v2 = pos[curSec];
+					aaMappingParams[v].lambda = 0;
 				}
 
 				// correct vertex offsets to reflect angle at which child branches
@@ -834,6 +868,11 @@ namespace ug {
 					aaSurfParams[v].axial = segAxPos;
 					aaSurfParams[v].angular = angle;
 					aaSurfParams[v].radial = erScaleFactor;
+
+					// 1d<->2d mapping params
+					aaMappingParams[v].v1 = pos[curSec];
+					aaMappingParams[v].v2 = pos[curSec];
+					aaMappingParams[v].lambda = 0;
 				}
 				for (size_t j = 0; j < 12; ++j) {
 					number angle = PI * ((number) j / 6) + angleOffset;
@@ -849,6 +888,10 @@ namespace ug {
 					aaSurfParams[v].axial = segAxPos;
 					aaSurfParams[v].angular = angle;
 					aaSurfParams[v].radial = 1.0;
+					// 1d<->2d mapping params
+					aaMappingParams[v].v1 = pos[curSec];
+					aaMappingParams[v].v2 = pos[curSec];
+					aaMappingParams[v].lambda = 0;
 				}
 
 				// correct vertex offsets to reflect angle at which child branches
@@ -968,6 +1011,10 @@ namespace ug {
 					aaSurfParams[v].axial = segAxPos;
 					aaSurfParams[v].angular = angle;
 					aaSurfParams[v].radial = erScaleFactor;
+					// 1d<->2d mapping params
+					aaMappingParams[v].v1 = pos[curSec];
+					aaMappingParams[v].v2 = pos[curSec];
+					aaMappingParams[v].lambda = 0;
 				}
 				for (size_t j = 0; j < 12; ++j) {
 					number angle = PI * ((number) j / 6) + angleOffset;
@@ -983,6 +1030,10 @@ namespace ug {
 					aaSurfParams[v].axial = segAxPos;
 					aaSurfParams[v].angular = angle;
 					aaSurfParams[v].radial = 1.0;
+					// 1d<->2d mapping params
+					aaMappingParams[v].v1 = pos[curSec];
+					aaMappingParams[v].v2 = pos[curSec];
+					aaMappingParams[v].lambda = 0;
 				}
 
 				// correct vertex offsets to reflect angle at which child branches
@@ -2856,9 +2907,16 @@ number calculate_length_over_radius
 		////////////////////////////////////////////////////////////////////////
 		/// RetriangulateConnectingRegions
 		////////////////////////////////////////////////////////////////////////
-		void RetriangulateConnectingRegions()
+		void RetriangulateConnectingRegions
+		(
+			SubsetHandler& sh,
+			Grid& grid,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			const size_t si,
+			const number minAngle
+		)
 		{
-			/// TODO: Implement
+			QualityGridGeneration(grid, sh.begin<Triangle>(si), sh.end<Triangle>(si), aaPos, minAngle);
 		}
 	} // end namespace neuro_collection
 } // end namespace ug

@@ -1138,7 +1138,9 @@ InitUGPlugin_neuro_collection(Registry* reg, string grp)
 
 	GlobalAttachments::declare_attachment<ANumber>("diameter");
 	typedef Attachment<NeuriteProjector::SurfaceParams> NPSurfParam;
+	typedef Attachment<NeuriteProjector::Mapping> NPMappingParam;
 	GlobalAttachments::declare_attachment<NPSurfParam>("npSurfParams", true);
+	GlobalAttachments::declare_attachment<NPMappingParam>("mapping", true);
 
 	try
 	{
