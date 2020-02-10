@@ -2854,35 +2854,25 @@ number calculate_length_over_radius
 							}
 						}
 
-						///FIXME: vPoints[pt.conns[parentToBeDiscarded...]]; should be used.
-						/// ROOT NEURITE BRANCH: FIXME should check for if any of the parent points is of soma type
+						/// Check if the parent point is a soma point, if so, we need to change this branch to the next point
 						if (vPoints[pt.conns[parentToBeDiscarded]].type == SWC_SOMA) {
-							std::cout << "Found root branching neurite " << std::endl;
-							std::cout << "Current points conns: " << vPoints[ind].conns.size() << std::endl;
-							std::cout << "Current point: " << vPoints[ind].coords << std::endl;
-							/// TODO: Implement from below
-							UG_THROW("Contains root-branches");
-							/// TODO: if nconn > 2 ... do something and warn also if too many connections, then move to next vertex! e.g. not pind or ind
-						}
-
-						if (vPoints[parentToBeDiscarded].conns.size() == 1) {
-							nPts++;
-							size_t newIndex = vPoints.size();
-							/// Intermediate point between pind (current parent) -- newIndex -- ind (current point)
-							SWCPoint newPoint;
-							newPoint.type = pt.type;
-							VecScaleAdd(newPoint.coords, 0.5, vPoints[pt.conns[parentToBeDiscarded]].coords, 0.5, pt.coords);
-							/// Current point (With index ind) was connected to parent (pind) before not newIndex, thus removing pind and adding newIndex of intermediate point
-							vPoints[ind].conns.push_back(newIndex);
-							vPoints[ind].conns.erase(std::remove(vPoints[ind].conns.begin(), vPoints[ind].conns.end(), pind), vPoints[ind].conns.end());
-							/// New intermediate point in between parent and ind thus adding connections
-							newPoint.conns.push_back(pind);
-							newPoint.conns.push_back(ind);
-							vPoints.push_back(newPoint);
-							/// root point now connected to new intermediate point not to current point with index ind
-							vPoints[parentToBeDiscarded].conns.push_back(newIndex);
-							ptProcessed.push_back(false);
-							processing_stack.push(std::make_pair(pind, newIndex));
+							UG_LOG("Correcting for soma root branches, check your preconditioned .SWC file");
+							for (size_t j = 0; j < nConn; ++j)
+							{
+								/// minAngle is root branch continuation, and parentToBeDiscarded is parent
+								if (j == parentToBeDiscarded || j == minAngleInd)
+								{
+									continue;
+								}
+								/// move j which is a branch to the next point of root branch continuation
+								// add index j to the next vertex on the main branch of the current neurite
+								vPoints[pt.conns[minAngleInd]].conns.push_back(pt.conns[j]);
+								// remove old branching index from current branching point, since it starts now at minAngleInd
+								pt.conns.erase(std::remove(pt.conns.begin(), pt.conns.end(), j), pt.conns.end());
+								/// all branches on current point have been moved to the next point on main branch,
+								/// thus only have to add the current index and minAngle index of the next point to the stack
+								processing_stack.push(std::make_pair(ind, pt.conns[minAngleInd]));
+							}
 						/// REGULAR BRANCHING
 						} else {
 							for (size_t j = 0; j < nConn; ++j)
