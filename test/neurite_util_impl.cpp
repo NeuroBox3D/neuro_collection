@@ -1708,6 +1708,41 @@ namespace ug {
 		}
 
 		////////////////////////////////////////////////////////////////////////
+		/// set_somata_mapping_parameters
+		////////////////////////////////////////////////////////////////////////
+		void set_somata_mapping_parameters
+		(
+			Grid& g,
+			SubsetHandler& sh,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::Mapping> >& aaMapping,
+			size_t somaIndex,
+			size_t erIndex,
+			const SWCPoint& somaPoint
+		) {
+			Selector sel(g);
+			SelectSubset(sel, sh, somaIndex, true);
+			CloseSelection(sel);
+			Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
+			Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
+			for (; vit != vit_end; ++vit) {
+				aaMapping[*vit].lambda = 0;
+				aaMapping[*vit].v1 = somaPoint.coords;
+				aaMapping[*vit].v2 = somaPoint.coords;
+			}
+
+			sel.clear();
+			SelectSubset(sel, sh, erIndex, true);
+			CloseSelection(sel);
+			vit = sel.vertices_begin();
+			vit_end = sel.vertices_end();
+			for (; vit != vit_end; ++vit) {
+				aaMapping[*vit].lambda = 0;
+				aaMapping[*vit].v1 = somaPoint.coords;
+				aaMapping[*vit].v2 = somaPoint.coords;
+			}
+		}
+
+		////////////////////////////////////////////////////////////////////////
 		/// set_somata_axial_parameters
 		////////////////////////////////////////////////////////////////////////
 		void set_somata_axial_parameters
@@ -2553,10 +2588,12 @@ namespace ug {
 			SubsetHandler& sh,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::Mapping> >& aaMapping,
 			const int somaIndex,
 			const size_t numQuads,
 			const number scale,
-			std::vector<ug::Vertex*>& outVertsInner
+			std::vector<ug::Vertex*>& outVertsInner,
+			const SWCPoint& somaPoint
 		) {
 	    	outVertsInner.clear();
 			Grid::traits<Quadrilateral>::secure_container quadCont;
@@ -2579,6 +2616,10 @@ namespace ug {
 				SavePreparedGridToFile(grid, sh, "after_extend_ER_within.ugx");
 				for (size_t j = 0; j < vertices.size(); j++) {
 					aaSurfParams[vertices[j]].axial = -scale/2.0;
+					aaMapping[vertices[j]].lambda = 0;
+					aaMapping[vertices[j]].v1 = somaPoint.coords;
+					aaMapping[vertices[j]].v2 = somaPoint.coords;
+
 				}
 				outVertsInner.insert(outVertsInner.end(), vertices.begin(), vertices.end());
 			}

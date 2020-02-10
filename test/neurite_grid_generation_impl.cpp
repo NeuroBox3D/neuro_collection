@@ -59,6 +59,8 @@ namespace ug {
 		Grid::VertexAttachmentAccessor<APosition>& aaPos,
 		Grid::VertexAttachmentAccessor<
 		Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+		Grid::VertexAttachmentAccessor<
+		Attachment<NeuriteProjector::Mapping> > aaMappingParams,
 		SubsetHandler& sh, std::vector<Vertex*>* connectingVrts,
 		std::vector<Edge*>* connectingEdges,
 		std::vector<Face*>* connectingFaces,
@@ -72,7 +74,6 @@ namespace ug {
 	const std::vector<vector3>& pos = vPos[nid];
 	const std::vector<number>& r = vR[nid];
 
-	Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::Mapping> > aaMappingParams;
 
 	number neurite_length = 0.0;
 	for (size_t i = 1; i < pos.size(); ++i)
@@ -162,6 +163,9 @@ namespace ug {
 							0.5 * PI * i + angleOffset :
 							0.5 * PI * i + angleOffset - 2 * PI;
 			aaSurfParams[(*connectingVrts)[i]].radial = erScaleFactor;
+			aaMappingParams[(*connectingVrts)[i]].v1 = pos[0];
+			aaMappingParams[(*connectingVrts)[i]].v2 = pos[0];
+			aaMappingParams[(*connectingVrts)[i]].lambda = 0;
 		}
 	} else {
 		// create first layer of vertices/edges //
@@ -264,7 +268,8 @@ namespace ug {
 	size_t curSec = 0;
 
 
-	UG_COND_THROW(!brit->bp.get(), "BP is null. This can happen for bogus input geometries.");
+	/// FIXME: This is not the correct way to check for root branching neurites
+	/// UG_COND_THROW(!brit->bp.get(), "BP is null. This can happen for bogus input geometries.");
 	while (true) {
 		t_start = t_end;
 
@@ -1239,7 +1244,8 @@ namespace ug {
 
 				// recursively build branch
 				create_neurite_with_er(vNeurites, vPos, vR, child_nid,
-						erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh,
+						erScaleFactor, anisotropy, g, aaPos, aaSurfParams,
+						aaMappingParams, sh,
 						&vBranchVrts, &vBranchEdges, &vBranchFaces,
 						branchOffset[1], NULL, NULL, NULL, NULL);
 			}
@@ -1500,8 +1506,9 @@ namespace ug {
                         // it has to be multiplied by pi/2 h
                         size_t nSeg = (size_t) floor(
                                         lengthOverRadius / (anisotropy * 0.5 * PI));
-                        if (!nSeg)
+                        if (!nSeg) {
                                 nSeg = 1;
+                        }
                         number segLength = lengthOverRadius / nSeg;	// segments are between 8 and 16 radii long
                         std::vector<number> vSegAxPos(nSeg);
                         calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite,
@@ -2104,6 +2111,7 @@ number calculate_length_over_radius
                         Grid& g,
                         Grid::VertexAttachmentAccessor<APosition>& aaPos,
                         Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+                        Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::Mapping> > aaMappingParams,
                         SubsetHandler& sh,
                         std::vector<Vertex*>* outVerts,
                         std::vector<Vertex*>* outVertsInner,
@@ -2111,7 +2119,7 @@ number calculate_length_over_radius
                         std::vector<number>* outRadsInner
                 )
                 {
-                        create_neurite_with_er(vNeurites, vPos, vR, nid, erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, NULL, NULL, NULL, 0, outVerts, outVertsInner, outRads, outRadsInner);
+                        create_neurite_with_er(vNeurites, vPos, vR, nid, erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMappingParams, sh, NULL, NULL, NULL, 0, outVerts, outVertsInner, outRads, outRadsInner);
                 }
 
                 ////////////////////////////////////////////////////////////////////////
@@ -2817,6 +2825,7 @@ number calculate_length_over_radius
 
 					if (nConn > 2)
 					{
+						std::cout << "Found branch with nConn > 2" << std::endl;
 						// branch with minimal angle will continue current branch
 						vector3 parentDir;
 						VecSubtract(parentDir, pt.coords, vPoints[pind].coords);
@@ -2845,7 +2854,17 @@ number calculate_length_over_radius
 							}
 						}
 
-						/// ROOT NEURITE BRANCH
+						///FIXME: vPoints[pt.conns[parentToBeDiscarded...]]; should be used.
+						/// ROOT NEURITE BRANCH: FIXME should check for if any of the parent points is of soma type
+						if (vPoints[pt.conns[parentToBeDiscarded]].type == SWC_SOMA) {
+							std::cout << "Found root branching neurite " << std::endl;
+							std::cout << "Current points conns: " << vPoints[ind].conns.size() << std::endl;
+							std::cout << "Current point: " << vPoints[ind].coords << std::endl;
+							/// TODO: Implement from below
+							UG_THROW("Contains root-branches");
+							/// TODO: if nconn > 2 ... do something and warn also if too many connections, then move to next vertex! e.g. not pind or ind
+						}
+
 						if (vPoints[parentToBeDiscarded].conns.size() == 1) {
 							nPts++;
 							size_t newIndex = vPoints.size();
@@ -2877,7 +2896,6 @@ number calculate_length_over_radius
 								// connected to new intermediate point with
 								// newIndex = pt.conns[j]
 								processing_stack.push(std::make_pair(ind, pt.conns[j]));
-
 							}
 
 							// push next index of the current neurite to stack

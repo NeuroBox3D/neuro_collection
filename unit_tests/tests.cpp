@@ -121,9 +121,19 @@ BOOST_FIXTURE_TEST_CASE(ExtendERintoSoma, FixtureOneGrid) {
 	VecScaleAdd(newVertex3, 1.0, aaPos[p3], 1.0, normalDir);
 	VecScaleAdd(newVertex4, 1.0, aaPos[p4], 1.0, normalDir);
 
+   typedef NeuriteProjector::Mapping NPMapping;
+    UG_COND_THROW(!GlobalAttachments::is_declared("npMapping"),
+    		"GlobalAttachment 'npMapping' was not declared.");
+    Attachment<NPMapping> aNPMapping = GlobalAttachments::attachment<Attachment<NPMapping> >("npMapping");
+    if (!g.has_vertex_attachment(aNPMapping)) {
+    	g.attach_to_vertices(aNPMapping);
+    }
+    Grid::VertexAttachmentAccessor<Attachment<NPMapping> > aaMapping;
+    aaMapping.access(g, aNPMapping);
+
 	// extrude with method and check for equality
 	std::vector<ug::Vertex*> outVerts;
-	extend_ER_within(g, sh, aaPos, aaSurfParams, 0, 1, 1.0, outVerts);
+	extend_ER_within(g, sh, aaPos, aaSurfParams, aaMapping, 0, 1, 1.0, outVerts, SWCPoint());
 	BOOST_REQUIRE_MESSAGE(outVerts.size() == 4, "Requiring four extruded vertices");
 	BOOST_REQUIRE_SMALL(VecDistance(aaPos[outVerts[0]], newVertex1), SMALL);
 	BOOST_REQUIRE_SMALL(VecDistance(aaPos[outVerts[1]], newVertex2), SMALL);

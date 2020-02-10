@@ -1140,7 +1140,7 @@ InitUGPlugin_neuro_collection(Registry* reg, string grp)
 	typedef Attachment<NeuriteProjector::SurfaceParams> NPSurfParam;
 	typedef Attachment<NeuriteProjector::Mapping> NPMappingParam;
 	GlobalAttachments::declare_attachment<NPSurfParam>("npSurfParams", true);
-	GlobalAttachments::declare_attachment<NPMappingParam>("mapping", true);
+	GlobalAttachments::declare_attachment<NPMappingParam>("npMapping", true);
 
 	try
 	{

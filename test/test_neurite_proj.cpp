@@ -2582,10 +2582,20 @@ void create_spline_data_for_neurites
 	std::vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
 	create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
 
+    typedef NeuriteProjector::Mapping NPMapping;
+    UG_COND_THROW(!GlobalAttachments::is_declared("npMapping"),
+    		"GlobalAttachment 'npMapping' was not declared.");
+    Attachment<NPMapping> aNPMapping = GlobalAttachments::attachment<Attachment<NPMapping> >("npMapping");
+    if (!g.has_vertex_attachment(aNPMapping)) {
+    	g.attach_to_vertices(aNPMapping);
+    }
+    Grid::VertexAttachmentAccessor<Attachment<NPMapping> > aaMapping;
+    aaMapping.access(g, aNPMapping);
+
 	// create coarse grid
 	for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i)
 		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
-			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh);
+			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh);
 
 	// assign subset
 	AssignSubsetColors(sh);
@@ -3155,9 +3165,9 @@ void create_spline_data_for_neurites
 	    aaSurfParams.access(g, aSP);
 
 	    typedef NeuriteProjector::Mapping NPMapping;
-	    UG_COND_THROW(!GlobalAttachments::is_declared("npMappingParams"),
+	    UG_COND_THROW(!GlobalAttachments::is_declared("npMapping"),
 	    		"GlobalAttachment 'npMapping' was not declared.");
-	    Attachment<NPMapping> aNPMapping = GlobalAttachments::attachment<Attachment<NPMapping> >("npMappingParams");
+	    Attachment<NPMapping> aNPMapping = GlobalAttachments::attachment<Attachment<NPMapping> >("npMapping");
 	    if (!g.has_vertex_attachment(aNPMapping)) {
 	    	g.attach_to_vertices(aNPMapping);
 	    }
@@ -3265,11 +3275,12 @@ void create_spline_data_for_neurites
 	    sh.set_default_subset_index(0);
 	    UG_LOGN("Generating neurites...")
 	    UG_DLOGN(NC_TNP, 0, "Generating neurites...")
+
 	    ///for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 	    for (size_t i = 0; i < 1; ++i) {
 	    	if (withER) {
 	    		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
-	    			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, &outVerts,
+	    			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh, &outVerts,
 	    			&outVertsInner, &outRads, &outRadsInner);
 	    	} else {
 	    		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
@@ -3350,7 +3361,7 @@ void create_spline_data_for_neurites
 
 	    /// Extrude ER volume a little bit further into normal direction towards inner soma, like the pyramids to close outer soma, to avoid intersections
 	    if (withER) {
-	    	extend_ER_within(g, sh, aaPos, aaSurfParams, newSomaIndex, 1, erScaleFactor, outVertsInner);
+	    	extend_ER_within(g, sh, aaPos, aaSurfParams, aaMapping, newSomaIndex, 1, erScaleFactor, outVertsInner, somaPoint.front());
 	    	SavePreparedGridToFile(g, sh, "after_extend_ER_and_before_connect_outer.ugx");
 	    	connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4, true);
 	    	EraseEmptySubsets(sh);
@@ -3507,6 +3518,16 @@ void create_spline_data_for_neurites
 		Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
 		aaSurfParams.access(g, aSP);
 
+	    typedef NeuriteProjector::Mapping NPMapping;
+	    UG_COND_THROW(!GlobalAttachments::is_declared("npMapping"),
+	    		"GlobalAttachment 'npMapping' was not declared.");
+	    Attachment<NPMapping> aNPMapping = GlobalAttachments::attachment<Attachment<NPMapping> >("npMapping");
+	    if (!g.has_vertex_attachment(aNPMapping)) {
+	    	g.attach_to_vertices(aNPMapping);
+	    }
+	    Grid::VertexAttachmentAccessor<Attachment<NPMapping> > aaMapping;
+	    aaMapping.access(g, aNPMapping);
+
 		/// TODO: Check that not scaling the soma does not interfer with grid
 		///       generation. It might create dints in the soma surface which
 		///       can lead to intersections on the soma surface when connecting
@@ -3551,7 +3572,7 @@ void create_spline_data_for_neurites
 
 	    /// TODO: Fix root neurites (Test this method)
 	    UG_DLOG(NC_TNP, 0, "Mitigating root branching neurites...")
-	    ///MitigateRootBranchingNeurites(vPoints);
+	    MitigateRootBranchingNeurites(vPoints);
 	    UG_DLOGN(NC_TNP, 0, " passed!");
     	Grid g2;
     	SubsetHandler sh2(g2);
@@ -3636,7 +3657,7 @@ void create_spline_data_for_neurites
 			/// TODO: include check to see if radii at beginning of neurite (at soma) intersects with other neurite
 		 	if (withER) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
-		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, sh, &outVerts,
+		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh, &outVerts,
 		   			&outVertsInner, &outRads, &outRadsInner);
 		   	} else {
 		   		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
@@ -3740,7 +3761,7 @@ void create_spline_data_for_neurites
 	    /// Extrude ER volume a little bit further into normal direction towards
 		/// inner soma, like the surrounding pyramids to close outer soma, to avoid intersections
 	    if (withER) {
-	    	extend_ER_within(g, sh, aaPos, aaSurfParams, newSomaIndex, vRootNeuriteIndsOut.size(), erScaleFactor, outVertsInner);
+	    	extend_ER_within(g, sh, aaPos, aaSurfParams, aaMapping, newSomaIndex, vRootNeuriteIndsOut.size(), erScaleFactor, outVertsInner, somaPoint.front());
 	    	SavePreparedGridToFile(g, sh, "after_extend_ER_and_before_connect_outer.ugx");
 	    	UG_LOGN("Size of outvertsInner: " << outVertsInner.size());
 			std::vector<std::vector<ug::Vertex*> > outVertsInnerClean;
@@ -3756,6 +3777,8 @@ void create_spline_data_for_neurites
 	    	connect_er_with_er(newSomaIndex, g, aaPos, sh, outVertsInnerClean, numQuads+1, false, false);
 	    	SavePreparedGridToFile(g, sh, "after_connect_er_with_er.ugx");
 	    }
+
+
 
 		/// TODO: up to here indices okay: Need to erase debugging vertices, check if this interfers with grid generation above (subset indices)
 	    /// TODO: need to correct all hardcoded numQuads above... unconnected vertices are the debugging vertices
@@ -3773,6 +3796,7 @@ void create_spline_data_for_neurites
 	    SavePreparedGridToFile(g, sh, "before_tetrahedralize_and_after_reassigned.ugx");
 
 		/// assign correct axial parameters for "somata" regions (TODO: Verify to be correct!)
+		set_somata_mapping_parameters(g, sh, aaMapping, 4, 5, somaPoint.front());
 		set_somata_axial_parameters(g, sh, aaSurfParams, 4, 5);
 
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements.ugx");
