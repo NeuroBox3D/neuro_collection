@@ -1728,6 +1728,8 @@ namespace ug {
 				aaMapping[*vit].lambda = 0;
 				aaMapping[*vit].v1 = somaPoint.coords;
 				aaMapping[*vit].v2 = somaPoint.coords;
+				// std::vector<SWCPoint> vPoints;
+				// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 			}
 
 			sel.clear();
@@ -1739,6 +1741,8 @@ namespace ug {
 				aaMapping[*vit].lambda = 0;
 				aaMapping[*vit].v1 = somaPoint.coords;
 				aaMapping[*vit].v2 = somaPoint.coords;
+				// std::vector<SWCPoint> vPoints;
+				// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 			}
 		}
 

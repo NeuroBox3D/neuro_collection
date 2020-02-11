@@ -165,7 +165,11 @@ namespace ug {
 			aaSurfParams[(*connectingVrts)[i]].radial = erScaleFactor;
 			aaMappingParams[(*connectingVrts)[i]].v1 = pos[0];
 			aaMappingParams[(*connectingVrts)[i]].v2 = pos[0];
-			aaMappingParams[(*connectingVrts)[i]].lambda = 0;
+			vector3 vOut;
+			ProjectPointToLine(vOut, aaPos[(*connectingVrts)[i]], pos[0], pos[1]);
+			aaMappingParams[(*connectingVrts)[i]].lambda = VecDistance(vOut, pos[0]);
+			// std::vector<SWCPoint> vPoints;
+			// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 		}
 	} else {
 		// create first layer of vertices/edges //
@@ -186,7 +190,11 @@ namespace ug {
 			// 1d<->2d mapping params
 			aaMappingParams[v].v1 = pos[0];
 			aaMappingParams[v].v2 = pos[0];
-			aaMappingParams[v].lambda = 0;
+			vector3 vOut;
+			ProjectPointToLine(vOut, aaPos[v], pos[0], pos[1]);
+			aaMappingParams[v].lambda = VecDistance(vOut, pos[0]);
+			// std::vector<SWCPoint> vPoints;
+			// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 			sh.assign_subset(v, 3);
 			if (outVertsInner) {
 				outVertsInner->push_back(v);
@@ -211,7 +219,11 @@ namespace ug {
 			// 1d<->2d mapping params
 			aaMappingParams[v].v1 = pos[0];
 			aaMappingParams[v].v2 = pos[0];
-			aaMappingParams[v].lambda = 0;
+			vector3 vOut;
+			ProjectPointToLine(vOut, aaPos[v], pos[0], pos[1]);
+			aaMappingParams[v].lambda = VecDistance(vOut, pos[0]);
+			// std::vector<SWCPoint> vPoints;
+			// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 
 			sh.assign_subset(v, 2);
 			if (outVerts) {
@@ -576,7 +588,11 @@ namespace ug {
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec];
-					aaMappingParams[v].lambda = 0;
+					vector3 vOut;
+					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
+					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+					// std::vector<SWCPoint> vPoints;
+					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
 				for (size_t j = 0; j < 12; ++j) {
 					number angle = PI * ((number) j / 6) + angleOffset;
@@ -596,7 +612,11 @@ namespace ug {
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec];
-					aaMappingParams[v].lambda = 0;
+					vector3 vOut;
+					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
+					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+					// std::vector<SWCPoint> vPoints;
+					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
 
 				// ensure correct volume orientation
@@ -728,8 +748,11 @@ namespace ug {
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec];
-					aaMappingParams[v].lambda = 0;
-
+					vector3 vOut;
+					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
+					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+					// std::vector<SWCPoint> vPoints;
+					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
 				for (size_t j = 0; j < 12; ++j) {
 					number angle = PI * ((number) j / 6) + angleOffset;
@@ -749,7 +772,11 @@ namespace ug {
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec];
-					aaMappingParams[v].lambda = 0;
+					vector3 vOut;
+					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
+					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+					// std::vector<SWCPoint> vPoints;
+					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
 
 				// correct vertex offsets to reflect angle at which child branches
@@ -877,7 +904,11 @@ namespace ug {
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec];
-					aaMappingParams[v].lambda = 0;
+					vector3 vOut;
+					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
+					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+					// std::vector<SWCPoint> vPoints;
+					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
 				for (size_t j = 0; j < 12; ++j) {
 					number angle = PI * ((number) j / 6) + angleOffset;
@@ -896,7 +927,11 @@ namespace ug {
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec];
-					aaMappingParams[v].lambda = 0;
+					vector3 vOut;
+					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
+					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+					// std::vector<SWCPoint> vPoints;
+					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
 
 				// correct vertex offsets to reflect angle at which child branches
@@ -1019,7 +1054,11 @@ namespace ug {
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec];
-					aaMappingParams[v].lambda = 0;
+					vector3 vOut;
+					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
+					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+					// std::vector<SWCPoint> vPoints;
+					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
 				for (size_t j = 0; j < 12; ++j) {
 					number angle = PI * ((number) j / 6) + angleOffset;
@@ -1038,7 +1077,11 @@ namespace ug {
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec];
-					aaMappingParams[v].lambda = 0;
+					vector3 vOut;
+					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
+					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+					// std::vector<SWCPoint> vPoints;
+					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
 
 				// correct vertex offsets to reflect angle at which child branches

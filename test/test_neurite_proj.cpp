@@ -3467,7 +3467,6 @@ void create_spline_data_for_neurites
 		size_t numRefs,
 		bool regularize
 	) {
-		/// TODO: Add variable to build only n neurites
 		using namespace std;
 		// Read in SWC file to intermediate structure (May contain multiple soma points)
 		vector<SWCPoint> vPoints;
@@ -3531,7 +3530,9 @@ void create_spline_data_for_neurites
 		/// TODO: Check that not scaling the soma does not interfer with grid
 		///       generation. It might create dints in the soma surface which
 		///       can lead to intersections on the soma surface when connecting
-		///somaPoint[0].radius *= 1.05;
+	    ///       Also. Does the number of refinements of the soma might depend on
+	    ///       the radius of the soma itself? Will this improve grid generation?
+		///       somaPoint[0].radius *= 1.05
 		UG_DLOGN(NC_TNP, 0, "Creating (outer sphere) soma in subset 1");
 	    create_soma(somaPoint, g, aaPos, sh, 1);
 
@@ -3541,9 +3542,6 @@ void create_spline_data_for_neurites
 	    UG_DLOGN(NC_TNP, 0, "Found " << "# " << vPointSomaSurface2.size()
 	    		<< " closest vertices on (outer sphere) soma in subset 1");
 
-	    // (TODO: Deprecated, thus remove soon) Add soma surface to swc
-		// add_soma_surface_to_swc(lines, fn_precond, fn_precond_with_soma, vPointSomaSurface);
-
 	    // Replace first vertex of each root neurite (starting at soma) with the closest soma surface vertex
 	    std::vector<ug::vector3> centers = FindSomaSurfaceCenters(g, aaPos, vPointSomaSurface2, vRad, 1, sh, 1.0, vPos.size());
 	    UG_DLOGN(NC_TNP, 0, "Found soma surface centers...");
@@ -3551,10 +3549,10 @@ void create_spline_data_for_neurites
 	    g.clear_geometry();
 	    UG_DLOGN(NC_TNP, 0, "Replaced soma points for root neurites to SWC file.")
 
-	    // Re-read the now correct SWC file with soma
+	    // Re-read the now corrected SWC file with soma
 	    import_swc_old(fn_precond_with_soma, vPoints, correct, 1.0);
 
-	    /// TODO: Check if swc is cyclic
+	    /// TODO: Check if swc is cyclic. Test method!
 	    UG_DLOG(NC_TNP, 0, "Checking for cycles...")
 	    UG_COND_THROW(ContainsCycle(vPoints), "Grid contains at least one cycle!");
 	    UG_DLOGN(NC_TNP, 0, " passed!");
@@ -3565,7 +3563,7 @@ void create_spline_data_for_neurites
 	    UG_DLOGN(NC_TNP, 0, " passed!");
 
 	    // Regularize, smooth possibly again, then convert to neuritelist
-	    /// TODO: Smooth before or after regularize? Test...
+	    /// TODO: Smooth before or after regularize? Test it...
 	    UG_DLOG(NC_TNP, 0, "Regularizing branching points...")
 	    RegularizeBranchingPoints(vPoints, regularize);
 	    UG_DLOGN(NC_TNP, 0, " passed!");
@@ -3578,7 +3576,7 @@ void create_spline_data_for_neurites
     	SubsetHandler sh2(g2);
     	swc_points_to_grid(vPoints, g2, sh2);
     	export_to_ugx(g2, sh2, "after_regularize.ugx");
-    	/// TODO Smooth again? Or smooth much before
+    	/// TODO Smooth again? Or smooth much before in the beginning? Probably smooth before fixing branches
 		/// constrained_smoothing(vPoints, vRootNeuriteIndsOut.size(), 0.1, 0.1, 10, 0.1);
 	    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 
@@ -3654,7 +3652,6 @@ void create_spline_data_for_neurites
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 			std::stringstream ss;
 			UG_LOGN(i << "-th neurite");
-			/// TODO: include check to see if radii at beginning of neurite (at soma) intersects with other neurite
 		 	if (withER) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh, &outVerts,
@@ -3698,7 +3695,6 @@ void create_spline_data_for_neurites
 				neuriteProj->neurites()[i].vSBR.back().center = vPos[i][0];
 				/// TODO set center correctly, need to get inner sphere surface quads center
 				neuriteProj->neurites()[i].vSBR.front().center = vPos[i][0];
-
 				neuriteProj->neurites()[i].vSBR.back().somaPt = make_sp(new NeuriteProjector::SomaPoint(somaPoint[0].coords, somaPoint[0].radius));
 				neuriteProj->neurites()[i].vSBR.front().somaPt = make_sp(new NeuriteProjector::SomaPoint(somaPoint[0].coords, somaPoint[0].radius/erScaleFactor));
 				UG_COND_THROW(neuriteProj->neurites()[i].vSBR.size() != 2, "Each neurite should only contain one soma/er and thus only two branching regions.")
@@ -3777,7 +3773,6 @@ void create_spline_data_for_neurites
 	    	connect_er_with_er(newSomaIndex, g, aaPos, sh, outVertsInnerClean, numQuads+1, false, false);
 	    	SavePreparedGridToFile(g, sh, "after_connect_er_with_er.ugx");
 	    }
-
 
 
 		/// TODO: up to here indices okay: Need to erase debugging vertices, check if this interfers with grid generation above (subset indices)
