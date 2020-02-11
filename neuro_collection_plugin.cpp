@@ -998,7 +998,7 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("test_import_swc_general", &test_import_swc_general, "",
 			"swc file name (input) # ugx file name (output) # ER scale factor # anisotropy # refinements", "");
 		reg.add_function("test_import_swc_general_var", &test_import_swc_general_var, "",
-			"swc file name (input) # ugx file name (output) # ER scale factor # anisotropy # refinements", "");
+			"swc file name (input) # ugx file name (output) # ER scale factor # anisotropy # refinements # regularize ", "");
 		reg.add_function("test_import_swc_surf", &test_import_swc_surf, "", "file name", "");
 		reg.add_function("test_import_swc_1d", &test_import_swc_1d, "", "file name # anisotropy # refinements", "");
 		reg.add_function("test_convert_swc_to_ugx", &test_convert_swc_to_ugx, "", "file name");

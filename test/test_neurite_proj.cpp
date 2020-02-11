@@ -3467,6 +3467,7 @@ void create_spline_data_for_neurites
 		size_t numRefs,
 		bool regularize
 	) {
+
 		using namespace std;
 		// Read in SWC file to intermediate structure (May contain multiple soma points)
 		vector<SWCPoint> vPoints;
@@ -3568,9 +3569,9 @@ void create_spline_data_for_neurites
 	    RegularizeBranchingPoints(vPoints, regularize);
 	    UG_DLOGN(NC_TNP, 0, " passed!");
 
-	    /// TODO: Fix root neurites (Test this method)
+	    /// Fix root neurites, could be improved by inserting additional point
 	    UG_DLOG(NC_TNP, 0, "Mitigating root branching neurites...")
-	    MitigateRootBranchingNeurites(vPoints);
+	    ///MitigateRootBranchingNeurites(vPoints);
 	    UG_DLOGN(NC_TNP, 0, " passed!");
     	Grid g2;
     	SubsetHandler sh2(g2);

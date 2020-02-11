@@ -2601,6 +2601,7 @@ number calculate_length_over_radius
 								+ (vPoints[pt.conns[parentToBeDiscarded]].radius * PtoPt);
 
 						if (orthogonalize) {
+							UG_LOGN("Regularize....");
 #if 0
 							SWCPoint pointA;
 							vector3 dir;
