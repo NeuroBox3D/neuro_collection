@@ -676,6 +676,7 @@ static void Algebra(Registry& reg, string grp)
 	string tag = GetAlgebraTag<TAlgebra>();
 
 #ifdef NC_WITH_CABLENEURON
+	#ifdef UG_DIM_3
 	// HybridSynapseCurrentAssembler
 	{
 		typedef HybridSynapseCurrentAssembler<Domain3d, TAlgebra> T;
@@ -704,6 +705,7 @@ static void Algebra(Registry& reg, string grp)
 
 		reg.add_class_to_group(name, "HybridSynapseCurrentAssembler", tag);
 	}
+	#endif
 #endif
 
 }
