@@ -3524,7 +3524,7 @@ void create_spline_data_for_neurites
 
 	    /// TODO: Check if swc is cyclic
 	    UG_DLOG(NC_TNP, 0, "Checking for cycles...")
-	    UG_COND_THROW(ContainsCycle(vPoints), "Grid contains at least one cycle!");
+	    //UG_COND_THROW(ContainsCycle(vPoints), "Grid contains at least one cycle!");
 	    UG_DLOGN(NC_TNP, 0, " passed!");
 
 	    // TODO: Finish implementation of cylinder-cylinder intersection
