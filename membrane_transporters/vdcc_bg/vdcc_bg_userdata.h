@@ -61,9 +61,7 @@ class VDCC_BG_UserData : public VDCC_BG<TDomain>
 		static const int dim = TDomain::dim;	//!< world dimension
 
 	protected:
-		typedef typename GeomObjBaseTypeByDim<TDomain::dim>::base_obj_type elem_t;
-		typedef typename elem_t::side side_t;
-
+		using typename VDCC_BG<TDomain>::vm_grid_object;
 		using VDCC_BG<TDomain>::R;			//!< universal gas constant
 		using VDCC_BG<TDomain>::T;			//!< temperature (310K)
 		using VDCC_BG<TDomain>::F;			//!< Faraday constant
@@ -108,7 +106,7 @@ class VDCC_BG_UserData : public VDCC_BG<TDomain>
 		void set_potential_function(SmartPtr<CplUserData<number, dim> > spPotFct);
 
 		/// @copydoc VDCC_BG<TDomain>::update_potential()
-		virtual void update_potential(side_t* elem);
+		virtual void update_potential(vm_grid_object* elem);
 
 	private:
 		SmartPtr<CplUserData<number,dim> > m_spPotential;		//!< the UserData for potential

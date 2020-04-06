@@ -126,7 +126,7 @@ void VDCC_BG_VM2UG<TDomain>::init(number time)
 		<< "If this is due to an inappropriate point in time, you might consider\n"
 		"using set_file_times(fileInterval, fileOffset).");
 
-	typedef typename DoFDistribution::traits<side_t>::const_iterator itType;
+	typedef typename DoFDistribution::traits<vm_grid_object>::const_iterator itType;
 	SubsetGroup ssGrp;
 	try { ssGrp = SubsetGroup(this->m_dom->subset_handler(), this->m_vSubset);}
 	UG_CATCH_THROW("Subset group creation failed.");
@@ -134,8 +134,8 @@ void VDCC_BG_VM2UG<TDomain>::init(number time)
 	const typename TDomain::position_accessor_type& aaPos = this->m_dom->position_accessor();
 	for (std::size_t si = 0; si < ssGrp.size(); si++)
 	{
-		itType iterBegin = this->m_dd->template begin<side_t>(ssGrp[si]);
-		itType iterEnd = this->m_dd->template end<side_t>(ssGrp[si]);
+		itType iterBegin = this->m_dd->template begin<vm_grid_object>(ssGrp[si]);
+		itType iterEnd = this->m_dd->template end<vm_grid_object>(ssGrp[si]);
 
 		for (itType iter = iterBegin; iter != iterEnd; ++iter)
 		{
@@ -197,7 +197,7 @@ void VDCC_BG_VM2UG<TDomain>::update_time(number newTime)
 
 
 template<typename TDomain>
-void VDCC_BG_VM2UG<TDomain>::update_potential(side_t* elem)
+void VDCC_BG_VM2UG<TDomain>::update_potential(vm_grid_object* elem)
 {
 	// retrieve membrane potential via vm2ug
 	number vm;

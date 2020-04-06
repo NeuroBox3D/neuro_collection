@@ -134,32 +134,32 @@ void VDCC_BG<TDomain>::after_construction()
 	else
 	{
 		// attach attachments
-		if (m_mg->template has_attachment<side_t>(this->m_MGate))
+		if (m_mg->template has_attachment<vm_grid_object>(this->m_MGate))
 			UG_THROW("Attachment necessary for Borg-Graham channel dynamics "
 				"could not be made, since it already exists.");
-		m_mg->template attach_to<side_t>(this->m_MGate);
+		m_mg->template attach_to<vm_grid_object>(this->m_MGate);
 
 		if (has_hGate())
 		{
-			if (m_mg->template has_attachment<side_t>(this->m_HGate))
+			if (m_mg->template has_attachment<vm_grid_object>(this->m_HGate))
 				UG_THROW("Attachment necessary for Borg-Graham channel dynamics "
 					"could not be made, since it already exists.");
-			m_mg->template attach_to<side_t>(this->m_HGate);
+			m_mg->template attach_to<vm_grid_object>(this->m_HGate);
 		}
 
 		// create attachment accessors
-		m_aaMGate = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_MGate);
+		m_aaMGate = Grid::AttachmentAccessor<vm_grid_object, ADouble>(*m_mg, m_MGate);
 		if (has_hGate())
-			m_aaHGate = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_HGate);
+			m_aaHGate = Grid::AttachmentAccessor<vm_grid_object, ADouble>(*m_mg, m_HGate);
 	}
 
 
 	// attach voltage attachment and create accessor
-	if (m_mg->template has_attachment<side_t>(this->m_Vm))
+	if (m_mg->template has_attachment<vm_grid_object>(this->m_Vm))
 		UG_THROW("Attachment necessary for Borg-Graham channel dynamics "
 				 "could not be made, since it already exists.");
-	m_mg->template attach_to<side_t>(this->m_Vm, true);
-	m_aaVm = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_Vm);
+	m_mg->template attach_to<vm_grid_object>(this->m_Vm, true);
+	m_aaVm = Grid::AttachmentAccessor<vm_grid_object, ADouble>(*m_mg, m_Vm);
 
 	// check whether necessary functions are given
 	check_supplied_functions();
@@ -171,10 +171,10 @@ VDCC_BG<TDomain>::~VDCC_BG()
 {
 	if (m_bUseGatingAttachments)
 	{
-		m_mg->template detach_from<side_t>(this->m_MGate);
-		m_mg->template detach_from<side_t>(this->m_HGate);
+		m_mg->template detach_from<vm_grid_object>(this->m_MGate);
+		m_mg->template detach_from<vm_grid_object>(this->m_HGate);
 	}
-	m_mg->template detach_from<side_t>(this->m_Vm);
+	m_mg->template detach_from<vm_grid_object>(this->m_Vm);
 }
 
 
@@ -265,23 +265,68 @@ void VDCC_BG<TDomain>::calc_gating_step(GatingParams& gp, number Vm, number dt, 
 }
 
 
+template <typename TDomain>
+number VDCC_BG<TDomain>::average_attachment_value_on_grid_object
+(
+	const attachment_accessor_type& aa,
+	GridObject* o
+) const
+{
+	switch (o->base_object_id())
+	{
+		case VERTEX:
+		{
+			Vertex* vrt = static_cast<Vertex*>(o);
+			return aa[vrt];
+		}
+		case EDGE:
+			return average_attachment_value_on_grid_object<Edge>(aa, o);
+		case FACE:
+			return average_attachment_value_on_grid_object<Face>(aa, o);
+		default:
+		{
+			UG_THROW("Base object id must be VERTEX, EDGE or FACE, but is "
+				<< o->base_object_id() << ".");
+		}
+	}
+}
+
+
+template <typename TDomain>
+template <typename TBaseElem>
+number VDCC_BG<TDomain>::average_attachment_value_on_grid_object
+(
+	const attachment_accessor_type& aa,
+	GridObject* o
+) const
+{
+	TBaseElem* e = static_cast<TBaseElem*>(o);
+	number retVal = 0.0;
+	const size_t nVrt = e->num_vertices();
+	for (size_t v = 0; v < nVrt; ++v)
+		retVal += aa[e->vertex(v)];
+
+	return retVal / nVrt;
+}
+
+
+
 template<typename TDomain>
 void VDCC_BG<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
 {
-	side_t* elem = dynamic_cast<side_t*>(e);
-	if (!elem) UG_THROW("OneSidedBorgGrahamFV1 fluxDensityFunction called with the wrong type of element.");
-
-	const number mGate = m_bUseGatingAttachments ? m_aaMGate[elem] : u[_M_];
+	const number mGate = m_bUseGatingAttachments ?
+		average_attachment_value_on_grid_object(m_aaMGate, e) : u[_M_];
 	number gating = pow(mGate, m_mp);
 	if (has_hGate())
 	{
-		const number hGate = m_bUseGatingAttachments ? m_aaHGate[elem] : u[_H_];
+		const number hGate = m_bUseGatingAttachments ?
+			average_attachment_value_on_grid_object(m_aaHGate, e) : u[_H_];
 		gating *= pow(hGate, m_hp);
 	}
 
 	// flux derived from Goldman-Hodgkin-Katz equation,
 	number maxFlux;
-	const number vm = m_aaVm[elem];
+	const number vm = average_attachment_value_on_grid_object(m_aaVm, e);
 	const number caCyt = u[_CCYT_];		// cytosolic Ca2+ concentration
 	const number caExt = u[_CEXT_];		// extracellular Ca2+ concentration
 
@@ -302,23 +347,22 @@ void VDCC_BG<TDomain>::calc_flux(const std::vector<number>& u, GridObject* e, st
 template<typename TDomain>
 void VDCC_BG<TDomain>::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
-	side_t* elem = dynamic_cast<side_t*>(e);
-	if (!elem) UG_THROW("OneSidedBorgGrahamFV1 fluxDensityFunction called with the wrong type of element.");
-
-	const number mGate = m_bUseGatingAttachments ? m_aaMGate[elem] : u[_M_];
+	const number mGate = m_bUseGatingAttachments ?
+		average_attachment_value_on_grid_object(m_aaMGate, e) : u[_M_];
 	number gating = pow(mGate, m_mp);
 	number dGatingdM = m_mp * pow(mGate, m_mp - 1);
 	number dGatingdH = gating;
 	if (has_hGate())
 	{
-		const number hGate = m_bUseGatingAttachments ? m_aaHGate[elem] : u[_H_];
+		const number hGate = m_bUseGatingAttachments ?
+			average_attachment_value_on_grid_object(m_aaHGate, e) : u[_H_];
 		gating *= pow(hGate, m_hp);
 		dGatingdM *= pow(hGate, m_hp);
 		dGatingdH *= m_hp * pow(hGate, m_hp - 1);
 	}
 
 	number dMaxFlux_dCyt, dMaxFlux_dExt;
-	number vm = m_aaVm[elem];
+	number vm = average_attachment_value_on_grid_object(m_aaVm, e);
 	number maxFlux;
 	const number caCyt = u[_CCYT_];		// cytosolic Ca2+ concentration
 	const number caExt = u[_CEXT_];		// extracellular Ca2+ concentration
@@ -460,15 +504,15 @@ void VDCC_BG<TDomain>::init(number time)
 	m_time = time;
 	m_initTime = time;
 
-	typedef typename DoFDistribution::traits<side_t>::const_iterator itType;
+	typedef typename DoFDistribution::traits<vm_grid_object>::const_iterator itType;
 	SubsetGroup ssGrp;
 	try { ssGrp = SubsetGroup(m_dom->subset_handler(), this->m_vSubset);}
 	UG_CATCH_THROW("Subset group creation failed.");
 
 	for (std::size_t si = 0; si < ssGrp.size(); si++)
 	{
-		itType iterBegin = m_dd->template begin<side_t>(ssGrp[si]);
-		itType iterEnd = m_dd->template end<side_t>(ssGrp[si]);
+		itType iterBegin = m_dd->template begin<vm_grid_object>(ssGrp[si]);
+		itType iterEnd = m_dd->template end<vm_grid_object>(ssGrp[si]);
 		for (itType iter = iterBegin; iter != iterEnd; ++iter)
 		{
 			update_potential(*iter);
@@ -489,7 +533,7 @@ void VDCC_BG<TDomain>::init(number time)
 
 
 template<typename TDomain>
-void VDCC_BG<TDomain>::update_gating(side_t* elem)
+void VDCC_BG<TDomain>::update_gating(vm_grid_object* elem)
 {
 	if (!this->m_initiated)
 		UG_THROW("Borg-Graham not initialized.\n"
@@ -529,7 +573,7 @@ void VDCC_BG<TDomain>::prepare_timestep
     // TODO: Think about updating only on the base level and then propagating upwards.
     //       Typically, the potential does not need very fine resolution.
     //       This would save a lot of work for very fine surface levels.
-	typedef typename DoFDistribution::traits<side_t>::const_iterator it_type;
+	typedef typename DoFDistribution::traits<vm_grid_object>::const_iterator it_type;
 	SubsetGroup ssGrp;
 	try { ssGrp = SubsetGroup(m_dom->subset_handler(), this->m_vSubset);}
 	UG_CATCH_THROW("Subset group creation failed.");
@@ -537,8 +581,8 @@ void VDCC_BG<TDomain>::prepare_timestep
 	for (size_t si = 0; si < nSs; ++si)
 	{
 		// loop sides and update potential (and gatings, if needed)
-		it_type it = m_dd->begin<side_t>(ssGrp[si]);
-		it_type it_end = m_dd->end<side_t>(ssGrp[si]);
+		it_type it = m_dd->begin<vm_grid_object>(ssGrp[si]);
+		it_type it_end = m_dd->end<vm_grid_object>(ssGrp[si]);
 		if (m_bUseGatingAttachments)
 		{
 			// in case of a backwards step, we have to first rewind the gating
@@ -665,9 +709,7 @@ void VDCC_BG<TDomain>::add_def_A_elem
 	// get finite volume geometry
 	static TFVGeom& fvgeom = GeomProvider<TFVGeom>::get();
 
-	side_t* side = dynamic_cast<side_t*>(elem);
-	UG_COND_THROW(!side, "Element, for which VDCC_BG is required to assemble defect, is not of correct type.");
-	const number vm = m_aaVm[side];
+	const number vm = average_attachment_value_on_grid_object(m_aaVm, elem);
 
 	// strictly speaking, we only need ODE assemblings here,
 	// but it does not hurt to integrate over the boxes either

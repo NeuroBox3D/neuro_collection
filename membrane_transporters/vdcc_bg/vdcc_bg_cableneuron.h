@@ -67,8 +67,7 @@ class VDCC_BG_CN
 : public VDCC_BG<TDomain>
 {
     protected:
-        typedef typename GeomObjBaseTypeByDim<TDomain::dim>::base_obj_type elem_t;
-        typedef typename elem_t::side side_t;
+        using typename VDCC_BG<TDomain>::vm_grid_object;
         typedef CPUAlgebra algebra_t;
         typedef algebra_t::vector_type vec_t;
 
@@ -129,7 +128,7 @@ class VDCC_BG_CN
         virtual void prepare_timestep(number future_time, const number time, VectorProxyBase* upb);
 
         /// @copydoc VDCC_BG::update_potential()
-        virtual void update_potential(side_t* elem);
+        virtual void update_potential(vm_grid_object* elem);
 
         /// @copydoc IMembraneTransporter::name()
         virtual const std::string name() const;

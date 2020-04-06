@@ -70,14 +70,14 @@ void VDCC_BG<TDomain>::set_channel_type()
 	{
 		if (has_hGate() && !had_hGate)
 		{
-			if (!m_mg->template has_attachment<side_t>(this->m_HGate))
-				m_mg->template attach_to<side_t>(this->m_HGate);
-			m_aaHGate = Grid::AttachmentAccessor<side_t, ADouble>(*m_mg, m_HGate);
+			if (!m_mg->template has_attachment<vm_grid_object>(this->m_HGate))
+				m_mg->template attach_to<vm_grid_object>(this->m_HGate);
+			m_aaHGate = Grid::AttachmentAccessor<vm_grid_object, ADouble>(*m_mg, m_HGate);
 		}
 		else if (!has_hGate() && had_hGate)
 		{
-			if (m_mg->template has_attachment<side_t>(this->m_HGate))
-				m_mg->detach_from<side_t>(this->m_HGate);
+			if (m_mg->template has_attachment<vm_grid_object>(this->m_HGate))
+				m_mg->detach_from<vm_grid_object>(this->m_HGate);
 		}
 	}
 

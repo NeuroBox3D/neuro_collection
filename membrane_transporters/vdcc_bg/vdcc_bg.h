@@ -58,11 +58,14 @@ namespace neuro_collection {
  *	Vol. 13: Models of Cortical Circuits.
  *
  *	The unknowns of the discretization (the so-called "gates" of the channel) are
- *	not added to the system unknowns, but held separately as vertex attachments, since
+ *	usually not added to the system unknowns, but held separately as vertex attachments, since
  *	they are governed by ODEs and are therefore merely updated by an implicit time
- *	schema once per time step. This will have to be done by the user (in the lua script)
- *	via the ITimeDiscretization method prepare_step_elem() before the execution of any
- *	time step assembling.
+ *	schema once per time step. This will be done automatically, provided the user
+ *	calls the ITimeDiscretization method prepare_step() before the execution of any
+ *	time step assembling in the Lua script.
+ *	It is also possible to handle the gating variables as real unknown functions
+ *	by providing them as such in the approximation space and handing their names
+ *	to the constructor in addition to interior and exterior calcium concentrations.
  *
  *	The class implements simple versions of N-, L- and T type channels but may very
  *	well be generalized to more complex models thereof. The type of channel can be set
@@ -84,7 +87,7 @@ namespace neuro_collection {
  *  	f	: mol*s^-1	ionic flux
  *
  *  Remarks:
- *  	- Internally, all membrane potentials are attached to elements in [V] for
+ *  	- Internally, all membrane potentials are attached to vertices in [V] for
  *  	  the element discretization!
  *
  *  	- VDCC_BG & VDCC_BG_UserData use [ms] and [mV] in gating and flux calculations!
@@ -109,8 +112,7 @@ class VDCC_BG
 
 		// some type definitions
 		typedef VDCC_BG<TDomain> this_type;
-		typedef typename GeomObjBaseTypeByDim<dim>::base_obj_type elem_t;
-		typedef typename elem_t::side side_t;
+		typedef Vertex vm_grid_object;
 
 
 	protected:
@@ -223,7 +225,7 @@ class VDCC_BG
 		 * This method needs to be called before update_gating() if potential is non-constant.
 		 * @param newTime new point in time
 		 */
-		virtual void update_potential(side_t* elem) = 0;
+		virtual void update_potential(vm_grid_object* elem) = 0;
 
 		/// updates internal time if necessary
 		virtual void update_time(number newTime);
@@ -329,11 +331,25 @@ class VDCC_BG
 		 * This method needs to be called before calc_flux().
 		 * It is only needed when gates are realized as attachments.
 		 */
-		void update_gating(side_t* elem);
+		void update_gating(vm_grid_object* elem);
 
 	protected:
 		/// whether this channel has an inactivating gate
 		bool has_hGate() const {return this->m_channelType == BG_Ntype || this->m_channelType == BG_Ttype;}
+
+		typedef Grid::AttachmentAccessor<vm_grid_object, ADouble> attachment_accessor_type;
+		number average_attachment_value_on_grid_object
+		(
+			const attachment_accessor_type& aa,
+			GridObject* o
+		) const;
+
+		template <typename TBaseElem>
+		number average_attachment_value_on_grid_object
+		(
+			const attachment_accessor_type& aa,
+			GridObject* o
+		) const;
 
 	protected:
 		SmartPtr<TDomain> m_dom;							//!< underlying domain
@@ -349,9 +365,9 @@ class VDCC_BG
 		ADouble m_HGate;                            //!< inactivating gating "particle"
 		ADouble m_Vm;                               //!< membrane voltage (in Volt)
 
-		Grid::AttachmentAccessor<side_t, ADouble> m_aaMGate;  //!< accessor for activating gate
-		Grid::AttachmentAccessor<side_t, ADouble> m_aaHGate;  //!< accessor for inactivating gate
-		Grid::AttachmentAccessor<side_t, ADouble> m_aaVm;     //!< accessor for membrane potential
+		attachment_accessor_type m_aaMGate;  //!< accessor for activating gate
+		attachment_accessor_type m_aaHGate;  //!< accessor for inactivating gate
+		attachment_accessor_type m_aaVm;     //!< accessor for membrane potential
 
 		GatingParams m_gpMGate;						//!< gating parameter set for activating gate
 		GatingParams m_gpHGate;						//!< gating parameter set for inactivating gate

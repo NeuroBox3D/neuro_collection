@@ -380,7 +380,7 @@ void VDCC_BG_CN<TDomain>::prepare_timestep(number future_time, const number time
 
 
 template <typename TDomain>
-void VDCC_BG_CN<TDomain>::update_potential(side_t* elem)
+void VDCC_BG_CN<TDomain>::update_potential(vm_grid_object* elem)
 {
     // fill attachments with renewed values
     this->m_aaVm[elem] = m_spHNC->potential(elem);

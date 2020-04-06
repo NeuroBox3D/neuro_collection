@@ -67,8 +67,7 @@ class VDCC_BG_VM2UG : public VDCC_BG<TDomain>
 		using VDCC_BG<TDomain>::T;			//!< temperature (310K)
 		using VDCC_BG<TDomain>::F;			//!< Faraday constant
 		using VDCC_BG<TDomain>::has_hGate;
-		typedef typename GeomObjBaseTypeByDim<TDomain::dim>::base_obj_type elem_t;
-		typedef typename elem_t::side side_t;
+		using typename VDCC_BG<TDomain>::vm_grid_object;
 
 	public:
 		///typedef Vm2uG<std::string> vmProvType;
@@ -125,7 +124,7 @@ class VDCC_BG_VM2UG : public VDCC_BG<TDomain>
 		virtual void init(number time);
 
 		/// @copydoc VDCC_BG<TDomain>::update_potential()
-		virtual void update_potential(side_t* elem);
+		virtual void update_potential(vm_grid_object* elem);
 
 		/// @copydoc VDCC_BG<TDomain>::update_time()
 		virtual void update_time(number newTime);
