@@ -80,6 +80,7 @@
 	//#include "hybrid_neuron_communicator.h"
 	#include "hybrid_synapse_current_assembler.h"
     #include "membrane_transporters/vdcc_bg/vdcc_bg_cableneuron.h"
+	#include "membrane_transport_1d.h"
 #endif
 
 #ifdef NC_WITH_MPM
@@ -376,6 +377,7 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "MembraneTransportFV1", tag);
 	}
 
+#ifdef NC_WITH_CABLENEURON
 	// implementation of two-sided membrane transport systems (1d "cable", fcts const in radius and angle)
 	{
 		typedef MembraneTransport1d<TDomain> T;
@@ -396,6 +398,7 @@ static void Domain(Registry& reg, string grp)
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "MembraneTransport1d", tag);
 	}
+#endif
 
 	// user flux boundary
 	{
