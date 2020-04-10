@@ -112,7 +112,7 @@ void VDCC_BG_UserData<TDomain>::set_potential_function(SmartPtr<CplUserData<numb
 
 
 template<typename TDomain>
-void VDCC_BG_UserData<TDomain>::update_potential(side_t* elem)
+void VDCC_BG_UserData<TDomain>::update_potential(vm_grid_object* elem)
 {
 	// only work if really necessary
 	if (m_bIsConstData && this->m_initiated) return;

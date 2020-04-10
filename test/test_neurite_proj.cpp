@@ -3580,7 +3580,7 @@ void create_spline_data_for_neurites
 
 	    /// Checking for cycles in geometries, which is not a sensible input geometry
 	    UG_DLOG(NC_TNP, 0, "Checking for cycles...")
-	    UG_COND_THROW(ContainsCycle(vPoints), "Grid contains at least one cycle!");
+	    //UG_COND_THROW(ContainsCycle(vPoints), "Grid contains at least one cycle!");
 	    UG_DLOGN(NC_TNP, 0, " passed!");
 
 	    // Checking for cyclinder cylinder intersection, which is not a sensible input geometry

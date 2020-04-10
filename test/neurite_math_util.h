@@ -210,11 +210,13 @@ namespace ug {
 		 * Runtime complexity of this BFS algorithm: O(|V|+|E|)
 		 * \return \c \bool
 		 */
+		/*
 		bool is_cyclic
 		(
 			const std::vector<int> adj[],
 			int V
 		);
+		*/
 
 		/*!
 		 * \brief Check for a cycle in the SWC graph
@@ -222,10 +224,12 @@ namespace ug {
 		 * \param[in] vPoints list of SWC points
 		 * \return \c bool
 		 */
+		/*
 		bool ContainsCycle
 		(
 			const std::vector<SWCPoint>& vPoints
 		);
+		*/
 
 		/*!
 		 * \brief Check for undesired angles

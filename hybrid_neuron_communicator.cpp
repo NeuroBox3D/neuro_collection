@@ -173,7 +173,7 @@ void HybridNeuronCommunicator<TDomain>::reinit_potential_mapping()
 	if (!m_bPotentialMappingNeedsUpdate)
 		return;
 
-    typedef typename DoFDistribution::traits<side_t>::const_iterator SideItType;
+    typedef typename DoFDistribution::traits<vm_grid_object>::const_iterator VmElemItType;
     typedef typename DoFDistribution::traits<Vertex>::const_iterator VrtItType;
     typedef typename TDomain::position_accessor_type posAccType;
 
@@ -188,18 +188,19 @@ void HybridNeuronCommunicator<TDomain>::reinit_potential_mapping()
     // find all elements of the 3d geometry boundary on which the potential is defined
     // store their center coords in the same order
     std::vector<posType> vLocPotElemPos;
-    std::vector<side_t*> vLocPotElems;
+    std::vector<vm_grid_object*> vLocPotElems;
     size_t numSs = m_vPotSubset3d.size();
     for (size_t s = 0; s < numSs; ++s)
     {
         int si = m_vPotSubset3d[s];
-        SideItType it = dd3->template begin<side_t>(si);
-        SideItType it_end = dd3->template end<side_t>(si);
+        VmElemItType it = dd3->template begin<vm_grid_object>(si);
+        VmElemItType it_end = dd3->template end<vm_grid_object>(si);
 
         for (; it != it_end; ++it)
         {
         	vLocPotElems.push_back(*it);
-            vLocPotElemPos.push_back(CalculateCenter(*it, aaPos3).operator*=(m_scale_factor_from_3d_to_1d));
+            vLocPotElemPos.push_back(aaPos3[*it]);
+            vLocPotElemPos.back() *= m_scale_factor_from_3d_to_1d;
         }
     }
 
@@ -357,8 +358,8 @@ void HybridNeuronCommunicator<TDomain>::reinit_potential_mapping()
         size_t rcvBytes = 0;
 
         size_t i = 0;
-        typename std::map<int, std::vector<side_t*> >::const_iterator itRec = m_mReceiveInfo.begin();
-        typename std::map<int, std::vector<side_t*> >::const_iterator itRec_end = m_mReceiveInfo.end();
+        typename std::map<int, std::vector<vm_grid_object*> >::const_iterator itRec = m_mReceiveInfo.begin();
+        typename std::map<int, std::vector<vm_grid_object*> >::const_iterator itRec_end = m_mReceiveInfo.end();
         for (; itRec != itRec_end; ++itRec)
         {
             rcvFrom[i] = itRec->first;
@@ -406,8 +407,8 @@ serial_case:
 	for (size_t s = 0; s < numSs; ++s)
 	{
 		int si = m_vPotSubset3d[s];
-		SideItType it = dd3->template begin<side_t>(si);
-		SideItType it_end = dd3->template end<side_t>(si);
+		VmElemItType it = dd3->template begin<vm_grid_object>(si);
+		VmElemItType it_end = dd3->template end<vm_grid_object>(si);
 		for (; it != it_end; ++it)
 		{
 		    m_mPotElemToVertex[*it] = vLocVrt[vNearest[i]];
@@ -478,11 +479,11 @@ void HybridNeuronCommunicator<TDomain>::coordinate_potential_values()
 
         // save values in map
         curVal = (number*) rcvBuf;
-        typename std::map<int, std::vector<side_t*> >::const_iterator itRec = m_mReceiveInfo.begin();
-        typename std::map<int, std::vector<side_t*> >::const_iterator itRec_end = m_mReceiveInfo.end();
+        typename std::map<int, std::vector<vm_grid_object*> >::const_iterator itRec = m_mReceiveInfo.begin();
+        typename std::map<int, std::vector<vm_grid_object*> >::const_iterator itRec_end = m_mReceiveInfo.end();
         for (; itRec != itRec_end; ++itRec)
         {
-            const std::vector<side_t*>& vElems = itRec->second;
+            const std::vector<vm_grid_object*>& vElems = itRec->second;
             size_t sz = vElems.size();
             for (size_t j = 0; j < sz; ++j)
             {
@@ -497,8 +498,8 @@ void HybridNeuronCommunicator<TDomain>::coordinate_potential_values()
 serial_case:
 #endif
 
-    typename std::map<side_t*, Vertex*>::iterator it = m_mPotElemToVertex.begin();
-    typename std::map<side_t*, Vertex*>::iterator it_end = m_mPotElemToVertex.end();
+    typename std::map<vm_grid_object*, Vertex*>::iterator it = m_mPotElemToVertex.begin();
+    typename std::map<vm_grid_object*, Vertex*>::iterator it_end = m_mPotElemToVertex.end();
     std::vector<DoFIndex> vIndex;
     for (; it != it_end; ++it)
     {
@@ -521,9 +522,9 @@ serial_case:
 
 
 template <typename TDomain>
-number HybridNeuronCommunicator<TDomain>::potential(side_t* elem) const
+number HybridNeuronCommunicator<TDomain>::potential(vm_grid_object* elem) const
 {
-	typename std::map<side_t*, number>::const_iterator it = m_mElemPot.find(elem);
+	typename std::map<vm_grid_object*, number>::const_iterator it = m_mElemPot.find(elem);
 	UG_COND_THROW(it == m_mElemPot.end(), "No potential value available for "
         << ElementDebugInfo(*m_spApprox3d->domain()->grid(), elem) << ".");
 

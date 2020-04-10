@@ -80,6 +80,7 @@
 	//#include "hybrid_neuron_communicator.h"
 	#include "hybrid_synapse_current_assembler.h"
     #include "membrane_transporters/vdcc_bg/vdcc_bg_cableneuron.h"
+	#include "membrane_transport_1d.h"
 #endif
 
 #ifdef NC_WITH_MPM
@@ -376,6 +377,7 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "MembraneTransportFV1", tag);
 	}
 
+#ifdef NC_WITH_CABLENEURON
 	// implementation of two-sided membrane transport systems (1d "cable", fcts const in radius and angle)
 	{
 		typedef MembraneTransport1d<TDomain> T;
@@ -396,6 +398,7 @@ static void Domain(Registry& reg, string grp)
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "MembraneTransport1d", tag);
 	}
+#endif
 
 	// user flux boundary
 	{
@@ -674,40 +677,6 @@ static void Algebra(Registry& reg, string grp)
 {
 	string suffix = GetAlgebraSuffix<TAlgebra>();
 	string tag = GetAlgebraTag<TAlgebra>();
-
-#ifdef NC_WITH_CABLENEURON
-#ifdef UG_DIM_3
-	// HybridSynapseCurrentAssembler
-	{
-		typedef HybridSynapseCurrentAssembler<Domain3d, TAlgebra> T;
-		typedef IDomainConstraint<Domain3d, TAlgebra> TBase;
-		string name = string("HybridSynapseCurrentAssembler").append(suffix);
-		reg.add_class_<T, TBase>(name, grp)
-			.template add_constructor<void (*)(SmartPtr<ApproximationSpace<Domain3d> >,
-				SmartPtr<ApproximationSpace<Domain3d> >,
-				SmartPtr<cable_neuron::synapse_handler::SynapseHandler<Domain3d> >,
-				const std::vector<std::string>&, const std::string&)>
-				("3d approximation space#1d approximation space#synapse handler#subset(s) vector#"
-				 "calcium function name")
-			.template add_constructor<void (*)(SmartPtr<ApproximationSpace<Domain3d> >,
-				SmartPtr<ApproximationSpace<Domain3d> >,
-				SmartPtr<cable_neuron::synapse_handler::SynapseHandler<Domain3d> >,
-				const std::vector<std::string>&, const std::string&, const std::string&)>
-				("3d approximation space#1d approximation space#synapse handler#subset(s) vector#"
-				 "calcium function name#ip3 function name")
-			.add_method("set_current_percentage", &T::set_current_percentage, "", "", "")
-			.add_method("set_synaptic_radius", &T::set_synaptic_radius, "", "radius", "")
-			.add_method("set_valency", &T::set_valency, "", "", "")
-			.add_method("set_scaling_factors", &T::set_scaling_factors, "", "", "")
-			.add_method("set_ip3_production_params", &T::set_ip3_production_params, "", "single synapse maximal production rate#decay rate", "")
-			.add_method("set_3d_neuron_ids", &T::set_3d_neuron_ids, "", "", "")
-			.set_construct_as_smart_pointer(true);
-
-		reg.add_class_to_group(name, "HybridSynapseCurrentAssembler", tag);
-	}
-#endif
-#endif
-
 }
 
 /**
@@ -1122,6 +1091,42 @@ struct Pure3DFunctionality
 			reg.add_class_to_group(name, "VDCC_BG_CN", tag);
 		}
 	}
+
+	template <typename TDomain, typename TAlgebra>
+	static void DomainAlgebra(Registry& reg, string grp)
+	{
+		string suffix = GetDomainAlgebraSuffix<TDomain,TAlgebra>();
+		string tag = GetDomainAlgebraTag<TDomain,TAlgebra>();
+
+		// HybridSynapseCurrentAssembler
+		{
+			typedef HybridSynapseCurrentAssembler<TDomain, TAlgebra> T;
+			typedef IDomainConstraint<TDomain, TAlgebra> TBase;
+			string name = string("HybridSynapseCurrentAssembler").append(suffix);
+			reg.add_class_<T, TBase>(name, grp)
+				.template add_constructor<void (*)(SmartPtr<ApproximationSpace<TDomain> >,
+					SmartPtr<ApproximationSpace<TDomain> >,
+					SmartPtr<cable_neuron::synapse_handler::SynapseHandler<TDomain> >,
+					const std::vector<std::string>&, const std::string&)>
+					("3d approximation space#1d approximation space#synapse handler#subset(s) vector#"
+					 "calcium function name")
+				.template add_constructor<void (*)(SmartPtr<ApproximationSpace<TDomain> >,
+					SmartPtr<ApproximationSpace<TDomain> >,
+					SmartPtr<cable_neuron::synapse_handler::SynapseHandler<TDomain> >,
+					const std::vector<std::string>&, const std::string&, const std::string&)>
+					("3d approximation space#1d approximation space#synapse handler#subset(s) vector#"
+					 "calcium function name#ip3 function name")
+				.add_method("set_current_percentage", &T::set_current_percentage, "", "", "")
+				.add_method("set_synaptic_radius", &T::set_synaptic_radius, "", "radius", "")
+				.add_method("set_valency", &T::set_valency, "", "", "")
+				.add_method("set_scaling_factors", &T::set_scaling_factors, "", "", "")
+				.add_method("set_ip3_production_params", &T::set_ip3_production_params, "", "single synapse maximal production rate#decay rate", "")
+				.add_method("set_3d_neuron_ids", &T::set_3d_neuron_ids, "", "", "")
+				.set_construct_as_smart_pointer(true);
+
+			reg.add_class_to_group(name, "HybridSynapseCurrentAssembler", tag);
+		}
+	}
 };
 #endif
 
@@ -1152,7 +1157,7 @@ InitUGPlugin_neuro_collection(Registry* reg, string grp)
 		RegisterCommon<Functionality>(*reg,grp);
 		//RegisterDimensionDependent<Functionality>(*reg,grp);
 		RegisterDomainDependent<Functionality>(*reg,grp);
-		RegisterAlgebraDependent<Functionality>(*reg,grp);
+		//RegisterAlgebraDependent<Functionality>(*reg,grp);
 		RegisterDomainAlgebraDependent<Functionality>(*reg,grp);
 	}
 	UG_REGISTRY_CATCH_THROW(grp);
@@ -1173,13 +1178,18 @@ InitUGPlugin_neuro_collection(Registry* reg, string grp)
 	}
 	UG_REGISTRY_CATCH_THROW(grp);
 
-	// VDCC_BG_CN can only be registered for 3D, as cable_neuron functionality is only compiled for 3D
+	// VDCC_BG_CN and HybridSynapseCurrentAssembler can only be registered for 3D,
+	// as cable_neuron functionality is only compiled for 3D
 #ifdef NC_WITH_CABLENEURON
 #ifdef UG_DIM_3
 	typedef boost::mpl::list<Domain3d> CompileDomain3dList;
 
 	typedef neuro_collection::Pure3DFunctionality Pure3DFunctionality;
-	try {RegisterDomainDependent<Pure3DFunctionality, CompileDomain3dList>(*reg,grp);}
+	try
+	{
+		RegisterDomainDependent<Pure3DFunctionality, CompileDomain3dList>(*reg,grp);
+		RegisterDomainAlgebraDependent<Pure3DFunctionality, CompileDomain3dList>(*reg,grp);
+	}
 	UG_REGISTRY_CATCH_THROW(grp);
 #endif
 #endif

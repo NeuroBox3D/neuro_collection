@@ -77,8 +77,7 @@ class HybridNeuronCommunicator
 {
     protected:
         static const int dim = TDomain::dim;
-        typedef typename GeomObjBaseTypeByDim<TDomain::dim>::base_obj_type elem_t;
-        typedef typename elem_t::side side_t;
+		typedef Vertex vm_grid_object;
     	typedef typename TDomain::position_type posType;
     	typedef typename TDomain::position_accessor_type aaPos_type;
         typedef CPUAlgebra algebra_t;
@@ -134,7 +133,7 @@ class HybridNeuronCommunicator
 		);
 
         /// get potential value for high-dim side element
-        number potential(side_t* elem) const;
+        number potential(vm_grid_object* elem) const;
 
     private:
         struct VecIndexCompare
@@ -186,7 +185,7 @@ class HybridNeuronCommunicator
         SmartPtr<synh_type> m_spSynHandler;
 
         /// memory for side element potential values
-        std::map<side_t*, number> m_mElemPot;
+        std::map<vm_grid_object*, number> m_mElemPot;
 
         /// synapse to 3d coordinate vertex mapping
         std::map<synapse_id, MathVector<dim> > m_mSynapse3dCoords;
@@ -196,7 +195,7 @@ class HybridNeuronCommunicator
         std::map<int, std::vector<Vertex*> > m_mSendInfo;
 
         /// list of 3d receiver elems and who they receive from
-        std::map<int, std::vector<side_t*> > m_mReceiveInfo;
+        std::map<int, std::vector<vm_grid_object*> > m_mReceiveInfo;
 
         int* rcvSize;
         int* rcvFrom;
@@ -207,7 +206,7 @@ class HybridNeuronCommunicator
         void* sendBuf;
 #endif
 
-        std::map<side_t*, Vertex*> m_mPotElemToVertex;  // direct map (only for the serial case)
+        std::map<vm_grid_object*, Vertex*> m_mPotElemToVertex;  // direct map (only for the serial case)
 
         SmartPtr<ApproximationSpace<TDomain> > m_spApprox1d;
         SmartPtr<ApproximationSpace<TDomain> > m_spApprox3d;

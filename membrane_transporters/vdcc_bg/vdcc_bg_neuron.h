@@ -71,8 +71,7 @@ private:
 		using VDCC_BG<TDomain>::T;		//!< temperature (310K)
 		using VDCC_BG<TDomain>::F;		//!< Faraday constant
 
-		typedef typename GeomObjBaseTypeByDim<TDomain::dim>::base_obj_type elem_t;
-		typedef typename elem_t::side side_t;
+		using typename VDCC_BG<TDomain>::vm_grid_object;
 
 	public:
 		//typedef Vm2uG<std::string> vmProvType;
@@ -137,7 +136,7 @@ private:
 		virtual void update_time(number newTime);
 
 		// update membrane potential
-		virtual void update_potential(side_t* elem);
+		virtual void update_potential(vm_grid_object* elem);
 
 		/// @copydoc IMembraneTransporter::print_units()
 		virtual void print_units() const;
