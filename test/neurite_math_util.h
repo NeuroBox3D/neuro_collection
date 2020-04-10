@@ -42,16 +42,22 @@
 
 #include "common/math/ugmath_types.h"
 #include "types.h"
+#include <lib_grid/grid/grid.h>
+#include <lib_grid/common_attachments.h>
 
 namespace ug {
 	namespace neuro_collection {
 		/*!
-		 * \brief Rotates a vector (OP) around axis (OQ)
+		 * \brief Rotate a vector (OP) around axis (OQ) using Rodrigues' rotation
+		 * \f$ \vec{v}_{rot} =
+		 * 		\vec{v} cos(\theta) + (\vec{v} \times \vec{k}) sin(\theta) +
+		 * 		\vec{k} (\vec{k} \cdot \vec{v}) cos(\theta)\$
+		 *
 		 * \param[in] p end point of vector
 		 * \param[in] q end point of axis
-		 * \param[in] o origin
+		 * \param[in] o origin (from where p and q are emanating)
 		 * \param[in] theta degree in radians
-		 * \param[out] v_rot
+		 * \param[out] v_rot the rotated vector
 		 */
 		void RotateVectorAroundAxis
 		(
@@ -59,7 +65,7 @@ namespace ug {
 			const vector3& q,
 			const vector3& o,
 			number theta,
-			vector3 v_rot
+			vector3& v_rot
 		);
 
 		/*!
@@ -213,12 +219,24 @@ namespace ug {
 		/*!
 		 * \brief Check for a cycle in the SWC graph
 		 * The function returns true if at least one cycle found otherwise false
-		 * \param[in] vPoints lis of SWC points
+		 * \param[in] vPoints list of SWC points
 		 * \return \c bool
 		 */
 		bool ContainsCycle
 		(
 			const std::vector<SWCPoint>& vPoints
+		);
+
+		/*!
+		 * \brief Check for undesired angles
+		 * \param[in] vPoints list of SWC points
+		 * \param[in] angleThresholdMin
+		 * \param[in] angleThresholdMax
+		 */
+		bool HasUndesiredAngles(
+			const std::vector<SWCPoint>& vPoints,
+			number angleThresholdMin,
+			number angleThresholdMax
 		);
 
 		/*!
@@ -241,6 +259,21 @@ namespace ug {
 		(
 			const std::vector<number>& radii,
 			number somaRadius
+		);
+
+		/*!
+		 * \brief CalculateCenter
+		 * \param[in] vertices
+		 * \param[in] aaPos
+		 * \param[in] size
+		 * \param[out] center
+		 */
+		void CalculateCenter
+		(
+			const std::vector<Vertex*>& vertices,
+			const Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			size_t size,
+			ug::vector3& center
 		);
 	}
 }

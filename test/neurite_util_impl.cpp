@@ -3617,5 +3617,27 @@ namespace ug {
 				pairs.push_back(make_pair(fromSorted[i], toSorted[i]));
 			}
 		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// IsRootEdge
+		////////////////////////////////////////////////////////////////////////
+		bool IsRootEdge
+		(
+			const ug::Edge& edge,
+			const std::vector<SWCPoint>& vPoints,
+			const Grid::VertexAttachmentAccessor<APosition>& aaPos
+		) {
+			std::vector<SWCPoint>::const_iterator it;
+			for (size_t i = 0; i < edge.NUM_VERTICES; i++) {
+				it = std::find_if(vPoints.begin(), vPoints.end(),
+						          FindSWCPoint(aaPos[edge.vertex(i)]));
+				if (it != vPoints.end()) {
+					if (it->type == SWC_SOMA) {
+						return true;
+					}
+				}
+			}
+			return false;
+		}
 	}
 }

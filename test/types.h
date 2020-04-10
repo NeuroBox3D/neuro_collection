@@ -102,9 +102,9 @@ namespace ug {
 		public:
 			FindSWCPoint(const vector3& coords) : coords(coords) {}
 
-		    bool operator()(const vector3& vec)
+		    bool operator()(const SWCPoint& point)
 		    {
-		        return vec == coords;
+		        return coords == point.coords;
 		    }
 		};
 	}

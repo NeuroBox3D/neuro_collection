@@ -1090,6 +1090,19 @@ namespace ug {
 			size_t erIndex,
 			const SWCPoint& somaPoint
 		);
+
+		/*!
+		 * \brief check if an edge is a root edge
+		 * \param[in] edge
+		 * \param[in] vPoints
+		 * \return \c true if edge is a root edge and false otherwise
+		 */
+		bool IsRootEdge
+		(
+			const ug::Edge& edge,
+			const std::vector<SWCPoint>& vPoints,
+			const Grid::VertexAttachmentAccessor<APosition>& aaPos
+		);
 	}
 }
 
