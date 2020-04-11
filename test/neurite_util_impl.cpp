@@ -1708,45 +1708,6 @@ namespace ug {
 		}
 
 		////////////////////////////////////////////////////////////////////////
-		/// set_somata_mapping_parameters
-		////////////////////////////////////////////////////////////////////////
-		void set_somata_mapping_parameters
-		(
-			Grid& g,
-			SubsetHandler& sh,
-			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::Mapping> >& aaMapping,
-			size_t somaIndex,
-			size_t erIndex,
-			const SWCPoint& somaPoint
-		) {
-			Selector sel(g);
-			SelectSubset(sel, sh, somaIndex, true);
-			CloseSelection(sel);
-			Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
-			Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
-			for (; vit != vit_end; ++vit) {
-				aaMapping[*vit].lambda = 0;
-				aaMapping[*vit].v1 = somaPoint.coords;
-				aaMapping[*vit].v2 = somaPoint.coords;
-				// std::vector<SWCPoint> vPoints;
-				// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
-			}
-
-			sel.clear();
-			SelectSubset(sel, sh, erIndex, true);
-			CloseSelection(sel);
-			vit = sel.vertices_begin();
-			vit_end = sel.vertices_end();
-			for (; vit != vit_end; ++vit) {
-				aaMapping[*vit].lambda = 0;
-				aaMapping[*vit].v1 = somaPoint.coords;
-				aaMapping[*vit].v2 = somaPoint.coords;
-				// std::vector<SWCPoint> vPoints;
-				// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
-			}
-		}
-
-		////////////////////////////////////////////////////////////////////////
 		/// set_somata_axial_parameters
 		////////////////////////////////////////////////////////////////////////
 		void set_somata_axial_parameters
@@ -2592,12 +2553,10 @@ namespace ug {
 			SubsetHandler& sh,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
-			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::Mapping> >& aaMapping,
 			const int somaIndex,
 			const size_t numQuads,
 			const number scale,
-			std::vector<ug::Vertex*>& outVertsInner,
-			const SWCPoint& somaPoint
+			std::vector<ug::Vertex*>& outVertsInner
 		) {
 	    	outVertsInner.clear();
 			Grid::traits<Quadrilateral>::secure_container quadCont;
@@ -2620,10 +2579,6 @@ namespace ug {
 				SavePreparedGridToFile(grid, sh, "after_extend_ER_within.ugx");
 				for (size_t j = 0; j < vertices.size(); j++) {
 					aaSurfParams[vertices[j]].axial = -scale/2.0;
-					aaMapping[vertices[j]].lambda = 0;
-					aaMapping[vertices[j]].v1 = somaPoint.coords;
-					aaMapping[vertices[j]].v2 = somaPoint.coords;
-
 				}
 				outVertsInner.insert(outVertsInner.end(), vertices.begin(), vertices.end());
 			}
@@ -3615,28 +3570,6 @@ namespace ug {
 			for (size_t i = 0; i < numVerts; i++) {
 				pairs.push_back(make_pair(fromSorted[i], toSorted[i]));
 			}
-		}
-
-		////////////////////////////////////////////////////////////////////////
-		/// IsRootEdge
-		////////////////////////////////////////////////////////////////////////
-		bool IsRootEdge
-		(
-			const ug::Edge& edge,
-			const std::vector<SWCPoint>& vPoints,
-			const Grid::VertexAttachmentAccessor<APosition>& aaPos
-		) {
-			std::vector<SWCPoint>::const_iterator it;
-			for (size_t i = 0; i < edge.NUM_VERTICES; i++) {
-				it = std::find_if(vPoints.begin(), vPoints.end(),
-						          FindSWCPoint(aaPos[edge.vertex(i)]));
-				if (it != vPoints.end()) {
-					if (it->type == SWC_SOMA) {
-						return true;
-					}
-				}
-			}
-			return false;
 		}
 	}
 }

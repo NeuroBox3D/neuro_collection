@@ -66,12 +66,10 @@ struct FixtureEmptyGrid {
  */
 struct FixtureOneGrid {
 	typedef NeuriteProjector::SurfaceParams NPSP;
-    typedef NeuriteProjector::Mapping NPMapping;
 	Grid g;
 	SubsetHandler sh;
 	Grid::VertexAttachmentAccessor<APosition> aaPos;
     Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
-    Grid::VertexAttachmentAccessor<Attachment<NPMapping> > aaMapping;
 	const Quadrilateral* quad;
 	number axial;
 	size_t si;
@@ -102,29 +100,14 @@ struct FixtureOneGrid {
 		quad = *g.create<Quadrilateral>(QuadrilateralDescriptor(p1, p2, p3, p4));
 		BOOST_REQUIRE_MESSAGE(quad, "Creating quadrilateral out of supplied vertices.");
 
-	    // assign axial and radial parameter
+	    // assign axial and radial arameter
 		GlobalAttachments::declare_attachment<Attachment<NPSP> >("npSurfParams", true);
 	    UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
 	            "GlobalAttachment 'npSurfParams' not declared.");
 	    Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
-
-	    // mapping attachment
-		GlobalAttachments::declare_attachment<Attachment<NPMapping> >("npMapping", true);
-	    UG_COND_THROW(!GlobalAttachments::is_declared("npMapping"),
-	    		"GlobalAttachment 'npMapping' was not declared.");
-	    Attachment<NPMapping> aNPMapping = GlobalAttachments::attachment<Attachment<NPMapping> >("npMapping");
-
-	    if (!g.has_vertex_attachment(aNPMapping)) {
-	    	g.attach_to_vertices(aNPMapping);
-	    }
-
-	    aaMapping.access(g, aNPMapping);
-
 	    if (!g.has_vertex_attachment(aSP))
 	        g.attach_to_vertices(aSP);
-
 	    aaSurfParams.access(g, aSP);
-
 	    aaSurfParams[p1].axial = axial; aaSurfParams[p2].axial = axial;
 	    aaSurfParams[p3].axial = axial; aaSurfParams[p4].axial = axial;
 
@@ -147,7 +130,6 @@ struct FixtureOneGrid {
 	 */
 	~FixtureOneGrid() {
 		GlobalAttachments::undeclare_attachment<Attachment<NPSP> >("npSurfParams");
-		GlobalAttachments::undeclare_attachment<Attachment<NPMapping> >("npMapping");
 	}
 };
 

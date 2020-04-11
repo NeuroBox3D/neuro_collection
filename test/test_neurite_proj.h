@@ -353,33 +353,7 @@ void test_import_swc_general_var(
 	bool withER,
 	number anisotropy,
 	size_t numRefs,
-	bool regularize,
-	number blowUpFactor,
-	bool forVR
-);
-
-/*!
- * \brief vr strategy
- */
-void test_import_swc_general_var_for_vr(
-	const std::string& fileName,
-	bool correct,
-	number erScaleFactor,
-	bool withER,
-	number anisotropy,
-	size_t numRefs,
-	bool regularize,
-	number blowUpFactor
-);
-
-/*!
- * \brief refine swc grid
- * \param[in] inFileName
- * \param[in] outFileName
- */
-void refine_swc_grid(
-	const std::string& inFileName,
-	const std::string& outFileName
+	bool regularize
 );
 
 } // namespace neuro_collection
