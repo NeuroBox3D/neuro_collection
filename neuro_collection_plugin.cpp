@@ -395,6 +395,7 @@ static void Domain(Registry& reg, string grp)
 			.add_method("set_density_function", static_cast<void (T::*) (SmartPtr<CplUserData<number,dim> >)>
 					(&T::set_density_function), "", "", "add a density function")
 			.add_method("set_radius", &T::set_radius, "", "", "sets the radius the membrane is located at")
+			.add_method("set_radius_factor", &T::set_radius_factor, "", "", "sets the radius the membrane is located at")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "MembraneTransport1d", tag);
 	}
