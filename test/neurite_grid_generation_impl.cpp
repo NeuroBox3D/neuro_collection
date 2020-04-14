@@ -646,14 +646,14 @@ namespace ug {
 						angle -= 2 * PI;
 					Vertex* v = vVrt[j + 4];
 					vector3 radialVec;
-					VecScaleAdd(radialVec, 1.0*radius * cos(angle), projRefDir,
-							1.0*radius * sin(angle), thirdDir);
+					VecScaleAdd(radialVec, blowUpFactor*radius * cos(angle), projRefDir,
+							blowUpFactor*radius * sin(angle), thirdDir);
 					VecAdd(aaPos[v], curPos, radialVec);
 
 					aaSurfParams[v].neuriteID = nid;
 					aaSurfParams[v].axial = segAxPos;
 					aaSurfParams[v].angular = angle;
-					aaSurfParams[v].radial = 1.0;
+					aaSurfParams[v].radial = blowUpFactor;
 
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
@@ -697,13 +697,13 @@ namespace ug {
 						* surfBPoffset / neurite_length;
 
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd) % 4)]],
-						surfBPoffset, vel);
+						blowUpFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd + 1) % 4)]],
-						surfBPoffset, vel);
+						blowUpFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd + 2) % 4)]],
-						-surfBPoffset, vel);
+						-blowUpFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd + 3) % 4)]],
-						-surfBPoffset, vel);
+						-blowUpFactor * surfBPoffset, vel);
 				aaSurfParams[vVrt[4 + 3 * ((connFaceInd) % 4)]].axial +=
 						surfBPoffset / neurite_length;
 				aaSurfParams[vVrt[4 + 3 * ((connFaceInd + 1) % 4)]].axial +=
@@ -810,8 +810,8 @@ namespace ug {
 						angle -= 2 * PI;
 					Vertex* v = vVrt[j + 4];
 					vector3 radialVec;
-					VecScaleAdd(radialVec, 1.0 * radius * cos(angle), projRefDir,
-							1.0 * radius * sin(angle), thirdDir);
+					VecScaleAdd(radialVec, blowUpFactor * radius * cos(angle), projRefDir,
+							blowUpFactor * radius * sin(angle), thirdDir);
 					VecAdd(aaPos[v], firstPos, radialVec);
 
 					aaSurfParams[v].neuriteID = nid;
@@ -848,20 +848,20 @@ namespace ug {
 						* surfBPoffset / neurite_length;
 
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd) % 4)]],
-						surfBPoffset, vel);
+						blowUpFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd + 1) % 4)]],
-						surfBPoffset, vel);
+						blowUpFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd + 2) % 4)]],
-						-surfBPoffset, vel);
+						-blowUpFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd + 3) % 4)]],
-						-surfBPoffset, vel);
-				aaSurfParams[vVrt[4 + 3 * ((connFaceInd) % 4)]].axial +=
+						-blowUpFactor * surfBPoffset, vel);
+				aaSurfParams[vVrt[4 + 3 * ((connFaceInd) % 4)]].axial += blowUpFactor *
 						surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[4 + 3 * ((connFaceInd + 1) % 4)]].axial +=
+				aaSurfParams[vVrt[4 + 3 * ((connFaceInd + 1) % 4)]].axial += blowUpFactor *
 						surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[4 + 3 * ((connFaceInd + 2) % 4)]].axial -=
+				aaSurfParams[vVrt[4 + 3 * ((connFaceInd + 2) % 4)]].axial -= blowUpFactor *
 						surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[4 + 3 * ((connFaceInd + 3) % 4)]].axial -=
+				aaSurfParams[vVrt[4 + 3 * ((connFaceInd + 3) % 4)]].axial -= blowUpFactor *
 						surfBPoffset / neurite_length;
 
 				VecScaleAppend(aaPos[vVrt[5 + 3 * ((connFaceInd) % 4)]],
@@ -966,8 +966,8 @@ namespace ug {
 						angle -= 2 * PI;
 					Vertex* v = vVrt[j + 4];
 					vector3 radialVec;
-					VecScaleAdd(radialVec, 1.0 * radius * cos(angle), projRefDir,
-							1.0 * radius * sin(angle), thirdDir);
+					VecScaleAdd(radialVec, blowUpFactor * radius * cos(angle), projRefDir,
+							blowUpFactor * radius * sin(angle), thirdDir);
 					VecAdd(aaPos[v], secondPos, radialVec);
 
 					aaSurfParams[v].neuriteID = nid;
@@ -1003,20 +1003,20 @@ namespace ug {
 						* surfBPoffset / neurite_length;
 
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd) % 4)]],
-						surfBPoffset, vel);
+						blowUpFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd + 1) % 4)]],
-						surfBPoffset, vel);
+						blowUpFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd + 2) % 4)]],
-						-surfBPoffset, vel);
+						-blowUpFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd + 3) % 4)]],
-						-surfBPoffset, vel);
-				aaSurfParams[vVrt[4 + 3 * ((connFaceInd) % 4)]].axial +=
+						-blowUpFactor * surfBPoffset, vel);
+				aaSurfParams[vVrt[4 + 3 * ((connFaceInd) % 4)]].axial += blowUpFactor *
 						surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[4 + 3 * ((connFaceInd + 1) % 4)]].axial +=
+				aaSurfParams[vVrt[4 + 3 * ((connFaceInd + 1) % 4)]].axial += blowUpFactor *
 						surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[4 + 3 * ((connFaceInd + 2) % 4)]].axial -=
+				aaSurfParams[vVrt[4 + 3 * ((connFaceInd + 2) % 4)]].axial -= blowUpFactor *
 						surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[4 + 3 * ((connFaceInd + 3) % 4)]].axial -=
+				aaSurfParams[vVrt[4 + 3 * ((connFaceInd + 3) % 4)]].axial -= blowUpFactor *
 						surfBPoffset / neurite_length;
 
 				VecScaleAppend(aaPos[vVrt[5 + 3 * ((connFaceInd) % 4)]],
@@ -1116,14 +1116,14 @@ namespace ug {
 						angle -= 2 * PI;
 					Vertex* v = vVrt[j + 4];
 					vector3 radialVec;
-					VecScaleAdd(radialVec, 1.0 * radius * cos(angle), projRefDir,
-							1.0 * radius * sin(angle), thirdDir);
+					VecScaleAdd(radialVec, blowUpFactor * radius * cos(angle), projRefDir,
+							blowUpFactor * radius * sin(angle), thirdDir);
 					VecAdd(aaPos[v], curPos, radialVec);
 
 					aaSurfParams[v].neuriteID = nid;
 					aaSurfParams[v].axial = segAxPos;
 					aaSurfParams[v].angular = angle;
-					aaSurfParams[v].radial = 1.0;
+					aaSurfParams[v].radial = blowUpFactor;
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec];
@@ -1153,20 +1153,20 @@ namespace ug {
 						* surfBPoffset / neurite_length;
 
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd) % 4)]],
-						surfBPoffset, vel);
+						blowUpFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd + 1) % 4)]],
-						surfBPoffset, vel);
+						blowUpFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd + 2) % 4)]],
-						-surfBPoffset, vel);
+						-blowUpFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd + 3) % 4)]],
-						-surfBPoffset, vel);
-				aaSurfParams[vVrt[4 + 3 * ((connFaceInd) % 4)]].axial +=
+						-blowUpFactor * surfBPoffset, vel);
+				aaSurfParams[vVrt[4 + 3 * ((connFaceInd) % 4)]].axial += blowUpFactor *
 						surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[4 + 3 * ((connFaceInd + 1) % 4)]].axial +=
+				aaSurfParams[vVrt[4 + 3 * ((connFaceInd + 1) % 4)]].axial += blowUpFactor *
 						surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[4 + 3 * ((connFaceInd + 2) % 4)]].axial -=
+				aaSurfParams[vVrt[4 + 3 * ((connFaceInd + 2) % 4)]].axial -= blowUpFactor *
 						surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[4 + 3 * ((connFaceInd + 3) % 4)]].axial -=
+				aaSurfParams[vVrt[4 + 3 * ((connFaceInd + 3) % 4)]].axial -= blowUpFactor *
 						surfBPoffset / neurite_length;
 
 				VecScaleAppend(aaPos[vVrt[5 + 3 * ((connFaceInd) % 4)]],
