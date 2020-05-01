@@ -41,11 +41,18 @@
 #define UG__PLUGINS__NEURO_COLLECTION__MEMBRANE_TRANSPORTERS__VDCC_BG__VDCC_BG_H
 
 #include "../membrane_transporter_interface.h"
+#include "lib_algebra/cpu_algebra_types.h"  // for CPUAlgebra
 #include "lib_disc/spatial_disc/disc_util/fv1_geom.h"  // for FV1ManifoldGeometry
 #include "lib_disc/spatial_disc/disc_util/hfv1_geom.h"  // for HFV1ManifoldGeometry
 #include "lib_disc/spatial_disc/elem_disc/elem_disc_interface.h"  // for IElemDisc
 
+
+
 namespace ug {
+
+template <int dim> class VTKOutput;
+template <typename TDomain, typename TAlgebra> class GridFunction;
+
 namespace neuro_collection {
 
 ///@addtogroup plugin_neuro_collection
@@ -230,6 +237,8 @@ class VDCC_BG
 		/// updates internal time if necessary
 		virtual void update_time(number newTime);
 
+		/// export voltage data to vtk
+		void export_membrane_potential_to_vtk(const std::string& fileName, size_t step, number time);
 
 		// inheritances from IElemDisc
 	public:
@@ -371,6 +380,9 @@ class VDCC_BG
 
 		GatingParams m_gpMGate;						//!< gating parameter set for activating gate
 		GatingParams m_gpHGate;						//!< gating parameter set for inactivating gate
+
+		SmartPtr<VTKOutput<TDomain::dim> > m_spVtkOutput;
+		SmartPtr<GridFunction<TDomain, CPUAlgebra> > m_spVmGF;  //!< grid function for Vm vtk output
 
 		number m_time;								//!< current time
 		number m_initTime;							//!< time of initialization
