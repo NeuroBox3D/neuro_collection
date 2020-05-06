@@ -969,13 +969,16 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("test_import_swc_general", &test_import_swc_general, "",
 			"swc file name (input) # ugx file name (output) # ER scale factor # anisotropy # refinements", "");
 		reg.add_function("test_import_swc_general_var", &test_import_swc_general_var, "",
-			"swc file name (input) # ugx file name (output) # ER scale factor # anisotropy # refinements # regularize # blow up factor # for VR", "");
+			"swc file name (input) # ugx file name (output) # ER scale factor # anisotropy # refinements # regularize # blow up factor # for VR # dryRun", "");
 		reg.add_function("test_import_swc_general_var_for_vr", &test_import_swc_general_var_for_vr, "",
 			"swc file name (input) # ugx file name (output) # ER scale factor # anisotropy # refinements # regularize # blow up factor", "");
 		reg.add_function("test_import_swc_surf", &test_import_swc_surf, "", "file name", "");
 		reg.add_function("test_import_swc_1d", &test_import_swc_1d, "", "file name # anisotropy # refinements", "");
 		reg.add_function("test_convert_swc_to_ugx", &test_convert_swc_to_ugx, "", "file name");
 		reg.add_function("refine_swc_grid", &refine_swc_grid, "", "");
+		reg.add_function("refine_swc_grid_variant", &refine_swc_grid_variant, "input file name # output file name", "");
+		reg.add_function("coarsen_1d_grid", &coarsen_1d_grid, "input file name", "output file name");
+		reg.add_function("test_import_swc_vr", &test_import_swc_vr, "Filename # anisotropy # numRefs");
 	}
 #endif
 
@@ -1147,6 +1150,7 @@ InitUGPlugin_neuro_collection(Registry* reg, string grp)
 	typedef neuro_collection::Functionality Functionality;
 
 	GlobalAttachments::declare_attachment<ANumber>("diameter", true);
+	GlobalAttachments::declare_attachment<ANormal3>("npNormals", true);
 	typedef Attachment<NeuriteProjector::SurfaceParams> NPSurfParam;
 	typedef Attachment<NeuriteProjector::Mapping> NPMappingParam;
 	GlobalAttachments::declare_attachment<NPSurfParam>("npSurfParams", true);

@@ -174,6 +174,14 @@ namespace ug {
 			size_t startSec
 		);
 
+		number calculate_length_over_radius_variant
+		(
+			number t_start,
+			number t_end,
+			const NeuriteProjector::Neurite& neurite,
+			size_t startSec
+		);
+
 
 		/*!
 		 * \brief calculates segment axial positions
@@ -185,6 +193,16 @@ namespace ug {
 		 * \param[in] segLength
 		 */
 		void calculate_segment_axial_positions
+		(
+			std::vector<number>& segAxPosOut,
+			number t_start,
+			number t_end,
+			const NeuriteProjector::Neurite& neurite,
+			size_t startSec,
+			number segLength
+		);
+
+		void calculate_segment_axial_positions_variant
 		(
 			std::vector<number>& segAxPosOut,
 			number t_start,
@@ -325,6 +343,16 @@ namespace ug {
 			size_t si,
 			number minAngle
 		);
+
+		void calculate_segment_axial_positions_variant2
+	    (
+	        std::vector<number>& segAxPosOut,
+	        number t_start,
+	        number t_end,
+	        const NeuriteProjector::Neurite& neurite,
+	        size_t startSec,
+	        number segLength
+	    );
 
 	} // end namespace neuro_collection
 } // end namespace ug

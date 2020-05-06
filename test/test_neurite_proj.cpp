@@ -179,14 +179,15 @@ namespace ug {
 	}
 
 	////////////////////////////////////////////////////////////////////////
-	/// import_swc
+	/// import_swc_old
 	////////////////////////////////////////////////////////////////////////
 	void import_swc_old
 	(
-    const std::string& fileName,
-    std::vector<SWCPoint>& vPointsOut,
-    bool correct,
-    number scale)
+		const std::string& fileName,
+		std::vector<SWCPoint>& vPointsOut,
+		bool correct,
+		number scale
+	)
 	{
     vPointsOut.clear();
 
@@ -405,8 +406,8 @@ void smoothing(std::vector<SWCPoint>& vPointsInOut, size_t n, number h, number g
 			if (treated[p]) // soma points may not have been treated
 				vPointsInOut[p].coords = newPos[p];
 	}
-
 }
+
 
 ////////////////////////////////////////////////////////////////////////
 /// collapse_short_edges
@@ -2414,11 +2415,143 @@ void create_spline_data_for_neurites
 	// collapse short edges
 	collapse_short_edges(g, sh);
 
-	// export collapsed edges cell to ugx and swc
+	// export collapsed edges cell to ugx
 	fn = fn_noext + "_collapse.ugx";
 	export_to_ugx(g, sh, fn);
+
+	/// export preconditioned geometry to swc
 	fn = fn_noext + "_precond.swc";
 	export_to_swc(g, sh, fn);
+	}
+
+
+	////////////////////////////////////////////////////////////////////////
+	/// test_import_swc_vr
+	///////////////////////////////////////////////////////////////////////
+	void test_import_swc_vr
+	(
+		const std::string& fileName,
+		number anisotropy,
+		size_t numRefs
+	)
+	{
+	// preconditioning
+	// test_smoothing(fileName, 5, 1.0, 1.0);
+
+	// read in file to intermediate structure
+	std::vector<SWCPoint> vPoints;
+	std::vector<SWCPoint> vSomaPoints;
+	import_swc(fileName, vPoints);
+
+	// convert intermediate structure to neurite data
+	std::vector<std::vector<vector3> > vPos;
+	std::vector<std::vector<number> > vRad;
+	std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
+	std::vector<size_t> vRootNeuriteIndsOut;
+
+	convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+
+	std::string fn_noext = FilenameWithoutExtension(fileName);
+	std::string fn_precond = fn_noext + "_precond.swc";
+	std::vector<vector3> vPosSomaClosest;
+	size_t lines;
+    get_closest_points_to_soma(fileName, vPosSomaClosest, lines);
+
+    std::vector<ug::vector3> newVerts(vRootNeuriteIndsOut.size());
+    std::fill(newVerts.begin(), newVerts.end(), vSomaPoints[0].coords);
+	ReplaceFirstRootNeuriteVertexInSWC(lines, fileName, fn_precond, newVerts);
+
+	vPoints.clear();
+	import_swc(fn_precond, vPoints);
+	convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+
+	// prepare grid and projector
+	Grid g;
+	SubsetHandler sh(g);
+	sh.set_default_subset_index(0);
+	g.attach_to_vertices(aPosition);
+	Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+	Selector sel(g);
+
+
+	typedef NeuriteProjector::SurfaceParams NPSP;
+	UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
+			"GlobalAttachment 'npSurfParams' not declared.");
+	Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
+	if (!g.has_vertex_attachment(aSP))
+		g.attach_to_vertices(aSP);
+
+
+	Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
+	aaSurfParams.access(g, aSP);
+
+	ProjectionHandler projHandler(&sh);
+	SmartPtr<IGeometry<3> > geom3d = MakeGeometry3d(g, aPosition);
+	projHandler.set_geometry(geom3d);
+
+	SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
+	projHandler.set_projector(0, neuriteProj);
+
+	// create spline data
+	std::vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
+	create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
+
+	// create coarse grid
+	for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i)
+		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
+			anisotropy, g, aaPos, aaSurfParams, NULL, NULL);
+
+	// add soma
+	sh.set_default_subset_index(1);
+	UG_LOGN("Soma: " << vSomaPoints.front().radius);
+	UG_LOGN("Coords: " << vSomaPoints.front().coords);
+    create_soma(vSomaPoints, g, aaPos, sh, 1);
+	sh.set_default_subset_index(0);
+
+	// at branching points, we have not computed the correct positions yet,
+	// so project the complete geometry using the projector
+	VertexIterator vit = g.begin<Vertex>();
+	VertexIterator vit_end = g.end<Vertex>();
+	for (; vit != vit_end; ++vit)
+		neuriteProj->project(*vit);
+
+	// assign subset
+	AssignSubsetColors(sh);
+	sh.set_subset_name("neurites", 0);
+	sh.set_subset_name("soma", 1);
+
+	// output
+	std::string outFileName = FilenameWithoutPath(std::string("testNeuriteProjector.ugx"));
+	GridWriterUGX ugxWriter;
+	ugxWriter.add_grid(g, "defGrid", aPosition);
+	ugxWriter.add_subset_handler(sh, "defSH", 0);
+	ugxWriter.add_projection_handler(projHandler, "defPH", 0);
+	if (!ugxWriter.write_to_file(outFileName.c_str()))
+		UG_THROW("Grid could not be written to file '" << outFileName << "'.");
+
+	// refinement
+	Domain3d dom;
+	try {LoadDomain(dom, outFileName.c_str());}
+	UG_CATCH_THROW("Failed loading domain from '" << outFileName << "'.");
+
+	std::string curFileName("testNeuriteProjector.ugx");
+	number offset = 5.0;
+
+	curFileName = outFileName.substr(0, outFileName.size()-4) + "_refined_0.ugx";
+	try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
+	UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
+
+	GlobalMultiGridRefiner ref(*dom.grid(), dom.refinement_projector());
+	for (uint i = 0; i < numRefs; ++i)
+	{
+		ref.refine();
+
+		std::ostringstream oss;
+		oss << "_refined_" << i+1 << ".ugx";
+		curFileName = outFileName.substr(0, outFileName.size()-4) + oss.str();
+		try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
+		UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
+	}
 	}
 
 	////////////////////////////////////////////////////////////////////////
@@ -2562,6 +2695,8 @@ void create_spline_data_for_neurites
 	std::vector<size_t> vRootNeuriteIndsOut;
 
 	convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+
+
 
 	// prepare grid and projector
 	Grid g;
@@ -3489,7 +3624,8 @@ void create_spline_data_for_neurites
 		size_t numRefs,
 		bool regularize,
 		number blowUpFactor,
-		bool forVR
+		bool forVR,
+		bool dryRun
 	) {
 
 		using namespace std;
@@ -3498,9 +3634,13 @@ void create_spline_data_for_neurites
 		vector<SWCPoint> vSomaPoints;
 		string fn_noext = FilenameWithoutExtension(fileName);
 
+		/// TODO: add option to smooth or not before
 		// Pre-smooth whole structure (May be omitted)
+		/*
 		test_smoothing(fileName, 5, 1.0, 1.0);
 		string fn_precond = fn_noext + "_precond.swc";
+		*/
+		string fn_precond = fileName;
 
 		// Import preconditioned SWC structure (Now contains only one soma point)
 		std::string fn_precond_with_soma = fn_noext + "_precond_with_soma.swc";
@@ -3531,8 +3671,11 @@ void create_spline_data_for_neurites
 		SubsetHandler sh(g);
 		sh.set_default_subset_index(0);
 		g.attach_to_vertices(aPosition);
+
 		Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
 		Selector sel(g);
+
+		/// surface parameters for refinement
 		typedef NeuriteProjector::SurfaceParams NPSP;
 		UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
 		              "GlobalAttachment 'npSurfParams' not declared.");
@@ -3542,6 +3685,7 @@ void create_spline_data_for_neurites
 		Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
 		aaSurfParams.access(g, aSP);
 
+		/// mapping
 	    typedef NeuriteProjector::Mapping NPMapping;
 	    UG_COND_THROW(!GlobalAttachments::is_declared("npMapping"),
 	    		"GlobalAttachment 'npMapping' was not declared.");
@@ -3551,6 +3695,19 @@ void create_spline_data_for_neurites
 	    }
 	    Grid::VertexAttachmentAccessor<Attachment<NPMapping> > aaMapping;
 	    aaMapping.access(g, aNPMapping);
+
+	    /// normals
+	    UG_COND_THROW(!GlobalAttachments::is_declared("npNormals"), "GLobalAttachment 'npNormals' not declared.");
+	    ANormal3 aNormal = GlobalAttachments::attachment<ANormal3>("npNormals");
+
+	    if (!g.has_vertex_attachment(aNormal)) {
+	    	g.attach_to_vertices(aNormal);
+	    }
+
+	    Grid::VertexAttachmentAccessor<ANormal3> aaNorm;
+	    aaNorm.access(g, aNormal);
+
+	    /// TODO: Add option to scale soma or not with blowUpFactor
 
 		/// TODO: Check that not scaling the soma does not interfer with grid
 		///       generation. It might create dints in the soma surface which
@@ -3572,6 +3729,7 @@ void create_spline_data_for_neurites
 	    std::vector<ug::vector3> centers = FindSomaSurfaceCenters(g, aaPos, vPointSomaSurface2, vRad, 1, sh, 1.0, vPos.size());
 	    UG_DLOGN(NC_TNP, 0, "Found soma surface centers...");
 	    ReplaceFirstRootNeuriteVertexInSWC(lines, fn_precond, fn_precond_with_soma, centers);
+
 	    g.clear_geometry();
 	    UG_DLOGN(NC_TNP, 0, "Replaced soma points for root neurites to SWC file.")
 
@@ -3629,9 +3787,14 @@ void create_spline_data_for_neurites
 	    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 		   	create_neurite_root_vertices(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   		g, sh, erScaleFactor, aaPos, &outVerts, &outVertsInner, &outRads,
-		   		&outRadsInner, withER);
+		   		&outRadsInner, withER); /// TODO add blow up factor here too (not needed however)
 		}
 		UG_DLOGN(NC_TNP, 0, " done.");
+
+		/// Checking root neurite intersections
+		if (CheckRootNeuriteIntersections(vPos, vRad, blowUpFactor)) {
+			UG_LOGN("Root neurites intersect.")
+		}
 
 	    UG_DLOG(NC_TNP, 0, "Checking diameters...")
 		/// TODO: Eventually handle very large ratios by a diameter tapering
@@ -3639,8 +3802,12 @@ void create_spline_data_for_neurites
 		/// otherwise we introduce unnecessary level of detail (DoFs) on the soma surface
 	    CheckRootToSomaNeuriteDiameters(outRads, somaPoint.front().radius);
 	    UG_DLOGN(NC_TNP, 0, " done.");
-
 		IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
+
+		if (dryRun) {
+			UG_LOGN("Done with consistency checks.")
+			return;
+		}
 
 	    /// (Outer sphere) Soma
 		// Note: axisVectors (outer soma) and axisVectorsInner (inner soma) save the
@@ -3661,7 +3828,7 @@ void create_spline_data_for_neurites
 
 	    /// Finds (outer sphere) soma dodecagons
 		connect_neurites_with_soma_var(g, aaPos, aaSurfParams, outVerts, outRads,
-		    	    		4, sh, fileName, erScaleFactor, vNeurites, 12, vRootNeuriteIndsOut.size());
+		    	    		4, sh, fileName, erScaleFactor, vNeurites, blowUpFactor, 12, vRootNeuriteIndsOut.size());
 		UG_DLOGN(NC_TNP, 0, "Found (outer sphere) soma dodecagons to connect neurite with");
 
 	    // delete old vertices from incorrect neurite starts
@@ -3775,12 +3942,22 @@ void create_spline_data_for_neurites
 			outVertsClean.push_back(std::vector<ug::Vertex*>(outVerts.begin() + (i*12), outVerts.begin() + (i+1)*12));
 		}
 
+
+		bool connect=true;
 		// This connects the outer dodecagon with the soma surface (plasma membrane)
 		// The indices start from 5 (4 is outer sphere) up to 5+numRootNeurites (5+numRootNeurites+1 is inner sphere)
 	    /// connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12, true);
-		connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, false, 0, false);
+		if (!forVR) {
+			connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, false, 0, false);
+		} else {
+			if (connect) {
+				connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, false, 0, true); /// soma ER subset stored as last subset index
+			}
+		}
 		SavePreparedGridToFile(g, sh, "after_connect_pm_with_soma.ugx");
 
+
+		if (!forVR) {
 	    // This connects the inner quad with the soma surface (ER)
 	    /// Extrude ER volume a little bit further into normal direction towards
 		/// inner soma, like the surrounding pyramids to close outer soma, to avoid intersections
@@ -3801,6 +3978,7 @@ void create_spline_data_for_neurites
 	    	connect_er_with_er(newSomaIndex, g, aaPos, sh, outVertsInnerClean, numQuads+1, false, false);
 	    	SavePreparedGridToFile(g, sh, "after_connect_er_with_er.ugx");
 	    }
+		}
 
 
 		/// TODO: up to here indices okay: Need to erase debugging vertices, check if this interfers with grid generation above (subset indices)
@@ -3822,23 +4000,39 @@ void create_spline_data_for_neurites
 		set_somata_mapping_parameters(g, sh, aaMapping, 4, 5, somaPoint.front());
 		set_somata_axial_parameters(g, sh, aaSurfParams, 4, 5);
 
-
 		FixFaceOrientation(g, g.faces_begin(), g.faces_end());
+
+		/// calculate vertex normals
+		if (forVR) {
+			VertexIterator vit = g.begin<Vertex>();
+			VertexIterator vit_end = g.end<Vertex>();
+			for (; vit != vit_end; ++vit) {
+				ug::vector3 normal;
+				CalculateVertexNormal(normal, g, *vit, aaPos);
+				aaNorm[*vit] = normal;
+			}
+		}
 
 		/// TODO: refactor parameter into method as argument
 		if (forVR) {
 			/// TODO: do not erase all of cytosol because then no closure at end of neurites...
 			Selector sel(g);
-			SelectSubset(sel, sh, 5, true);
+			size_t lastSI = sh.num_subsets()-1;
+			SelectSubset(sel, sh, lastSI, true); // if merge first then subset 5 for soma inner
 			SelectSubset(sel, sh, 3, true);
 			SelectSubset(sel, sh, 1, true);
 			SelectSubset(sel, sh, 0, true);
 			EraseSelectedObjects(sel);
-			sh.erase_subset(5); sh.erase_subset(3); sh.erase_subset(1); sh.erase_subset(0);
+			sh.erase_subset(lastSI); sh.erase_subset(3); sh.erase_subset(1); sh.erase_subset(0);
 			SaveGridToFile(g, sh, "after_selecting_boundary_elements.ugx");
 			Triangulate(g, g.begin<ug::Quadrilateral>(), g.end<ug::Quadrilateral>());
+			/// apply a hint of laplacian smoothin for soma region
+			LaplacianSmooth(g, sh.begin<Vertex>(1), sh.end<Vertex>(1), aaPos, 0.1, 10);
 			FixFaceOrientation(g, g.faces_begin(), g.faces_end());
 			SaveGridToFile(g, sh, "after_selecting_boundary_elements_tris.ugx");
+			/// Use to warn if triangles intersect and correct triangle intersections
+			RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
+			ResolveTriangleIntersections(g, g.begin<Triangle>(), g.end<Triangle>(), 0.1, aPosition);
 			return;
 		}
 
@@ -3944,6 +4138,170 @@ void create_spline_data_for_neurites
 		correct_axial_offset(verts, aaSurfParams, aaPos, 0.5);
 	}
 
+	Graph::Graph(int V)
+	{
+	    this->V = V;
+	    adj = new std::list<int>[V];
+	}
+
+	void Graph::addEdge(int v, int w)
+	{
+	    adj[v].push_back(w); // Add w to v’s list.
+	}
+
+	void Graph::DFSUtil(int v, bool visited[], std::vector<int>& indices)
+	{
+	    // Mark the current node as visited and
+	    // print it
+	    visited[v] = true;
+	    std::cout << v << " ";
+	    indices.push_back(v);
+
+	    // Recur for all the vertices adjacent
+	    // to this vertex
+	    std::list<int>::iterator i;
+	    for (i = adj[v].begin(); i != adj[v].end(); ++i)
+	        if (!visited[*i])
+	            DFSUtil(*i, visited, indices);
+	}
+
+	// DFS traversal of the vertices reachable from v.
+	// It uses recursive DFSUtil()
+	void Graph::DFS(int v, std::vector<int>& indices)
+	{
+	    // Mark all the vertices as not visited
+	    bool *visited = new bool[V];
+	    for (int i = 0; i < V; i++)
+	        visited[i] = false;
+
+	    // Call the recursive helper function
+	    // to print DFS traversal
+	    DFSUtil(v, visited, indices);
+	}
+
+
+	////////////////////////////////////////////////////////////////////////////
+	/// refine_swc_grid_variant
+	////////////////////////////////////////////////////////////////////////////
+	void refine_swc_grid_variant(const std::string& fileName, const std::string& outName) {
+		std::vector<SWCPoint> vPoints;
+		import_swc(fileName, vPoints, 1.0);
+		Grid grid;
+		SubsetHandler sh(grid);
+		swc_points_to_grid(vPoints, grid, sh, 1.0);
+
+		/// SWC now a grid, now refine
+		typedef Grid::traits<Edge>::secure_container edgeCont;
+		edgeCont es;
+
+		UG_LOGN("Num vertices: " << grid.num_vertices());
+		UG_LOGN("Num edges: " << grid.num_edges());
+
+		// get access to diameter attachment
+		ANumber aDiam = GlobalAttachments::attachment<ANumber>("diameter");
+		Grid::AttachmentAccessor<Vertex, ANumber> aaDiam(grid, aDiam);
+
+		// positions
+		grid.attach_to_vertices(aPosition);
+		Grid::VertexAttachmentAccessor<APosition> aaPos(grid, aPosition);
+
+		if (grid.has_vertex_attachment(aDiam)) {
+			grid.attach_to_vertices(aDiam);
+		}
+
+		EdgeIterator eit = grid.begin<Edge>();
+		EdgeIterator eit_end = grid.end<Edge>();
+
+		// populate edge container
+		for (; eit != eit_end; ++eit) {
+			es.push_back(*eit);
+		}
+
+		// set new diameters
+		const size_t esSz = es.size();
+		for (size_t i = 0; i < esSz; i++) {
+			Edge* e = es[i];
+			const number d1 = aaDiam[e->vertex(0)];
+			const number d2 = aaDiam[e->vertex(1)];
+			vector3 avg;
+			VecScaleAdd(avg, 0.5, aaPos[e->vertex(0)], 0.5, aaPos[e->vertex(1)]);
+			ug::RegularVertex* vtx = SplitEdge<RegularVertex>(grid, e);
+			aaDiam[vtx] = 0.5 * (d1+d2);
+			aaPos[vtx] = avg;
+		}
+
+		export_to_swc(grid, sh, fileName);
+
+		vPoints.clear();
+		import_swc(fileName, vPoints, 1.0);
+		Graph g(vPoints.size());
+		for (size_t i = 0; i < vPoints.size(); i++) {
+			std::vector<size_t> neighbors = vPoints[i].conns;
+			for (size_t j = 0; j < neighbors.size(); j++) {
+				g.addEdge(neighbors[j], i);
+			}
+		}
+		std::vector<int> indices;
+		std::map<int, int> mapping;
+
+		for (size_t i = 0; i< indices.size(); i++) {
+			mapping[indices[i]] = i;
+		}
+		g.DFS(0, indices);
+
+		/// now reorder vertices
+		std::vector<SWCPoint> vPointsNew;
+		vPointsNew.resize(vPoints.size());
+		for (size_t i = 0; i < vPoints.size(); i++) {
+			vPointsNew[mapping[i]] = vPoints[i];
+			std::vector<size_t> neighbors = vPoints[i].conns;
+			for (size_t j = 0; j < neighbors.size(); j++) {
+				vPointsNew[mapping[i]].conns[j] = mapping[neighbors[j]];
+			}
+		}
+
+#if 0
+		/// build matrix
+		UG_LOGN("Building matrix...")
+		UG_LOGN("vPointsNew.size(): " << vPointsNew.size());
+		size_t A[vPointsNew.size()+1][vPointsNew.size()+1];
+		for (size_t i = 0; i < vPointsNew.size(); i++) {
+			for (size_t j = 0; j < vPointsNew.size(); j++) {
+				A[i][j] = 0;
+			}
+		}
+
+		UG_LOGN("Initialized matrix!");
+
+		for (size_t i = 0; i < vPointsNew.size(); i++) {
+			std::vector<size_t> neighbors = vPoints[i].conns;
+			for (size_t j = 0; j < neighbors.size(); j++) {
+				A[neighbors[j]][i] = 1;
+				A[i][neighbors[j]] = 1;
+			}
+			UG_LOGN("i: " << i)
+		}
+		UG_LOGN("DONE");
+
+		std::stringstream ss;
+		for (size_t i = 0; i < vPointsNew.size(); i++) {
+			for (size_t j = 0; j < vPointsNew.size(); j++) {
+				ss << A[i][j] << " ";
+			}
+			if (i != vPointsNew.size()-1) {
+				ss << ";";
+			}
+		}
+		std::cout << "Matrix:";
+ 		std::cout << ss.str() << std::endl;
+#endif
+
+
+		swc_points_to_grid(vPoints, grid, sh, 1.0);
+		export_to_ugx(grid, sh, outName);
+		export_to_swc(grid, sh, outName);
+	}
+
 	////////////////////////////////////////////////////////////////////////////
 	/// refine_swc_grid
 	////////////////////////////////////////////////////////////////////////////
@@ -4012,9 +4370,133 @@ void create_spline_data_for_neurites
 			number blowUpFactor
 		) {
 			test_import_swc_general_var(fileName, correct, erScaleFactor, withER,
-					anisotropy, numRefs, regularize, blowUpFactor, true);
+					anisotropy, numRefs, regularize, blowUpFactor, true, false);
 		}
 
+		////////////////////////////////////////////////////////////////////////
+		/// coarsen_1d_grid
+		////////////////////////////////////////////////////////////////////////
+		void coarsen_1d_grid(
+			const std::string& fileName,
+			const number factor
+		) {
+			/// load SWC mesh and convert to grid
+			std::string outputName = fileName.substr(0, fileName.find_last_of("."));
+			std::vector<SWCPoint> vPoints;
+			import_swc(fileName, vPoints, 1.0);
+			Grid g;
+			SubsetHandler sh(g);
+			swc_points_to_grid(vPoints, g, sh, 1.0);
+
+			// get access to positions
+			UG_COND_THROW(!g.has_vertex_attachment(aPosition),
+					"Position attachment not attached to current grid.")
+			Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+
+			// get access to diameter attachment
+			ANumber aDiam = GlobalAttachments::attachment<ANumber>("diameter");
+			UG_COND_THROW(!g.has_vertex_attachment(aDiam), "No diameter attachment attached to grid.");
+			Grid::AttachmentAccessor<Vertex, ANumber> aaDiam(g, aDiam);
+
+			/*
+			std::queue<Edge*> q;
+			EdgeIterator eit = g.begin<Edge>();
+			EdgeIterator eit_end = g.end<Edge>();
+			for (; eit != eit_end; ++eit) {
+				q.push(*eit);
+			}
+			*/
+
+			/// TODO: Add standard deviation
+			const number avg_length = factor * CalculateAverageEdgeLength(g, aaPos);
+
+			bool done = false;
+			while (!done) {
+				std::queue<Edge*> q;
+				EdgeIterator eit = g.begin<Edge>();
+				EdgeIterator eit_end = g.end<Edge>();
+				for (; eit != eit_end; ++eit) {
+					q.push(*eit);
+				}
+
+				done = true;
+				while (!q.empty()) {
+					Edge* e = q.front();
+					q.pop();
+
+					if (EdgeLength(e, aaPos) < avg_length) {
+						/// check for terminal vertex of edge, if terminal vertex, then need to collapse
+						/// the edge in the terminal vertex to not shrink the geometry
+						Grid::AssociatedEdgeIterator it = g.associated_edges_begin(e->vertex(0));
+						Grid::AssociatedEdgeIterator it_end = g.associated_edges_end(e->vertex(0));
+						size_t nAssV1 = 0;
+						for (; it != it_end; ++it)
+							++nAssV1;
+
+						it = g.associated_edges_begin(e->vertex(1));
+						it_end = g.associated_edges_end(e->vertex(1));
+						size_t nAssV2 = 0;
+						for (; it != it_end; ++it)
+							++nAssV2;
+
+						if (nAssV1 == 1) {
+							CollapseEdge(g, e, e->vertex(0));
+						} else if (nAssV2 == 1) {
+							CollapseEdge(g, e, e->vertex(1));
+						} else {
+							CollapseEdge(g, e, e->vertex(0));
+						}
+
+						done = false;
+					}
+				}
+				// TODO Add check for branching point -> never move BPs?
+			}
+			/// Store as UGX
+			std::stringstream ss;
+			ss << outputName << "_collapsed.ugx";
+			std::stringstream ss2;
+			ss2 << outputName << "_collapsed.swc";
+			SaveGridToFile(g, sh, ss.str().c_str());
+			export_to_swc(g, sh, ss2.str().c_str());
+
+			std::queue<Edge*> q;
+			EdgeIterator eit = g.begin<Edge>();
+			EdgeIterator eit_end = g.end<Edge>();
+			for (; eit != eit_end; ++eit) {
+				q.push(*eit);
+			}
+			while (!q.empty()) {
+				Edge* e = q.front();
+				const vector3 v1 = aaPos[e->vertex(0)];
+				const vector3 v2 = aaPos[e->vertex(1)];
+				const number diam = aaDiam[e->vertex(0)];
+				q.pop();
+				if (EdgeLength(e, aaPos) > 1.5*avg_length) {
+					ug::RegularVertex* newVrt = SplitEdge<ug::RegularVertex>(g, e, false);
+					VecScaleAdd(aaPos[newVrt], 0.5, v1, 0.5, v2);
+					aaDiam[newVrt] = diam;
+					// TODO Add check for branching point -> never move BPs?
+				}
+			}
+			/// Store as UGX
+			ss.str(""); ss.clear();
+			ss2.str(""); ss2.clear();
+			ss << outputName << "_collapsed_and_split.ugx";
+			ss2 << outputName << "_collapsed_and_split.swc";
+			SaveGridToFile(g, sh, ss.str().c_str());
+			export_to_swc(g, sh, ss2.str().c_str());
+
+			/// smooth
+			LaplacianSmooth(g, sh.begin<Vertex>(1), sh.end<Vertex>(1), aaPos, 1, 2);
+			RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aaPos, 0.001);
+			ss.str(""); ss.clear();
+			ss2.str(""); ss2.clear();
+			ss << outputName << "_collapsed_split_and_smoothed.ugx";
+			ss2 << outputName << "_collapsed_split_and_smoothed.swc";
+			SaveGridToFile(g, sh, ss.str().c_str());
+			export_to_swc(g, sh, ss2.str().c_str());
+		}
 	} // namespace neuro_collection
 } // namespace ug
 

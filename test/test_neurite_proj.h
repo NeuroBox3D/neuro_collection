@@ -355,7 +355,8 @@ void test_import_swc_general_var(
 	size_t numRefs,
 	bool regularize,
 	number blowUpFactor,
-	bool forVR
+	bool forVR,
+	bool dryRun
 );
 
 /*!
@@ -381,6 +382,41 @@ void refine_swc_grid(
 	const std::string& inFileName,
 	const std::string& outFileName
 );
+
+// Graph class represents a directed graph
+// using adjacency list representation
+class Graph
+{
+    int V;    // No. of vertices
+
+    // Pointer to an array containing
+    // adjacency lists
+    std::list<int> *adj;
+
+    // A recursive function used by DFS
+    void DFSUtil(int v, bool visited[], std::vector<int>& indices);
+public:
+    Graph(int V);   // Constructor
+
+    // function to add an edge to graph
+    void addEdge(int v, int w);
+
+    // DFS traversal of the vertices
+    // reachable from v
+    void DFS(int v, std::vector<int>& indices);
+};
+
+void refine_swc_grid_variant(const std::string& fileName, const std::string& outName);
+void coarsen_1d_grid(const std::string& fileName, number factor);
+
+void test_import_swc_vr
+	(
+		const std::string& fileName,
+		number anisotropy,
+		size_t numRefs
+	);
+
+
 
 } // namespace neuro_collection
 } // namespace ug

@@ -3124,6 +3124,7 @@ namespace ug {
 			const std::string& fileName,
 			number rimSnapThresholdFactor,
 			std::vector<NeuriteProjector::Neurite>& vNeurites,
+			const number blowUpFactor,
 			size_t numVerts,
 			size_t numDodecagons
 		) {
@@ -3168,6 +3169,7 @@ namespace ug {
 			std::stringstream ss;
 			ss << fileName << "_best_vertices.ugx";
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
+			SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
 			UG_DLOGN(NC_TNP, 0, "3. AdaptSurfaceGridToCylinder")
@@ -3180,16 +3182,30 @@ namespace ug {
 				sel.clear();
 				ug::vector3 normal;
 				CalculateVertexNormal(normal, g, bestVertices[i], aaPos);
-				number radius = outRads[i];
-				AdaptSurfaceGridToCylinder(sel, g, bestVertices[i], normal, radius, 1.0*rimSnapThresholdFactor, aPosition);
+				number radius = outRads[i] * blowUpFactor;
+				AdaptSurfaceGridToCylinder(sel, g, bestVertices[i], normal, radius,
+						1.0*rimSnapThresholdFactor, aPosition);
+				Selector sel2(g);
+				CloseSelection(sel);
+				SelectAreaBoundary(sel2, sel.begin<Face>(), sel.end<Face>());
+				UG_LOGN("Selected area boundary faces: " << sel2.num());
+				CloseSelection(sel2);
+				AssignSelectionToSubset(sel2, sh, sh.num_subsets()+1);
+				UG_LOGN("new method")
 			}
+
+			UG_LOGN("Done with bestvertices")
 
 			AssignSubsetColors(sh);
 			ss << fileName << "_before_deleting_center_vertices.ugx";
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
+			SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
 			UG_DLOGN(NC_TNP, 0, "5. MergeVertices")
+
+
+			/*
 			/// 5. Wandle die stückweise linearen Ringe um die Anschlusslöcher per
 			///    MergeVertices zu Vierecken um.
 			sel.clear();
@@ -3200,6 +3216,7 @@ namespace ug {
 				AssignSelectionToSubset(sel, sh, sh.num_subsets()+1);
 				sel.clear();
 			}
+			*/
 
 			AssignSubsetColors(sh);
 			ss << fileName << "_before_getting_neighborhoods.ugx";
@@ -3212,6 +3229,9 @@ namespace ug {
 			for (std::vector<Vertex*>::iterator it = bestVertices.begin(); it != bestVertices.end(); ++it) {
 				sel.select(*it);
 			}
+
+			/// TODO: need to delete complement of boundary selection from above:
+			/// (Not just the 1-neighborhood starting from the center vertex)
 
 			size_t numSubsets = sh.num_subsets();
 			AssignSelectionToSubset(sel, sh, numSubsets);
@@ -3231,11 +3251,12 @@ namespace ug {
 				sel.clear();
 				SelectSubsetElements<Vertex>(sel, sh, si, true);
 				/// We need to refine to create a dodecagon to connect to the cytosolic plasma membrane
-				UG_COND_THROW((sel.num<Vertex>()) != 5 && (sel.num<Vertex>() != 6 && (sel.num<Vertex>() != 7)),
+				/*UG_COND_THROW((sel.num<Vertex>()) != 5 && (sel.num<Vertex>() != 6 && (sel.num<Vertex>() != 7) && (sel.num<Vertex>() != 14) && (sel.num<Vertex>() != 12)),
 						"Candidate dodecagon size needs to be 5, 6 or 7 but actually is: " << sel.num<Vertex>()
 						<< " This might indicate, that the 'radii' of two or more docedagons on the soma surface "
 						   " are intersecting and thus are not dodecagons and cannot be connected with the neurite "
 						   "starts or root neurites which are dodecagon!");
+						   */
 
 				if (sel.num<Vertex>() == 5) {
 					Edge* e = *sh.begin<Edge>(si);
@@ -3252,6 +3273,27 @@ namespace ug {
 					CollapseEdge(g, e, v);
 					sh.assign_subset(v, si);
 				}
+
+				if (sel.num<Vertex>() == 12) {
+					// Regular dodecagon
+					continue;
+				}
+
+				/// >12 vertices
+				size_t numVerts = sel.num<Vertex>();
+				while (numVerts > 12) {
+					Edge* e = *sh.begin<Edge>(si);
+					Vertex* v = e->vertex(0);
+					CollapseEdge(g, e, v);
+					sh.assign_subset(v, si);
+					numVerts--;
+					UG_LOGN("Collapse!");
+				}
+
+				if (numVerts == 12) {
+					continue;
+				}
+
 				SelectSubsetElements<Edge>(sel, sh, si, true);
 				Refine(g, sel, NULL, false);
 			}
@@ -3632,6 +3674,30 @@ namespace ug {
 						          FindSWCPoint(aaPos[edge.vertex(i)]));
 				if (it != vPoints.end()) {
 					if (it->type == SWC_SOMA) {
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// CheckRootNeuriteIntersections
+		////////////////////////////////////////////////////////////////////////
+		bool CheckRootNeuriteIntersections
+		(
+			const std::vector<std::vector<ug::vector3> >& vPos,
+			const std::vector<std::vector<number> >& vRad,
+			const number blowUpFactor
+		) {
+			const size_t n = vPos.size();
+			for (size_t i = 0; i < n; i++) {
+				for (size_t j = 0; j < n; j++) {
+					if ( (i!=j) && (VecDistance(vPos[i].front(), vPos[j].front()) <
+						(blowUpFactor * std::max(vRad[i].front(), vRad[j].front()))))
+					{
+						UG_LOGN("Neurite start cylinders intersect at: " << vPos[i].front()
+								<< "and " << vPos[j].front());
 						return true;
 					}
 				}

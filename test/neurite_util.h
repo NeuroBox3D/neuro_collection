@@ -1000,7 +1000,7 @@ namespace ug {
 
 		/*!
 		 * \brief new strategy: TODO refactor
-		 * TODO: DOcumentation
+		 * TODO: Documentation
 		 */
 		void connect_neurites_with_soma_var
 		(
@@ -1014,6 +1014,7 @@ namespace ug {
 			const std::string& fileName,
 			number rimSnapThresholdFactor,
 			std::vector<NeuriteProjector::Neurite>& vNeurites,
+			number blowUpFactor,
 			size_t numVerts,
 			size_t numDodecagons
 		);
@@ -1102,6 +1103,16 @@ namespace ug {
 			const ug::Edge& edge,
 			const std::vector<SWCPoint>& vPoints,
 			const Grid::VertexAttachmentAccessor<APosition>& aaPos
+		);
+
+		/*!
+		 * \brief check if root neurites intersect
+		 */
+		bool CheckRootNeuriteIntersections
+		(
+			const std::vector<std::vector<ug::vector3> >& vPos,
+			const std::vector<std::vector<number> >& vRad,
+			number blowUpFactor
 		);
 	}
 }

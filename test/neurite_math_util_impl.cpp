@@ -491,6 +491,7 @@ namespace ug {
 			}
 			return !is_cyclic(adj, nPts);
 		}
+		*/
 
 		////////////////////////////////////////////////////////////////////////
 		/// HasUndesiredAngles
@@ -509,13 +510,16 @@ namespace ug {
 					VecSubtract(v2, vPoints[conns[j]].coords, vPoints[i].coords);
 					const number angle = AngleBetweenDirections(v1, v2);
 					if ( (angle < angleThresholdMin) || (angle > angleThresholdMax)) {
+						UG_LOGN("First offending angle encountered at: "
+								<< vPoints[conns[0]].coords << ", "
+								<< vPoints[conns[j]].coords << ", "
+								<< vPoints[i].coords << std::endl)
 						return true;
 					}
 				}
 			}
 			return false;
 		}
-		*/
 
 		////////////////////////////////////////////////////////////////////////
 		/// CylinderCylinderSeparationTest
