@@ -4413,8 +4413,7 @@ void create_spline_data_for_neurites
 
 
 		/// consistency checks
-		int rows = vPointsNew.size(), cols = vPointsNew.size();
-
+		const int rows = vPointsNew.size(), cols = vPointsNew.size();
 		std::vector<std::vector<int > > A;
 		A.resize(rows);
 
@@ -4432,7 +4431,7 @@ void create_spline_data_for_neurites
 		    A[i][i] = 1;
 		}
 
-		for (size_t i = 0; i < vPointsNew.size(); i++) {
+		for (size_t i = 0; i < rows; i++) {
 			std::vector<size_t> neighbors = vPoints[i].conns;
 			for (size_t j = 0; j < neighbors.size(); j++) {
 				A[neighbors[j]][i] = 1;
@@ -4444,20 +4443,21 @@ void create_spline_data_for_neurites
 			for (int j = 0; j < cols; j++) {
 				/// 1st condition
 				if (A[i][i] != 1) {
-					UG_ERR_LOG("Not a HINES-type matrix Condition 1.");
+					UG_ERR_LOG("Not a HINES-type matrix. Condition 1 not satisfied.");
 					return;
 				}
 
 				/// 2nd condition
 				if ( (A[i][j] == 1 && A[j][i] == 0) || (A[j][i] == 1 && A[i][j] == 0) ) {
-					UG_ERR_LOG("Not a HINES-type matrix Condition 2.");
+					UG_ERR_LOG("Not a HINES-type matrix. Condition 2 not satisfied.");
 					return;
 				}
 
 				/// 3rd condition
 				if (A[i][j] == 1 && i < j) {
-					if (std::count(A[i].begin()+j+1, A[i].end(), 1) > static_cast<int>(vPoints[i].conns.size())) {
-						UG_ERR_LOG("Not a HINES-type matrix Condition 3.");
+					if (std::count(A[i].begin()+j+1, A[i].end(), 1) >
+						static_cast<int>(vPoints[i].conns.size())) {
+						UG_ERR_LOG("Not a HINES-type matrix. Condition 3 not satisfied.");
 						UG_ERR_LOG("i: " << i << ", j" << j);
 						return;
 					}
@@ -4468,8 +4468,8 @@ void create_spline_data_for_neurites
 		/// Write matrix for debugging purposes
 		#ifdef DEBUG
 			std::stringstream ss;
-			for (size_t i = 0; i < vPointsNew.size(); i++) {
-				for (size_t j = 0; j < vPointsNew.size(); j++) {
+			for (size_t i = 0; i < rows; i++) {
+				for (size_t j = 0; j < cols; j++) {
 					ss << A[i][j] << " ";
 				}
 				if (i != vPointsNew.size()-1) {
