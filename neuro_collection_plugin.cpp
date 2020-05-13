@@ -979,6 +979,7 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("refine_swc_grid_variant", &refine_swc_grid_variant, "input file name # output file name", "");
 		reg.add_function("coarsen_1d_grid", &coarsen_1d_grid, "input file name", "output file name");
 		reg.add_function("test_import_swc_vr", &test_import_swc_vr, "Filename # anisotropy # numRefs");
+		reg.add_function("test_import_swc_general_var_for_vr_2", &test_import_swc_general_var_for_vr_2, "");
 	}
 #endif
 

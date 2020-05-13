@@ -416,6 +416,17 @@ void test_import_swc_vr
 		size_t numRefs
 	);
 
+void test_import_swc_general_var_for_vr_2(
+	const std::string& fileName,
+	bool correct,
+	number erScaleFactor,
+	bool withER,
+	number anisotropy,
+	size_t numRefs,
+	bool regularize,
+	number blowUpFactor
+);
+
 
 
 } // namespace neuro_collection

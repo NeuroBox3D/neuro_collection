@@ -2459,6 +2459,9 @@ void create_spline_data_for_neurites
 
     std::vector<ug::vector3> newVerts(vRootNeuriteIndsOut.size());
     std::fill(newVerts.begin(), newVerts.end(), vSomaPoints[0].coords);
+    for (std::vector<ug::vector3>::const_iterator it = newVerts.begin(); it != newVerts.end(); ++it) {
+    	UG_LOGN("newVert: " << *it);
+    }
 	ReplaceFirstRootNeuriteVertexInSWC(lines, fileName, fn_precond, newVerts);
 
 	vPoints.clear();
@@ -4128,6 +4131,154 @@ void create_spline_data_for_neurites
 	}
 
 
+
+	////////////////////////////////////////////////////////////////////////////
+	/// test_import_swc_general_var_for_vr
+	////////////////////////////////////////////////////////////////////////////
+	void test_import_swc_general_var_for_vr_2(
+		const std::string& fileName,
+		bool correct,
+		number erScaleFactor,
+		bool withER,
+		number anisotropy,
+		size_t numRefs,
+		bool regularize,
+		number blowUpFactor
+	) {
+		using namespace std;
+
+		// preconditioning
+		// test_smoothing(fileName, 5, 1.0, 1.0);
+
+		// read in file to intermediate structure
+		std::vector<SWCPoint> vPoints;
+		std::vector<SWCPoint> vSomaPoints;
+		import_swc(fileName, vPoints);
+
+		// convert intermediate structure to neurite data
+		std::vector<std::vector<vector3> > vPos;
+		std::vector<std::vector<number> > vRad;
+		std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
+		std::vector<size_t> vRootNeuriteIndsOut;
+
+		convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
+			vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
+		}
+
+		/*
+		std::string fn_noext = FilenameWithoutExtension(fileName);
+		std::string fn_precond = fn_noext + "_precond.swc";
+		std::vector<vector3> vPosSomaClosest;
+		size_t lines;
+	    get_closest_points_to_soma(fileName, vPosSomaClosest, lines);
+
+	    std::vector<ug::vector3> newVerts(vRootNeuriteIndsOut.size());
+	    std::fill(newVerts.begin(), newVerts.end(), vSomaPoints[0].coords);
+
+
+	    for (std::vector<ug::vector3>::const_iterator it = newVerts.begin(); it != newVerts.end(); ++it) {
+	    	UG_LOGN("newVert: " << *it);
+	    }
+
+		ReplaceFirstRootNeuriteVertexInSWC(lines, fileName, fn_precond, newVerts);
+		vPoints.clear();
+		import_swc(fn_precond, vPoints);
+		convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+		*/
+
+		// Prepare grid (selector and attachments)
+		Grid g;
+		SubsetHandler sh(g);
+		sh.set_default_subset_index(0);
+		g.attach_to_vertices(aPosition);
+
+		Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+		Selector sel(g);
+
+		/// surface parameters for refinement
+		typedef NeuriteProjector::SurfaceParams NPSP;
+		UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
+		              "GlobalAttachment 'npSurfParams' not declared.");
+		Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
+		if (!g.has_vertex_attachment(aSP)) { g.attach_to_vertices(aSP); }
+
+		Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
+		aaSurfParams.access(g, aSP);
+
+		/// mapping
+	    typedef NeuriteProjector::Mapping NPMapping;
+	    UG_COND_THROW(!GlobalAttachments::is_declared("npMapping"),
+	    		"GlobalAttachment 'npMapping' was not declared.");
+	    Attachment<NPMapping> aNPMapping = GlobalAttachments::attachment<Attachment<NPMapping> >("npMapping");
+	    if (!g.has_vertex_attachment(aNPMapping)) {
+	    	g.attach_to_vertices(aNPMapping);
+	    }
+	    Grid::VertexAttachmentAccessor<Attachment<NPMapping> > aaMapping;
+	    aaMapping.access(g, aNPMapping);
+
+	    /// normals
+	    UG_COND_THROW(!GlobalAttachments::is_declared("npNormals"), "GLobalAttachment 'npNormals' not declared.");
+	    ANormal3 aNormal = GlobalAttachments::attachment<ANormal3>("npNormals");
+
+	    if (!g.has_vertex_attachment(aNormal)) {
+	    	g.attach_to_vertices(aNormal);
+	    }
+
+	    Grid::VertexAttachmentAccessor<ANormal3> aaNorm;
+	    aaNorm.access(g, aNormal);
+
+	    // Projection handling setup
+		SubsetHandler psh(g);
+		psh.set_default_subset_index(0);
+		ProjectionHandler projHandler(&psh);
+		SmartPtr<IGeometry<3> > geom3d = MakeGeometry3d(g, aPosition);
+		projHandler.set_geometry(geom3d);
+		SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
+		projHandler.set_projector(0, neuriteProj);
+
+		// Create spline data for neurites
+		vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
+		create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
+
+		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
+		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
+		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh, blowUpFactor);
+		}
+
+		FixFaceOrientation(g, g.faces_begin(), g.faces_end());
+
+		VertexIterator vit = g.begin<Vertex>();
+		VertexIterator vit_end = g.end<Vertex>();
+		for (; vit != vit_end; ++vit) {
+			ug::vector3 normal;
+			CalculateVertexNormal(normal, g, *vit, aaPos);
+			aaNorm[*vit] = normal;
+		}
+
+		sel.clear();
+		SelectSubset(sel, sh, 0, true);
+		SelectSubset(sel, sh, 1, true);
+		SelectSubset(sel, sh, 3, true);
+		EraseSelectedObjects(sel);
+		EraseEmptySubsets(sh);
+
+		create_soma(vSomaPoints, g, aaPos, sh, 1);
+		sh.subset_info(0).name = "Neurites";
+		sh.subset_info(1).name = "Soma";
+		AssignSubsetColors(sh);
+		SaveGridToFile(g, sh, "after_selecting_boundary_elements.ugx");
+		Triangulate(g, g.begin<ug::Quadrilateral>(), g.end<ug::Quadrilateral>());
+		/// apply a hint of laplacian smoothin for soma region
+		LaplacianSmooth(g, sh.begin<Vertex>(1), sh.end<Vertex>(1), aaPos, 0.1, 10);
+		FixFaceOrientation(g, g.faces_begin(), g.faces_end());
+		SaveGridToFile(g, sh, "after_selecting_boundary_elements_tris.ugx");
+		/// Use to warn if triangles intersect and correct triangle intersections
+		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
+		ResolveTriangleIntersections(g, g.begin<Triangle>(), g.end<Triangle>(), 0.1, aPosition);
+	}
+
+
 	////////////////////////////////////////////////////////////////////////////
 	/// test_shrinkage
 	////////////////////////////////////////////////////////////////////////////
@@ -4260,18 +4411,26 @@ void create_spline_data_for_neurites
 			}
 		}
 
-#if 0
-		/// build matrix
-		UG_LOGN("Building matrix...")
-		UG_LOGN("vPointsNew.size(): " << vPointsNew.size());
-		size_t A[vPointsNew.size()+1][vPointsNew.size()+1];
-		for (size_t i = 0; i < vPointsNew.size(); i++) {
-			for (size_t j = 0; j < vPointsNew.size(); j++) {
+
+		/// consistency checks
+		int rows = vPointsNew.size(), cols = vPointsNew.size();
+
+		std::vector<std::vector<int > > A;
+		A.resize(rows);
+
+		for(int i=0; i<rows; i++) {
+		   A[i].resize(cols);
+		}
+
+		for (int i=0; i<rows; i++) {
+			for (int j=0;j < cols; j++) {
 				A[i][j] = 0;
 			}
 		}
 
-		UG_LOGN("Initialized matrix!");
+		for(int i=0; i<rows; i++) {
+		    A[i][i] = 1;
+		}
 
 		for (size_t i = 0; i < vPointsNew.size(); i++) {
 			std::vector<size_t> neighbors = vPoints[i].conns;
@@ -4279,27 +4438,53 @@ void create_spline_data_for_neurites
 				A[neighbors[j]][i] = 1;
 				A[i][neighbors[j]] = 1;
 			}
-			UG_LOGN("i: " << i)
 		}
-		UG_LOGN("DONE");
 
-		std::stringstream ss;
-		for (size_t i = 0; i < vPointsNew.size(); i++) {
-			for (size_t j = 0; j < vPointsNew.size(); j++) {
-				ss << A[i][j] << " ";
-			}
-			if (i != vPointsNew.size()-1) {
-				ss << ";";
+		for (int i = 0; i < rows; i++) {
+			for (int j = 0; j < cols; j++) {
+				/// 1st condition
+				if (A[i][i] != 1) {
+					UG_ERR_LOG("Not a HINES-type matrix Condition 1.");
+					return;
+				}
+
+				/// 2nd condition
+				if ( (A[i][j] == 1 && A[j][i] == 0) || (A[j][i] == 1 && A[i][j] == 0) ) {
+					UG_ERR_LOG("Not a HINES-type matrix Condition 2.");
+					return;
+				}
+
+				/// 3rd condition
+				if (A[i][j] == 1 && i < j) {
+					if (std::count(A[i].begin()+j+1, A[i].end(), 1) > static_cast<int>(vPoints[i].conns.size())) {
+						UG_ERR_LOG("Not a HINES-type matrix Condition 3.");
+						UG_ERR_LOG("i: " << i << ", j" << j);
+						return;
+					}
+				}
 			}
 		}
-		std::cout << "Matrix:";
- 		std::cout << ss.str() << std::endl;
-#endif
 
+		/// Write matrix for debugging purposes
+		#ifdef DEBUG
+			std::stringstream ss;
+			for (size_t i = 0; i < vPointsNew.size(); i++) {
+				for (size_t j = 0; j < vPointsNew.size(); j++) {
+					ss << A[i][j] << " ";
+				}
+				if (i != vPointsNew.size()-1) {
+					ss << ";";
+				}
+			}
+			UG_LOG("Matrix: ");
+			UG_LOGN(ss.str());
+		#endif
 
+		/// convert swc to grid, then write grid and swx
 		swc_points_to_grid(vPoints, grid, sh, 1.0);
 		export_to_ugx(grid, sh, outName);
-		export_to_swc(grid, sh, outName);
+		std::string fn_noext = FilenameWithoutExtension(outName);
+		export_to_swc(grid, sh, fn_noext + "_reordered.swc");
 	}
 
 	////////////////////////////////////////////////////////////////////////////

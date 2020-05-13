@@ -404,51 +404,39 @@ namespace ug {
 			t_end = bp_start;
 		}
 
-		// calculate total length
+		// calculate total length (Needed for option 1)
 		// = integral from t_start to t_end over: ||v(t)|| dt
-		number lengthOverRadius = calculate_length_over_radius_variant(t_start, t_end,
-				neurite, curSec);
+		//number lengthOverRadius = calculate_length_over_radius_variant(t_start, t_end, neurite, curSec);
 
-		// calculate total length in units of radius
+		// calculate total length in units of radius (Needed for option 2 and 3)
 		// = integral from t_start to t_end over: ||v(t)|| / r(t) dt
-		//number lengthOverRadius = calculate_length_over_radius(t_start, t_end,
-			//	neurite, curSec);
+		number lengthOverRadius = calculate_length_over_radius(t_start, t_end,neurite, curSec);
 
 		// to reach the desired anisotropy on the surface in the refinement limit,
 		// it has to be multiplied by pi/2 h
-		size_t nSeg = (size_t) floor(
-				lengthOverRadius / (anisotropy * 0.5 * PI));
-		if (!nSeg)
-			nSeg = 1;
+		size_t nSeg = (size_t) floor(lengthOverRadius / (anisotropy * 0.5 * PI));
+		if (!nSeg) { nSeg = 1; }
 
-		//nSeg = 1;
-		//nSeg = 2;
+		/// segment length
+		number segLength = lengthOverRadius / nSeg;
 
-		//nSeg = nSec; // not a good choice -> each segment must have the length between two SWC points
-		//nSeg = 10;
-		number segLength = lengthOverRadius / nSeg;	// segments are between 8 and 16 radii long
-		segLength = 9.0;
+		/// Option 1: Choose segLength and force nSeg
+		/*
+		segLength = 5.0;
 		UG_LOGN("segLength: " << segLength)
 		/// Automatically calculated positions
 		nSeg = (size_t) floor(lengthOverRadius / segLength);
 		std::vector<number> vSegAxPos(nSeg);
-		//calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite,
-			//	curSec, segLength);
-		calculate_segment_axial_positions_variant2(vSegAxPos, t_start, t_end, neurite,
-				curSec, segLength);
+		calculate_segment_axial_positions_variant2(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
+		*/
 
-		/// Forced positions to coincide at points (SWC points -> spline support nodes)
-		/*
+		/// Option 2: Calculate positions automatically
+		//  calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
+
+		/// Option 3: Forced positions to coincide at points (SWC points -> spline support nodes)
 		std::vector<number> vSegAxPos;
-		calculate_segment_axial_positions_variant(vSegAxPos, t_start, t_end, neurite,
-				curSec, segLength);
+		calculate_segment_axial_positions_variant(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
 		nSeg = vSegAxPos.size();
-		*/
-
-		/*vSegAxPos.resize(2);
-		vSegAxPos.push_back(t_start);
-		vSegAxPos.push_back(t_end);
-		*/
 		UG_LOG("Size of vSegAxPos: " << vSegAxPos.size())
 
 		// add the branching point to segment list (if present)
