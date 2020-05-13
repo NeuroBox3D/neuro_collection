@@ -833,10 +833,12 @@ namespace ug {
 			SubsetHandler& sh,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::Mapping> >& aaMapping,
 			int somaIndex,
 			size_t numQuads,
 			number scale,
-			std::vector<ug::Vertex*>& outVertsInner
+			std::vector<ug::Vertex*>& outVertsInner,
+			const SWCPoint& somaPoint
 		);
 
 		/*!
@@ -1074,6 +1076,32 @@ namespace ug {
 			size_t offset,
 			bool merge=false,
 			bool mergeFirst=false
+		);
+
+		/*!
+		 * \brief set somata mapping parameters
+		 */
+		void set_somata_mapping_parameters
+		(
+			Grid& g,
+			SubsetHandler& sh,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::Mapping> >& aaMapping,
+			size_t somaIndex,
+			size_t erIndex,
+			const SWCPoint& somaPoint
+		);
+
+		/*!
+		 * \brief check if an edge is a root edge
+		 * \param[in] edge
+		 * \param[in] vPoints
+		 * \return \c true if edge is a root edge and false otherwise
+		 */
+		bool IsRootEdge
+		(
+			const ug::Edge& edge,
+			const std::vector<SWCPoint>& vPoints,
+			const Grid::VertexAttachmentAccessor<APosition>& aaPos
 		);
 	}
 }

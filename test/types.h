@@ -80,7 +80,8 @@ namespace ug {
 		};
 
 		/*!
-		 * \brief SWC point
+		 * \brief SWCPoint
+		 * A struct representing an SWC point
 		 */
 		struct SWCPoint
 		{
@@ -88,6 +89,23 @@ namespace ug {
 			number radius; ///< radius
 			swc_type type; ///< type
 			std::vector<size_t> conns; ///< connections
+		};
+
+		/*!
+		 * \brief FindSWCPoint
+		 * A functor which finds a point by it's coordinates
+		 */
+		struct FindSWCPoint
+		{
+			vector3 coords;
+
+		public:
+			FindSWCPoint(const vector3& coords) : coords(coords) {}
+
+		    bool operator()(const SWCPoint& point)
+		    {
+		        return coords == point.coords;
+		    }
 		};
 	}
 }

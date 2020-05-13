@@ -80,7 +80,9 @@ namespace ug {
 			Grid& g,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::Mapping> > aaMappingParams,
 			SubsetHandler& sh,
+			number blowUpFactor = 1.0,
 			std::vector<Vertex*>* connectingVrts = NULL,
 			std::vector<Edge*>* connectingEdges = NULL,
 			std::vector<Face*>* connectingFaces = NULL,
@@ -119,7 +121,9 @@ namespace ug {
 			Grid& g,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::Mapping> > aaMappingParams,
 			SubsetHandler& sh,
+			number blowUpFactor,
 			std::vector<Vertex*>* outVerts,
 			std::vector<Vertex*>* outVertsInner,
 			std::vector<number>* outRads,
@@ -298,7 +302,7 @@ namespace ug {
 
 		/*!
 		 * \brief Inserts a vertex at root branching neurites
-		 * \param[in,out] vPoints list of SWC points
+		 * \param[in, out] vPoints list of SWC points
 		 */
 		void MitigateRootBranchingNeurites
 		(
@@ -306,9 +310,21 @@ namespace ug {
 		);
 
 		/*!
-		 * \brief Retriangulates connecting regions
+		 * \brief Retriangulate the connecting regions
+		 * \param[in, out] sh subset handler
+		 * \param[in, out] grid
+		 * \param[in, out] aaPos position accessor
+		 * \param[in] si subset index
+		 * \param[in] minAngle minimal dihedral angle
 		 */
-		void RetriangulateConnectingRegions();
+		void RetriangulateConnectingRegions
+		(
+			SubsetHandler& sh,
+			Grid& grid,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			size_t si,
+			number minAngle
+		);
 
 	} // end namespace neuro_collection
 } // end namespace ug

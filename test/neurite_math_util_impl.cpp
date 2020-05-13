@@ -57,17 +57,17 @@ namespace ug {
 			const vector3& p,
 			const vector3& q,
 			const vector3& o,
-			number theta,
-			vector3 v_rot
+			const number theta,
+			vector3& v_rot
 		)
 		{
-			// axis and vector
+			// define axis and vector
 			vector3 v, k;
 			VecSubtract(v, p, o);
 			VecSubtract(k, q, o);
 			VecNormalize(k, k);
 
-			// rotated vector
+			// rotated vector with Rodrigues' formula
 			vector3 vScaleC, vScaleS, vCross, vScaledCneg;
 			VecScale(vScaleC, v, cos(theta));
 			VecCross(vCross, k, v);
@@ -79,6 +79,7 @@ namespace ug {
 
 		////////////////////////////////////////////////////////////////////////
 		/// FindClosestPointToRotatedVector
+		/// TODO: Test in grid generation method test_import_swc_general_var
 		////////////////////////////////////////////////////////////////////////
 		void FindClosestPointToRotatedVector
 		(
@@ -86,7 +87,7 @@ namespace ug {
 			const vector3& q,
 			const vector3& o,
 			const vector3& r,
-			number step,
+			const number step,
 			vector3& v_closest
 		)
 		{
@@ -262,8 +263,7 @@ namespace ug {
 			const Cylinder& a,
 			const Cylinder& b
 		) {
-			/// TODO: Implement: This will be more involving as an iterative method, bisect is used
-			UG_THROW("Not implemented!");
+			UG_WARNING("Not yet implemented!");
 			return false;
 		}
 
@@ -275,8 +275,7 @@ namespace ug {
 			const Cylinder& a,
 			const Cylinder& b
 		) {
-			/// TODO: Implement: This will be more involving as an iterative method, bisect is used
-			UG_THROW("Not implemented!");
+			UG_WARNING("Not yet implemented!");
 			return false;
 
 		}
@@ -289,8 +288,7 @@ namespace ug {
 			const Cylinder& a,
 			const Cylinder& b
 		) {
-			/// TODO: Implement: This will be more involving as an iterative method, e.g. CG is used
-			UG_THROW("Not implemented!");
+			UG_WARNING("Not yet implemented!");
 			return false;
 		}
 
@@ -336,16 +334,20 @@ namespace ug {
 			/// test functions
 			const size_t numPar = 2;
 			const size_t numOther = 6;
-			bool (*cylTestPar[numPar])(const Cylinder&, const Cylinder&);
-			bool (*cylTestOther[numOther])(const Cylinder&, const Cylinder&);
-			cylTestPar[0] = SeparatedByHeight;
-			cylTestPar[1] = SeparatedRadially;
-			cylTestOther[0] = SeparatedByFirstCylindersUnitAxis;
-			cylTestOther[1] = SeparatedBySecondCylindersUnitAxis;
-			cylTestOther[2] = SeparatedByUnitAxesCrossed;
-			cylTestOther[3] = SeparatedByFirstCylinderPerpendicular;
-			cylTestOther[4] = SeparatedBySecondCylinderPerpendicular;
-			cylTestOther[5] = SeparatedByOtherDirections;
+			bool (*cylTestPar[numPar])(const Cylinder&, const Cylinder&) =
+			{
+					SeparatedByHeight,
+					SeparatedRadially
+			};
+			bool (*cylTestOther[numOther])(const Cylinder&, const Cylinder&) =
+			{
+					SeparatedByFirstCylindersUnitAxis,
+					SeparatedBySecondCylindersUnitAxis,
+					SeparatedByUnitAxesCrossed,
+					SeparatedByUnitAxesCrossed,
+					SeparatedBySecondCylinderPerpendicular,
+					SeparatedByOtherDirections
+			};
 
 			vector3 cross;
 			VecCross(cross, a.w, b.w);
@@ -478,9 +480,8 @@ namespace ug {
 			const vector<SWCPoint>& vPoints
 		)
 		{
-			int V = vPoints.size();
-			std::vector<int> adj[V];
-			size_t nPts = vPoints.size();
+			const size_t nPts = vPoints.size();
+			std::vector<int> adj[nPts];
 			for (size_t i = 0; i < nPts; i++) {
 				const vector<size_t>& conns = vPoints[i].conns;
 				for (size_t j = 0; j < conns.size(); j++) {
@@ -488,7 +489,31 @@ namespace ug {
 					adj[conns[j]].push_back(i);
 				}
 			}
-			return !is_cyclic(adj, V);
+			return !is_cyclic(adj, nPts);
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// HasUndesiredAngles
+		////////////////////////////////////////////////////////////////////////
+		bool HasUndesiredAngles(
+			const std::vector<SWCPoint>& vPoints,
+			const number angleThresholdMin,
+			const number angleThresholdMax
+		) {
+			const size_t nPts = vPoints.size();
+			for (size_t i = 0; i < nPts; i++) {
+				const vector<size_t>& conns = vPoints[i].conns;
+				for (size_t j = 1; j < conns.size(); j++) {
+					vector3 v1, v2;
+					VecSubtract(v1, vPoints[conns[0]].coords, vPoints[i].coords);
+					VecSubtract(v2, vPoints[conns[j]].coords, vPoints[i].coords);
+					const number angle = AngleBetweenDirections(v1, v2);
+					if ( (angle < angleThresholdMin) || (angle > angleThresholdMax)) {
+						return true;
+					}
+				}
+			}
+			return false;
 		}
 		*/
 
@@ -507,7 +532,11 @@ namespace ug {
 			for (size_t i = 0; i < nPts; i++) {
 				/// Regular points and root points only, since BPs may overlap usually
 				if (vPoints[i].conns.size() == 2) {
-						/// TODO: Create Cylinders compatible with Cylinder description
+					ug::vector3 dir;
+					VecSubtract(dir, vPoints[vPoints[i].conns[0]].coords, vPoints[vPoints[i].conns[1]].coords);
+					number len = VecLength(dir);
+					VecNormalize(dir, dir);
+					cylinders.push_back(Cylinder(vPoints[i].coords, dir, vPoints[i].radius, len));
 					}
 				}
 			// create all pairwise cylinders, then test for intersection
@@ -539,6 +568,26 @@ namespace ug {
 						"mesh (locally) adaptive around connecting region or choose"
 						"less soma refinements. Consider enabling tapering toggle.");
 			}
+		}
+		////////////////////////////////////////////////////////////////////////
+		/// CalculateCenter
+		////////////////////////////////////////////////////////////////////////
+		void CalculateCenter
+		(
+			const std::vector<Vertex*>& vertices,
+			const Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			const size_t size,
+			ug::vector3& center
+		)
+		{
+			VecSet(center, 0);
+			UG_LOGN("0ed vector")
+			for (size_t i = 0; i < size; i++) {
+				UG_LOGN("i: " << i)
+				VecAdd(center, center, aaPos[vertices[i]]);
+			}
+			UG_LOGN("scale it")
+			VecScale(center, center, 1./(number)size);
 		}
 	}
 }
