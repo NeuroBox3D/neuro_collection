@@ -395,6 +395,7 @@ static void Domain(Registry& reg, string grp)
 			.add_method("set_density_function", static_cast<void (T::*) (SmartPtr<CplUserData<number,dim> >)>
 					(&T::set_density_function), "", "", "add a density function")
 			.add_method("set_radius", &T::set_radius, "", "", "sets the radius the membrane is located at")
+			.add_method("set_radius_factor", &T::set_radius_factor, "", "", "sets the radius the membrane is located at")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "MembraneTransport1d", tag);
 	}
@@ -562,7 +563,9 @@ static void Domain(Registry& reg, string grp)
 						"", "", "set the channel type to L")
 			.add_method("set_channel_type_T", &T::template set_channel_type<T::BG_Ttype>,
 						"", "", "set the channel type to T")
-			.add_method("init", &T::init, "", "time", "initialize the Borg-Graham object");
+			.add_method("init", &T::init, "", "time", "initialize the Borg-Graham object")
+			.add_method("export_membrane_potential_to_vtk", &T::export_membrane_potential_to_vtk,
+						"", "file name # step # time", "writes the current membrane potential data to vtk file");
 		reg.add_class_to_group(name, "VDCC_BG", tag);
 	}
 

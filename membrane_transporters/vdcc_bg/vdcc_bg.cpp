@@ -38,6 +38,8 @@
  */
 
 #include "vdcc_bg.h"
+#include "lib_disc/function_spaces/grid_function.h"
+#include "lib_disc/io/vtkoutput.h"
 #include "lib_disc/spatial_disc/disc_util/geom_provider.h"  // for GeomProvider
 #include "lib_disc/spatial_disc/elem_disc/inner_boundary/inner_boundary.h"	// InnerBoundaryConstants
 
@@ -69,7 +71,9 @@ VDCC_BG<TDomain>::VDCC_BG
   m_dom(approx->domain()), m_mg(m_dom->grid()), m_dd(approx->dof_distribution(GridLevel())),
   m_sh(m_dom->subset_handler()), m_aaPos(m_dom->position_accessor()), m_vSubset(subsets),
   m_localIndicesOffset(0),
-  m_gpMGate(3.4, -21.0, 1.5), m_gpHGate(-2.0, -40.0, 75.0), m_time(0.0), m_oldTime(0.0),
+  m_gpMGate(3.4, -21.0, 1.5), m_gpHGate(-2.0, -40.0, 75.0),
+  m_spVtkOutput(SPNULL), m_spVmGF(SPNULL),
+  m_time(0.0), m_oldTime(0.0),
   m_perm(3.8e-19), m_mp(2), m_hp(1), m_channelType(BG_Ltype),
   m_bUseGatingAttachments(true),
   m_initiated(false)
@@ -90,7 +94,9 @@ VDCC_BG<TDomain>::VDCC_BG
   m_dom(approx->domain()), m_mg(m_dom->grid()), m_dd(approx->dof_distribution(GridLevel())),
   m_sh(m_dom->subset_handler()), m_aaPos(m_dom->position_accessor()), m_vSubset(TokenizeString(subsets)),
   m_localIndicesOffset(0),
-  m_gpMGate(3.4, -21.0, 1.5), m_gpHGate(-2.0, -40.0, 75.0), m_time(0.0), m_oldTime(0.0),
+  m_gpMGate(3.4, -21.0, 1.5), m_gpHGate(-2.0, -40.0, 75.0),
+  m_spVtkOutput(SPNULL), m_spVmGF(SPNULL),
+  m_time(0.0), m_oldTime(0.0),
   m_perm(3.8e-19), m_mp(2), m_hp(1), m_channelType(BG_Ltype),
   m_bUseGatingAttachments(true),
   m_initiated(false)
@@ -556,6 +562,63 @@ void VDCC_BG<TDomain>::update_time(const number newTime)
 		m_time = newTime;
 	}
 };
+
+
+template<typename TDomain>
+void VDCC_BG<TDomain>::export_membrane_potential_to_vtk
+(const std::string& fileName, size_t step, number time)
+{
+	// when called for the first time, initiate vtk output object and transfer grid function
+	if (!m_spVtkOutput.valid())
+	{
+		m_spVtkOutput = make_sp(new VTKOutput<TDomain::dim>());
+
+		std::string subsetsString = "";
+		const size_t nSubset = this->m_vSubset.size();
+		for (size_t i = 0; i < nSubset; ++i)
+			subsetsString += this->m_vSubset[i] + ((i < nSubset - 1) ? ", " : "");
+
+		SmartPtr<ApproximationSpace<TDomain> > spApprox =
+			make_sp(new ApproximationSpace<TDomain>(m_dom));
+		spApprox->add("Vm", "Lagrange", 1, subsetsString.c_str());
+
+		m_spVmGF = make_sp(new GridFunction<TDomain, CPUAlgebra>(spApprox));
+		m_spVmGF->set(0.0);
+	}
+
+	// copy attachment values to grid function
+	typedef typename DoFDistribution::traits<vm_grid_object>::const_iterator it_type;
+	std::vector<DoFIndex> dofInd;
+
+	SmartPtr<DoFDistribution> spdd = m_spVmGF->dof_distribution();
+
+	SubsetGroup ssGrp;
+	try {ssGrp = SubsetGroup(m_dom->subset_handler(), this->m_vSubset);}
+	UG_CATCH_THROW("Subset group creation failed.");
+	const size_t nSs = ssGrp.size();
+	for (size_t si = 0; si < nSs; ++si)
+	{
+		// loop sides and update potential (and gatings, if needed)
+		it_type it = spdd->begin<vm_grid_object>(ssGrp[si]);
+		it_type it_end = spdd->end<vm_grid_object>(ssGrp[si]);
+		for (; it != it_end; ++it)
+		{
+			spdd->inner_dof_indices(*it, 0, dofInd, true);
+			UG_ASSERT(dofInd.size() == 1, "Unexpected number of DoF indices.");
+			DoFRef(*m_spVmGF, dofInd[0]) = m_aaVm[*it];
+		}
+	}
+
+	// write to vtk
+	try
+	{
+		m_spVtkOutput->print(fileName.c_str(), *m_spVmGF, step, time);
+		m_spVtkOutput->write_time_pvd(fileName.c_str(), *m_spVmGF);
+	}
+	UG_CATCH_THROW("VTK output file prefixed '" << fileName << "' could not be written to.");
+}
+
+
 
 template<typename TDomain>
 void VDCC_BG<TDomain>::prepare_timestep
