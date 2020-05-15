@@ -2936,49 +2936,49 @@ namespace ug {
 		/// RotateVectorAroundAxis
 		/// TODO: Delete method and use from neurite math util
 		////////////////////////////////////////////////////////////////////////
-		void rotate_vector_around_axis
-		(
-			const vector3& vector,
-			const vector3& axis,
-			const vector3& origin,
-			vector3& xPrime,
-			vector3& xPrime2,
-			const number theta
-		) {
-			UG_DLOGN(NC_TNP, 0, "VecDot(x, y): " << abs(VecDot(x, y)));
-			UG_COND_WARNING(abs(VecDot(vector, axis)) > SMALL, "Vectors are not "
-					"perpendicular. Was this really intentional?");
-
-			vector3 z;
-			VecCross(z, axis, vector);
-			///VecAdd(z, z, origin);
-			/// OLD (Worked for base example)
-			//VecScale(z, z, 1.0/VecLength(vector));
-
-			/// NEW might fix problem (axis and z have now the same length as required)
-			VecScale(z, z, VecLength(axis)/VecLength(z));
-			//VecAdd(z, z, origin);
-
-			UG_DLOGN(NC_TNP, 0, "VecCross(x, y): " << z);
-			UG_DLOGN(NC_TNP, 0, "VecLength(z): " << VecLength(z));
-			UG_DLOGN(NC_TNP, 0, "VecLength(axis): " << VecLength(axis));
-			UG_DLOGN(NC_TNP, 0, "VecLength(vector): " << VecLength(vector));
-
-			// VecNormalize(z, z);
-			VecScaleAdd(xPrime, cos(deg_to_rad(theta)), axis, sin(deg_to_rad(theta)), z);
-
-			/// rotated vector by theta CCW
-			vector3 rotatedVec;
-			VecSubtract(rotatedVec, origin, xPrime);
-			VecNormalize(rotatedVec, rotatedVec);
-			xPrime = origin;
-			VecAdd(xPrime, xPrime, rotatedVec);
-
-			/// rotated vector by theta CW (reflected rotated vector by theta CCW)
-			xPrime2 = origin;
-			const vector3& negVec = -rotatedVec;
-			VecAdd(xPrime2, xPrime2, negVec);
-		}
+//		void rotate_vector_around_axis
+//		(
+//			const vector3& vector,
+//			const vector3& axis,
+//			const vector3& origin,
+//			vector3& xPrime,
+//			vector3& xPrime2,
+//			const number theta
+//		) {
+//			UG_DLOGN(NC_TNP, 0, "VecDot(x, y): " << abs(VecDot(x, y)));
+//			UG_COND_WARNING(abs(VecDot(vector, axis)) > SMALL, "Vectors are not "
+//					"perpendicular. Was this really intentional?");
+//
+//			vector3 z;
+//			VecCross(z, axis, vector);
+//			///VecAdd(z, z, origin);
+//			/// OLD (Worked for base example)
+//			//VecScale(z, z, 1.0/VecLength(vector));
+//
+//			/// NEW might fix problem (axis and z have now the same length as required)
+//			VecScale(z, z, VecLength(axis)/VecLength(z));
+//			//VecAdd(z, z, origin);
+//
+//			UG_DLOGN(NC_TNP, 0, "VecCross(x, y): " << z);
+//			UG_DLOGN(NC_TNP, 0, "VecLength(z): " << VecLength(z));
+//			UG_DLOGN(NC_TNP, 0, "VecLength(axis): " << VecLength(axis));
+//			UG_DLOGN(NC_TNP, 0, "VecLength(vector): " << VecLength(vector));
+//
+//			// VecNormalize(z, z);
+//			VecScaleAdd(xPrime, cos(deg_to_rad(theta)), axis, sin(deg_to_rad(theta)), z);
+//
+//			/// rotated vector by theta CCW
+//			vector3 rotatedVec;
+//			VecSubtract(rotatedVec, origin, xPrime);
+//			VecNormalize(rotatedVec, rotatedVec);
+//			xPrime = origin;
+//			VecAdd(xPrime, xPrime, rotatedVec);
+//
+//			/// rotated vector by theta CW (reflected rotated vector by theta CCW)
+//			xPrime2 = origin;
+//			const vector3& negVec = -rotatedVec;
+//			VecAdd(xPrime2, xPrime2, negVec);
+//		}
 
 		////////////////////////////////////////////////////////////////////////
 		/// AdaptSurfaceGridToSquare (Prototype)

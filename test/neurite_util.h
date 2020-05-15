@@ -978,15 +978,15 @@ namespace ug {
 		 * \param[out] xPrime2 rotated vector by theta CW
 		 * \param[in] theta angle in degree
 		 */
-		void rotate_vector_around_axis
-		(
-			const vector3& vector,
-			const vector3& axis,
-			const vector3& origin,
-			vector3& xPrime,
-			vector3& xPrime2,
-			number theta
-		);
+//		void rotate_vector_around_axis
+//		(
+//			const vector3& vector,
+//			const vector3& axis,
+//			const vector3& origin,
+//			vector3& xPrime,
+//			vector3& xPrime2,
+//			number theta
+//		);
 
 		/*!
 		 * \brief Adapts the surface grid to square
