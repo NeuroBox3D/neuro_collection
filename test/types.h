@@ -106,6 +106,10 @@ namespace ug {
 		    {
 		        return coords == point.coords;
 		    }
+
+		    bool operator()(const SWCPoint* point) {
+		    	return coords == point->coords;
+		    }
 		};
 	}
 }

@@ -70,7 +70,9 @@ namespace ug {
 		std::vector<Vertex*>* outVerts,
 		std::vector<Vertex*>* outVertsInner,
 		std::vector<number>* outRads,
-		std::vector<number>* outRadsInner
+		std::vector<number>* outRadsInner,
+		std::vector<SWCPoint>* points,
+		int* bip
 	) {
 	const NeuriteProjector::Neurite& neurite = vNeurites[nid];
 	const std::vector<vector3>& pos = vPos[nid];
@@ -139,6 +141,7 @@ namespace ug {
 	number t_end = 0.0;
 
 	if (connectingVrts && connectingEdges && connectingFaces) {
+		/// TODO use bpPointId to define connectivy
 		vVrt = *connectingVrts;
 		vEdge = *connectingEdges;
 		vFace = *connectingFaces;
@@ -191,6 +194,8 @@ namespace ug {
 			// std::vector<SWCPoint> vPoints;
 			// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 		}
+
+		UG_LOGN("After recursive call: " << points->size());
 	} else {
 		// create first layer of vertices/edges //
 
@@ -229,6 +234,11 @@ namespace ug {
 		ug::vector3 center;
 		CalculateCenter(vVrt, aaPos, 4, center);
 		UG_LOGN("SWC: " << center << " " << r[0]);
+		SWCPoint p;
+		p.coords = center;
+		p.radius = r[0];
+		p.conns.push_back(points->size()+1);
+		points->push_back(p);
 
 		for (size_t i = 0; i < 12; ++i) {
 			Vertex* v = *g.create<RegularVertex>();
@@ -295,6 +305,9 @@ namespace ug {
 		}
 	}
 
+
+
+
 	// Now create dendrite to the next branching point and iterate this process.
 	// We want to create each of the segments with approx. the same aspect ratio.
 	// To that end, we first calculate the length of the section to be created (in units of radius)
@@ -303,7 +316,6 @@ namespace ug {
 	// of segments to be used for the section.
 	vector3 lastPos = pos[0];
 	size_t curSec = 0;
-
 
 	/// FIXME: This is not the correct way to check for root branching neurites
 	/// UG_COND_THROW(!brit->bp.get(), "BP is null. This can happen for bogus input geometries.");
@@ -406,11 +418,11 @@ namespace ug {
 
 		// calculate total length (Needed for option 1)
 		// = integral from t_start to t_end over: ||v(t)|| dt
-		//number lengthOverRadius = calculate_length_over_radius_variant(t_start, t_end, neurite, curSec);
+		number lengthOverRadius = calculate_length_over_radius_variant(t_start, t_end, neurite, curSec);
 
 		// calculate total length in units of radius (Needed for option 2 and 3)
 		// = integral from t_start to t_end over: ||v(t)|| / r(t) dt
-		number lengthOverRadius = calculate_length_over_radius(t_start, t_end,neurite, curSec);
+		//number lengthOverRadius = calculate_length_over_radius(t_start, t_end,neurite, curSec);
 
 		// to reach the desired anisotropy on the surface in the refinement limit,
 		// it has to be multiplied by pi/2 h
@@ -421,23 +433,23 @@ namespace ug {
 		number segLength = lengthOverRadius / nSeg;
 
 		/// Option 1: Choose segLength and force nSeg
-		/*
-		segLength = 5.0;
+		segLength = 4.0;
 		UG_LOGN("segLength: " << segLength)
 		/// Automatically calculated positions
 		nSeg = (size_t) floor(lengthOverRadius / segLength);
 		std::vector<number> vSegAxPos(nSeg);
 		calculate_segment_axial_positions_variant2(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
-		*/
 
 		/// Option 2: Calculate positions automatically
 		//  calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
 
 		/// Option 3: Forced positions to coincide at points (SWC points -> spline support nodes)
+		/*
 		std::vector<number> vSegAxPos;
 		calculate_segment_axial_positions_variant(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
 		nSeg = vSegAxPos.size();
 		UG_LOG("Size of vSegAxPos: " << vSegAxPos.size())
+		*/
 
 		// add the branching point to segment list (if present)
 		if (brit != brit_end) {
@@ -553,8 +565,11 @@ namespace ug {
 			if (addOffset > PI)
 				addOffset -= 2 * PI;
 			addOffset /= nSeg - 1;
+
 		}
 
+		int bpPointId = -1;
+		int sizePts = -1;
 		// create mesh for segments
 		Selector sel(g);
 		for (size_t s = 0; s < nSeg; ++s) {
@@ -693,10 +708,65 @@ namespace ug {
 				ug::vector3 center;
 				CalculateCenter(vVrt, aaPos, 4, center);
 				UG_LOGN("SWC: " << center << radius);
+				SWCPoint p;
+				p.coords = center;
+				p.radius = radius;
+
+				if (s == 0) {
+					UG_LOGN("s=0: points.size(): "<< points->size());
+					if (bip) {
+						UG_LOGN("BIP PRESENT!");
+						UG_LOGN("bip: " << *bip);
+					}
+				}
+
+				/// intermediate points between branching points
+				if (s > 0) {
+					p.conns.push_back(points->size()-1);
+				}
+				p.conns.push_back(points->size()+1);
+
+				points->push_back(p);
+
+				/*
+				if (bip) {
+					points->at(*bip).conns.push_back(points->size()+1);
+				}
+
+				if (s == (nSeg-1)) {
+					if (bip) {
+						points->at(*bip).conns.push_back(points->size());
+					}
+				}
+				*/
+
+				if (s == nSeg-1) {
+					/// if branching occured
+					if (bip) {
+						UG_LOGN("Pushing connectivy at BIP: " << points->size());
+						points->at(*bip).conns.push_back(points->size());
+						//points->at(points->size()-1).conns.push_back(*bip);
+					}
+				}
+
+				if (s == nSeg-1) {
+					if (bip) {
+						points->at(*bip+1).conns.push_back(*bip);
+						UG_LOGN("Pushing conn BIP2: " << points->size()-1);
+						UG_LOGN("bpPointId: " << *bip);
+						sizePts = points->size(); // connection point
+	//					points->at(points->size()-1).conns.push_back(*bip);
+					}
+				}
+
+				//UG_LOGN("test: points.size(): " << points->size() << " ... and s=" << s << " and bip: " << *bip);
 			}
 
 			// BP segment: create BP with tetrahedra/pyramids and create whole branch
 			else {
+				bpPointId = points->size(); // at this point id we branch, then recursive call
+				/// the recursive call has the next point id points.size(), so we need to
+				// add bpPointId to this point with id points.size()
 				std::vector<Volume*> vBPVols;
 				vBPVols.reserve(27);
 
@@ -850,6 +920,22 @@ namespace ug {
 					// std::vector<SWCPoint> vPoints;
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
+
+				ug::vector3 center;
+				CalculateCenter(vVrt, aaPos, 4, center);
+				UG_LOGN("SWC BP: " << center << radius);
+				SWCPoint p;
+				p.coords = center;
+				p.radius = radius;
+				p.conns.push_back(bpPointId-1);
+				p.conns.push_back(bpPointId+1);
+				points->push_back(p);
+
+				int bpIdReally = points->size()-1; /// index of this BP point
+				UG_LOGN("Id: " << bpIdReally);
+
+
+
 
 				// correct vertex offsets to reflect angle at which child branches
 				VecScaleAppend(aaPos[vVrt[(connFaceInd) % 4]],
@@ -1362,11 +1448,15 @@ namespace ug {
 						erScaleFactor, anisotropy, g, aaPos, aaSurfParams,
 						aaMappingParams, sh, blowUpFactor,
 						&vBranchVrts, &vBranchEdges, &vBranchFaces,
-						branchOffset[1], NULL, NULL, NULL, NULL);
+						branchOffset[1], NULL, NULL, NULL, NULL, points, &bpIdReally);
+
+
 			}
 
 			lastPos = curPos;
 		}
+
+
 
 		// update t_end and curSec
 		if (brit != brit_end)
@@ -2442,10 +2532,15 @@ number calculate_length_over_radius_variant
                         std::vector<Vertex*>* outVerts,
                         std::vector<Vertex*>* outVertsInner,
                         std::vector<number>* outRads,
-                        std::vector<number>* outRadsInner
+                        std::vector<number>* outRadsInner,
+                        std::vector<SWCPoint>* points,
+                        int* bip
                 )
                 {
-                        create_neurite_with_er(vNeurites, vPos, vR, nid, erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMappingParams, sh, blowUpFactor, NULL, NULL, NULL, 0, outVerts, outVertsInner, outRads, outRadsInner);
+                        create_neurite_with_er(vNeurites, vPos, vR, nid, erScaleFactor,
+                        		anisotropy, g, aaPos, aaSurfParams, aaMappingParams, sh,
+                        		blowUpFactor, NULL, NULL, NULL, 0, outVerts, outVertsInner,
+                        		outRads, outRadsInner, points, bip);
                 }
 
                 ////////////////////////////////////////////////////////////////////////

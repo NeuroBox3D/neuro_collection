@@ -69,6 +69,7 @@
 #include "lib_algebra/small_algebra/small_algebra.h" // Invert
 #include "common/util/string_util.h"  // TrimString
 #include "common/util/file_util.h"  // FindFileInStandardPaths
+#include <list>
 
 /// other
 #include <boost/lexical_cast.hpp>
@@ -3436,12 +3437,13 @@ void create_spline_data_for_neurites
 	    UG_LOGN("Generating neurites...")
 	    UG_DLOGN(NC_TNP, 0, "Generating neurites...")
 
+	    std::vector<SWCPoint> swcPoints;
 	    ///for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 	    for (size_t i = 0; i < 1; ++i) {
 	    	if (withER) {
 	    		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 	    			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh, 1.0, &outVerts,
-	    			&outVertsInner, &outRads, &outRadsInner);
+	    			&outVertsInner, &outRads, &outRadsInner, &swcPoints, NULL);
 	    	} else {
 	    		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 	    				anisotropy, g, aaPos, aaSurfParams);
@@ -3842,6 +3844,7 @@ void create_spline_data_for_neurites
 		IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_finding_initial_edges.ugx");
 		SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_finding_initial_edges.ugx");
 
+		std::vector<SWCPoint> newPoints;
 	    sh.set_default_subset_index(0);
 	    UG_LOGN("Generating neurites...")
 	    UG_DLOGN(NC_TNP, 0, "Generating neurites...")
@@ -3851,7 +3854,7 @@ void create_spline_data_for_neurites
 		 	if (withER) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh, blowUpFactor,
-		   			&outVerts, &outVertsInner, &outRads, &outRadsInner);
+		   			&outVerts, &outVertsInner, &outRads, &outRadsInner, &newPoints, NULL);
 		   	} else {
 		   		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   				anisotropy, g, aaPos, aaSurfParams);
@@ -3860,6 +3863,25 @@ void create_spline_data_for_neurites
 		    SaveGridToFile(g, sh, ss.str());
 		    ss.str(""); ss.clear();
 		}
+
+	    UG_LOGN("SWC output")
+	    for (size_t i = 0; i < newPoints.size(); i++) {
+	    	UG_LOG("id:" << i << " ---")
+	    	UG_LOG(newPoints[i].coords << ", ");
+	    	/*if (i == 19) {
+	    		newPoints[i].conns.push_back(18);
+	    	}*/
+	    	for (size_t j = 0; j < newPoints[i].conns.size(); j++) {
+	    		UG_LOG(newPoints[i].conns[j] << "; ");
+	    	}
+	    	UG_LOGN("")
+	    	newPoints[i].type = SWC_AXON;
+	    }
+	    UG_LOGN("SWC output done")
+	    Grid g10;
+	    SubsetHandler sh10(g10);
+	    swc_points_to_grid(newPoints, g10, sh10, 1.0);
+    	export_to_ugx(g10, sh10, "new_swc.ugx");
 
 		SaveGridToFile(g, sh, "vanilla_output.ugx");
 
@@ -4148,7 +4170,7 @@ void create_spline_data_for_neurites
 		using namespace std;
 
 		// preconditioning
-		// test_smoothing(fileName, 5, 1.0, 1.0);
+		//test_smoothing(fileName, 5, 1.0, 1.0);
 
 		// read in file to intermediate structure
 		std::vector<SWCPoint> vPoints;
@@ -4300,6 +4322,45 @@ void create_spline_data_for_neurites
 	    adj[v].push_back(w); // Add w to v’s list.
 	}
 
+	void Graph::BFS(int s, std::vector<int>& indices)
+	{
+	    // Mark all the vertices as not visited
+	    bool *visited = new bool[V];
+	    for(int i = 0; i < V; i++)
+	        visited[i] = false;
+
+	    // Create a queue for BFS
+	    std::list<int> queue;
+
+	    // Mark the current node as visited and enqueue it
+	    visited[s] = true;
+	    queue.push_back(s);
+
+	    // 'i' will be used to get all adjacent
+	    // vertices of a vertex
+	    std::list<int>::iterator i;
+
+	    while(!queue.empty())
+	    {
+	        // Dequeue a vertex from queue and print it
+	        s = queue.front();
+	        queue.pop_front();
+
+	        // Get all adjacent vertices of the dequeued
+	        // vertex s. If a adjacent has not been visited,
+	        // then mark it visited and enqueue it
+	        for (i = adj[s].begin(); i != adj[s].end(); ++i)
+	        {
+	            if (!visited[*i])
+	            {
+	                visited[*i] = true;
+	                queue.push_back(*i);
+	                indices.push_back(*i);
+	            }
+	        }
+	    }
+	}
+
 	void Graph::DFSUtil(int v, bool visited[], std::vector<int>& indices)
 	{
 	    // Mark the current node as visited and
@@ -4334,7 +4395,7 @@ void create_spline_data_for_neurites
 	////////////////////////////////////////////////////////////////////////////
 	/// refine_swc_grid_variant
 	////////////////////////////////////////////////////////////////////////////
-	void refine_swc_grid_variant(const std::string& fileName, const std::string& outName) {
+	void refine_swc_grid_variant(const std::string& fileName, const std::string& outName, bool writeMatrix) {
 		std::vector<SWCPoint> vPoints;
 		import_swc(fileName, vPoints, 1.0);
 		Grid grid;
@@ -4395,10 +4456,11 @@ void create_spline_data_for_neurites
 		std::vector<int> indices;
 		std::map<int, int> mapping;
 
+		g.DFS(0, indices); /// produces HINES matrix if starting from soma index or any index
+		///g.BFS(0, indices); /// produces narrow band matrix if starting from soma index
 		for (size_t i = 0; i< indices.size(); i++) {
 			mapping[indices[i]] = i;
 		}
-		g.DFS(0, indices);
 
 		/// now reorder vertices
 		std::vector<SWCPoint> vPointsNew;
@@ -4411,9 +4473,8 @@ void create_spline_data_for_neurites
 			}
 		}
 
-
 		/// consistency checks
-		const int rows = vPointsNew.size(), cols = vPointsNew.size();
+		const int rows = vPoints.size(), cols = vPoints.size();
 		std::vector<std::vector<int > > A;
 		A.resize(rows);
 
@@ -4431,8 +4492,8 @@ void create_spline_data_for_neurites
 		    A[i][i] = 1;
 		}
 
-		for (size_t i = 0; i < rows; i++) {
-			std::vector<size_t> neighbors = vPoints[i].conns;
+		for (int i = 0; i < rows; i++) {
+			std::vector<size_t> neighbors = vPointsNew[i].conns;
 			for (size_t j = 0; j < neighbors.size(); j++) {
 				A[neighbors[j]][i] = 1;
 				A[i][neighbors[j]] = 1;
@@ -4444,41 +4505,41 @@ void create_spline_data_for_neurites
 				/// 1st condition
 				if (A[i][i] != 1) {
 					UG_ERR_LOG("Not a HINES-type matrix. Condition 1 not satisfied.");
-					return;
+					///return;
 				}
 
 				/// 2nd condition
 				if ( (A[i][j] == 1 && A[j][i] == 0) || (A[j][i] == 1 && A[i][j] == 0) ) {
 					UG_ERR_LOG("Not a HINES-type matrix. Condition 2 not satisfied.");
-					return;
+					///return;
 				}
 
 				/// 3rd condition
 				if (A[i][j] == 1 && i < j) {
 					if (std::count(A[i].begin()+j+1, A[i].end(), 1) >
-						static_cast<int>(vPoints[i].conns.size())) {
+						static_cast<int>(vPointsNew[i].conns.size())) {
 						UG_ERR_LOG("Not a HINES-type matrix. Condition 3 not satisfied.");
 						UG_ERR_LOG("i: " << i << ", j" << j);
-						return;
+						//return;
 					}
 				}
 			}
 		}
 
 		/// Write matrix for debugging purposes
-		#ifdef DEBUG
+		if (writeMatrix) {
 			std::stringstream ss;
-			for (size_t i = 0; i < rows; i++) {
-				for (size_t j = 0; j < cols; j++) {
+			for (int i = 0; i < rows; i++) {
+				for (int j = 0; j < cols; j++) {
 					ss << A[i][j] << " ";
 				}
-				if (i != vPointsNew.size()-1) {
+				if (i != rows-1) {
 					ss << ";";
 				}
 			}
 			UG_LOG("Matrix: ");
 			UG_LOGN(ss.str());
-		#endif
+		}
 
 		/// convert swc to grid, then write grid and swx
 		swc_points_to_grid(vPoints, grid, sh, 1.0);

@@ -404,9 +404,11 @@ public:
     // DFS traversal of the vertices
     // reachable from v
     void DFS(int v, std::vector<int>& indices);
+    void BFS(int v, std::vector<int>& indices);
+
 };
 
-void refine_swc_grid_variant(const std::string& fileName, const std::string& outName);
+void refine_swc_grid_variant(const std::string& fileName, const std::string& outName, bool writeMatrix);
 void coarsen_1d_grid(const std::string& fileName, number factor);
 
 void test_import_swc_vr
