@@ -92,7 +92,7 @@ namespace ug {
 			std::vector<number>* outRads = NULL,
 			std::vector<number>* outRadsInner = NULL,
 			std::vector<SWCPoint>* points = NULL,
-			int* bid = NULL
+			int bid = -1
 		);
 
 		/*!
@@ -131,7 +131,7 @@ namespace ug {
 			std::vector<number>* outRads,
 			std::vector<number>* outRadsInner,
 			std::vector<SWCPoint>* points,
-			int* bid
+			int bid
 		);
 
 

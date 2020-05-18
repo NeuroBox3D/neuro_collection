@@ -72,7 +72,7 @@ namespace ug {
 		std::vector<number>* outRads,
 		std::vector<number>* outRadsInner,
 		std::vector<SWCPoint>* points,
-		int* bip
+		int bip
 	) {
 	const NeuriteProjector::Neurite& neurite = vNeurites[nid];
 	const std::vector<vector3>& pos = vPos[nid];
@@ -140,8 +140,8 @@ namespace ug {
 	number t_start = 0.0;
 	number t_end = 0.0;
 
+	int rootId = -1;
 	if (connectingVrts && connectingEdges && connectingFaces) {
-		/// TODO use bpPointId to define connectivy
 		vVrt = *connectingVrts;
 		vEdge = *connectingEdges;
 		vFace = *connectingFaces;
@@ -238,7 +238,10 @@ namespace ug {
 		p.coords = center;
 		p.radius = r[0];
 		p.conns.push_back(points->size()+1);
-		points->push_back(p);
+		points->resize(points->size()+1);
+		points->at(points->size()-1) = p;
+
+		rootId = points->size();
 
 		for (size_t i = 0; i < 12; ++i) {
 			Vertex* v = *g.create<RegularVertex>();
@@ -319,6 +322,8 @@ namespace ug {
 
 	/// FIXME: This is not the correct way to check for root branching neurites
 	/// UG_COND_THROW(!brit->bp.get(), "BP is null. This can happen for bogus input geometries.");
+	int bpPointId = -1;
+	int bpPointIdSize = -1;
 	while (true) {
 		t_start = t_end;
 
@@ -568,8 +573,8 @@ namespace ug {
 
 		}
 
-		int bpPointId = -1;
 		int sizePts = -1;
+		int savedPoint = -1;
 		// create mesh for segments
 		Selector sel(g);
 		for (size_t s = 0; s < nSeg; ++s) {
@@ -712,58 +717,63 @@ namespace ug {
 				p.coords = center;
 				p.radius = radius;
 
+				/*
 				if (s == 0) {
-					UG_LOGN("s=0: points.size(): "<< points->size());
-					if (bip) {
-						UG_LOGN("BIP PRESENT!");
-						UG_LOGN("bip: " << *bip);
+					/// connecting point is found when s==0
+					UG_LOGN("bpId:" << bpPointId);
+										UG_LOGN("s=0: points.size(): "<< points->size());
+										savedPoint = points->size()+2;
+										if (bip != -1) {
+											points->at(points->size()-1).conns.push_back(bip);
+											points->at(bip).conns.push_back(points->size()-1);
+											UG_LOGN("BIP PRESENT!");
+											UG_LOGN("bip: " << bip);
+										}
+									}
+									*/
+
+				if (points->size() > bpPointIdSize) {
+					if (bpPointId != -1) {
+						points->at(bpPointIdSize).conns.push_back(bpPointId);
+						bpPointId = -1;
 					}
+				}
+
+				if (rootId != -1 && (connectingVrts == NULL) && s == 1) {
+					points->at(rootId).conns.push_back(rootId-1);
+					rootId = -1;
 				}
 
 				/// intermediate points between branching points
 				if (s > 0) {
 					p.conns.push_back(points->size()-1);
 				}
-				p.conns.push_back(points->size()+1);
 
-				points->push_back(p);
-
-				/*
-				if (bip) {
-					points->at(*bip).conns.push_back(points->size()+1);
+				if (s < nSeg-1) {
+					p.conns.push_back(points->size()+1);
 				}
 
-				if (s == (nSeg-1)) {
-					if (bip) {
-						points->at(*bip).conns.push_back(points->size());
-					}
-				}
-				*/
+				points->resize(points->size()+1);
+				points->at(points->size()-1) = p;
 
-				if (s == nSeg-1) {
-					/// if branching occured
-					if (bip) {
-						UG_LOGN("Pushing connectivy at BIP: " << points->size());
-						points->at(*bip).conns.push_back(points->size());
-						//points->at(points->size()-1).conns.push_back(*bip);
-					}
-				}
-
-				if (s == nSeg-1) {
-					if (bip) {
-						points->at(*bip+1).conns.push_back(*bip);
-						UG_LOGN("Pushing conn BIP2: " << points->size()-1);
-						UG_LOGN("bpPointId: " << *bip);
+			//	if (s == nSeg-1) {
+					if (bip != -1) {
+						points->at(bip+1).conns.push_back(bip);
 						sizePts = points->size(); // connection point
-	//					points->at(points->size()-1).conns.push_back(*bip);
+						bip = -1;
 					}
-				}
-
-				//UG_LOGN("test: points.size(): " << points->size() << " ... and s=" << s << " and bip: " << *bip);
+				//}
 			}
 
 			// BP segment: create BP with tetrahedra/pyramids and create whole branch
 			else {
+				if (points->size() > bpPointIdSize) {
+					if (bpPointId != -1) {
+						points->at(bpPointIdSize).conns.push_back(bpPointId);
+						bpPointId = -1;
+					}
+				}
+
 				bpPointId = points->size(); // at this point id we branch, then recursive call
 				/// the recursive call has the next point id points.size(), so we need to
 				// add bpPointId to this point with id points.size()
@@ -923,19 +933,14 @@ namespace ug {
 
 				ug::vector3 center;
 				CalculateCenter(vVrt, aaPos, 4, center);
-				UG_LOGN("SWC BP: " << center << radius);
 				SWCPoint p;
 				p.coords = center;
 				p.radius = radius;
 				p.conns.push_back(bpPointId-1);
 				p.conns.push_back(bpPointId+1);
-				points->push_back(p);
-
-				int bpIdReally = points->size()-1; /// index of this BP point
-				UG_LOGN("Id: " << bpIdReally);
-
-
-
+				points->resize(points->size()+1);
+				points->at(points->size()-1) = p;
+				int nextBPId = points->size()-1; /// index of this BP point
 
 				// correct vertex offsets to reflect angle at which child branches
 				VecScaleAppend(aaPos[vVrt[(connFaceInd) % 4]],
@@ -1448,9 +1453,9 @@ namespace ug {
 						erScaleFactor, anisotropy, g, aaPos, aaSurfParams,
 						aaMappingParams, sh, blowUpFactor,
 						&vBranchVrts, &vBranchEdges, &vBranchFaces,
-						branchOffset[1], NULL, NULL, NULL, NULL, points, &bpIdReally);
-
-
+						branchOffset[1], NULL, NULL, NULL, NULL, points, nextBPId);
+				/// TODO: if wihin branching point, then bpPointIdSize is not point->size() but bpPointId+1
+				bpPointIdSize = points->size();
 			}
 
 			lastPos = curPos;
@@ -2534,7 +2539,7 @@ number calculate_length_over_radius_variant
                         std::vector<number>* outRads,
                         std::vector<number>* outRadsInner,
                         std::vector<SWCPoint>* points,
-                        int* bip
+                        int bip
                 )
                 {
                         create_neurite_with_er(vNeurites, vPos, vR, nid, erScaleFactor,

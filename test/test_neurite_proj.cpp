@@ -3443,7 +3443,7 @@ void create_spline_data_for_neurites
 	    	if (withER) {
 	    		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 	    			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh, 1.0, &outVerts,
-	    			&outVertsInner, &outRads, &outRadsInner, &swcPoints, NULL);
+	    			&outVertsInner, &outRads, &outRadsInner, &swcPoints, -1);
 	    	} else {
 	    		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 	    				anisotropy, g, aaPos, aaSurfParams);
@@ -3854,7 +3854,7 @@ void create_spline_data_for_neurites
 		 	if (withER) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh, blowUpFactor,
-		   			&outVerts, &outVertsInner, &outRads, &outRadsInner, &newPoints, NULL);
+		   			&outVerts, &outVertsInner, &outRads, &outRadsInner, &newPoints, -1);
 		   	} else {
 		   		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   				anisotropy, g, aaPos, aaSurfParams);
