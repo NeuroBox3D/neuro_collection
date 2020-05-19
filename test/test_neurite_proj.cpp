@@ -4263,9 +4263,11 @@ void create_spline_data_for_neurites
 		vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
 		create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
 
+		std::vector<SWCPoint> points;
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
-		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh, blowUpFactor);
+		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh,
+		   			blowUpFactor, NULL, NULL, NULL, NULL, &points, -1);
 		}
 
 		FixFaceOrientation(g, g.faces_begin(), g.faces_end());
@@ -4442,7 +4444,9 @@ void create_spline_data_for_neurites
 			aaPos[vtx] = avg;
 		}
 
-		export_to_swc(grid, sh, fileName);
+		std::string outNameNoExt = FilenameWithoutExtension(outName);
+		export_to_swc(grid, sh, outNameNoExt + ".swc");
+		export_to_ugx(grid, sh, outNameNoExt + ".ugx");
 
 		vPoints.clear();
 		import_swc(fileName, vPoints, 1.0);
@@ -4541,10 +4545,10 @@ void create_spline_data_for_neurites
 			UG_LOGN(ss.str());
 		}
 
-		/// convert swc to grid, then write grid and swx
+		/// convert swc to grid, then write grid and swc
 		swc_points_to_grid(vPoints, grid, sh, 1.0);
-		export_to_ugx(grid, sh, outName);
 		std::string fn_noext = FilenameWithoutExtension(outName);
+		export_to_ugx(grid, sh, fn_noext + "_reordered.ugx");
 		export_to_swc(grid, sh, fn_noext + "_reordered.swc");
 	}
 
