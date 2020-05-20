@@ -14,6 +14,9 @@ namespace ug {
 		 * connectivity is given implicitly by assuming consecutive
 		 * coordinates are connected by an edge and the last and first
 	   	 * coordinates are also connected by an additional edge
+	   	 *
+	   	 * Usage: ugshell -call "polygonal_mesh_from_txt(\"input.txt\")"
+	   	 * The call will generate a grid and store it as input.ugx on disk
 		 */
 		void polygonal_mesh_from_txt(const std::string& fileName);
 	} // neuro_collection

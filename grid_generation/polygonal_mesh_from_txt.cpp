@@ -38,9 +38,8 @@
  */
 
 #include "polygonal_mesh_from_txt.h"
-#include <fstream>
-#include <iterator>
 #include "lib_grid/lib_grid.h"
+#include <fstream>
 
 namespace ug {
 	namespace neuro_collection {
