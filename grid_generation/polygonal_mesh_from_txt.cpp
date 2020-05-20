@@ -2,7 +2,7 @@
  * Copyright (c) 2009-2020: G-CSC, Goethe University Frankfurt
  *
  * Author: Stephan Grein
- * Creation date: 2013-09-03
+ * Creation date: 2020-05-19
  *
  * This file is part of NeuroBox, which is based on UG4.
  *
@@ -39,6 +39,7 @@
 
 #include "polygonal_mesh_from_txt.h"
 #include <fstream>
+#include <iterator>
 #include "lib_grid/lib_grid.h"
 
 namespace ug {
