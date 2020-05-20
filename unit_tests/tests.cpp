@@ -285,7 +285,7 @@ BOOST_FIXTURE_TEST_CASE(RotateVectorAroundAxisOld, FixtureEmptyGrid) {
 
 	for (int angle = 10; angle <= 360; angle+=10) {
 		vector3 xPrime, xPrime2;
-		rotate_vector_around_axis(vector, axis, origin, xPrime, xPrime2, angle);
+		//rotate_vector_around_axis(vector, axis, origin, xPrime, xPrime2, angle);
 		ug::RegularVertex* p5 = *g.create<RegularVertex>();
 		ug::RegularVertex* p6 = *g.create<RegularVertex>();
 		aaPos[p5] = xPrime; aaPos[p6] = xPrime2;
