@@ -102,6 +102,7 @@ set(SOURCES_TEST unit_tests/tests.cpp)
 if (NOT buildForVRL)
 	set(SOURCES ${SOURCES}
 				grid_generation/neurites_from_swc.cpp
+				grid_generation/polygonal_mesh_from_txt.cpp
 				test/test_neurite_proj.cpp
 				test/neurite_refMarkAdjuster.cpp
 				test/neurite_util_impl.cpp

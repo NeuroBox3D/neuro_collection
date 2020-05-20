@@ -98,6 +98,7 @@
 #include "grid_generation/dendrite_generator.h"
 #include "grid_generation/spine_generation.h"
 #include "grid_generation/neurites_from_swc.h"
+#include "grid_generation/polygonal_mesh_from_txt.h"
 
 #include "lib_grid/refinement/projectors/neurite_projector.h"
 #include "test/test_neurite_proj.h"
@@ -983,6 +984,11 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("coarsen_1d_grid", &coarsen_1d_grid, "input file name", "output file name");
 		reg.add_function("test_import_swc_vr", &test_import_swc_vr, "Filename # anisotropy # numRefs");
 		reg.add_function("test_import_swc_general_var_for_vr_2", &test_import_swc_general_var_for_vr_2, "");
+	}
+
+	// grid generation
+	{
+		reg.add_function("polygonal_mesh_from_txt", &polygonal_mesh_from_txt, "", "TXT input file|string");
 	}
 #endif
 
