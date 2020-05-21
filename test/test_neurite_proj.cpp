@@ -4749,11 +4749,18 @@ void create_spline_data_for_neurites
 
 
 					} else {
-						/*
-						sh.assign_subset(newVrt, edgeIndex);
-						sh.assign_subset(g.get_edge(p1, newVrt), edgeIndex);
-						sh.assign_subset(g.get_edge(p2, newVrt), edgeIndex);
-						*/
+						int index = edgeIndex;
+						if (s1.compare("soma") == 0) {
+							index = sh.get_subset_index(p2);
+						}
+
+						if (s2.compare("soma") == 0) {
+							index = sh.get_subset_index(p1);
+						}
+
+						sh.assign_subset(newVrt, index);
+						sh.assign_subset(g.get_edge(p1, newVrt), index);
+						sh.assign_subset(g.get_edge(p2, newVrt), index);
 					}
 
 					aaDiam[newVrt] = diam2;
