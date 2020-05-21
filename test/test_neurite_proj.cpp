@@ -4270,6 +4270,13 @@ void create_spline_data_for_neurites
 		   			blowUpFactor, NULL, NULL, NULL, NULL, &points, -1);
 		}
 
+		/*
+	    Grid g10;
+	    SubsetHandler sh10(g10);
+	    swc_points_to_grid(points, g10, sh10, 1.0);
+    	export_to_ugx(g10, sh10, "new_swc.ugx");
+    	*/
+
 		FixFaceOrientation(g, g.faces_begin(), g.faces_end());
 
 		VertexIterator vit = g.begin<Vertex>();
@@ -4546,7 +4553,7 @@ void create_spline_data_for_neurites
 		}
 
 		/// convert swc to grid, then write grid and swc
-		swc_points_to_grid(vPoints, grid, sh, 1.0);
+		swc_points_to_grid(vPointsNew, grid, sh, 1.0);
 		std::string fn_noext = FilenameWithoutExtension(outName);
 		export_to_ugx(grid, sh, fn_noext + "_reordered.ugx");
 		export_to_swc(grid, sh, fn_noext + "_reordered.swc");
@@ -4720,12 +4727,38 @@ void create_spline_data_for_neurites
 				Edge* e = q.front();
 				const vector3 v1 = aaPos[e->vertex(0)];
 				const vector3 v2 = aaPos[e->vertex(1)];
-				const number diam = aaDiam[e->vertex(0)];
+				const std::string s1 = sh.get_subset_name(sh.get_subset_index(e->vertex(0)));
+				const std::string s2 = sh.get_subset_name(sh.get_subset_index(e->vertex(1)));
+				Vertex* p1 = e->vertex(0);
+				Vertex* p2 = e->vertex(1);
+				const number diam1 = aaDiam[e->vertex(0)];
+				const number diam2 = aaDiam[e->vertex(1)];
 				q.pop();
 				if (EdgeLength(e, aaPos) > 1.5*avg_length) {
+					const number edgeIndex = sh.get_subset_index(e);
 					ug::RegularVertex* newVrt = SplitEdge<ug::RegularVertex>(g, e, false);
 					VecScaleAdd(aaPos[newVrt], 0.5, v1, 0.5, v2);
-					aaDiam[newVrt] = diam;
+					if ((s1.compare("soma") == 0) && (s2.compare("soma") == 0)) {
+						if (s1.compare("soma") == 0) {
+							aaDiam[newVrt] = diam2;
+						}
+
+						if (s2.compare("soma") == 0) {
+							aaDiam[newVrt] = diam1;
+						}
+
+
+					} else {
+						/*
+						sh.assign_subset(newVrt, edgeIndex);
+						sh.assign_subset(g.get_edge(p1, newVrt), edgeIndex);
+						sh.assign_subset(g.get_edge(p2, newVrt), edgeIndex);
+						*/
+					}
+
+					aaDiam[newVrt] = diam2;
+					// diam2 >= diam1 always by neuron reconstruction expected (tapering off)
+					UG_COND_WARNING(diam2 < diam1, "Check input: diam2 < diam1, but we expect the diam2 > diam1.");
 					// TODO Add check for branching point -> never move BPs?
 				}
 			}
