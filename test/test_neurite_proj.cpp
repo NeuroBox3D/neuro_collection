@@ -2305,6 +2305,64 @@ void create_spline_data_for_neurites
     outFile.close();
 	}
 
+	////////////////////////////////////////////////////////////////////////
+	/// swc_points_to_grid_var
+	///////////////////////////////////////////////////////////////////////
+	void swc_points_to_grid
+	(
+		const std::vector<SWCPoint>& vPts,
+		Grid& g,
+		SubsetHandler& sh,
+		std::map<int, int> mapping,
+		number scale_length = 1.0
+	)
+	{
+	if (!g.has_vertex_attachment(aPosition))
+		g.attach_to_vertices(aPosition);
+	Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+
+	ANumber aDiam = GlobalAttachments::attachment<ANumber>("diameter");
+	if (!g.has_vertex_attachment(aDiam))
+		g.attach_to_vertices(aDiam);
+	Grid::AttachmentAccessor<Vertex, ANumber> aaDiam(g, aDiam);
+
+	// create grid
+	const size_t nP = vPts.size();
+	std::vector<Vertex*> vrts(nP, NULL);
+	for (size_t i = 0; i < nP; ++i)
+	{
+		const SWCPoint& pt = vPts[mapping[i]];
+
+		// create vertex and save
+		Vertex* v = vrts[mapping[i]] = *g.create<RegularVertex>();
+		VecScale(aaPos[v], pt.coords, scale_length);
+		sh.assign_subset(v, pt.type - 1);
+		aaDiam[v] = 2 * pt.radius * scale_length;
+
+		// create edge connections to already created vertices
+		for (size_t j = 0; j < pt.conns.size(); ++j)
+		{
+			if (pt.conns[j] < i)
+			{
+				Edge* e = *g.create<RegularEdge>(EdgeDescriptor(vrts[pt.conns[j]], v));
+				sh.assign_subset(e, vPts[pt.conns[j]].type - 1);
+			}
+		}
+	}
+
+	// final subset managment
+	AssignSubsetColors(sh);
+	sh.set_subset_name("soma", 0);
+	sh.set_subset_name("axon", 1);
+	sh.set_subset_name("dend", 2);
+	sh.set_subset_name("apic", 3);
+	sh.set_subset_name("fork", 4);
+	sh.set_subset_name("end", 5);
+	sh.set_subset_name("custom", 6);
+	EraseEmptySubsets(sh);
+	}
+
+
 
 	////////////////////////////////////////////////////////////////////////
 	/// swc_points_to_grid
@@ -4298,6 +4356,7 @@ void create_spline_data_for_neurites
 		sh.subset_info(0).name = "Neurites";
 		sh.subset_info(1).name = "Soma";
 		AssignSubsetColors(sh);
+		set_somata_mapping_parameters(g, sh, aaMapping, 1, 1, vSomaPoints.front());
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements.ugx");
 		Triangulate(g, g.begin<ug::Quadrilateral>(), g.end<ug::Quadrilateral>());
 		/// apply a hint of laplacian smoothin for soma region
@@ -4478,6 +4537,7 @@ void create_spline_data_for_neurites
 		vPointsNew.resize(vPoints.size());
 		for (size_t i = 0; i < vPoints.size(); i++) {
 			vPointsNew[mapping[i]] = vPoints[i];
+			vPointsNew[i] = vPoints[i];
 			std::vector<size_t> neighbors = vPoints[i].conns;
 			for (size_t j = 0; j < neighbors.size(); j++) {
 				vPointsNew[mapping[i]].conns[j] = mapping[neighbors[j]];
@@ -4553,10 +4613,12 @@ void create_spline_data_for_neurites
 		}
 
 		/// convert swc to grid, then write grid and swc
-		swc_points_to_grid(vPointsNew, grid, sh, 1.0);
+		Grid grid2;
+		SubsetHandler sh2(grid2);
+		swc_points_to_grid(vPointsNew, grid2, sh2, mapping, 1.0);
 		std::string fn_noext = FilenameWithoutExtension(outName);
-		export_to_ugx(grid, sh, fn_noext + "_reordered.ugx");
-		export_to_swc(grid, sh, fn_noext + "_reordered.swc");
+		export_to_ugx(grid2, sh2, fn_noext + "_reordered.ugx");
+		export_to_swc(grid2, sh2, fn_noext + "_reordered.swc");
 	}
 
 	////////////////////////////////////////////////////////////////////////////
