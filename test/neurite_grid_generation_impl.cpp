@@ -437,24 +437,26 @@ namespace ug {
 		/// segment length
 		number segLength = lengthOverRadius / nSeg;
 
+		/// TODO: Make these options available as user input and segLength for option 1
+
 		/// Option 1: Choose segLength and force nSeg
-		/*
 		segLength = 4.0;
 		UG_LOGN("segLength: " << segLength)
 		/// Automatically calculated positions
 		nSeg = (size_t) floor(lengthOverRadius / segLength);
 		std::vector<number> vSegAxPos(nSeg);
 		calculate_segment_axial_positions_variant2(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
-		*/
 
 		/// Option 2: Calculate positions automatically
 		//  calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
 
 		/// Option 3: Forced positions to coincide at points (SWC points -> spline support nodes)
+		/*
 		std::vector<number> vSegAxPos;
 		calculate_segment_axial_positions_variant(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
 		nSeg = vSegAxPos.size();
 		UG_LOG("Size of vSegAxPos: " << vSegAxPos.size())
+		*/
 
 		// add the branching point to segment list (if present)
 		if (brit != brit_end) {

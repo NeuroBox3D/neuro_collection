@@ -3704,5 +3704,27 @@ namespace ug {
 			}
 			return false;
 		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// WriteEdgeStatistics
+		////////////////////////////////////////////////////////////////////////
+		void WriteEdgeStatistics
+		(
+			Grid& grid,
+			const Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			const char* fileName
+		) {
+			ofstream file;
+			file.open(fileName);
+			file << "Edge length";
+			file << std::endl;
+			ConstEdgeIterator eit = grid.begin<Edge>();
+			ConstEdgeIterator eit_end = grid.end<Edge>();
+			for (; eit != eit_end; ++eit) {
+				file << EdgeLength(*eit, aaPos);
+				file << std::endl;
+			}
+			file.close();
+		}
 	}
 }

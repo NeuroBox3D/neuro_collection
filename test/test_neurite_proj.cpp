@@ -3939,8 +3939,10 @@ void create_spline_data_for_neurites
 	    Grid g10;
 	    SubsetHandler sh10(g10);
 	    swc_points_to_grid(newPoints, g10, sh10, 1.0);
+	    g10.attach_to_vertices(aPosition);
+		Grid::VertexAttachmentAccessor<APosition> aaPos2(g10, aPosition);
+	    WriteEdgeStatistics(g10, aaPos2, "statistics_edges.csv");
     	export_to_ugx(g10, sh10, "new_swc.ugx");
-
 		SaveGridToFile(g, sh, "vanilla_output.ugx");
 
 	    UG_DLOGN(NC_TNP, 0, " done.");
@@ -4321,12 +4323,34 @@ void create_spline_data_for_neurites
 		vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
 		create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
 
-		std::vector<SWCPoint> points;
+		std::vector<SWCPoint> newPoints;
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh,
-		   			blowUpFactor, NULL, NULL, NULL, NULL, &points, -1);
+		   			blowUpFactor, NULL, NULL, NULL, NULL, &newPoints, -1);
 		}
+
+	    UG_LOGN("SWC output")
+	    for (size_t i = 0; i < newPoints.size(); i++) {
+	    	UG_LOG("id:" << i << " ---")
+	    	UG_LOG(newPoints[i].coords << ", ");
+	    	/*if (i == 19) {
+	    		newPoints[i].conns.push_back(18);
+	    	}*/
+	    	for (size_t j = 0; j < newPoints[i].conns.size(); j++) {
+	    		UG_LOG(newPoints[i].conns[j] << "; ");
+	    	}
+	    	UG_LOGN("")
+	    	newPoints[i].type = SWC_AXON;
+	    }
+	    UG_LOGN("SWC output done")
+	    Grid g10;
+	    SubsetHandler sh10(g10);
+	    swc_points_to_grid(newPoints, g10, sh10, 1.0);
+	    g10.attach_to_vertices(aPosition);
+    	export_to_ugx(g10, sh10, "new_swc.ugx");
+		Grid::VertexAttachmentAccessor<APosition> aaPos2(g10, aPosition);
+	    WriteEdgeStatistics(g10, aaPos2, "statistics_edges.csv");
 
 		/*
 	    Grid g10;

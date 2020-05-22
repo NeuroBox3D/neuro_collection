@@ -1114,6 +1114,18 @@ namespace ug {
 			const std::vector<std::vector<number> >& vRad,
 			number blowUpFactor
 		);
+
+		/*!
+		 * \brief writes edge statistics as CSV
+		 */
+		void WriteEdgeStatistics
+		(
+			Grid& grid,
+			const Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			const char* fileName
+		);
+
+
 	}
 }
 
