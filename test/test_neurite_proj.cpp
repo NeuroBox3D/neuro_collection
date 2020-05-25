@@ -2326,6 +2326,12 @@ void create_spline_data_for_neurites
 		g.attach_to_vertices(aDiam);
 	Grid::AttachmentAccessor<Vertex, ANumber> aaDiam(g, aDiam);
 
+
+	/// TODO: sort map's values by increasing order
+	/// 1. Create vertices (1st for loop)
+	/// 2. Create edges (2nd for loop)
+	/// This will ensure preservation of HINES matrix structure
+
 	// create grid
 	const size_t nP = vPts.size();
 	std::vector<Vertex*> vrts(nP, NULL);
@@ -4639,6 +4645,9 @@ void create_spline_data_for_neurites
 		/// convert swc to grid, then write grid and swc
 		Grid grid2;
 		SubsetHandler sh2(grid2);
+
+		/// TODO: vPointsNew has to use the mapping.
+		/// Sort the mapping's values increasing, then create vertices
 		swc_points_to_grid(vPointsNew, grid2, sh2, mapping, 1.0);
 		std::string fn_noext = FilenameWithoutExtension(outName);
 		export_to_ugx(grid2, sh2, fn_noext + "_reordered.ugx");

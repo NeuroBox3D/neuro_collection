@@ -40,13 +40,23 @@
 #include "polygonal_mesh_from_txt.h"
 #include "lib_grid/lib_grid.h"
 #include <fstream>
+#include "common/math/ugmath_types.h"
+#include "lib_grid/refinement/regular_refinement.h"
+#include "lib_grid/algorithms/remeshing/delaunay_triangulation.h"
 
 namespace ug {
 	namespace neuro_collection {
 		////////////////////////////////////////////////////////////////////////
 		/// polygonal_mesh_from_txt
 		////////////////////////////////////////////////////////////////////////
-		void polygonal_mesh_from_txt(const std::string& fileName) {
+		void polygonal_mesh_from_txt
+		(
+			const std::string& fileName,
+			const ug::vector3& p1,
+			const ug::vector3& p2,
+			const ug::vector3& p3,
+			const ug::vector3& p4
+		) {
 			/// setup grid
 			Grid g;
 			SubsetHandler sh(g);
@@ -54,6 +64,10 @@ namespace ug {
 			sh.set_default_subset_index(0);
 			g.attach_to_vertices(aPosition);
 			Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+			AInt aInt;
+			g.attach_to_vertices(aInt);
+			const size_t numRefs = 2;
+			const number minAngle = 20;
 
 			/// create vertices
 			double x, y;
@@ -74,8 +88,79 @@ namespace ug {
 			}
 			*g.create<RegularEdge>(EdgeDescriptor(vertices.front(), vertices.back()));
 
-			/// save grid
+
+			/// rectangle
+			ug::Vertex* v1 = *g.create<RegularVertex>();
+			aaPos[v1] = p1; // 6
+			ug::Vertex* v2 = *g.create<RegularVertex>();
+			aaPos[v2] = p2; // 7
+			ug::Vertex* v3 = *g.create<RegularVertex>();
+			aaPos[v3] = p3; // 8
+			ug::Vertex* v4= *g.create<RegularVertex>();
+			aaPos[v4] = p4; // 9
+			ug::RegularEdge* e1 = *g.create<RegularEdge>(EdgeDescriptor(v1, v2));
+			sh.assign_subset(e1, 3);
+			ug::RegularEdge* e2 = *g.create<RegularEdge>(EdgeDescriptor(v1, v3));
+			sh.assign_subset(e2, 2);
+			ug::RegularEdge* e3 = *g.create<RegularEdge>(EdgeDescriptor(v2, v4));
+			sh.assign_subset(e3, 5);
+			ug::RegularEdge* e4 = *g.create<RegularEdge>(EdgeDescriptor(v3, v4));
+			sh.assign_subset(e4, 4);
+
+			sh.assign_subset(v1, 2);
+			sh.assign_subset(v2, 3);
+			sh.assign_subset(v3, 4);
+			sh.assign_subset(v4, 5);
+
+			/// refinement
+			Selector sel(g);
+			for (int i = 0; i < sh.num_subsets(); i++) {
+				SelectSubset(sel, sh, i, true);
+			}
+
+			for (size_t i = 0; i < numRefs; i++) {
+				Refine(g, sel);
+			}
+			sel.clear();
+
+
+			// triangulation
+			sh.set_default_subset_index(7);
+			TriangleFill_SweepLine(g, g.edges_begin(), g.edges_end(), aPosition, aInt, &sh, 7);
+			QualityGridGeneration(g, g.faces_begin(), g.faces_end(), aaPos, minAngle);
+
+			/// Separate faces
+			SelectSubset(sel, sh, 0, true);
+			SeparateSubsetsByLowerDimSelection<Face>(g, sh, sel);
+
+			/// Subset assignment
+			sel.clear();
+			SelectSubset(sel, sh, 7, true);
+			AssignSelectionToSubset(sel, sh, 0);
+			sel.clear();
+			SelectSubset(sel, sh, 1, true);
+			CloseSelection(sel);
+			AssignSelectionToSubset(sel, sh, 1);
+			sel.clear();
+			SelectAreaBoundary(sel, sh.begin<Edge>(1), sh.end<Edge>(1));
+			SelectAreaBoundary(sel, sh.begin<Face>(1), sh.end<Face>(1));
+			CloseSelection(sel);
+			AssignSelectionToSubset(sel, sh, 8);
+			sel.clear();
+
+			/// Colors and names
+			EraseEmptySubsets(sh);
 			AssignSubsetColors(sh);
+			sh.subset_info(0).name = "vol";
+			sh.subset_info(1).name = "tower";
+			sh.subset_info(2).name = "left";
+			sh.subset_info(3).name = "bottom";
+			sh.subset_info(4).name = "top";
+			sh.subset_info(5).name = "right";
+			sh.subset_info(6).name = "tower bnd";
+
+
+			/// save grid
 			std::string outFileName = FilenameWithoutExtension(fileName) + ".ugx";
 			SaveGridToFile(g, sh, outFileName.c_str());
 		}
