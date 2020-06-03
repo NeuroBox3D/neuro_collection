@@ -240,7 +240,6 @@ namespace ug {
 		p.conns.push_back(points->size()+1);
 		points->resize(points->size()+1);
 		points->at(points->size()-1) = p;
-
 		rootId = points->size();
 
 		for (size_t i = 0; i < 12; ++i) {
@@ -423,11 +422,11 @@ namespace ug {
 
 		// calculate total length (Needed for option 1)
 		// = integral from t_start to t_end over: ||v(t)|| dt
-		number lengthOverRadius = calculate_length_over_radius_variant(t_start, t_end, neurite, curSec);
+		//number lengthOverRadius = calculate_length_over_radius_variant(t_start, t_end, neurite, curSec);
 
 		// calculate total length in units of radius (Needed for option 2 and 3)
 		// = integral from t_start to t_end over: ||v(t)|| / r(t) dt
-		//number lengthOverRadius = calculate_length_over_radius(t_start, t_end,neurite, curSec);
+		number lengthOverRadius = calculate_length_over_radius(t_start, t_end,neurite, curSec);
 
 		// to reach the desired anisotropy on the surface in the refinement limit,
 		// it has to be multiplied by pi/2 h
@@ -440,23 +439,26 @@ namespace ug {
 		/// TODO: Make these options available as user input and segLength for option 1
 
 		/// Option 1: Choose segLength and force nSeg
+		/*
 		segLength = 4.0;
 		UG_LOGN("segLength: " << segLength)
 		/// Automatically calculated positions
 		nSeg = (size_t) floor(lengthOverRadius / segLength);
 		std::vector<number> vSegAxPos(nSeg);
 		calculate_segment_axial_positions_variant2(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
+		*/
 
 		/// Option 2: Calculate positions automatically
-		//  calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
+		/*
+		std::vector<number> vSegAxPos(nSeg);
+		calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
+		*/
 
 		/// Option 3: Forced positions to coincide at points (SWC points -> spline support nodes)
-		/*
 		std::vector<number> vSegAxPos;
 		calculate_segment_axial_positions_variant(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
 		nSeg = vSegAxPos.size();
 		UG_LOG("Size of vSegAxPos: " << vSegAxPos.size())
-		*/
 
 		// add the branching point to segment list (if present)
 		if (brit != brit_end) {
@@ -643,7 +645,7 @@ namespace ug {
 			"tangential vector... Expect twisted segments. Offending neurite segment: " << vPos[nid][curSec]);
 
 			// usual segment: extrude
-			if (s != nSeg - 1 || brit == brit_end) {
+			if (s != nSeg-1 || brit == brit_end) {
 				// apply additional offset
 				angleOffset = std::fmod(angleOffset + addOffset + 2 * PI,
 						2 * PI);
@@ -933,6 +935,7 @@ namespace ug {
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
 
+				/*
 				ug::vector3 center;
 				CalculateCenter(vVrt, aaPos, 4, center);
 				SWCPoint p;
@@ -943,6 +946,7 @@ namespace ug {
 				points->resize(points->size()+1);
 				points->at(points->size()-1) = p;
 				int nextBPId = points->size()-1; /// index of this BP point
+				*/
 
 				// correct vertex offsets to reflect angle at which child branches
 				VecScaleAppend(aaPos[vVrt[(connFaceInd) % 4]],
@@ -1099,6 +1103,21 @@ namespace ug {
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
 
+
+				ug::vector3 center;
+				CalculateCenter(vVrt, aaPos, 4, center);
+				SWCPoint p;
+				p.coords = center;
+				p.radius = radius;
+				p.conns.push_back(bpPointId-1);
+				p.conns.push_back(bpPointId+1);
+				points->resize(points->size()+1);
+				points->at(points->size()-1) = p;
+				int nextBPId = points->size()-1; /// index of this BP point
+
+
+
+
 				// correct vertex offsets to reflect angle at which child branches
 				VecScaleAppend(aaPos[vVrt[(connFaceInd) % 4]],
 						erScaleFactor * surfBPoffset, vel);
@@ -1248,6 +1267,19 @@ namespace ug {
 					// std::vector<SWCPoint> vPoints;
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
+
+				/*
+				ug::vector3 center;
+				CalculateCenter(vVrt, aaPos, 4, center);
+				SWCPoint p;
+				p.coords = center;
+				p.radius = radius;
+				p.conns.push_back(bpPointId-1);
+				p.conns.push_back(bpPointId+1);
+				points->resize(points->size()+1);
+				points->at(points->size()-1) = p;
+				int nextBPId = points->size()-1; /// index of this BP point
+				*/
 
 				// correct vertex offsets to reflect angle at which child branches
 				VecScaleAppend(aaPos[vVrt[(connFaceInd) % 4]],

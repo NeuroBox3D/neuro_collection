@@ -1125,7 +1125,18 @@ namespace ug {
 			const char* fileName
 		);
 
-
+		/*
+		 * \brief marks outliers
+		 */
+		void MarkOutliers
+		(
+			Grid& grid,
+			SubsetHandler& sh,
+			const Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			const char* fileName,
+			const number thresholdMin,
+			const number thresholdMax
+		);
 	}
 }
 

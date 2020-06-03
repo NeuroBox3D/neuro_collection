@@ -60,7 +60,6 @@ namespace ug {
 			/// setup grid
 			Grid g;
 			SubsetHandler sh(g);
-			sh.subset_info(0).name = "polygon";
 			sh.set_default_subset_index(0);
 			g.attach_to_vertices(aPosition);
 			Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
@@ -88,7 +87,6 @@ namespace ug {
 			}
 			*g.create<RegularEdge>(EdgeDescriptor(vertices.front(), vertices.back()));
 
-
 			/// rectangle
 			ug::Vertex* v1 = *g.create<RegularVertex>();
 			aaPos[v1] = p1; // 6
@@ -106,7 +104,6 @@ namespace ug {
 			sh.assign_subset(e3, 5);
 			ug::RegularEdge* e4 = *g.create<RegularEdge>(EdgeDescriptor(v3, v4));
 			sh.assign_subset(e4, 4);
-
 			sh.assign_subset(v1, 2);
 			sh.assign_subset(v2, 3);
 			sh.assign_subset(v3, 4);
@@ -122,7 +119,6 @@ namespace ug {
 				Refine(g, sel);
 			}
 			sel.clear();
-
 
 			// triangulation
 			sh.set_default_subset_index(7);
@@ -158,7 +154,6 @@ namespace ug {
 			sh.subset_info(4).name = "top";
 			sh.subset_info(5).name = "right";
 			sh.subset_info(6).name = "tower bnd";
-
 
 			/// save grid
 			std::string outFileName = FilenameWithoutExtension(fileName) + ".ugx";

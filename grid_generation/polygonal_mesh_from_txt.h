@@ -18,6 +18,10 @@ namespace ug {
 	   	 *
 	   	 * Usage: ugshell -call "polygonal_mesh_from_txt(\"input.txt\")"
 	   	 * The call will generate a grid and store it as input.ugx on disk
+	   	 *
+	   	 * Note: The full Lua prototype for arbitrary number of polygons is here:
+	   	 * https://github.com/NeuroBox3D/ProMeshScripts - this might get added to
+	   	 * the method below eventually to make available directly for ugshell users.
 		 */
 		void polygonal_mesh_from_txt
 		(

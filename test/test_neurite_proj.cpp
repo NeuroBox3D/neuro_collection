@@ -2308,7 +2308,7 @@ void create_spline_data_for_neurites
 	////////////////////////////////////////////////////////////////////////
 	/// swc_points_to_grid_var
 	///////////////////////////////////////////////////////////////////////
-	void swc_points_to_grid
+	void swc_points_to_grid_var
 	(
 		const std::vector<SWCPoint>& vPts,
 		Grid& g,
@@ -2326,26 +2326,41 @@ void create_spline_data_for_neurites
 		g.attach_to_vertices(aDiam);
 	Grid::AttachmentAccessor<Vertex, ANumber> aaDiam(g, aDiam);
 
-
 	/// TODO: sort map's values by increasing order
 	/// 1. Create vertices (1st for loop)
 	/// 2. Create edges (2nd for loop)
 	/// This will ensure preservation of HINES matrix structure
 
-	// create grid
+	std::multimap<int, int> dst = flip_map(mapping);
+	std::multimap<int, int>::const_iterator it;
+
 	const size_t nP = vPts.size();
 	std::vector<Vertex*> vrts(nP, NULL);
-	for (size_t i = 0; i < nP; ++i)
-	{
-		const SWCPoint& pt = vPts[mapping[i]];
 
-		// create vertex and save
-		Vertex* v = vrts[mapping[i]] = *g.create<RegularVertex>();
+	/// vertices
+	for ( it = dst.begin(); it != dst.end(); it++)
+	{
+		UG_LOGN("key:" << it->first << ", value: " << it->second);
+		const SWCPoint& pt = vPts[it->second];
+		Vertex* v = vrts[it->first] = *g.create<RegularVertex>();
 		VecScale(aaPos[v], pt.coords, scale_length);
 		sh.assign_subset(v, pt.type - 1);
 		aaDiam[v] = 2 * pt.radius * scale_length;
+	}
 
-		// create edge connections to already created vertices
+	/// edges
+	for ( it = dst.begin(); it != dst.end(); it++)
+	{
+		const SWCPoint& pt = vPts[it->second];
+		for (size_t j = 0; j < pt.conns.size(); ++j) {
+			const SWCPoint& pt = vPts[it->second];
+			Edge* e = *g.create<RegularEdge>(EdgeDescriptor(vrts[pt.conns[j]], vrts[it->second]));
+			sh.assign_subset(e, vPts[pt.conns[j]].type - 1);
+		}
+	}
+
+
+	/*	// create edge connections to already created vertices
 		for (size_t j = 0; j < pt.conns.size(); ++j)
 		{
 			if (pt.conns[j] < i)
@@ -2354,7 +2369,7 @@ void create_spline_data_for_neurites
 				sh.assign_subset(e, vPts[pt.conns[j]].type - 1);
 			}
 		}
-	}
+		*/
 
 	// final subset managment
 	AssignSubsetColors(sh);
@@ -3694,7 +3709,8 @@ void create_spline_data_for_neurites
 		bool regularize,
 		number blowUpFactor,
 		bool forVR,
-		bool dryRun
+		bool dryRun,
+		int option
 	) {
 
 		using namespace std;
@@ -3927,6 +3943,7 @@ void create_spline_data_for_neurites
 		    SaveGridToFile(g, sh, ss.str());
 		    ss.str(""); ss.clear();
 		}
+	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
 
 	    UG_LOGN("SWC output")
 	    for (size_t i = 0; i < newPoints.size(); i++) {
@@ -4231,7 +4248,8 @@ void create_spline_data_for_neurites
 		number anisotropy,
 		size_t numRefs,
 		bool regularize,
-		number blowUpFactor
+		number blowUpFactor,
+		int option
 	) {
 		using namespace std;
 
@@ -4253,6 +4271,13 @@ void create_spline_data_for_neurites
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
 			vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
 		}
+
+	    Grid g11;
+	    SubsetHandler sh11(g11);
+	    swc_points_to_grid(vPoints, g11, sh11, 1.0);
+	    g11.attach_to_vertices(aPosition);
+		Grid::VertexAttachmentAccessor<APosition> aaPos3(g11, aPosition);
+	    WriteEdgeStatistics(g11, aaPos3, "statistics_edges_original.csv");
 
 		/*
 		std::string fn_noext = FilenameWithoutExtension(fileName);
@@ -4357,6 +4382,7 @@ void create_spline_data_for_neurites
     	export_to_ugx(g10, sh10, "new_swc.ugx");
 		Grid::VertexAttachmentAccessor<APosition> aaPos2(g10, aPosition);
 	    WriteEdgeStatistics(g10, aaPos2, "statistics_edges.csv");
+	    MarkOutliers(g10, sh10, aaPos2, "foo.ugx", 2, 8);
 
 		/*
 	    Grid g10;
@@ -4396,6 +4422,125 @@ void create_spline_data_for_neurites
 		/// Use to warn if triangles intersect and correct triangle intersections
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
 		ResolveTriangleIntersections(g, g.begin<Triangle>(), g.end<Triangle>(), 0.1, aPosition);
+	}
+
+
+	////////////////////////////////////////////////////////////////////////////
+	/// create_two_way_branch_from_swc
+	////////////////////////////////////////////////////////////////////////////
+	void create_two_way_branch_from_swc(
+		const std::string& fileName,
+		number erScaleFactor,
+		size_t numRefs
+	) {
+		using namespace std;
+
+		// read in SWC file to intermediate structure
+		std::vector<SWCPoint> vPoints;
+		std::vector<SWCPoint> vSomaPoints;
+		import_swc(fileName, vPoints);
+
+		// convert intermediate structure to neurite list
+		std::vector<std::vector<vector3> > vPos;
+		std::vector<std::vector<number> > vRad;
+		std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
+		std::vector<size_t> vRootNeuriteIndsOut;
+		convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
+			vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
+		}
+
+		// Prepare grid (selector and attachments)
+		Grid g;
+		SubsetHandler sh(g);
+		sh.set_default_subset_index(0);
+		g.attach_to_vertices(aPosition);
+		Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+
+		/// surface parameters for refinement
+		typedef NeuriteProjector::SurfaceParams NPSP;
+		UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
+		              "GlobalAttachment 'npSurfParams' not declared.");
+		Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
+		if (!g.has_vertex_attachment(aSP)) { g.attach_to_vertices(aSP); }
+
+		Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
+		aaSurfParams.access(g, aSP);
+
+	    // Projection handling setup
+		SubsetHandler psh(g);
+		psh.set_default_subset_index(0);
+		ProjectionHandler projHandler(&psh);
+		SmartPtr<IGeometry<3> > geom3d = MakeGeometry3d(g, aPosition);
+		projHandler.set_geometry(geom3d);
+		SmartPtr<NeuriteProjector> neuriteProj(new NeuriteProjector(geom3d));
+		projHandler.set_projector(0, neuriteProj);
+
+		// Create spline data for neurites
+		vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
+		create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
+
+		/// mapping
+	    typedef NeuriteProjector::Mapping NPMapping;
+	    UG_COND_THROW(!GlobalAttachments::is_declared("npMapping"),
+	    		"GlobalAttachment 'npMapping' was not declared.");
+	    Attachment<NPMapping> aNPMapping = GlobalAttachments::attachment<Attachment<NPMapping> >("npMapping");
+	    if (!g.has_vertex_attachment(aNPMapping)) {
+	    	g.attach_to_vertices(aNPMapping);
+	    }
+	    Grid::VertexAttachmentAccessor<Attachment<NPMapping> > aaMapping;
+	    aaMapping.access(g, aNPMapping);
+
+	    /// TODO refactor to not use mapping, newPoints and -1 parameters in create_neurite_with_er
+		std::vector<SWCPoint> newPoints;
+		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
+		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
+		   			erScaleFactor, 1.0, g, aaPos, aaSurfParams, aaMapping, sh,
+		   			1.0, NULL, NULL, NULL, NULL, &newPoints, -1);
+		}
+
+		// grid consistency
+		FixFaceOrientation(g, g.faces_begin(), g.faces_end());
+		VertexIterator vit = g.begin<Vertex>();
+		VertexIterator vit_end = g.end<Vertex>();
+		for (; vit != vit_end; ++vit) { neuriteProj->project(*vit); }
+		EraseEmptySubsets(sh);
+		AssignSubsetColors(sh);
+		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
+
+		// save coarse grid
+		std::string outFileName = "imported_y_structure.ugx";
+		GridWriterUGX ugxWriter;
+		ugxWriter.add_grid(g, "defGrid", aPosition);
+		ugxWriter.add_subset_handler(sh, "defSH", 0);
+		ugxWriter.add_subset_handler(psh, "projSH", 0);
+		ugxWriter.add_projection_handler(projHandler, "defPH", 0);
+		if (!ugxWriter.write_to_file(outFileName.c_str()))
+			UG_THROW("Grid could not be written to file '" << outFileName << "'.");
+
+
+		// refine
+		if (numRefs == 0) {
+			SaveGridToFile(g, sh, outFileName.c_str());
+			return;
+		}
+
+		// create and save refined grids
+		Domain3d dom;
+		dom.create_additional_subset_handler("projSH");
+		try {LoadDomain(dom, outFileName.c_str());}
+		UG_CATCH_THROW("Failed loading domain from '" << outFileName << "'.");
+
+		GlobalMultiGridRefiner ref(*dom.grid(), dom.refinement_projector());
+		for (uint i = 0; i < numRefs; ++i)
+		{
+			ref.refine();
+			ostringstream oss;
+			oss << "_refined_" << i+1 << ".ugx";
+			std::string curFileName = outFileName.substr(0, outFileName.size()-4) + oss.str();
+			try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), 50.0);}
+			UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
+		}
 	}
 
 
@@ -4471,8 +4616,9 @@ void create_spline_data_for_neurites
 	    // to this vertex
 	    std::list<int>::iterator i;
 	    for (i = adj[v].begin(); i != adj[v].end(); ++i)
-	        if (!visited[*i])
+	        if (!visited[*i]) {
 	            DFSUtil(*i, visited, indices);
+	        }
 	}
 
 	// DFS traversal of the vertices reachable from v.
@@ -4489,6 +4635,18 @@ void create_spline_data_for_neurites
 	    DFSUtil(v, visited, indices);
 	}
 
+	/// Writes an swc file from a grid with dfs ordering, reimports correctly
+	/// ordered swc and writes it to the corresponding ugx file
+	void to_ugx(Grid& grid, SubsetHandler& sh, const std::string& fileName) {
+		std::string fn_noext = FilenameWithoutExtension(fileName);
+		export_to_swc(grid, sh, fn_noext + "_temp.swc");
+		std::vector<SWCPoint> vPoints;
+		import_swc(fn_noext + "_temp.swc", vPoints, 1.0);
+		Grid tempGrid;
+		SubsetHandler tempSh(tempGrid);
+		swc_points_to_grid(vPoints, tempGrid, tempSh, 1.0);
+		export_to_ugx(grid, sh, fn_noext + ".ugx");
+	}
 
 	////////////////////////////////////////////////////////////////////////////
 	/// refine_swc_grid_variant
@@ -4499,6 +4657,8 @@ void create_spline_data_for_neurites
 		Grid grid;
 		SubsetHandler sh(grid);
 		swc_points_to_grid(vPoints, grid, sh, 1.0);
+		SaveGridToFile(grid, sh, "temp_original_input.ugx");
+		export_to_swc(grid, sh, "temp_original_input.swc");
 
 		/// SWC now a grid, now refine
 		typedef Grid::traits<Edge>::secure_container edgeCont;
@@ -4540,31 +4700,39 @@ void create_spline_data_for_neurites
 			aaPos[vtx] = avg;
 		}
 
+
+		/// write refined grid to swc and ugx, need to re-read this file to ensure correct ordering
 		std::string outNameNoExt = FilenameWithoutExtension(outName);
 		export_to_swc(grid, sh, outNameNoExt + ".swc");
 		export_to_ugx(grid, sh, outNameNoExt + ".ugx");
 
 		vPoints.clear();
-		import_swc(fileName, vPoints, 1.0);
+		//import_swc(fileName, vPoints, 1.0);
+		import_swc(outNameNoExt + ".swc", vPoints, 1.0);
 		Graph g(vPoints.size());
 		for (size_t i = 0; i < vPoints.size(); i++) {
 			std::vector<size_t> neighbors = vPoints[i].conns;
 			for (size_t j = 0; j < neighbors.size(); j++) {
-				g.addEdge(neighbors[j], i);
+				//g.addEdge(neighbors[j], i);
+				g.addEdge(i, neighbors[j]);
 			}
 		}
 		std::vector<int> indices;
 		std::map<int, int> mapping;
 
 		g.DFS(0, indices); /// produces HINES matrix if starting from soma index or any index
-		///g.BFS(0, indices); /// produces narrow band matrix if starting from soma index
+		//g.BFS(0, indices); /// produces narrow band matrix if starting from soma index
 		for (size_t i = 0; i< indices.size(); i++) {
 			mapping[indices[i]] = i;
+			UG_LOGN("Map from: " << indices[i] << " to: " << i);
 		}
 
 		/// now reorder vertices
 		std::vector<SWCPoint> vPointsNew;
 		vPointsNew.resize(vPoints.size());
+
+		std::vector<SWCPoint> vPointsNew2;
+		vPointsNew2.resize(vPoints.size());
 		for (size_t i = 0; i < vPoints.size(); i++) {
 			vPointsNew[mapping[i]] = vPoints[i];
 			vPointsNew[i] = vPoints[i];
@@ -4595,33 +4763,36 @@ void create_spline_data_for_neurites
 
 		for (int i = 0; i < rows; i++) {
 			std::vector<size_t> neighbors = vPointsNew[i].conns;
+			UG_LOGN("i: " << i << ", has coords: " << vPointsNew[i].coords);
 			for (size_t j = 0; j < neighbors.size(); j++) {
 				A[neighbors[j]][i] = 1;
 				A[i][neighbors[j]] = 1;
+				UG_LOGN("i connects to:" << neighbors[j]);
 			}
+			UG_LOGN("---")
 		}
 
 		for (int i = 0; i < rows; i++) {
 			for (int j = 0; j < cols; j++) {
 				/// 1st condition
 				if (A[i][i] != 1) {
-					UG_ERR_LOG("Not a HINES-type matrix. Condition 1 not satisfied.");
-					///return;
+					UG_THROW("Not a HINES-type matrix. Condition 1 not satisfied.");
+					return;
 				}
 
 				/// 2nd condition
 				if ( (A[i][j] == 1 && A[j][i] == 0) || (A[j][i] == 1 && A[i][j] == 0) ) {
-					UG_ERR_LOG("Not a HINES-type matrix. Condition 2 not satisfied.");
-					///return;
+					UG_THROW("Not a HINES-type matrix. Condition 2 not satisfied.");
+					return;
 				}
 
 				/// 3rd condition
 				if (A[i][j] == 1 && i < j) {
 					if (std::count(A[i].begin()+j+1, A[i].end(), 1) >
 						static_cast<int>(vPointsNew[i].conns.size())) {
-						UG_ERR_LOG("Not a HINES-type matrix. Condition 3 not satisfied.");
-						UG_ERR_LOG("i: " << i << ", j" << j);
-						//return;
+						UG_THROW("Not a HINES-type matrix. Condition 3 not satisfied."
+								<< "i: " << i << ", j" << j);
+						return;
 					}
 				}
 			}
@@ -4642,16 +4813,27 @@ void create_spline_data_for_neurites
 			UG_LOGN(ss.str());
 		}
 
+		/// Up to here adjacency matrix looks correct -> serializing to ugx fails,
+		/// using the method swc_points_to_grid_(var) fails - why? TODO: Instead of
+		/// conversion write new UGX grid from connectivity matrix A directly to disk
+
 		/// convert swc to grid, then write grid and swc
 		Grid grid2;
 		SubsetHandler sh2(grid2);
 
-		/// TODO: vPointsNew has to use the mapping.
-		/// Sort the mapping's values increasing, then create vertices
-		swc_points_to_grid(vPointsNew, grid2, sh2, mapping, 1.0);
+		/// Use the mapping from DFS search to write a reordered mesh
+		// swc_points_to_grid_var(vPointsNew, grid2, sh2, mapping, 1.0);
+		swc_points_to_grid(vPointsNew, grid2, sh2, 1.0);
 		std::string fn_noext = FilenameWithoutExtension(outName);
 		export_to_ugx(grid2, sh2, fn_noext + "_reordered.ugx");
 		export_to_swc(grid2, sh2, fn_noext + "_reordered.swc");
+		std::vector<SWCPoint> vPoints3;
+		import_swc(fn_noext + "_reordered.swc", vPoints3, 1.0);
+		Grid grid3;
+		SubsetHandler sh3(grid3);
+		swc_points_to_grid(vPoints3, grid3, sh3, 1.0);
+		SaveGridToFile(grid3, sh3, fn_noext + "_reordered_NEW.ugx");
+
 	}
 
 	////////////////////////////////////////////////////////////////////////////
@@ -4722,7 +4904,7 @@ void create_spline_data_for_neurites
 			number blowUpFactor
 		) {
 			test_import_swc_general_var(fileName, correct, erScaleFactor, withER,
-					anisotropy, numRefs, regularize, blowUpFactor, true, false);
+					anisotropy, numRefs, regularize, blowUpFactor, true, false, 3);
 		}
 
 		////////////////////////////////////////////////////////////////////////

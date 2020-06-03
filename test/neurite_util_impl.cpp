@@ -3726,5 +3726,36 @@ namespace ug {
 			}
 			file.close();
 		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// MarkOutliers
+		////////////////////////////////////////////////////////////////////////
+		void MarkOutliers
+		(
+			Grid& grid,
+			SubsetHandler& sh,
+			const Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			const char* fileName,
+			const number thresholdMin,
+			const number thresholdMax
+		) {
+			ConstEdgeIterator eit = grid.begin<Edge>();
+			ConstEdgeIterator eit_end = grid.end<Edge>();
+			for (; eit != eit_end; ++eit) {
+				const number length = EdgeLength(*eit, aaPos);
+				if (length > thresholdMax) {
+					sh.assign_subset(*eit, 100);
+				}
+
+				if (length < thresholdMin) {
+					sh.assign_subset(*eit, 101);
+				}
+			}
+			sh.subset_info(100).name = "Outlier above (50% over chosen length)";
+			sh.subset_info(101).name = "Outliers below (50% below chosen length)";
+			EraseEmptySubsets(sh);
+			AssignSubsetColors(sh);
+			SaveGridToFile(grid, sh, "marked_outliers.ugx");
+		}
 	}
 }
