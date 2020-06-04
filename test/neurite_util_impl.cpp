@@ -3757,5 +3757,61 @@ namespace ug {
 			AssignSubsetColors(sh);
 			SaveGridToFile(grid, sh, "marked_outliers.ugx");
 		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// CorrectOutliers
+		////////////////////////////////////////////////////////////////////////
+		void CorrectOutliers
+		(
+			Grid& grid,
+			SubsetHandler& sh,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			const char* fileName,
+			const number thresholdMin,
+			const number thresholdMax
+		) {
+			ConstEdgeIterator eit = grid.begin<Edge>();
+			ConstEdgeIterator eit_end = grid.end<Edge>();
+
+			typedef Grid::traits<Edge>::secure_container edgeCont;
+			edgeCont es;
+
+			for (; eit != eit_end; ++eit) {
+				const number length = EdgeLength(*eit, aaPos);
+				if (length > thresholdMax) {
+					es.push_back(*eit);
+				}
+			}
+
+			const size_t esSz = es.size();
+			for (size_t i = 0; i < esSz; i++) {
+				Edge* e = es[i];
+				const int id = sh.get_subset_index(e);
+				vector3 avg;
+				VecScaleAdd(avg, 0.5, aaPos[e->vertex(0)], 0.5, aaPos[e->vertex(1)]);
+				sh.assign_subset(e, 0);
+				ug::RegularVertex* v = SplitEdge<RegularVertex>(grid, e, false);
+				aaPos[v] = avg;
+				sh.assign_subset(v, 0);
+			}
+
+			eit = grid.begin<Edge>();
+			for (; eit != eit_end; ++eit) {
+				const number length = EdgeLength(*eit, aaPos);
+					if (length > thresholdMax) {
+						sh.assign_subset(*eit, 100);
+					}
+
+					if (length < thresholdMin) {
+						sh.assign_subset(*eit, 101);
+					}
+			}
+
+			sh.subset_info(100).name = "Outlier above (50% over chosen length)";
+			sh.subset_info(101).name = "Outliers below (50% below chosen length)";
+			EraseEmptySubsets(sh);
+			AssignSubsetColors(sh);
+			SaveGridToFile(grid, sh, "corrected_outliers.ugx");
+		}
 	}
 }

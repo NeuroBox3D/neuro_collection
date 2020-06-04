@@ -344,7 +344,19 @@ void test_convert_swc_to_ugx
 );
 
 /*!
- * \brief new strategy
+ * \brief new main strategy to generate computational meshs for 1d/3d simulations
+ * TODO: refactor to eliminate not necessary VR grid generation parameters and options
+ * \param[in] fileName
+ * \param[in] correct
+ * \param[in] erScaleFactor
+ * \param[in] withEr
+ * \param[in] anisotropy
+ * \param[in] numRefs
+ * \param[in] regularize
+ * \param[in] blowUpFactor
+ * \param[in] forVR
+ * \param[in] dryRun
+ * \param[in] option
  */
 void test_import_swc_general_var(
 	const std::string& fileName,
@@ -362,7 +374,7 @@ void test_import_swc_general_var(
 );
 
 /*!
- * \brief vr strategy
+ * \brief vr strategy (potentially deprecated!)
  */
 void test_import_swc_general_var_for_vr(
 	const std::string& fileName,
@@ -410,16 +422,46 @@ public:
 
 };
 
-void refine_swc_grid_variant(const std::string& fileName, const std::string& outName, bool writeMatrix);
-void coarsen_1d_grid(const std::string& fileName, number factor);
+/*!
+ * \brief naive refinement variant which will preserve HINES ordering
+ * \param[in] fileName
+ * \param[in] outName
+ * \param[in] writeMatrix
+ */
+void refine_swc_grid_variant(
+	const std::string& fileName,
+	const std::string& outName,
+	bool writeMatrix
+);
 
+/*!
+ * \brief naive coarsening by split and collapse of edges to get average edge length
+ * \param[in] fileName
+ * \param[in] factor
+ */
+void coarsen_1d_grid(
+	const std::string& fileName,
+	number factor
+);
+
+
+/*!
+ * \brief old, deprecated method potentially
+ * \param[in] fileName
+ * \param[in] anisotropy
+ * \param[in] numRefs
+ */
 void test_import_swc_vr
-	(
-		const std::string& fileName,
-		number anisotropy,
-		size_t numRefs
-	);
+(
+	const std::string& fileName,
+	number anisotropy,
+	size_t numRefs
+);
 
+/*!
+ * \brief main routine to generate grids for VR
+ * TODO: refactor the option flag (only used with option=3)
+ */
 void test_import_swc_general_var_for_vr_2(
 	const std::string& fileName,
 	bool correct,
@@ -432,6 +474,9 @@ void test_import_swc_general_var_for_vr_2(
 	int option
 );
 
+////////////////////////////////////////////////////////////////////////
+/// Helper methods to flip a pair and a map
+////////////////////////////////////////////////////////////////////////
 template<typename A, typename B>
 std::pair<B,A> flip_pair(const std::pair<A,B> &p)
 {
@@ -447,12 +492,43 @@ std::multimap<B,A> flip_map(const std::map<A,B> &src)
     return dst;
 }
 
+/*!
+ * \brief special method to generate two way branches
+ * \param[in] fileName
+ * \param[in] erScaleFactor
+ * \param[in] numRefs
+ */
 void create_two_way_branch_from_swc(
 	const std::string& fileName,
 	number erScaleFactor,
 	size_t numRefs
 );
 
+
+/*!
+ * \brief special method to respect reordering during UGX export
+ * \param[in] vPts
+ * \param[in] sh
+ * \param[in] mapping
+ * \param[in] scale
+ */
+void swc_points_to_grid_var(
+	const std::vector<SWCPoint>& vPts,
+	Grid& g,
+	SubsetHandler& sh,
+	std::map<int, int> mapping,
+	number scale_length = 1.0
+);
+
+/*!
+ * \brief special method to save grid as UGX with preserved ordering
+ * The grid is written as SWC, then read in as SWC, and then saved to UGX
+ */
+void to_ugx(
+	Grid& grid,
+	SubsetHandler& sh,
+	const std::string& fileName
+);
 
 } // namespace neuro_collection
 } // namespace ug

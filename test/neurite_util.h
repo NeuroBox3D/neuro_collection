@@ -1137,6 +1137,19 @@ namespace ug {
 			const number thresholdMin,
 			const number thresholdMax
 		);
+
+		/*
+		 * \brief correct outliers
+		 */
+		void CorrectOutliers
+		(
+			Grid& grid,
+			SubsetHandler& sh,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			const char* fileName,
+			const number thresholdMin,
+			const number thresholdMax
+		);
 	}
 }
 

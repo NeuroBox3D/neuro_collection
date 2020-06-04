@@ -2326,11 +2326,6 @@ void create_spline_data_for_neurites
 		g.attach_to_vertices(aDiam);
 	Grid::AttachmentAccessor<Vertex, ANumber> aaDiam(g, aDiam);
 
-	/// TODO: sort map's values by increasing order
-	/// 1. Create vertices (1st for loop)
-	/// 2. Create edges (2nd for loop)
-	/// This will ensure preservation of HINES matrix structure
-
 	std::multimap<int, int> dst = flip_map(mapping);
 	std::multimap<int, int>::const_iterator it;
 
@@ -2358,18 +2353,6 @@ void create_spline_data_for_neurites
 			sh.assign_subset(e, vPts[pt.conns[j]].type - 1);
 		}
 	}
-
-
-	/*	// create edge connections to already created vertices
-		for (size_t j = 0; j < pt.conns.size(); ++j)
-		{
-			if (pt.conns[j] < i)
-			{
-				Edge* e = *g.create<RegularEdge>(EdgeDescriptor(vrts[pt.conns[j]], v));
-				sh.assign_subset(e, vPts[pt.conns[j]].type - 1);
-			}
-		}
-		*/
 
 	// final subset managment
 	AssignSubsetColors(sh);
@@ -4382,7 +4365,10 @@ void create_spline_data_for_neurites
     	export_to_ugx(g10, sh10, "new_swc.ugx");
 		Grid::VertexAttachmentAccessor<APosition> aaPos2(g10, aPosition);
 	    WriteEdgeStatistics(g10, aaPos2, "statistics_edges.csv");
-	    MarkOutliers(g10, sh10, aaPos2, "foo.ugx", 2, 8);
+	    MarkOutliers(g10, sh10, aaPos2, "foo.ugx", 2, 8); // 4 was desired, cannot accept edges smaller than half of requested and also not higher than
+	    CorrectOutliers(g10, sh10, aaPos2, "foo.ugx", 2, 7);
+	    CorrectOutliers(g10, sh10, aaPos2, "foo.ugx", 3, 6);
+	    WriteEdgeStatistics(g10, aaPos2, "statistics_edges_corrected.csv");
 
 		/*
 	    Grid g10;
@@ -4426,7 +4412,7 @@ void create_spline_data_for_neurites
 
 
 	////////////////////////////////////////////////////////////////////////////
-	/// create_two_way_branch_from_swc
+	/// create_two_way_branch_from_swcgr
 	////////////////////////////////////////////////////////////////////////////
 	void create_two_way_branch_from_swc(
 		const std::string& fileName,
@@ -4635,6 +4621,9 @@ void create_spline_data_for_neurites
 	    DFSUtil(v, visited, indices);
 	}
 
+	////////////////////////////////////////////////////////////////////////////
+	/// to_ugx
+	////////////////////////////////////////////////////////////////////////////
 	/// Writes an swc file from a grid with dfs ordering, reimports correctly
 	/// ordered swc and writes it to the corresponding ugx file
 	void to_ugx(Grid& grid, SubsetHandler& sh, const std::string& fileName) {
@@ -4814,18 +4803,24 @@ void create_spline_data_for_neurites
 		}
 
 		/// Up to here adjacency matrix looks correct -> serializing to ugx fails,
-		/// using the method swc_points_to_grid_(var) fails - why? TODO: Instead of
-		/// conversion write new UGX grid from connectivity matrix A directly to disk
-
+		/// using the method swc_points_to_grid_(var) fails: The reason is that
+		/// ugx file writer does not respect the ordering during write out, so
+		/// the workaround is to refine UGX file, write to disk as SWC and re-read
+		/// the swc, then save this file as a UGX file: Can use to_ugx instead of
+		/// the code below where the write and read is done
 		/// convert swc to grid, then write grid and swc
 		Grid grid2;
 		SubsetHandler sh2(grid2);
 
-		/// Use the mapping from DFS search to write a reordered mesh
+		/// Use the mapping from DFS search to write a reordered mesh: This method
+		/// is not named correctly, it should be export_to_swc_var as explained below
 		// swc_points_to_grid_var(vPointsNew, grid2, sh2, mapping, 1.0);
 		swc_points_to_grid(vPointsNew, grid2, sh2, 1.0);
 		std::string fn_noext = FilenameWithoutExtension(outName);
 		export_to_ugx(grid2, sh2, fn_noext + "_reordered.ugx");
+		/// export_to_swc exports DFS always, need special export_to_swc_variant
+		/// to export in BFS for instance using the mapping defined above from the
+		/// adjacency matrix!
 		export_to_swc(grid2, sh2, fn_noext + "_reordered.swc");
 		std::vector<SWCPoint> vPoints3;
 		import_swc(fn_noext + "_reordered.swc", vPoints3, 1.0);
