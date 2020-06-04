@@ -2314,7 +2314,7 @@ void create_spline_data_for_neurites
 		Grid& g,
 		SubsetHandler& sh,
 		std::map<int, int> mapping,
-		number scale_length = 1.0
+		number scale_length
 	)
 	{
 	if (!g.has_vertex_attachment(aPosition))
