@@ -516,7 +516,7 @@ void swc_points_to_grid_var(
 	const std::vector<SWCPoint>& vPts,
 	Grid& g,
 	SubsetHandler& sh,
-	std::map<int, int> mapping,
+	const std::map<int, int>& mapping,
 	number scale_length = 1.0
 );
 

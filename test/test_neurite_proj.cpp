@@ -2313,8 +2313,8 @@ void create_spline_data_for_neurites
 		const std::vector<SWCPoint>& vPts,
 		Grid& g,
 		SubsetHandler& sh,
-		std::map<int, int> mapping,
-		number scale_length = 1.0
+		const std::map<int, int>& mapping,
+		const number scale_length
 	)
 	{
 	if (!g.has_vertex_attachment(aPosition))
@@ -4432,9 +4432,11 @@ void create_spline_data_for_neurites
 		std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
 		std::vector<size_t> vRootNeuriteIndsOut;
 		convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+		/*
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
 			vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
 		}
+		*/
 
 		// Prepare grid (selector and attachments)
 		Grid g;
