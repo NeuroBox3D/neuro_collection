@@ -3505,7 +3505,7 @@ void create_spline_data_for_neurites
 	    	if (withER) {
 	    		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 	    			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh, 1.0, &outVerts,
-	    			&outVertsInner, &outRads, &outRadsInner, &swcPoints, -1);
+	    			&outVertsInner, &outRads, &outRadsInner, &swcPoints, NULL, -1);
 	    	} else {
 	    		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 	    				anisotropy, g, aaPos, aaSurfParams);
@@ -3917,7 +3917,7 @@ void create_spline_data_for_neurites
 		 	if (withER) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh, blowUpFactor,
-		   			&outVerts, &outVertsInner, &outRads, &outRadsInner, &newPoints, -1);
+		   			&outVerts, &outVertsInner, &outRads, &outRadsInner, &newPoints, NULL, -1);
 		   	} else {
 		   		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   				anisotropy, g, aaPos, aaSurfParams);
@@ -4341,7 +4341,7 @@ void create_spline_data_for_neurites
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh,
-		   			blowUpFactor, NULL, NULL, NULL, NULL, &newPoints, -1);
+		   			blowUpFactor, NULL, NULL, NULL, NULL, &newPoints, NULL, -1);
 		}
 
 	    UG_LOGN("SWC output")
@@ -4365,10 +4365,11 @@ void create_spline_data_for_neurites
     	export_to_ugx(g10, sh10, "new_swc.ugx");
 		Grid::VertexAttachmentAccessor<APosition> aaPos2(g10, aPosition);
 	    WriteEdgeStatistics(g10, aaPos2, "statistics_edges.csv");
-	    MarkOutliers(g10, sh10, aaPos2, "foo.ugx", 2, 8); // 4 was desired, cannot accept edges smaller than half of requested and also not higher than
-	    CorrectOutliers(g10, sh10, aaPos2, "foo.ugx", 2, 7);
+	    MarkOutliers(g10, sh10, aaPos2, "foo.ugx", 3, 8); // 4 was desired, cannot accept edges smaller than half of requested and also not higher than
+	    CorrectOutliers(g10, sh10, aaPos2, "foo.ugx", 3, 7);
+	    WriteEdgeStatistics(g10, aaPos2, "statistics_edges_corrected_initially.csv"); /// overwrites previously corrected
 	    CorrectOutliers(g10, sh10, aaPos2, "foo.ugx", 3, 6);
-	    WriteEdgeStatistics(g10, aaPos2, "statistics_edges_corrected.csv");
+	    WriteEdgeStatistics(g10, aaPos2, "statistics_edges_corrected.csv"); /// overwrites previously corrected
 
 		/*
 	    Grid g10;
@@ -4412,7 +4413,7 @@ void create_spline_data_for_neurites
 
 
 	////////////////////////////////////////////////////////////////////////////
-	/// create_two_way_branch_from_swcgr
+	/// create_two_way_branch_from_swc
 	////////////////////////////////////////////////////////////////////////////
 	void create_two_way_branch_from_swc(
 		const std::string& fileName,
@@ -4479,13 +4480,15 @@ void create_spline_data_for_neurites
 	    Grid::VertexAttachmentAccessor<Attachment<NPMapping> > aaMapping;
 	    aaMapping.access(g, aNPMapping);
 
-	    /// TODO refactor to not use mapping, newPoints and -1 parameters in create_neurite_with_er
+		/// TODO: Add to subsets, faces and edges! -> this as struct instead of vector of vectors?
+		std::vector<std::vector<Vertex*> > subsets;
 		std::vector<SWCPoint> newPoints;
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, 1.0, g, aaPos, aaSurfParams, aaMapping, sh,
-		   			1.0, NULL, NULL, NULL, NULL, &newPoints, -1);
+		   			1.0, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1);
 		}
+		SaveGridToFile(g, sh, "unprojected.ugx");
 
 		// grid consistency
 		FixFaceOrientation(g, g.faces_begin(), g.faces_end());
@@ -4495,6 +4498,26 @@ void create_spline_data_for_neurites
 		EraseEmptySubsets(sh);
 		AssignSubsetColors(sh);
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
+
+		// assign subsets
+		std::stringstream ss;
+		size_t measCounter = sh.num_subsets();
+		size_t subsetName = 1;
+		std::vector<std::vector<ug::Vertex*> >::const_iterator it = subsets.begin();
+		while (it != subsets.end()) {
+			std::vector<ug::Vertex*>::const_iterator it2 = it->begin();
+			while (it2 != it->end()) {
+				sh.assign_subset(*it2, measCounter);
+				it2++;
+			}
+			++it;
+			ss << "meas #" << subsetName;
+			sh.subset_info(measCounter).name = ss.str();
+			ss.str(""); ss.clear();
+			measCounter++;
+			subsetName++;
+		}
+		AssignSubsetColors(sh);
 
 		// save coarse grid
 		std::string outFileName = "imported_y_structure.ugx";

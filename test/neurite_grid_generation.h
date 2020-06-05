@@ -92,6 +92,7 @@ namespace ug {
 			std::vector<number>* outRads = NULL,
 			std::vector<number>* outRadsInner = NULL,
 			std::vector<SWCPoint>* points = NULL,
+			std::vector<std::vector<Vertex*> >* subsets=NULL,
 			int bid = -1
 		);
 
@@ -131,6 +132,7 @@ namespace ug {
 			std::vector<number>* outRads,
 			std::vector<number>* outRadsInner,
 			std::vector<SWCPoint>* points,
+			std::vector<std::vector<Vertex*> >* subsets,
 			int bid
 		);
 
