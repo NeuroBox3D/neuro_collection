@@ -4365,7 +4365,7 @@ void create_spline_data_for_neurites
     	export_to_ugx(g10, sh10, "new_swc.ugx");
 		Grid::VertexAttachmentAccessor<APosition> aaPos2(g10, aPosition);
 	    WriteEdgeStatistics(g10, aaPos2, "statistics_edges.csv");
-	    MarkOutliers(g10, sh10, aaPos2, "foo.ugx", 3, 8); // 4 was desired, cannot accept edges smaller than half of requested and also not higher than
+	    MarkOutliers(g10, sh10, aaPos2, "foo.ugx", 3, 5); // 4 was desired, cannot accept edges smaller than half of requested and also not higher than
 	    CorrectOutliers(g10, sh10, aaPos2, "foo.ugx", 3, 7);
 	    WriteEdgeStatistics(g10, aaPos2, "statistics_edges_corrected_initially.csv"); /// overwrites previously corrected
 	    CorrectOutliers(g10, sh10, aaPos2, "foo.ugx", 3, 6);

@@ -75,7 +75,6 @@ namespace ug {
 		std::vector<std::vector<Vertex*> >* subsets,
 		int bip
 	) {
-	UG_LOGN("Initial offset: " << initialOffset)
 	const NeuriteProjector::Neurite& neurite = vNeurites[nid];
 	const std::vector<vector3>& pos = vPos[nid];
 	const std::vector<number>& r = vR[nid];
@@ -434,11 +433,11 @@ namespace ug {
 
 		// calculate total length (Needed for option 1)
 		// = integral from t_start to t_end over: ||v(t)|| dt
-		//number lengthOverRadius = calculate_length_over_radius_variant(t_start, t_end, neurite, curSec);
+		number lengthOverRadius = calculate_length_over_radius_variant(t_start, t_end, neurite, curSec);
 
 		// calculate total length in units of radius (Needed for option 2 and 3)
 		// = integral from t_start to t_end over: ||v(t)|| / r(t) dt
-		number lengthOverRadius = calculate_length_over_radius(t_start, t_end,neurite, curSec);
+		//number lengthOverRadius = calculate_length_over_radius(t_start, t_end,neurite, curSec);
 
 		// to reach the desired anisotropy on the surface in the refinement limit,
 		// it has to be multiplied by pi/2 h
@@ -451,14 +450,28 @@ namespace ug {
 		/// TODO: Make these options available as user input and segLength for option 1
 
 		/// Option 1: Choose segLength and force nSeg
-		/*
 		segLength = 4.0;
+		segLength = lengthOverRadius / (lengthOverRadius / segLength);
+
+		nSeg = (size_t) floor(lengthOverRadius / segLength);
+		/*
+		double max = t_end;
+		double min = t_start;
+		segLength = lengthOverRadius / segLength;
+		int N = nSeg;
+
+		  std::vector<double> range;
+		    double delta = (max-min)/double(N-1);
+		    for(int i=0; i<N; i++) {
+		        range.push_back(min + i*delta);
+		    }
+		    */
+
 		UG_LOGN("segLength: " << segLength)
 		/// Automatically calculated positions
-		nSeg = (size_t) floor(lengthOverRadius / segLength);
 		std::vector<number> vSegAxPos(nSeg);
+		//vSegAxPos = range;
 		calculate_segment_axial_positions_variant2(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
-		*/
 
 		/// Option 2: Calculate positions automatically
 		/*
@@ -466,11 +479,13 @@ namespace ug {
 		calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
 		*/
 
+		/*
 		/// Option 3: Forced positions to coincide at points (SWC points -> spline support nodes)
 		std::vector<number> vSegAxPos;
 		calculate_segment_axial_positions_variant(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
 		nSeg = vSegAxPos.size();
 		UG_LOG("Size of vSegAxPos: " << vSegAxPos.size())
+		*/
 
 		// add the branching point to segment list (if present)
 		if (brit != brit_end) {
@@ -2489,12 +2504,12 @@ number calculate_length_over_radius_variant
                 }
 
                 ////////////////////////////////////////////////////////////////////////
-                        /// calculate_segment_axial_positions
-                        ////////////////////////////////////////////////////////////////////////
-                        void calculate_segment_axial_positions_variant2
-                        (
-                                std::vector<number>& segAxPosOut,
-                                number t_start,
+                /// calculate_segment_axial_positions
+                ////////////////////////////////////////////////////////////////////////
+                void calculate_segment_axial_positions_variant2
+                  (
+                          std::vector<number>& segAxPosOut,
+                             number t_start,
                                 number t_end,
                                 const NeuriteProjector::Neurite& neurite,
                                 size_t startSec,
