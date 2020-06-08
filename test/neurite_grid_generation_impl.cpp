@@ -72,7 +72,7 @@ namespace ug {
 		std::vector<number>* outRads,
 		std::vector<number>* outRadsInner,
 		std::vector<SWCPoint>* points,
-		std::vector<std::vector<Vertex*> >* subsets,
+		MeasuringSubsetCollection* subsets,
 		int bip
 	) {
 	const NeuriteProjector::Neurite& neurite = vNeurites[nid];
@@ -199,7 +199,9 @@ namespace ug {
 		UG_LOGN("After recursive call: " << points->size());
 
 		if (subsets) {
-			subsets->push_back(*connectingVrts);
+			subsets->vertices.push_back(*connectingVrts);
+			subsets->edges.push_back(*connectingEdges);
+			subsets->faces.push_back(*connectingFaces);
 		}
 	} else {
 		// create first layer of vertices/edges //
@@ -279,9 +281,6 @@ namespace ug {
 		}
 
 
-		if (subsets) {
-			subsets->push_back(vVrt);
-		}
 
 		// edges
 		for (size_t i = 0; i < 4; ++i) {
@@ -316,9 +315,13 @@ namespace ug {
 			sh.assign_subset(vFace[i + 1], 0);
 			sh.assign_subset(vFace[i + 5], 0);
 		}
+
+		if (subsets) {
+			subsets->vertices.push_back(vVrt);
+			subsets->edges.push_back(vEdge);
+			subsets->faces.push_back(vFace);
+		}
 	}
-
-
 
 
 	// Now create dendrite to the next branching point and iterate this process.
@@ -1550,7 +1553,9 @@ namespace ug {
 			const NeuriteProjector::Section& sec = neurite.vSec[curSec];
 			if (sec.endParam >= t_end) {
 				if (subsets) {
-					subsets->push_back(vVrt);
+					subsets->vertices.push_back(vVrt);
+					subsets->edges.push_back(vEdge);
+					subsets->faces.push_back(vFace);
 				}
 				break;
 			}
@@ -2623,7 +2628,7 @@ number calculate_length_over_radius_variant
                         std::vector<number>* outRads,
                         std::vector<number>* outRadsInner,
                         std::vector<SWCPoint>* points,
-                		std::vector<std::vector<Vertex*> >* subsets,
+                		MeasuringSubsetCollection* subsets,
                         int bip
                 )
                 {

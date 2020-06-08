@@ -111,6 +111,16 @@ namespace ug {
 		    	return coords == point->coords;
 		    }
 		};
+
+		/*!
+		 * \brief A collection to store vertices, edges and faces for measurements
+		 * Simple composition struct to store the geometric elements from a grid.
+		 */
+		struct MeasuringSubsetCollection {
+			std::vector<std::vector<Vertex*> > vertices;
+			std::vector<std::vector<Edge*> > edges;
+			std::vector<std::vector<Face*> > faces;
+		};
 	}
 }
 

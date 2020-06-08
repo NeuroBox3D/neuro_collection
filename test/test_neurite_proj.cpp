@@ -4480,8 +4480,8 @@ void create_spline_data_for_neurites
 	    Grid::VertexAttachmentAccessor<Attachment<NPMapping> > aaMapping;
 	    aaMapping.access(g, aNPMapping);
 
-		/// TODO: Add to subsets, faces and edges! -> this as struct instead of vector of vectors?
-		std::vector<std::vector<Vertex*> > subsets;
+	    MeasuringSubsetCollection subsets;
+
 		std::vector<SWCPoint> newPoints;
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
@@ -4501,22 +4501,59 @@ void create_spline_data_for_neurites
 
 		// assign subsets
 		std::stringstream ss;
-		size_t measCounter = sh.num_subsets();
+		const size_t startSI = sh.num_subsets();
+		size_t measCounter = 0;
 		size_t subsetName = 1;
-		std::vector<std::vector<ug::Vertex*> >::const_iterator it = subsets.begin();
-		while (it != subsets.end()) {
-			std::vector<ug::Vertex*>::const_iterator it2 = it->begin();
-			while (it2 != it->end()) {
-				sh.assign_subset(*it2, measCounter);
-				it2++;
-			}
-			++it;
+
+		/// vertices
+		UG_LOGN("Size of vertices: " << subsets.vertices.size());
+		std::vector<std::vector<ug::Vertex*> >::const_iterator itv = subsets.vertices.begin();
+		while (itv != subsets.vertices.end()) {
+			UG_LOGN("measCounter (verts): " << measCounter);
+			sh.assign_subset(itv->begin(), itv->end(), measCounter+startSI);
 			ss << "meas #" << subsetName;
-			sh.subset_info(measCounter).name = ss.str();
+			sh.subset_info(measCounter+startSI).name = ss.str();
 			ss.str(""); ss.clear();
 			measCounter++;
 			subsetName++;
+			itv++;
 		}
+
+		/// edges
+		UG_LOGN("Size of edges: " << subsets.edges.size());
+		measCounter = 0;
+		std::vector<std::vector<ug::Edge*> >::const_iterator ite = subsets.edges.begin();
+		while (ite != subsets.edges.end()) {
+			std::vector<ug::Edge*>::const_iterator it2 = ite->begin();
+			UG_LOGN("measCounter (edges): " << measCounter);
+			while (it2 != ite->end()) {
+				if (*it2) {
+					sh.assign_subset(*it2, measCounter+startSI);
+				}
+				it2++;
+			}
+			measCounter++;
+			ite++;
+		}
+
+		/// faces
+		UG_LOGN("Size of faces " << subsets.faces.size());
+		measCounter = 0;
+		std::vector<std::vector<ug::Face*> >::const_iterator itf = subsets.faces.begin();
+		while (itf != subsets.faces.end()) {
+			std::vector<ug::Face*>::const_iterator it2 = itf->begin();
+			UG_LOGN("measCounter (faces): " << measCounter);
+			while (it2 != itf->end()) {
+				if (*it2) {
+					sh.assign_subset(*it2, measCounter+startSI);
+				}
+				it2++;
+			}
+			measCounter++;
+			itf++;
+		}
+
+		// color measuring subsets
 		AssignSubsetColors(sh);
 
 		// save coarse grid
