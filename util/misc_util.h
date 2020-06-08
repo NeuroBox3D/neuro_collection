@@ -155,9 +155,30 @@ void MarkOutOfRangeElems
 template <typename TDomain>
 void RemoveAllNonDefaultRefinementProjectors(SmartPtr<TDomain> dom);
 
-bool SaveGridToFile(Grid& grid, ISubsetHandler& sh, const std::string& fileName);
+/*!
+ * \brief Save grid to file with filename as standard string
+ * \param[in] grid
+ * \param[in] sh
+ * \param[in] fileName
+ */
+bool SaveGridToFile
+(
+	const Grid& grid,
+	const ISubsetHandler& sh,
+	const std::string& fileName
+);
 
-std::vector<ug::vector3> GetCoordinates(Grid& grid);
+/*!
+ * \brief Get the coordinates of a grid vertex by its index
+ * \param[in] grid
+ * \param[in] index
+ * \return \c vector3
+ */
+const vector3* GetCoordinatesFromVertexByIndex
+(
+	Grid& grid,
+	int index
+);
 
 
 ///@}

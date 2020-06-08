@@ -1023,6 +1023,11 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("tau_m", &tau_m, grp.c_str(), "", "vm", "calculate tau_m");
 		reg.add_function("tau_h", &tau_h, grp.c_str(), "", "vm", "calculate tau_h");
 	}
+
+	// misc util
+	{
+		reg.add_function("GetCoordinatesFromVertexByIndex", &GetCoordinatesFromVertexByIndex, grp.c_str(), "coordinates", "grid#index", "");
+	}
 }
 
 }; // end Functionality

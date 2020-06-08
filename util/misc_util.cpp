@@ -462,27 +462,29 @@ void RemoveAllNonDefaultRefinementProjectors(SmartPtr<TDomain> dom)
 }
 
 
-bool SaveGridToFile(Grid& grid, ISubsetHandler& sh, const std::string& fileName)
+////////////////////////////////////////////////////////////////////////
+/// SaveGridToFile
+////////////////////////////////////////////////////////////////////////
+bool SaveGridToFile(const Grid& grid, const ISubsetHandler& sh, const std::string& fileName)
 {
 	return SaveGridToFile(grid, sh, fileName.c_str());
 }
 
-std::vector<ug::vector3> GetCoordinates(Grid& grid)
+
+////////////////////////////////////////////////////////////////////////
+/// GetCoordinatesFromVertexByIndex
+////////////////////////////////////////////////////////////////////////
+const vector3* GetCoordinatesFromVertexByIndex(Grid& grid, const int index)
 {
 	Grid::VertexAttachmentAccessor<APosition> aaPos(grid, aPosition);
-	if(!grid.has_vertex_attachment(aPosition)) {
-		grid.attach_to_vertices(aPosition);
-	}
+	if(!grid.has_vertex_attachment(aPosition)) { grid.attach_to_vertices(aPosition); }
 
-	std::vector<vector3> vertices;
-	for(VertexIterator iter = grid.vertices_begin(); iter != grid.vertices_end(); iter++) {
-		vertices.push_back(aaPos[*iter]);
-	}
-	return vertices;
+	ConstVertexIterator vit = grid.vertices_begin();
+	int i = 0;
+	while (vit++ != grid.vertices_end()) { if (index == i++) { break; } }
+
+	return new vector3(aaPos[*vit]);
 }
-
-
-
 
 // explicit template specializations
 #ifdef UG_DIM_1
