@@ -453,22 +453,10 @@ namespace ug {
 		/// TODO: Make these options available as user input and segLength for option 1
 
 		/// Option 1: Choose segLength and force nSeg
-		segLength = 4.0;
+		segLength = 2.0;
 		segLength = lengthOverRadius / (lengthOverRadius / segLength);
 
 		nSeg = (size_t) floor(lengthOverRadius / segLength);
-		/*
-		double max = t_end;
-		double min = t_start;
-		segLength = lengthOverRadius / segLength;
-		int N = nSeg;
-
-		  std::vector<double> range;
-		    double delta = (max-min)/double(N-1);
-		    for(int i=0; i<N; i++) {
-		        range.push_back(min + i*delta);
-		    }
-		    */
 
 		UG_LOGN("segLength: " << segLength)
 		/// Automatically calculated positions
