@@ -268,7 +268,9 @@ void test_import_swc_general
 	bool withER,
 	number anisotropy = 2.0,
 	size_t numRefs = 1,
-	bool regularize = false
+	bool regularize = false,
+	int option = 3,
+	number segLength=-1
 );
 
 /*!
@@ -369,8 +371,8 @@ void test_import_swc_general_var(
 	number blowUpFactor,
 	bool forVR,
 	bool dryRun,
-	int option
-
+	int option,
+	number segLength
 );
 
 /*!
@@ -384,7 +386,8 @@ void test_import_swc_general_var_for_vr(
 	number anisotropy,
 	size_t numRefs,
 	bool regularize,
-	number blowUpFactor
+	number blowUpFactor,
+	number segLength
 );
 
 /*!
@@ -471,7 +474,8 @@ void test_import_swc_general_var_for_vr_2(
 	size_t numRefs,
 	bool regularize,
 	number blowUpFactor,
-	int option
+	int option,
+	number segLength
 );
 
 ////////////////////////////////////////////////////////////////////////

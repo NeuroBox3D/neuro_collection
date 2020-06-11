@@ -93,7 +93,9 @@ namespace ug {
 			std::vector<number>* outRadsInner = NULL,
 			std::vector<SWCPoint>* points = NULL,
 			MeasuringSubsetCollection* subsets = NULL,
-			int bid = -1
+			int bid = -1,
+			int option = 1,
+			number desiredSegLength = -1
 		);
 
 		/*!
@@ -133,7 +135,9 @@ namespace ug {
 			std::vector<number>* outRadsInner,
 			std::vector<SWCPoint>* points,
 			MeasuringSubsetCollection* subsets,
-			int bid
+			int bid,
+			int option,
+			number segLength
 		);
 
 
@@ -190,7 +194,7 @@ namespace ug {
 
 
 		/*!
-		 * \brief calculates segment axial positions
+		 * \brief calculates segment axial positions automatically
 		 * \param[in] segAxPosOut
 		 * \param[in] t_start
 		 * \param[in] t_end
@@ -208,14 +212,16 @@ namespace ug {
 			number segLength
 		);
 
+		/*!
+		 * \brief calculates segment axial positions to coincide with SWC points
+		 */
 		void calculate_segment_axial_positions_variant
 		(
 			std::vector<number>& segAxPosOut,
 			number t_start,
 			number t_end,
 			const NeuriteProjector::Neurite& neurite,
-			size_t startSec,
-			number segLength
+			size_t startSec
 		);
 
 		/*!
@@ -350,6 +356,9 @@ namespace ug {
 			number minAngle
 		);
 
+		/*!
+		 * \brief calculates segment axial positions such that equal arclength is achieved
+		 */
 		void calculate_segment_axial_positions_variant2
 	    (
 	        std::vector<number>& segAxPosOut,

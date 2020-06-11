@@ -3340,7 +3340,9 @@ void create_spline_data_for_neurites
 		bool withER,
 		number anisotropy,
 		size_t numRefs,
-		bool regularize) {
+		bool regularize,
+		int option,
+		number segLength) {
 	{
 		// read in file to intermediate structure
 		std::vector<SWCPoint> vPoints;
@@ -3505,7 +3507,7 @@ void create_spline_data_for_neurites
 	    	if (withER) {
 	    		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 	    			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh, 1.0, &outVerts,
-	    			&outVertsInner, &outRads, &outRadsInner, &swcPoints, NULL, -1);
+	    			&outVertsInner, &outRads, &outRadsInner, &swcPoints, NULL, -1, option, segLength);
 	    	} else {
 	    		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 	    				anisotropy, g, aaPos, aaSurfParams);
@@ -3693,8 +3695,12 @@ void create_spline_data_for_neurites
 		number blowUpFactor,
 		bool forVR,
 		bool dryRun,
-		int option
+		int option,
+		number segLength
 	) {
+
+		UG_LOGN("option: " << option)
+		UG_LOGN("segLength: " << segLength)
 
 		using namespace std;
 		// Read in SWC file to intermediate structure (May contain multiple soma points)
@@ -3917,7 +3923,8 @@ void create_spline_data_for_neurites
 		 	if (withER) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh, blowUpFactor,
-		   			&outVerts, &outVertsInner, &outRads, &outRadsInner, &newPoints, NULL, -1);
+		   			&outVerts, &outVertsInner, &outRads, &outRadsInner, &newPoints, NULL, -1, option, segLength);
+
 		   	} else {
 		   		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   				anisotropy, g, aaPos, aaSurfParams);
@@ -4232,8 +4239,10 @@ void create_spline_data_for_neurites
 		size_t numRefs,
 		bool regularize,
 		number blowUpFactor,
-		int option
+		int option,
+		number segLength
 	) {
+
 		using namespace std;
 
 		// preconditioning
@@ -4341,7 +4350,7 @@ void create_spline_data_for_neurites
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh,
-		   			blowUpFactor, NULL, NULL, NULL, NULL, &newPoints, NULL, -1);
+		   			blowUpFactor, NULL, NULL, NULL, NULL, &newPoints, NULL, -1, option, segLength);
 		}
 
 	    UG_LOGN("SWC output")
@@ -4486,7 +4495,7 @@ void create_spline_data_for_neurites
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, 1.0, g, aaPos, aaSurfParams, aaMapping, sh,
-		   			1.0, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1);
+		   			1.0, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1, 3, -1);
 		}
 		SaveGridToFile(g, sh, "unprojected.ugx");
 
@@ -4958,10 +4967,11 @@ void create_spline_data_for_neurites
 			number anisotropy,
 			size_t numRefs,
 			bool regularize,
-			number blowUpFactor
+			number blowUpFactor,
+			number segLength
 		) {
 			test_import_swc_general_var(fileName, correct, erScaleFactor, withER,
-					anisotropy, numRefs, regularize, blowUpFactor, true, false, 3);
+					anisotropy, numRefs, regularize, blowUpFactor, true, false, 1, segLength);
 		}
 
 		////////////////////////////////////////////////////////////////////////

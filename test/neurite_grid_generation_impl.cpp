@@ -73,7 +73,9 @@ namespace ug {
 		std::vector<number>* outRadsInner,
 		std::vector<SWCPoint>* points,
 		MeasuringSubsetCollection* subsets,
-		int bip
+		int bip,
+		int option,
+		number desiredSegLength
 	) {
 	const NeuriteProjector::Neurite& neurite = vNeurites[nid];
 	const std::vector<vector3>& pos = vPos[nid];
@@ -434,49 +436,55 @@ namespace ug {
 			t_end = bp_start;
 		}
 
+		number lengthOverRadius;
 		// calculate total length (Needed for option 1)
 		// = integral from t_start to t_end over: ||v(t)|| dt
-		number lengthOverRadius = calculate_length_over_radius_variant(t_start, t_end, neurite, curSec);
+		if (option == 1) {
+			lengthOverRadius = calculate_length_over_radius_variant(t_start, t_end, neurite, curSec);
+		}
 
 		// calculate total length in units of radius (Needed for option 2 and 3)
 		// = integral from t_start to t_end over: ||v(t)|| / r(t) dt
-		//number lengthOverRadius = calculate_length_over_radius(t_start, t_end,neurite, curSec);
+		if (option == 2 || option == 3) {
+			 lengthOverRadius = calculate_length_over_radius(t_start, t_end, neurite, curSec);
+		}
 
-		// to reach the desired anisotropy on the surface in the refinement limit,
-		// it has to be multiplied by pi/2 h
-		size_t nSeg = (size_t) floor(lengthOverRadius / (anisotropy * 0.5 * PI));
-		if (!nSeg) { nSeg = 1; }
+		/// number of segments we want to create
+		size_t nSeg;
 
 		/// segment length
-		number segLength = lengthOverRadius / nSeg;
+		number segLength;
 
-		/// TODO: Make these options available as user input and segLength for option 1
+		/// Segment positions
+		std::vector<number> vSegAxPos;
 
-		/// Option 1: Choose segLength and force nSeg
-		segLength = 2.0;
-		segLength = lengthOverRadius / (lengthOverRadius / segLength);
+		/// Force positions at given desiredSegLength
+		if (option == 1) {
+			nSeg = (size_t) floor(lengthOverRadius / desiredSegLength);
+			segLength = desiredSegLength;
+			if (!nSeg) { nSeg = 1; }
 
-		nSeg = (size_t) floor(lengthOverRadius / segLength);
-
-		UG_LOGN("segLength: " << segLength)
-		/// Automatically calculated positions
-		std::vector<number> vSegAxPos(nSeg);
-		//vSegAxPos = range;
-		calculate_segment_axial_positions_variant2(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
+	//		UG_LOGN("segLength (desired: " << desiredSegLength << ", adjusted: " << segLength);
+			vSegAxPos.resize(nSeg);
+			calculate_segment_axial_positions_variant2(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
+		}
 
 		/// Option 2: Calculate positions automatically
-		/*
-		std::vector<number> vSegAxPos(nSeg);
-		calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
-		*/
+		if (option == 2) {
+			// to reach the desired anisotropy on the surface in the refinement limit,
+			// it has to be multiplied by pi/2 h
+			nSeg = (size_t) floor(lengthOverRadius / (anisotropy * 0.5 * PI));
+			if (!nSeg) { nSeg = 1; }
+			vSegAxPos.resize(nSeg);
+			segLength = lengthOverRadius / nSeg;
+			calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
+		}
 
-		/*
 		/// Option 3: Forced positions to coincide at points (SWC points -> spline support nodes)
-		std::vector<number> vSegAxPos;
-		calculate_segment_axial_positions_variant(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
-		nSeg = vSegAxPos.size();
-		UG_LOG("Size of vSegAxPos: " << vSegAxPos.size())
-		*/
+		if (option == 3) {
+			calculate_segment_axial_positions_variant(vSegAxPos, t_start, t_end, neurite, curSec);
+			nSeg = vSegAxPos.size();
+		}
 
 		// add the branching point to segment list (if present)
 		if (brit != brit_end) {
@@ -1522,7 +1530,7 @@ namespace ug {
 						erScaleFactor, anisotropy, g, aaPos, aaSurfParams,
 						aaMappingParams, sh, blowUpFactor,
 						&vBranchVrts, &vBranchEdges, &vBranchFaces,
-						branchOffset[1], NULL, NULL, NULL, NULL, points, subsets, nextBPId);
+						branchOffset[1], NULL, NULL, NULL, NULL, points, subsets, nextBPId, option, segLength);
 				/// TODO: if wihin branching point, then bpPointIdSize is not point->size() but bpPointId+1
 				bpPointIdSize = points->size();
 #endif
@@ -2366,8 +2374,7 @@ number calculate_length_over_radius_variant
                     number t_start,
                     number t_end,
                     const NeuriteProjector::Neurite& neurite,
-                    size_t startSec,
-                    number segLength
+                    size_t startSec
 			) {
 				  std::vector<NeuriteProjector::Section>::const_iterator sec_it = neurite.vSec.begin() + startSec;
 				  std::vector<NeuriteProjector::Section>::const_iterator sec_end = neurite.vSec.end();
@@ -2386,16 +2393,16 @@ number calculate_length_over_radius_variant
 
 		                while (sec_it != sec_end)
 		                {
-		                        // integrate from t_start to min{t_end, sec_tend}
-		                        const NeuriteProjector::Section& sec = *sec_it;
-		                        sec_tstart = std::max(t_start, sec_it != neurite.vSec.begin() ? (sec_it - 1)->endParam : 0.0);
-		                        sec_tend = std::min(t_end, sec.endParam);
+		                     // integrate from t_start to min{t_end, sec_tend}
+		                     const NeuriteProjector::Section& sec = *sec_it;
+		                     sec_tstart = std::max(t_start, sec_it != neurite.vSec.begin() ? (sec_it - 1)->endParam : 0.0);
+		                     sec_tend = std::min(t_end, sec.endParam);
 
-		                        segAxPosOut.push_back(sec_tend);
+		                     segAxPosOut.push_back(sec_tend);
 
-		                        t_start = sec_tend;
-		                        if (t_start >= t_end) break;
-		                        ++sec_it;
+		                     t_start = sec_tend;
+		                     if (t_start >= t_end) break;
+		                     ++sec_it;
 		                }
 			}
 
@@ -2617,13 +2624,15 @@ number calculate_length_over_radius_variant
                         std::vector<number>* outRadsInner,
                         std::vector<SWCPoint>* points,
                 		MeasuringSubsetCollection* subsets,
-                        int bip
+                        int bip,
+                        int option,
+                        number segLength
                 )
                 {
                         create_neurite_with_er(vNeurites, vPos, vR, nid, erScaleFactor,
                         		anisotropy, g, aaPos, aaSurfParams, aaMappingParams, sh,
                         		blowUpFactor, NULL, NULL, NULL, 0, outVerts, outVertsInner,
-                        		outRads, outRadsInner, points, subsets, bip);
+                        		outRads, outRadsInner, points, subsets, bip, option, segLength);
                 }
 
                 ////////////////////////////////////////////////////////////////////////

@@ -3786,7 +3786,7 @@ namespace ug {
 			const size_t esSz = es.size();
 			for (size_t i = 0; i < esSz; i++) {
 				Edge* e = es[i];
-				const int id = sh.get_subset_index(e);
+				///const int id = sh.get_subset_index(e);
 				vector3 avg;
 				VecScaleAdd(avg, 0.5, aaPos[e->vertex(0)], 0.5, aaPos[e->vertex(1)]);
 				sh.assign_subset(e, 0);
