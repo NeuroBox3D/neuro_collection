@@ -3929,9 +3929,14 @@ void create_spline_data_for_neurites
 		   		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   				anisotropy, g, aaPos, aaSurfParams);
 		   	}
+		 	UG_LOGN("i-th neurite generated: " << i)
+		 	/// TODO: Why do the lines below now cause a segmentation fault in HEAD revision?
+		 	/*
 		 	ss << "testNeuriteProjector_after_generating_neurite_no=" << i <<  ".ugx";
 		    SaveGridToFile(g, sh, ss.str());
 		    ss.str(""); ss.clear();
+		    */
+		    UG_LOGN("saved!");
 		}
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
 
