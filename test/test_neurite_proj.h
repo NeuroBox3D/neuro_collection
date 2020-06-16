@@ -113,6 +113,15 @@ void convert_pointlist_to_neuritelist
     std::vector<size_t>& vRootNeuriteIndsOut
 );
 
+void convert_pointlist_to_neuritelist_variant
+(
+    const std::vector<SWCPoint>& vPoints,
+    std::vector<std::vector<vector3> >& vPosOut,
+    std::vector<std::vector<number> >& vRadOut,
+    std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > >& vBPInfoOut,
+    std::vector<size_t>& vRootNeuriteIndsOut
+);
+
 /*!
  * \brief test smoothing
  * \param[in] fileName

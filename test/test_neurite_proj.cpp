@@ -785,6 +785,174 @@ void convert_pointlist_to_neuritelist
 
 
 
+void convert_pointlist_to_neuritelist_variant
+(
+    const std::vector<SWCPoint>& vPoints,
+    std::vector<SWCPoint>& vSomaPoints,
+    std::vector<std::vector<vector3> >& vPosOut,
+    std::vector<std::vector<number> >& vRadOut,
+    std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > >& vBPInfoOut,
+    std::vector<size_t>& vRootNeuriteIndsOut
+)
+{
+    // clear out vectors
+    vPosOut.clear();
+    vRadOut.clear();
+    vBPInfoOut.clear();
+    vRootNeuriteIndsOut.clear();
+
+	size_t nPts = vPoints.size();
+	std::vector<bool> ptProcessed(nPts, false);
+	size_t nProcessed = 0;
+	size_t curNeuriteInd = 0;
+
+	while (nProcessed != nPts)
+	{
+		// find first soma's root point in geometry and save its index as i
+		size_t i = 0;
+		for (; i < nPts; ++i)
+		{
+			if (vPoints[i].type == SWC_SOMA && !ptProcessed[i])
+				break;
+		}
+		UG_COND_THROW(i == nPts, "No soma contained in (non-empty) list of unprocessed SWC points, \n"
+				"i.e., there is at least one SWC point not connected to any soma.");
+		vSomaPoints.push_back(vPoints[i]);
+
+		// collect neurite root points
+		std::vector<std::pair<size_t, size_t> > rootPts;
+		std::queue<std::pair<size_t, size_t> > soma_queue;
+		soma_queue.push(std::make_pair((size_t)-1, i));
+		while (!soma_queue.empty())
+		{
+			size_t pind = soma_queue.front().first;
+			size_t ind = soma_queue.front().second;
+			soma_queue.pop();
+
+			const SWCPoint& pt = vPoints[ind];
+
+			if (pt.type == SWC_SOMA)
+			{
+				ptProcessed[ind] = true;
+				++nProcessed;
+
+				size_t nConn = pt.conns.size();
+				for (size_t j = 0; j < nConn; ++j)
+					if (pt.conns[j] != pind)
+						soma_queue.push(std::make_pair(ind, pt.conns[j]));
+			}
+			else
+				rootPts.push_back(std::make_pair(pind, ind));
+		}
+
+		vPosOut.resize(vPosOut.size() + rootPts.size());
+		vRadOut.resize(vRadOut.size() + rootPts.size());
+		vBPInfoOut.resize(vBPInfoOut.size() + rootPts.size());
+
+		std::stack<std::pair<size_t, size_t> > processing_stack;
+		for (size_t i = 0; i < rootPts.size(); ++i) {
+			processing_stack.push(rootPts[i]);
+			vRootNeuriteIndsOut.push_back(i);
+		}
+
+		UG_LOGN("rootPts.size(): " << rootPts.size())
+
+		//vRootNeuriteIndsOut.push_back(curNeuriteInd);
+
+		// helper map to be used to correctly save BPs:
+		// maps branch root parent ID to neurite ID and BP ID
+		std::map<size_t, std::pair<size_t, size_t> > helperMap;
+
+		while (!processing_stack.empty())
+		{
+			size_t pind = processing_stack.top().first;
+			size_t ind = processing_stack.top().second;
+			processing_stack.pop();
+
+			ptProcessed[ind] = true;
+			++nProcessed;
+
+			const SWCPoint& pt = vPoints[ind];
+
+			UG_COND_THROW(pt.type == SWC_SOMA, "Detected neuron with more than one soma.");
+
+			// push back coords and radius information to proper neurite
+			vPosOut[curNeuriteInd].push_back(pt.coords);
+			vRadOut[curNeuriteInd].push_back(pt.radius);
+
+			size_t nConn = pt.conns.size();
+
+
+
+			ug::vector3 temp;
+			number tempRad;
+			if (nConn > 2)
+			{
+				// branching point -> new neurite ID
+				size_t newSize = vPosOut.size() + nConn-1;
+				vPosOut.resize(newSize);
+				vRadOut.resize(newSize);
+				vBPInfoOut.resize(newSize);
+
+				size_t parentToBeDiscarded;
+				for (size_t i = 0; i < nConn; ++i)
+				{
+					if (pt.conns[i] == pind)
+					{
+						parentToBeDiscarded = i;
+						continue;
+					}
+
+					/// start a new branch for each connected vertex
+					temp = pt.coords;
+					tempRad = pt.radius;
+					UG_LOGN("temp: " << temp)
+					processing_stack.push(std::make_pair(ind, pt.conns[i]));
+					curNeuriteInd++;
+					vPosOut[curNeuriteInd].push_back(temp);
+					vRadOut[curNeuriteInd].push_back(tempRad);
+
+					// TODO: Detect main branch -> this will always generate  new neurite ID
+					// child branches will be pushed on the stack and the BP vector3 will be saved
+					// then the current neurite index will be used to insert the BP vector3 at the front of
+					/// the vPosOut[currentNeuriteId] vector
+				}
+				curNeuriteInd--;
+				for (size_t i = 0; i < vPosOut.size()-1; i++) {
+					//UG_LOGN("vPosOut[" << i << "]: " << vPosOut[i].front());
+				}
+				UG_LOGN("DONE");
+			}
+
+			// end point
+			else if (nConn == 1)
+			{
+				// if the stack is not empty, the next ID on it will start a new neurite
+				if (!processing_stack.empty()) {
+					++curNeuriteInd;
+					// else: the next point is the root point of a root neurite
+				} else {
+					//vRootNeuriteIndsOut.push_back(curNeuriteInd);
+				}
+			}
+
+			// normal point
+			else
+			{
+				for (size_t i = 0; i < nConn; ++i)
+				{
+					if (pt.conns[i] != pind) {
+						processing_stack.push(std::make_pair(ind, pt.conns[i]));
+					}
+				}
+			}
+		}
+	}
+}
+
+
+
+
 ////////////////////////////////////////////////////////////////////////
 /// create_spline_data_for_neurites
 ////////////////////////////////////////////////////////////////////////
@@ -817,6 +985,7 @@ void create_spline_data_for_neurites
 
         // parameterize to achieve constant velocity on piece-wise linear geom
         size_t nVrt = pos.size();
+        UG_LOGN("nVrt: " << nVrt);
         std::vector<number> tSuppPos(nVrt);
         std::vector<number> dt(nVrt);
         number totalLength = 0.0;
@@ -3929,14 +4098,12 @@ void create_spline_data_for_neurites
 		   		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   				anisotropy, g, aaPos, aaSurfParams);
 		   	}
-		 	UG_LOGN("i-th neurite generated: " << i)
 		 	/// TODO: Why do the lines below now cause a segmentation fault in HEAD revision?
 		 	/*
 		 	ss << "testNeuriteProjector_after_generating_neurite_no=" << i <<  ".ugx";
 		    SaveGridToFile(g, sh, ss.str());
 		    ss.str(""); ss.clear();
 		    */
-		    UG_LOGN("saved!");
 		}
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
 
@@ -4231,6 +4398,127 @@ void create_spline_data_for_neurites
 	}
 
 
+	void eval_spline(const std::vector<NeuriteProjector::Neurite>& vNeurites) {
+
+		Grid g;
+		SubsetHandler sh(g);
+		g.attach_to_vertices(aPosition);
+		Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+
+		number desiredSegLength = 2.0;
+		number segLength;
+		UG_LOGN("*** eval_spline ***")
+		for (size_t i = 0; i < vNeurites.size(); i++) {
+			std::vector<number> vSegAxPos;
+			number lengthOverRadius = calculate_length_over_radius_variant(0, 1, vNeurites[i], 0);
+			number desiredSegLength = 2.0;
+			size_t nSeg = (size_t) floor(lengthOverRadius / desiredSegLength);
+			UG_LOGN("nSeg: " << nSeg);
+			segLength = lengthOverRadius / nSeg;
+			if (!nSeg) { nSeg = 1; }
+			vSegAxPos.resize(nSeg);
+			size_t curSec = 0;
+			calculate_segment_axial_positions_variant2(vSegAxPos, 0, 1, vNeurites[i], 0, segLength);
+			UG_LOGN("vSegAxPos.size(): " << vSegAxPos.size())
+			UG_LOGN("Desired edge length: " << desiredSegLength);
+			UG_LOGN("Adjusted edge legnth: " << segLength);
+			UG_LOGN("spline length: " << lengthOverRadius);
+			size_t nSec = vNeurites[i].vSec.size();
+
+			vector3 vel;
+			const NeuriteProjector::Section& sec = vNeurites[i].vSec[0];
+			number h = sec.endParam;
+			vel[0] = -3.0 * sec.splineParamsX[0] * h * h
+					- 2.0 * sec.splineParamsX[1] * h - sec.splineParamsX[2];
+			vel[1] = -3.0 * sec.splineParamsY[0] * h * h
+					- 2.0 * sec.splineParamsY[1] * h - sec.splineParamsY[2];
+			vel[2] = -3.0 * sec.splineParamsZ[0] * h * h
+					- 2.0 * sec.splineParamsZ[1] * h - sec.splineParamsZ[2];
+
+			vector3 projRefDir;
+			VecNormalize(vel, vel);
+
+			std::vector<ug::RegularVertex*> vertices;
+
+			nSeg=nSeg+1;
+			vSegAxPos.insert(vSegAxPos.begin(), 0);
+
+			for (size_t s = 0; s < nSeg; ++s) {
+						// get exact position, velocity and radius of segment end
+						number segAxPos = vSegAxPos[s];
+						for (; curSec < nSec; ++curSec) {
+							const NeuriteProjector::Section& sec = vNeurites[i].vSec[curSec];
+							if (sec.endParam >= segAxPos)
+								break;
+						}
+
+						const NeuriteProjector::Section& sec = vNeurites[i].vSec[curSec];
+						vector3 curPos;
+						number monom = sec.endParam - segAxPos;
+						const number* sp = &sec.splineParamsX[0];
+						number& p0 = curPos[0];
+						number& v0 = vel[0];
+						p0 = sp[0] * monom + sp[1];
+						p0 = p0 * monom + sp[2];
+						p0 = p0 * monom + sp[3];
+						v0 = -3.0 * sp[0] * monom - 2.0 * sp[1];
+						v0 = v0 * monom - sp[2];
+
+						sp = &sec.splineParamsY[0];
+						number& p1 = curPos[1];
+						number& v1 = vel[1];
+						p1 = sp[0] * monom + sp[1];
+						p1 = p1 * monom + sp[2];
+						p1 = p1 * monom + sp[3];
+						v1 = -3.0 * sp[0] * monom - 2.0 * sp[1];
+						v1 = v1 * monom - sp[2];
+
+						sp = &sec.splineParamsZ[0];
+						number& p2 = curPos[2];
+						number& v2 = vel[2];
+						p2 = sp[0] * monom + sp[1];
+						p2 = p2 * monom + sp[2];
+						p2 = p2 * monom + sp[3];
+						v2 = -3.0 * sp[0] * monom - 2.0 * sp[1];
+						v2 = v2 * monom - sp[2];
+
+						sp = &sec.splineParamsR[0];
+						number radius;
+						radius = sp[0] * monom + sp[1];
+						radius = radius * monom + sp[2];
+						radius = radius * monom + sp[3];
+
+						UG_LOGN("v0: " << v0 << ", v1: " << v1 << ", v2: " << v2 << ", radius:" << radius)
+
+						// calculate reference dir projected to normal plane of velocity
+						number fac = VecProd(vNeurites[i].refDir, vel);
+						ug::vector3 thirdDir;
+						VecScaleAdd(projRefDir, 1.0, vNeurites[i].refDir, -fac, vel);
+						VecNormalize(projRefDir, projRefDir);
+						VecCross(thirdDir, vel, projRefDir);
+
+						vector3 radialVec;
+						radius = 0;
+						VecScaleAdd(radialVec, radius * cos(0), projRefDir,
+								radius * sin(0), thirdDir);
+						ug::RegularVertex* vertex = *g.create<RegularVertex>();
+						VecAdd(aaPos[vertex], curPos, radialVec);
+						vertices.push_back(vertex);
+						sh.assign_subset(vertex, i);
+
+			}
+			UG_LOGN("*******")
+			for (size_t j = 0; j < vertices.size()-1; j++) {
+				RegularEdge* edge = *g.create<RegularEdge>(EdgeDescriptor(vertices[j], vertices[j+1]));
+				sh.assign_subset(edge, i);
+			}
+		}
+
+			AssignSubsetColors(sh);
+			SaveGridToFile(g, sh, "new_strategy.ugx");
+			MarkOutliers(g, sh, aaPos, "new_strategy_outliers.ugx", segLength, desiredSegLength);
+			WriteEdgeStatistics(g, aaPos, "new_strategy_statistics.csv");
+	}
 
 	////////////////////////////////////////////////////////////////////////////
 	/// test_import_swc_general_var_for_vr
@@ -4264,10 +4552,21 @@ void create_spline_data_for_neurites
 		std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
 		std::vector<size_t> vRootNeuriteIndsOut;
 
-		convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+		convert_pointlist_to_neuritelist_variant(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
-			vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
+			//vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
 		}
+
+
+		size_t noNeurite = 0;
+		for (std::vector<std::vector<vector3> >::const_iterator it = vPos.begin(); it != vPos.end(); ++it) {
+			UG_LOGN("i-th neurite: " << noNeurite);
+			for (std::vector<vector3>::const_iterator it2 = it->begin(); it2 != it->end(); ++it2) {
+				UG_LOGN("vector3: " << *it2);
+			}
+			noNeurite++;
+		}
+
 
 	    Grid g11;
 	    SubsetHandler sh11(g11);
@@ -4349,7 +4648,10 @@ void create_spline_data_for_neurites
 
 		// Create spline data for neurites
 		vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
-		create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
+		create_spline_data_for_neurites(vNeurites, vPos, vRad, NULL);
+
+		// test splines
+		eval_spline(vNeurites);
 
 		std::vector<SWCPoint> newPoints;
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {

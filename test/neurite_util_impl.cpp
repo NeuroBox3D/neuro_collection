@@ -3756,6 +3756,7 @@ namespace ug {
 			EraseEmptySubsets(sh);
 			AssignSubsetColors(sh);
 			SaveGridToFile(grid, sh, "marked_outliers.ugx");
+			SaveGridToFile(grid, sh, fileName);
 		}
 
 		////////////////////////////////////////////////////////////////////////

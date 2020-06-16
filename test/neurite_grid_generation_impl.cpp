@@ -2301,7 +2301,7 @@ number calculate_length_over_radius_variant
 	size_t startSec
 )
 {
-	GaussLegendre gl(5);
+	GaussLegendre gl(50);
 	size_t nPts = gl.size();
 
 	std::vector<NeuriteProjector::Section>::const_iterator sec_it = neurite.vSec.begin() + startSec;
@@ -2354,7 +2354,7 @@ number calculate_length_over_radius_variant
 
                                 //UG_COND_THROW(r*r <= VecNormSquared(vel)*1e-12, "r = " << r << " at t = " << t << "!");
 
-                                sec_integral += gl.weight(i) * sqrt(VecNormSquared(vel)) / 1;
+                                sec_integral += gl.weight(i) * sqrt(VecNormSquared(vel)) / 1.0;
                         }
 
                         integral += dt * sec_integral;
@@ -2518,7 +2518,7 @@ number calculate_length_over_radius_variant
                         {
                         const size_t nSeg = segAxPosOut.size();
 
-                        GaussLegendre gl(5);
+                        GaussLegendre gl(50);
                         size_t nPts = gl.size();
 
                         std::vector<NeuriteProjector::Section>::const_iterator sec_it = neurite.vSec.begin() + startSec;
@@ -2577,12 +2577,25 @@ number calculate_length_over_radius_variant
                                 integral += dt * sec_integral;
 
                                 // calculate exact position by linear interpolation, whenever integral has surpassed it
+                                number lastIntegral;
+                                number difference;
                                 while (integral >= (seg+1)*segLength)
                                 {
-                                        number lastIntegral = integral - dt * sec_integral;
+                                	UG_LOGN("my pos: " << (seg+1)*segLength);
+                                	UG_LOGN("integral: " << integral);
+                                       lastIntegral = integral - dt * sec_integral;
+                                        UG_LOGN("lastIntegral: " << lastIntegral);
+                                        UG_LOGN("diff: " << (integral-(seg+1)*segLength));
+                                        UG_LOGN("pos: " << t_start + ((seg+1)*segLength - lastIntegral) / sec_integral)
+                                        if (fabs(integral-(seg+1)*segLength) < SMALL) {
+                                        	UG_LOGN("EXACT!");
+                                        }
                                         segAxPosOut[seg] = t_start + ((seg+1)*segLength - lastIntegral) / sec_integral;
+                                        difference = sec_tend - (t_start + ((seg+1)*segLength - lastIntegral) / sec_integral);
                                         ++seg;
                                 }
+                                UG_LOGN("next section")
+                                UG_LOGN("DIFFERNCE: " << difference);
 
                                 // update lower bound and iterator
                                 t_start = sec_tend;
@@ -2596,6 +2609,7 @@ number calculate_length_over_radius_variant
                                 segAxPosOut[nSeg-1] = t_end;
                                 ++seg;
                         }
+                       // segAxPosOut[nSeg-1] = t_end;
 
                         UG_ASSERT(seg == nSeg, "seg = " << seg << " != " << nSeg << " = nSeg");
                         }
