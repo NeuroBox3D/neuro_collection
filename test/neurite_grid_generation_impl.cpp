@@ -2616,6 +2616,92 @@ number calculate_length_over_radius_variant
                         UG_ASSERT(seg == nSeg, "seg = " << seg << " != " << nSeg << " = nSeg");
                         }
 
+                ////////////////////////////////////////////////////////////////////////
+                               /// calculate_segment_axial_positions
+                               ////////////////////////////////////////////////////////////////////////
+                               void calculate_segment_axial_positions_variant3
+                                 (
+                                         std::vector<number>& segAxPosOut,
+                                          number t_start,
+                                               number t_end,
+                                               const NeuriteProjector::Neurite& neurite,
+                                               size_t startSec,
+                                               number segLength
+                                       )
+                                       {
+                                       const size_t nSeg = segAxPosOut.size();
+
+                                       GaussLegendre gl(50);
+                                       size_t nPts = gl.size();
+
+                                       UG_LOGN("nSec (calculted new): " << neurite.vSec.size());
+
+                                       std::vector<NeuriteProjector::Section>::const_iterator sec_it = neurite.vSec.begin() + startSec;
+                                       std::vector<NeuriteProjector::Section>::const_iterator sec_end = neurite.vSec.end();
+
+                                   	while (sec_it->endParam < t_start && sec_it->endParam < 1.0)
+                                   		++sec_it;
+
+                                       // check that startSec was correct
+                                       number sec_tstart = startSec > 0 ? (sec_it - 1)->endParam : 0.0;
+                                       number sec_tend = sec_it->endParam;
+                                       UG_COND_THROW(sec_tend < t_start || sec_tstart > t_start,
+                       					"Wrong section iterator given to calculate_segment_axial_positions()."
+                       					"Section goes from " << (sec_it-1)->endParam << " to " << sec_it->endParam
+                       					<< ", but t_start is " << t_start << ".");
+
+                                       number integral = 0.0;
+                                       size_t seg = 0;
+                                       while (sec_it != sec_end)
+                                       {
+                                               // integrate from t_start to min{t_end, sec_tend}
+                                               const NeuriteProjector::Section& sec = *sec_it;
+                                               sec_tstart = std::max(t_start, sec_it != neurite.vSec.begin() ? (sec_it - 1)->endParam : 0.0);
+                                               sec_tend = std::min(t_end, sec.endParam);
+                                               number dt = sec_tend - sec_tstart;
+                                               number sec_integral = 0.0;
+                                               for (size_t i = 0; i < nPts; ++i)
+                                               {
+                                                       number t = sec.endParam - (sec_tstart + dt*gl.point(i)[0]);
+
+                                                       vector3 vel;
+                                                       const number* s = &sec.splineParamsX[0];
+                                                       number& v0 = vel[0];
+                                                       v0 = -3.0*s[0]*t - 2.0*s[1];
+                                                       v0 = v0*t - s[2];
+
+                                                       s = &sec.splineParamsY[0];
+                                                       number& v1 = vel[1];
+                                                       v1 = -3.0*s[0]*t - 2.0*s[1];
+                                                       v1 = v1*t - s[2];
+
+                                                       s = &sec.splineParamsZ[0];
+                                                       number& v2 = vel[2];
+                                                       v2 = -3.0*s[0]*t - 2.0*s[1];
+                                                       v2 = v2*t - s[2];
+
+                                                       s = &sec.splineParamsR[0];
+                                                       number r = s[0]*t + s[1];
+                                                       r = r*t + s[2];
+                                                       r = r*t + s[3];
+
+                                                    //   UG_COND_THROW(r*r <= VecNormSquared(vel)*1e-12, "r = " << r << " at t = " << t << "!");
+
+                                                       sec_integral += gl.weight(i) * sqrt(VecNormSquared(vel)) / 1;
+                                               }
+                                               integral += dt * sec_integral;
+                                               ++sec_it;
+                                       }
+
+                                        while (integral >= (seg+1)*segLength)
+                                        {
+                                           segAxPosOut[seg] = t_start + ((seg+1)*segLength)/integral;
+                                           ++seg;
+                                        }
+
+                                       UG_ASSERT(seg == nSeg, "seg = " << seg << " != " << nSeg << " = nSeg");
+                                       }
+
 
                 ////////////////////////////////////////////////////////////////////////
                 /// create_neurite_with_er
