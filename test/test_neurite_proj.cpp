@@ -849,10 +849,12 @@ void convert_pointlist_to_neuritelist_variant
 		vRadOut.resize(vRadOut.size() + rootPts.size());
 		vBPInfoOut.resize(vBPInfoOut.size() + rootPts.size());
 
+		std::stack<vector3> bp_stack;
 		std::stack<std::pair<size_t, size_t> > processing_stack;
 		for (size_t i = 0; i < rootPts.size(); ++i) {
 			processing_stack.push(rootPts[i]);
 			vRootNeuriteIndsOut.push_back(i);
+			bp_stack.push(vector3(-1337,-1337,-1337));
 		}
 
 		UG_LOGN("rootPts.size(): " << rootPts.size())
@@ -868,6 +870,9 @@ void convert_pointlist_to_neuritelist_variant
 			size_t pind = processing_stack.top().first;
 			size_t ind = processing_stack.top().second;
 			processing_stack.pop();
+			if (!bp_stack.empty()) {
+				bp_stack.pop();
+			}
 
 			ptProcessed[ind] = true;
 			++nProcessed;
@@ -894,6 +899,7 @@ void convert_pointlist_to_neuritelist_variant
 				vRadOut.resize(newSize);
 				vBPInfoOut.resize(newSize);
 
+				bool pushed = false;
 				size_t parentToBeDiscarded;
 				for (size_t i = 0; i < nConn; ++i)
 				{
@@ -909,8 +915,12 @@ void convert_pointlist_to_neuritelist_variant
 					UG_LOGN("temp: " << temp)
 					processing_stack.push(std::make_pair(ind, pt.conns[i]));
 					curNeuriteInd++;
-					vPosOut[curNeuriteInd].push_back(temp);
-					vRadOut[curNeuriteInd].push_back(tempRad);
+					if (!pushed) {
+						vPosOut[curNeuriteInd].push_back(temp);
+						vRadOut[curNeuriteInd].push_back(tempRad);
+						pushed = true;
+					}
+					bp_stack.push(temp);
 
 					// TODO: Detect main branch -> this will always generate  new neurite ID
 					// child branches will be pushed on the stack and the BP vector3 will be saved
@@ -930,6 +940,12 @@ void convert_pointlist_to_neuritelist_variant
 				// if the stack is not empty, the next ID on it will start a new neurite
 				if (!processing_stack.empty()) {
 					++curNeuriteInd;
+					if (!bp_stack.empty()) {
+						ug::vector3 bp = bp_stack.top();
+						vPosOut[curNeuriteInd].push_back(bp);
+						vRadOut[curNeuriteInd].push_back(1.0);
+						UG_LOGN("push bp onto neurite: " << curNeuriteInd);
+					}
 					// else: the next point is the root point of a root neurite
 				} else {
 					//vRootNeuriteIndsOut.push_back(curNeuriteInd);
@@ -943,6 +959,7 @@ void convert_pointlist_to_neuritelist_variant
 				{
 					if (pt.conns[i] != pind) {
 						processing_stack.push(std::make_pair(ind, pt.conns[i]));
+						bp_stack.push(vector3(0,0,0));
 					}
 				}
 			}
@@ -4413,16 +4430,17 @@ void create_spline_data_for_neurites
 			number lengthOverRadius = calculate_length_over_radius_variant(0, 1, vNeurites[i], 0);
 			number desiredSegLength = 2.0;
 			size_t nSeg = (size_t) floor(lengthOverRadius / desiredSegLength);
-			UG_LOGN("nSeg: " << nSeg);
-			segLength = lengthOverRadius / nSeg;
 			if (!nSeg) { nSeg = 1; }
+			UG_LOGN("nSeg (calculated new): " << nSeg);
+			UG_LOGN("Desired edge length: " << desiredSegLength);
+			UG_LOGN("Adjusted edge legnth: " << segLength);
+			UG_LOGN("spline length: " << lengthOverRadius);
+			segLength = lengthOverRadius / nSeg;
 			vSegAxPos.resize(nSeg);
 			size_t curSec = 0;
 			calculate_segment_axial_positions_variant2(vSegAxPos, 0, 1, vNeurites[i], 0, segLength);
 			UG_LOGN("vSegAxPos.size(): " << vSegAxPos.size())
-			UG_LOGN("Desired edge length: " << desiredSegLength);
-			UG_LOGN("Adjusted edge legnth: " << segLength);
-			UG_LOGN("spline length: " << lengthOverRadius);
+
 			size_t nSec = vNeurites[i].vSec.size();
 
 			vector3 vel;

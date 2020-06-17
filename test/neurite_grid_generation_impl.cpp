@@ -2521,6 +2521,8 @@ number calculate_length_over_radius_variant
                         GaussLegendre gl(50);
                         size_t nPts = gl.size();
 
+                        UG_LOGN("nSec (calculted new): " << neurite.vSec.size());
+
                         std::vector<NeuriteProjector::Section>::const_iterator sec_it = neurite.vSec.begin() + startSec;
                         std::vector<NeuriteProjector::Section>::const_iterator sec_end = neurite.vSec.end();
 
