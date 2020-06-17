@@ -4552,18 +4552,8 @@ void create_spline_data_for_neurites
 
 				UG_LOGN("v0: " << v0 << ", v1: " << v1 << ", v2: " << v2 << ", radius:" << radius)
 
-				// calculate reference dir projected to normal plane of velocity
-				number fac = VecProd(vNeurites[i].refDir, vel);
-				ug::vector3 thirdDir;
-				VecScaleAdd(projRefDir, 1.0, vNeurites[i].refDir, -fac, vel);
-				VecNormalize(projRefDir, projRefDir);
-				VecCross(thirdDir, vel, projRefDir);
-
-				vector3 radialVec;
-				radius = 0;
-				VecScaleAdd(radialVec, radius * cos(0), projRefDir, radius * sin(0), thirdDir);
 				ug::RegularVertex* vertex = *g.create<RegularVertex>();
-				VecAdd(aaPos[vertex], curPos, radialVec);
+				aaPos[vertex] = curPos;
 				vertices.push_back(vertex);
 				sh.assign_subset(vertex, i);
 			}
