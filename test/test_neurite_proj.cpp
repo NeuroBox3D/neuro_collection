@@ -4639,7 +4639,10 @@ void create_spline_data_for_neurites
 					  << " 2) Chose smaller segLength 3) Ignore this warning";
 
 			size_t option;
-			std::cin >> option;
+			if (!std::cin >> option) {
+				UG_LOG("Invalid input given. Options can only be numeric and of value 1, 2 or 3.")
+			}
+
 			if (option == 1) {
 				// test splines evaluation with presribed desired edge length and save
 				// grid and statistics for edges afterwards, see eval_spline(..., ...).
