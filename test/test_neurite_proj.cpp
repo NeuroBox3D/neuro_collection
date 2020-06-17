@@ -4473,7 +4473,7 @@ void create_spline_data_for_neurites
 			std::vector<number> vSegAxPos;
 			number lengthOverRadius = calculate_length_over_radius_variant(0, 1, vNeurites[i], 0);
 			number desiredSegLength = 2.0;
-			size_t nSeg = (size_t) floor(lengthOverRadius / desiredSegLength);
+			size_t nSeg = (size_t) ceil(lengthOverRadius / desiredSegLength);
 			if (!nSeg) { nSeg = 1; }
 			segLength = lengthOverRadius / nSeg;
 			UG_LOGN("nSeg (calculated new): " << nSeg);
