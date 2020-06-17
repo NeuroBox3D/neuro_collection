@@ -5078,6 +5078,7 @@ void create_spline_data_for_neurites
 			std::string curFileName = outFileName.substr(0, outFileName.size()-4) + oss.str();
 			try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), 50.0);}
 			UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
+			SaveGridToFile(g, sh, curFileName);
 		}
 	}
 
