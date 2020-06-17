@@ -555,6 +555,28 @@ void test_import_swc_and_regularize
 );
 
 /*!
+ * \brief check if all fragments are separated by minimum distance
+ * \param[in] vFraments fragments
+ * \param[in] desiredSegLength desired segment length
+ */
+bool check_fragments
+(
+	const std::vector<std::vector<vector3> > vFragments,
+	const number desiredSegLength
+);
+
+/*!
+ * \brief sample spline equidistanc in arclength
+ * \param[in] vNeurites spline data for each fragment of neurite
+ * \param[in] desiredSegLength desired segment length (arclength!)
+ */
+void eval_spline
+(
+	const std::vector<NeuriteProjector::Neurite>& vNeurites,
+	const number desiredSegLength
+);
+
+/*!
  * \brief calculates the minimum allowed segment length for fragments
  * Calculates the minimum distance by this formular:
  * \f$min_{i,j} { (||S, BP_i||_2), (||BP_i, BP_j||_2), (||BP_i, T_j||_2 \forall i != j\f$
