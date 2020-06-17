@@ -4419,14 +4419,22 @@ void create_spline_data_for_neurites
 	}
 
 
-	void eval_spline(const std::vector<NeuriteProjector::Neurite>& vNeurites, const number mySegLength) {
-
+	////////////////////////////////////////////////////////////////////////////
+	/// eval_spline
+	////////////////////////////////////////////////////////////////////////////
+	void eval_spline
+	(
+		const std::vector<NeuriteProjector::Neurite>& vNeurites,
+		const number desiredSegLength
+	)
+	{
+		/// Prepare grid to create regularized SWC
 		Grid g;
 		SubsetHandler sh(g);
 		g.attach_to_vertices(aPosition);
 		Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
 
-		number desiredSegLength = 2.0;
+		/// actual seglength might differ from desired due to non integer multiplicity
 		number segLength;
 		UG_LOGN("*** eval_spline ***")
 		for (size_t i = 0; i < vNeurites.size(); i++) {
@@ -4446,7 +4454,6 @@ void create_spline_data_for_neurites
 			UG_LOGN("vSegAxPos.size(): " << vSegAxPos.size())
 
 			size_t nSec = vNeurites[i].vSec.size();
-
 			vector3 vel;
 			const NeuriteProjector::Section& sec = vNeurites[i].vSec[0];
 			number h = sec.endParam;
@@ -4462,74 +4469,75 @@ void create_spline_data_for_neurites
 
 			std::vector<ug::RegularVertex*> vertices;
 
+			/// evaluate also at the very first point of the spline
 			nSeg=nSeg+1;
 			vSegAxPos.insert(vSegAxPos.begin(), 0);
 
 			for (size_t s = 0; s < nSeg; ++s) {
-						// get exact position, velocity and radius of segment end
-						number segAxPos = vSegAxPos[s];
-						for (; curSec < nSec; ++curSec) {
-							const NeuriteProjector::Section& sec = vNeurites[i].vSec[curSec];
-							if (sec.endParam >= segAxPos)
-								break;
-						}
+				// get exact position, velocity and radius of segment end
+				number segAxPos = vSegAxPos[s];
+				for (; curSec < nSec; ++curSec) {
+					const NeuriteProjector::Section& sec = vNeurites[i].vSec[curSec];
+					if (sec.endParam >= segAxPos)
+						break;
+					}
 
-						const NeuriteProjector::Section& sec = vNeurites[i].vSec[curSec];
-						vector3 curPos;
-						number monom = sec.endParam - segAxPos;
-						const number* sp = &sec.splineParamsX[0];
-						number& p0 = curPos[0];
-						number& v0 = vel[0];
-						p0 = sp[0] * monom + sp[1];
-						p0 = p0 * monom + sp[2];
-						p0 = p0 * monom + sp[3];
-						v0 = -3.0 * sp[0] * monom - 2.0 * sp[1];
-						v0 = v0 * monom - sp[2];
+				const NeuriteProjector::Section& sec = vNeurites[i].vSec[curSec];
+				vector3 curPos;
+				number monom = sec.endParam - segAxPos;
+				const number* sp = &sec.splineParamsX[0];
+				number& p0 = curPos[0];
+				number& v0 = vel[0];
+				p0 = sp[0] * monom + sp[1];
+				p0 = p0 * monom + sp[2];
+				p0 = p0 * monom + sp[3];
+				v0 = -3.0 * sp[0] * monom - 2.0 * sp[1];
+				v0 = v0 * monom - sp[2];
 
-						sp = &sec.splineParamsY[0];
-						number& p1 = curPos[1];
-						number& v1 = vel[1];
-						p1 = sp[0] * monom + sp[1];
-						p1 = p1 * monom + sp[2];
-						p1 = p1 * monom + sp[3];
-						v1 = -3.0 * sp[0] * monom - 2.0 * sp[1];
-						v1 = v1 * monom - sp[2];
+				sp = &sec.splineParamsY[0];
+				number& p1 = curPos[1];
+				number& v1 = vel[1];
+				p1 = sp[0] * monom + sp[1];
+				p1 = p1 * monom + sp[2];
+				p1 = p1 * monom + sp[3];
+				v1 = -3.0 * sp[0] * monom - 2.0 * sp[1];
+				v1 = v1 * monom - sp[2];
 
-						sp = &sec.splineParamsZ[0];
-						number& p2 = curPos[2];
-						number& v2 = vel[2];
-						p2 = sp[0] * monom + sp[1];
-						p2 = p2 * monom + sp[2];
-						p2 = p2 * monom + sp[3];
-						v2 = -3.0 * sp[0] * monom - 2.0 * sp[1];
-						v2 = v2 * monom - sp[2];
+				sp = &sec.splineParamsZ[0];
+				number& p2 = curPos[2];
+				number& v2 = vel[2];
+				p2 = sp[0] * monom + sp[1];
+				p2 = p2 * monom + sp[2];
+				p2 = p2 * monom + sp[3];
+				v2 = -3.0 * sp[0] * monom - 2.0 * sp[1];
+				v2 = v2 * monom - sp[2];
 
-						sp = &sec.splineParamsR[0];
-						number radius;
-						radius = sp[0] * monom + sp[1];
-						radius = radius * monom + sp[2];
-						radius = radius * monom + sp[3];
+				sp = &sec.splineParamsR[0];
+				number radius;
+				radius = sp[0] * monom + sp[1];
+				radius = radius * monom + sp[2];
+				radius = radius * monom + sp[3];
 
-						UG_LOGN("v0: " << v0 << ", v1: " << v1 << ", v2: " << v2 << ", radius:" << radius)
+				UG_LOGN("v0: " << v0 << ", v1: " << v1 << ", v2: " << v2 << ", radius:" << radius)
 
-						// calculate reference dir projected to normal plane of velocity
-						number fac = VecProd(vNeurites[i].refDir, vel);
-						ug::vector3 thirdDir;
-						VecScaleAdd(projRefDir, 1.0, vNeurites[i].refDir, -fac, vel);
-						VecNormalize(projRefDir, projRefDir);
-						VecCross(thirdDir, vel, projRefDir);
+				// calculate reference dir projected to normal plane of velocity
+				number fac = VecProd(vNeurites[i].refDir, vel);
+				ug::vector3 thirdDir;
+				VecScaleAdd(projRefDir, 1.0, vNeurites[i].refDir, -fac, vel);
+				VecNormalize(projRefDir, projRefDir);
+				VecCross(thirdDir, vel, projRefDir);
 
-						vector3 radialVec;
-						radius = 0;
-						VecScaleAdd(radialVec, radius * cos(0), projRefDir,
-								radius * sin(0), thirdDir);
-						ug::RegularVertex* vertex = *g.create<RegularVertex>();
-						VecAdd(aaPos[vertex], curPos, radialVec);
-						vertices.push_back(vertex);
-						sh.assign_subset(vertex, i);
-
+				vector3 radialVec;
+				radius = 0;
+				VecScaleAdd(radialVec, radius * cos(0), projRefDir, radius * sin(0), thirdDir);
+				ug::RegularVertex* vertex = *g.create<RegularVertex>();
+				VecAdd(aaPos[vertex], curPos, radialVec);
+				vertices.push_back(vertex);
+				sh.assign_subset(vertex, i);
 			}
 			UG_LOGN("*******")
+
+			// create edges and assign to appropriate fragment subset
 			for (size_t j = 0; j < vertices.size()-1; j++) {
 				RegularEdge* edge = *g.create<RegularEdge>(EdgeDescriptor(vertices[j], vertices[j+1]));
 				sh.assign_subset(edge, i);
@@ -4544,6 +4552,7 @@ void create_spline_data_for_neurites
 			ss.str(""); ss.clear();
 		}
 
+		// save new regularized grid and statistics
 		AssignSubsetColors(sh);
 		SaveGridToFile(g, sh, "new_strategy.ugx");
 		MarkOutliers(g, sh, aaPos, "new_strategy_outliers.ugx", segLength, desiredSegLength);
