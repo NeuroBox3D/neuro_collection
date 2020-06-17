@@ -4646,13 +4646,11 @@ void create_spline_data_for_neurites
 				// grid and statistics for edges afterwards, see eval_spline(..., ...).
 				eval_spline(vFragments, segLengthNew);
 			}
-
-			if (option == 3) {
-				// test splines evaluation with presribed desired edge length and save
-				// grid and statistics for edges afterwards, see eval_spline(..., ...).
-				eval_spline(vFragments, segLength); // always generates one segment between fragments
-			}
 		}
+
+		// test splines evaluation with presribed desired edge length and save
+		// grid and statistics for edges afterwards, see eval_spline(..., ...).
+		eval_spline(vFragments, segLength); // always generates one segment between fragments
 	}
 
 	////////////////////////////////////////////////////////////////////////////
