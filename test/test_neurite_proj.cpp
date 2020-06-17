@@ -849,17 +849,21 @@ void convert_pointlist_to_neuritelist_variant
 		vRadOut.resize(vRadOut.size() + rootPts.size());
 		vBPInfoOut.resize(vBPInfoOut.size() + rootPts.size());
 
-		std::stack<vector3> bp_stack;
+		std::stack<std::pair<vector3, number> > bp_stack;
 		std::stack<std::pair<size_t, size_t> > processing_stack;
 		for (size_t i = 0; i < rootPts.size(); ++i) {
 			processing_stack.push(rootPts[i]);
-			vRootNeuriteIndsOut.push_back(i);
-			bp_stack.push(vector3(-1337,-1337,-1337));
+			//vRootNeuriteIndsOut.push_back(i);
+			//bp_stack.push(vector3(-1337,-1337,-1337));
+		}
+
+		for (size_t i = 0; i < vSomaPoints.size(); ++i) {
+			bp_stack.push(std::make_pair(vSomaPoints[i].coords, vSomaPoints[i].radius));
 		}
 
 		UG_LOGN("rootPts.size(): " << rootPts.size())
 
-		//vRootNeuriteIndsOut.push_back(curNeuriteInd);
+		vRootNeuriteIndsOut.push_back(curNeuriteInd);
 
 		// helper map to be used to correctly save BPs:
 		// maps branch root parent ID to neurite ID and BP ID
@@ -900,12 +904,10 @@ void convert_pointlist_to_neuritelist_variant
 				vBPInfoOut.resize(newSize);
 
 				bool pushed = false;
-				size_t parentToBeDiscarded;
 				for (size_t i = 0; i < nConn; ++i)
 				{
-					if (pt.conns[i] == pind)
+					if (pt.conns[i] == pind) /// parent fragment already created
 					{
-						parentToBeDiscarded = i;
 						continue;
 					}
 
@@ -915,17 +917,15 @@ void convert_pointlist_to_neuritelist_variant
 					UG_LOGN("temp: " << temp)
 					processing_stack.push(std::make_pair(ind, pt.conns[i]));
 					curNeuriteInd++;
+					/// Note: This automatically picks the first available branch
+					/// as the continuation of a main branch and initiates a new
+					/// fragment (first available means: not parent but children!)
 					if (!pushed) {
 						vPosOut[curNeuriteInd].push_back(temp);
 						vRadOut[curNeuriteInd].push_back(tempRad);
 						pushed = true;
 					}
-					bp_stack.push(temp);
-
-					// TODO: Detect main branch -> this will always generate  new neurite ID
-					// child branches will be pushed on the stack and the BP vector3 will be saved
-					// then the current neurite index will be used to insert the BP vector3 at the front of
-					/// the vPosOut[currentNeuriteId] vector
+					bp_stack.push(std::make_pair(temp, tempRad));
 				}
 				curNeuriteInd--;
 				for (size_t i = 0; i < vPosOut.size()-1; i++) {
@@ -940,15 +940,19 @@ void convert_pointlist_to_neuritelist_variant
 				// if the stack is not empty, the next ID on it will start a new neurite
 				if (!processing_stack.empty()) {
 					++curNeuriteInd;
+					/// if the bp stack is not empty, then we are at a branching point not root neurite
 					if (!bp_stack.empty()) {
-						ug::vector3 bp = bp_stack.top();
+						ug::vector3 bp = bp_stack.top().first;
+						number rad = bp_stack.top().second;
 						vPosOut[curNeuriteInd].push_back(bp);
-						vRadOut[curNeuriteInd].push_back(1.0);
+						vRadOut[curNeuriteInd].push_back(rad);
 						UG_LOGN("push bp onto neurite: " << curNeuriteInd);
+					} else {
+						vRootNeuriteIndsOut.push_back(curNeuriteInd);
 					}
 					// else: the next point is the root point of a root neurite
 				} else {
-					//vRootNeuriteIndsOut.push_back(curNeuriteInd);
+					///vRootNeuriteIndsOut.push_back(curNeuriteInd);
 				}
 			}
 
@@ -959,7 +963,7 @@ void convert_pointlist_to_neuritelist_variant
 				{
 					if (pt.conns[i] != pind) {
 						processing_stack.push(std::make_pair(ind, pt.conns[i]));
-						bp_stack.push(vector3(0,0,0));
+						bp_stack.push(std::make_pair(vector3(0, 0, 0), -1)); // dummy value, should never be used and refactored to be avoided completely
 					}
 				}
 			}
@@ -4415,7 +4419,7 @@ void create_spline_data_for_neurites
 	}
 
 
-	void eval_spline(const std::vector<NeuriteProjector::Neurite>& vNeurites) {
+	void eval_spline(const std::vector<NeuriteProjector::Neurite>& vNeurites, const number mySegLength) {
 
 		Grid g;
 		SubsetHandler sh(g);
@@ -4431,11 +4435,11 @@ void create_spline_data_for_neurites
 			number desiredSegLength = 2.0;
 			size_t nSeg = (size_t) floor(lengthOverRadius / desiredSegLength);
 			if (!nSeg) { nSeg = 1; }
+			segLength = lengthOverRadius / nSeg;
 			UG_LOGN("nSeg (calculated new): " << nSeg);
 			UG_LOGN("Desired edge length: " << desiredSegLength);
 			UG_LOGN("Adjusted edge legnth: " << segLength);
 			UG_LOGN("spline length: " << lengthOverRadius);
-			segLength = lengthOverRadius / nSeg;
 			vSegAxPos.resize(nSeg);
 			size_t curSec = 0;
 			calculate_segment_axial_positions_variant2(vSegAxPos, 0, 1, vNeurites[i], 0, segLength);
@@ -4532,10 +4536,63 @@ void create_spline_data_for_neurites
 			}
 		}
 
-			AssignSubsetColors(sh);
-			SaveGridToFile(g, sh, "new_strategy.ugx");
-			MarkOutliers(g, sh, aaPos, "new_strategy_outliers.ugx", segLength, desiredSegLength);
-			WriteEdgeStatistics(g, aaPos, "new_strategy_statistics.csv");
+		// subset names
+		std::stringstream ss;
+		for (int i = 0; i < sh.num_subsets(); i++) {
+			ss << "Fragment #" << i+1;
+			sh.subset_info(i).name = ss.str();
+			ss.str(""); ss.clear();
+		}
+
+		AssignSubsetColors(sh);
+		SaveGridToFile(g, sh, "new_strategy.ugx");
+		MarkOutliers(g, sh, aaPos, "new_strategy_outliers.ugx", segLength, desiredSegLength);
+		WriteEdgeStatistics(g, aaPos, "new_strategy_statistics.csv");
+	}
+
+
+	////////////////////////////////////////////////////////////////////////////
+	/// test_import_swc_and_regularize
+	////////////////////////////////////////////////////////////////////////////
+	void test_import_swc_and_regularize
+	(
+		const std::string& fileName,
+		const number segLength
+	) {
+		// read in file to intermediate structure
+		std::vector<SWCPoint> vPoints;
+		std::vector<SWCPoint> vSomaPoints;
+		import_swc(fileName, vPoints);
+
+		// convert intermediate structure to neurite data
+		std::vector<std::vector<vector3> > vPos;
+		std::vector<std::vector<number> > vRad;
+		std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
+		std::vector<size_t> vRootNeuriteIndsOut;
+		convert_pointlist_to_neuritelist_variant(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+
+		// push soma point in front of each root neurite
+		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
+			vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
+		}
+
+		// Write edge statistics for original grid
+	    Grid originalGrid;
+	    SubsetHandler sh(originalGrid);
+	    swc_points_to_grid(vPoints, originalGrid, sh, 1.0);
+	    originalGrid.attach_to_vertices(aPosition);
+		Grid::VertexAttachmentAccessor<APosition> aaPos(originalGrid, aPosition);
+	    WriteEdgeStatistics(originalGrid, aaPos, "statistics_edges_original.csv");
+
+		// Create spline data for neurites
+		// NULL because no BP info required, we create from bp to bp, bp to tip
+		// and soma to bp, so each fragment stands for its own
+		std::vector<NeuriteProjector::Neurite> vFragments;
+		create_spline_data_for_neurites(vFragments, vPos, vRad, NULL);
+
+		// test splines evaluation with presribed desired edge length and save
+		// grid and statistics for edges afterwards, see eval_spline(..., ...).
+		eval_spline(vFragments, segLength);
 	}
 
 	////////////////////////////////////////////////////////////////////////////
@@ -4572,7 +4629,8 @@ void create_spline_data_for_neurites
 
 		convert_pointlist_to_neuritelist_variant(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
-			//vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
+			UG_LOGN("root index: " << vRootNeuriteIndsOut[i]);
+			vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
 		}
 
 
@@ -4669,7 +4727,7 @@ void create_spline_data_for_neurites
 		create_spline_data_for_neurites(vNeurites, vPos, vRad, NULL);
 
 		// test splines
-		eval_spline(vNeurites);
+		eval_spline(vNeurites, segLength);
 
 		std::vector<SWCPoint> newPoints;
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {

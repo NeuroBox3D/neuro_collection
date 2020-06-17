@@ -543,6 +543,17 @@ void to_ugx(
 	const std::string& fileName
 );
 
+/*!
+ * \brief regularizes the 1d geometry
+ * \param[in] fileName name of the input geometry
+ * \param[in] segLength desired segment length
+ */
+void test_import_swc_and_regularize
+(
+	const std::string& fileName,
+	number segLength
+);
+
 } // namespace neuro_collection
 } // namespace ug
 

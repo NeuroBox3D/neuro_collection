@@ -1122,7 +1122,8 @@ namespace ug {
 		(
 			Grid& grid,
 			const Grid::VertexAttachmentAccessor<APosition>& aaPos,
-			const char* fileName
+			const char* fileName,
+			bool subsetWise=false
 		);
 
 		/*
