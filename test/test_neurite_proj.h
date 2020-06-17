@@ -554,6 +554,22 @@ void test_import_swc_and_regularize
 	number segLength
 );
 
+/*!
+ * \brief calculates the minimum allowed segment length for fragments
+ * Calculates the minimum distance by this formular:
+ * \f$min_{i,j} { (||S, BP_i||_2), (||BP_i, BP_j||_2), (||BP_i, T_j||_2 \forall i != j\f$
+ * where BP_i is a branching point, S is the single soma and T_i are the neurite tips
+ * \param[in] vFragments fragments
+ * \param[in] desiredSegLength desired segmenet length
+ *
+ * \return \c minimum segment length between fragments
+ */
+number calculate_minimum_allowed_seg_length
+(
+	const std::vector<std::vector<vector3> > vFragments,
+	const number desiredSegLength
+);
+
 } // namespace neuro_collection
 } // namespace ug
 

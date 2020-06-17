@@ -4418,6 +4418,38 @@ void create_spline_data_for_neurites
 		}
 	}
 
+	////////////////////////////////////////////////////////////////////////////
+	/// check_fragments
+	////////////////////////////////////////////////////////////////////////////
+	bool check_fragments
+	(
+		const std::vector<std::vector<vector3> > vFragments,
+		const number desiredSegLength
+	)
+	{
+		// check each fragment
+		for (size_t i = 0; i < vFragments.size(); i++) {
+			number dist = 0;
+			for (size_t j = 0; j < vFragments[i].size()-1; j++) {
+				number d = VecDistance(vFragments[i][j], vFragments[i][j+1]);
+				dist += d;
+				if (dist > desiredSegLength) {
+					break;
+				}
+			}
+			// at least one fragment is not long enough. at this point it is
+			// pointless to check for the other fragments' lengths since one
+			// violation of this criterion will be undesired for our use case
+			if (! (dist > desiredSegLength)) {
+				UG_LOGN("First fragment not satifying required length (" <<
+						desiredSegLength << "): >> Fragment #" << i << " <<");
+				return false;
+			}
+		}
+		// all fragments are larger than desired length
+		return true;
+	}
+
 
 	////////////////////////////////////////////////////////////////////////////
 	/// eval_spline
@@ -4469,7 +4501,7 @@ void create_spline_data_for_neurites
 
 			std::vector<ug::RegularVertex*> vertices;
 
-			/// evaluate also at the very first point of the spline
+			/// evaluate also at the very first point of the spline always
 			nSeg=nSeg+1;
 			vSegAxPos.insert(vSegAxPos.begin(), 0);
 
@@ -4599,9 +4631,63 @@ void create_spline_data_for_neurites
 		std::vector<NeuriteProjector::Neurite> vFragments;
 		create_spline_data_for_neurites(vFragments, vPos, vRad, NULL);
 
-		// test splines evaluation with presribed desired edge length and save
-		// grid and statistics for edges afterwards, see eval_spline(..., ...).
-		eval_spline(vFragments, segLength);
+		// check fragments length and ask the user what to do
+		if (!check_fragments(vPos, segLength)) {
+			// Option 1: Automatically generate always 1 segment between bps
+			std::cout << "At least one fragment length is below the desired "
+					  << "segment length. Options: 1) Try halving segLength "
+					  << " 2) Chose smaller segLength 3) Ignore this warning";
+
+			size_t option;
+			std::cin >> option;
+			if (option == 1) {
+				// test splines evaluation with presribed desired edge length and save
+				// grid and statistics for edges afterwards, see eval_spline(..., ...).
+				eval_spline(vFragments, calculate_minimum_allowed_seg_length(vPos, segLength)/2.0);
+			}
+
+			if (option == 2) {
+				number segLengthNew;
+				std::cin >> segLengthNew;
+				// test splines evaluation with presribed desired edge length and save
+				// grid and statistics for edges afterwards, see eval_spline(..., ...).
+				eval_spline(vFragments, segLengthNew);
+			}
+
+			if (option == 3) {
+				// test splines evaluation with presribed desired edge length and save
+				// grid and statistics for edges afterwards, see eval_spline(..., ...).
+				eval_spline(vFragments, segLength); // always generates one segment between fragments
+			}
+		}
+	}
+
+	////////////////////////////////////////////////////////////////////////////
+	/// calculate_minimum_allowed_seg_length
+	////////////////////////////////////////////////////////////////////////////
+	number calculate_minimum_allowed_seg_length
+	(
+		const std::vector<std::vector<vector3> > vFragments,
+		const number desiredSegLength
+	)
+	{
+		std::set<number> dists;
+		// check each fragment
+		for (size_t i = 0; i < vFragments.size(); i++) {
+			number dist = 0;
+			for (size_t j = 0; j < vFragments[i].size()-1; j++) {
+				number d = VecDistance(vFragments[i][j], vFragments[i][j+1]);
+				dist += d;
+				if (dist > desiredSegLength) {
+					break;
+				}
+			}
+			if (! (dist > desiredSegLength)) {
+				dists.insert(dist);
+			}
+		}
+		// find minimum
+		return *dists.begin();
 	}
 
 	////////////////////////////////////////////////////////////////////////////

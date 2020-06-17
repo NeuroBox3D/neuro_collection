@@ -2509,7 +2509,7 @@ number calculate_length_over_radius_variant
                 void calculate_segment_axial_positions_variant2
                   (
                           std::vector<number>& segAxPosOut,
-                             number t_start,
+                           number t_start,
                                 number t_end,
                                 const NeuriteProjector::Neurite& neurite,
                                 size_t startSec,
