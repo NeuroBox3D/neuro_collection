@@ -556,40 +556,52 @@ void test_import_swc_and_regularize
 
 /*!
  * \brief check if all fragments are separated by minimum distance
+ *
+ * The methods returns true if all fragments agree with the minimum distance,
+ * otherwise if at least once segment is below the required distance the method
+ * returns false
+ *
  * \param[in] vFraments fragments
  * \param[in] desiredSegLength desired segment length
+ *
+ * \return \c bool
  */
 bool check_fragments
 (
 	const std::vector<std::vector<vector3> > vFragments,
-	const number desiredSegLength
+	number desiredSegLength
 );
 
 /*!
  * \brief sample spline equidistanc in arclength
+ *
  * \param[in] vNeurites spline data for each fragment of neurite
  * \param[in] desiredSegLength desired segment length (arclength!)
  */
 void eval_spline
 (
 	const std::vector<NeuriteProjector::Neurite>& vNeurites,
-	const number desiredSegLength
+	number desiredSegLength
 );
 
 /*!
  * \brief calculates the minimum allowed segment length for fragments
+ *
  * Calculates the minimum distance by this formular:
  * \f$min_{i,j} { (||S, BP_i||_2), (||BP_i, BP_j||_2), (||BP_i, T_j||_2 \forall i != j\f$
  * where BP_i is a branching point, S is the single soma and T_i are the neurite tips
+ *
+ * The method returns teh minimum distance between fragments
+ *
  * \param[in] vFragments fragments
  * \param[in] desiredSegLength desired segmenet length
  *
- * \return \c minimum segment length between fragments
+ * \return \c number
  */
 number calculate_minimum_allowed_seg_length
 (
 	const std::vector<std::vector<vector3> > vFragments,
-	const number desiredSegLength
+	number desiredSegLength
 );
 
 } // namespace neuro_collection
