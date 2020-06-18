@@ -463,10 +463,9 @@ namespace ug {
 			nSeg = (size_t) floor(lengthOverRadius / desiredSegLength);
 			segLength = desiredSegLength;
 			if (!nSeg) { nSeg = 1; }
-
-	//		UG_LOGN("segLength (desired: " << desiredSegLength << ", adjusted: " << segLength);
+			// UG_LOGN("segLength (desired: " << desiredSegLength << ", adjusted: " << segLength);
 			vSegAxPos.resize(nSeg);
-			calculate_segment_axial_positions_variant2(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
+			calculate_segment_axial_positions_constant_seg_length(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
 		}
 
 		/// Option 2: Calculate positions automatically
@@ -480,9 +479,9 @@ namespace ug {
 			calculate_segment_axial_positions(vSegAxPos, t_start, t_end, neurite, curSec, segLength);
 		}
 
-		/// Option 3: Forced positions to coincide at points (SWC points -> spline support nodes)
+		/// Option 3: Force evaluation positions to coincide with support nodes (original SWC 1d points)
 		if (option == 3) {
-			calculate_segment_axial_positions_variant(vSegAxPos, t_start, t_end, neurite, curSec);
+			calculate_segment_axial_positions_at_support_nodes(vSegAxPos, t_start, t_end, neurite, curSec);
 			nSeg = vSegAxPos.size();
 		}
 
@@ -2293,6 +2292,9 @@ number calculate_length_over_radius
                 return integral;
                 }
 
+////////////////////////////////////////////////////////////////////////
+/// calculate_length_over_radius_variant
+////////////////////////////////////////////////////////////////////////
 number calculate_length_over_radius_variant
 (
 	number t_start,
@@ -2369,7 +2371,11 @@ number calculate_length_over_radius_variant
                 return integral;
                 }
 
-			void calculate_segment_axial_positions_variant(
+////////////////////////////////////////////////////////////////////////
+/// calculate_segment_axial_positions_at_support_nodes
+////////////////////////////////////////////////////////////////////////
+			void calculate_segment_axial_positions_at_support_nodes
+			(
                     std::vector<number>& segAxPosOut,
                     number t_start,
                     number t_end,
@@ -2406,12 +2412,12 @@ number calculate_length_over_radius_variant
 		                }
 			}
 
-                ////////////////////////////////////////////////////////////////////////
-                /// calculate_segment_axial_positions
-                ////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////
+            /// calculate_segment_axial_positions
+            ////////////////////////////////////////////////////////////////////////
                 void calculate_segment_axial_positions
                 (
-                        std::vector<number>& segAxPosOut,
+                		std::vector<number>& segAxPosOut,
                         number t_start,
                         number t_end,
                         const NeuriteProjector::Neurite& neurite,
@@ -2504,9 +2510,9 @@ number calculate_length_over_radius_variant
                 }
 
                 ////////////////////////////////////////////////////////////////////////
-                /// calculate_segment_axial_positions
+                /// calculate_segment_axial_positions_constant_seg_length
                 ////////////////////////////////////////////////////////////////////////
-                void calculate_segment_axial_positions_variant2
+                void calculate_segment_axial_positions_constant_seg_length
                   (
                           std::vector<number>& segAxPosOut,
                            number t_start,
@@ -2617,9 +2623,9 @@ number calculate_length_over_radius_variant
                         }
 
                 ////////////////////////////////////////////////////////////////////////
-                               /// calculate_segment_axial_positions
+                               /// calculate_segment_axial_positions_constant_seg_length_variant
                                ////////////////////////////////////////////////////////////////////////
-                               void calculate_segment_axial_positions_variant3
+                               void calculate_segment_axial_positions_constant_seg_length_variant
                                  (
                                          std::vector<number>& segAxPosOut,
                                           number t_start,

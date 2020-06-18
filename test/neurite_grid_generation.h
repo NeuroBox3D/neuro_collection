@@ -50,6 +50,7 @@ namespace ug {
 	namespace neuro_collection {
 		/*!
 		 * \brief creates neurites with ER
+		 *
 		 * \param[in] vNeurites
 		 * \param[in] vPos
 		 * \param[in] vR
@@ -100,6 +101,7 @@ namespace ug {
 
 		/*!
 		 * \brief creates neurites with ER
+		 *
 		 * \param[in] vNeurites
 		 * \param[in] vPos
 		 * \param[in] vR
@@ -143,6 +145,7 @@ namespace ug {
 
 		/*!
 		 * \brief creates neurite surface
+		 *
 		 * \param[in] vNeurites
 		 * \param[in] vPos
 		 * \param[in] vR
@@ -170,11 +173,14 @@ namespace ug {
 		);
 
 		/*!
-		 * \brief calculate length over radius
+		 * \brief Calculate and returns length of the spline in units of radii
+		 *
 		 * \param[in] t_start
 		 * \param[in] t_end
 		 * \param[in] neurite
 		 * \param[in] startSec
+		 *
+		 * \return \c number
 		 */
 		number calculate_length_over_radius
 		(
@@ -184,6 +190,16 @@ namespace ug {
 			size_t startSec
 		);
 
+		/*!
+		 * \brief Calculates and returns length of the spline in arclength
+		 *
+		 * \param[in] t_start
+		 * \param[in] t_end
+		 * \param[in] neurite
+		 * \param[in] startSec
+		 *
+		 * \return \c number
+		 */
 		number calculate_length_over_radius_variant
 		(
 			number t_start,
@@ -192,15 +208,18 @@ namespace ug {
 			size_t startSec
 		);
 
-
 		/*!
-		 * \brief calculates segment axial positions automatically
-		 * \param[in] segAxPosOut
-		 * \param[in] t_start
-		 * \param[in] t_end
-		 * \param[in] neurite
-		 * \param[in] startSec
-		 * \param[in] segLength
+		 * \brief Calculate the axial positions to achieved desired anisotropy
+		 *
+		 * This is the original method to use for achieving the desired
+		 * anisotropy in the refinement limit on the surface
+		 *
+		 * \param[out] segAxPosOut evaluation points
+		 * \param[in] t_start start position within any spline section
+		 * \param[in] t_end end position within any spline section
+		 * \param[in] neurite current neurite
+		 * \param[in] startSec first spline section of neurite
+		 * \param[in] segLength segment length
 		 */
 		void calculate_segment_axial_positions
 		(
@@ -213,9 +232,19 @@ namespace ug {
 		);
 
 		/*!
-		 * \brief calculates segment axial positions to coincide with SWC points
+		 * \brief Force evaluation positions to coincide with support nodes
+		 *
+		 * The methods forces the evaluation positions along the spline curve
+		 * to coincide with the (axial) 1d support nodes of the actual spline
+		 * for a given neurite
+		 *
+		 * \param[out] segAxPosOut evaluation points
+		 * \param[in] t_start start position within any spline section
+		 * \param[in] t_end end position within any spline section
+		 * \param[in] neurite current neurite
+		 * \param[in] startSec first spline section of neurite
 		 */
-		void calculate_segment_axial_positions_variant
+		void calculate_segment_axial_positions_at_support_nodes
 		(
 			std::vector<number>& segAxPosOut,
 			number t_start,
@@ -225,7 +254,58 @@ namespace ug {
 		);
 
 		/*!
+		 * \brief Force evaluations positions to be spaced equally in arclength
+		 *
+		 * The methods forces the evaluation positions along the spline curve
+		 * to be spaced equally wrt to arclength of the spline curve itself for
+		 * a given neurite
+		 *
+		 * \param[out] segAxPosOut evaluation points
+		 * \param[in] t_start start position within any spline section
+		 * \param[in] t_end end position within any spline section
+		 * \param[in] neurite current neurite
+		 * \param[in] startSec first spline section of neurite
+		 * \param[in] segLength segment length
+		 */
+		void calculate_segment_axial_positions_constant_seg_length
+	    (
+	        std::vector<number>& segAxPosOut,
+	        number t_start,
+	        number t_end,
+	        const NeuriteProjector::Neurite& neurite,
+	        size_t startSec,
+	        number segLength
+	    );
+
+		/*!
+		 * \brief Force evaluations positions to be spaced equally in arclength
+		 *
+		 * The methods forces the evaluation positions along the spline curve
+		 * to be spaced equally wrt to arclength of the spline curve itself for
+		 * a given neurite
+		 *
+		 * Note this is a variant of the above methods for sole purpose of testing
+		 *
+		 * \param[out] segAxPosOut evaluation points
+		 * \param[in] t_start start position within any spline section
+		 * \param[in] t_end end position within any spline section
+		 * \param[in] neurite current neurite
+		 * \param[in] startSec first spline section of neurite
+		 * \param[in] segLength segment length
+		 */
+        void calculate_segment_axial_positions_constant_seg_length_variant
+        (
+   	        std::vector<number>& segAxPosOut,
+   	        number t_start,
+   	        number t_end,
+   	        const NeuriteProjector::Neurite& neurite,
+   	        size_t startSec,
+   	        number segLength
+   	    );
+
+		/*!
 		 * \brief create neurite 1d
+		 *
 		 * \param[in] vNeurites
 		 * \param[in] vPos
 		 * \param[in] vR
@@ -251,6 +331,7 @@ namespace ug {
 
 		 /*!
 		  * \brief creates the root neurite's vertices, edges and faces
+		  *
 		  * Note that the inner root neurite (ER) vertices and outer root
 		  * neurite (PM) vertices as well the corresponding radii are stored
 		  * in the variables outVerts, outVertsInner, outRads and outRadsInner.
@@ -288,6 +369,7 @@ namespace ug {
 
 		 /*!
 		  * \brief smoothes 1d line-graph structure constrained
+		  *
 		  * Depending on the largest radius the first vertices before or after a
 		  * branch are ignored if they do not belong to the root neurite branch
 		  * \param[in] vPoints points of graph
@@ -309,6 +391,7 @@ namespace ug {
 
 		/*!
 		 * \brief regularizes branching points
+		 *
 		 * \param[in,out] vPoints
 		 * \param[in] orthogonalize
 		 *  1. Find BP.
@@ -332,6 +415,7 @@ namespace ug {
 
 		/*!
 		 * \brief Inserts a vertex at root branching neurites
+		 *
 		 * \param[in, out] vPoints list of SWC points
 		 */
 		void MitigateRootBranchingNeurites
@@ -341,6 +425,7 @@ namespace ug {
 
 		/*!
 		 * \brief Retriangulate the connecting regions
+		 *
 		 * \param[in, out] sh subset handler
 		 * \param[in, out] grid
 		 * \param[in, out] aaPos position accessor
@@ -355,29 +440,6 @@ namespace ug {
 			size_t si,
 			number minAngle
 		);
-
-		/*!
-		 * \brief calculates segment axial positions such that equal arclength is achieved
-		 */
-		void calculate_segment_axial_positions_variant2
-	    (
-	        std::vector<number>& segAxPosOut,
-	        number t_start,
-	        number t_end,
-	        const NeuriteProjector::Neurite& neurite,
-	        size_t startSec,
-	        number segLength
-	    );
-
-        void calculate_segment_axial_positions_variant3
-                               (
-                                       std::vector<number>& segAxPosOut,
-                                        number t_start,
-                                             number t_end,
-                                             const NeuriteProjector::Neurite& neurite,
-                                             size_t startSec,
-                                             number segLength
-                                     );
 
 	} // end namespace neuro_collection
 } // end namespace ug

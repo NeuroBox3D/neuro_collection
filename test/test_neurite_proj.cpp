@@ -4482,7 +4482,7 @@ void create_spline_data_for_neurites
 			UG_LOGN("spline length: " << lengthOverRadius);
 			vSegAxPos.resize(nSeg);
 			size_t curSec = 0;
-			calculate_segment_axial_positions_variant3(vSegAxPos, 0, 1, vNeurites[i], 0, segLength);
+			calculate_segment_axial_positions_constant_seg_length(vSegAxPos, 0, 1, vNeurites[i], 0, segLength);
 			UG_LOGN("vSegAxPos.size(): " << vSegAxPos.size())
 
 			size_t nSec = vNeurites[i].vSec.size();
