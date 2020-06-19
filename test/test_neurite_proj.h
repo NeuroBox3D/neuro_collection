@@ -559,8 +559,8 @@ void to_ugx(
 void test_import_swc_and_regularize
 (
 	const std::string& fileName,
-	number segLength=-1,
-	const std::string& choice="auto"
+	number segLength,
+	const std::string& choice
 );
 
 /*!

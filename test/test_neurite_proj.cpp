@@ -4467,6 +4467,18 @@ void create_spline_data_for_neurites
 		g.attach_to_vertices(aPosition);
 		Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
 
+		// get access to diameter attachment
+		UG_COND_THROW(!GlobalAttachments::is_declared("diameter"),
+			"GlobalAttachment 'diameter' not declared.");
+		Attachment<number> aDiam = GlobalAttachments::attachment<Attachment<number> >("diameter");
+		if (!g.has_vertex_attachment(aDiam))
+			g.attach_to_vertices(aDiam);
+
+		Grid::VertexAttachmentAccessor<Attachment<number> > aaDiam;
+		aaDiam.access(g, aDiam);
+
+		ug::RegularVertex* somaVertex = NULL;
+
 		/// actual seglength might differ from desired due to non integer multiplicity
 		number segLength;
 		UG_LOGN("*** eval_spline ***")
@@ -4554,7 +4566,10 @@ void create_spline_data_for_neurites
 				UG_LOGN("v0: " << v0 << ", v1: " << v1 << ", v2: " << v2 << ", radius:" << radius)
 
 				ug::RegularVertex* vertex = *g.create<RegularVertex>();
+				/// very first soma vertex of first branch is soma
+				if (!somaVertex) { somaVertex = vertex; }
 				aaPos[vertex] = curPos;
+				aaDiam[vertex] = radius*2.0;
 				vertices.push_back(vertex);
 				sh.assign_subset(vertex, i);
 			}
@@ -4578,6 +4593,21 @@ void create_spline_data_for_neurites
 		// save new regularized grid and statistics
 		AssignSubsetColors(sh);
 		SaveGridToFile(g, sh, "new_strategy.ugx");
+
+		/// SWC export
+		Selector sel(g);
+		for (int i = 0; i < sh.num_subsets(); i++) {
+			SelectSubset(sel, sh, i, true);
+		}
+		AssignSelectionToSubset(sel, sh, 0);
+
+		sh.subset_info(0).name = "dend";
+		sh.assign_subset(somaVertex, 1);
+		sh.subset_info(1).name = "soma";
+		EraseEmptySubsets(sh);
+		export_to_swc(g, sh, "new_strategy.swc");
+
+		/// Statistics
 		MarkOutliers(g, sh, aaPos, "new_strategy_outliers.ugx", segLength, desiredSegLength);
 		WriteEdgeStatistics(g, aaPos, "new_strategy_statistics.csv");
 	}
@@ -4677,7 +4707,7 @@ void create_spline_data_for_neurites
 	(
 		const std::string& fileName
 	) {
-		test_import_swc_and_regularize(fileName, -1, "auto");
+		test_import_swc_and_regularize(fileName, -1, "min");
 	}
 
 	////////////////////////////////////////////////////////////////////////////
