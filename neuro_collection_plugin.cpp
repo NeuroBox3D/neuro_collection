@@ -985,7 +985,9 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("test_import_swc_vr", &test_import_swc_vr, "Filename # anisotropy # numRefs");
 		reg.add_function("test_import_swc_general_var_for_vr_2", &test_import_swc_general_var_for_vr_2, "");
 		reg.add_function("create_two_way_branch_from_swc", &create_two_way_branch_from_swc, "");
-		reg.add_function("test_import_swc_and_regularize", &test_import_swc_and_regularize, "", "file name # desired segment length", "");
+		reg.add_function("test_import_swc_and_regularize", static_cast<void (*)(const std::string&, number, const std::string&)>(&test_import_swc_and_regularize), "", "file name # desired segment length", "");
+		reg.add_function("test_import_swc_and_regularize", static_cast<void (*)(const std::string&)>(&test_import_swc_and_regularize), "", "file name # desired segment length", "");
+
 	}
 
 	// grid generation

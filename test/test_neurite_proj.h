@@ -554,13 +554,24 @@ void to_ugx(
  *
  * \param[in] fileName name of the input geometry
  * \param[in] segLength desired segment length
- * \param[in] chocie one of the two options above.
+ * \param[in] choice one of the two options above.
  */
 void test_import_swc_and_regularize
 (
 	const std::string& fileName,
-	number segLength,
-	const std::string& choice
+	number segLength=-1,
+	const std::string& choice="auto"
+);
+
+/*!
+ * \brief regularizes the 1d geometry
+ *
+ * \param[in] fileName name of the input geometry
+ * \see test_import_swc_and_regularize
+ */
+void test_import_swc_and_regularize
+(
+	const std::string& fileName
 );
 
 /*!

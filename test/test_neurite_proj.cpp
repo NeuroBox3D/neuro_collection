@@ -4673,6 +4673,13 @@ void create_spline_data_for_neurites
 
 	}
 
+	void test_import_swc_and_regularize
+	(
+		const std::string& fileName
+	) {
+		test_import_swc_and_regularize(fileName, -1, "auto");
+	}
+
 	////////////////////////////////////////////////////////////////////////////
 	/// calculate_minimum_allowed_seg_length
 	////////////////////////////////////////////////////////////////////////////
