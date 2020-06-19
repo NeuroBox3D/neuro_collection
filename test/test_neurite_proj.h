@@ -545,13 +545,20 @@ void to_ugx(
 
 /*!
  * \brief regularizes the 1d geometry
+ *
+ * Options are: Use user specified segLength, calculate minimum seglength
+ * based on fragment length or ignore warning about too large segLength and
+ * ask the user for a new segLength (smaller)
+ *
  * \param[in] fileName name of the input geometry
  * \param[in] segLength desired segment length
+ * \param[in] option one of the three options
  */
 void test_import_swc_and_regularize
 (
 	const std::string& fileName,
-	number segLength
+	number segLength,
+	int option
 );
 
 /*!
@@ -568,7 +575,7 @@ void test_import_swc_and_regularize
  */
 bool check_fragments
 (
-	const std::vector<std::vector<vector3> > vFragments,
+	const std::vector<std::vector<vector3> >& vFragments,
 	number desiredSegLength
 );
 
@@ -591,17 +598,15 @@ void eval_spline
  * \f$min_{i,j} { (||S, BP_i||_2), (||BP_i, BP_j||_2), (||BP_i, T_j||_2 \forall i != j\f$
  * where BP_i is a branching point, S is the single soma and T_i are the neurite tips
  *
- * The method returns teh minimum distance between fragments
+ * The method returns the minimum distance between fragments
  *
  * \param[in] vFragments fragments
- * \param[in] desiredSegLength desired segmenet length
  *
  * \return \c number
  */
-number calculate_minimum_allowed_seg_length
+number calculate_minimum_seg_length_between_fragments
 (
-	const std::vector<std::vector<vector3> > vFragments,
-	number desiredSegLength
+	const std::vector<std::vector<vector3> >& vFragments
 );
 
 } // namespace neuro_collection

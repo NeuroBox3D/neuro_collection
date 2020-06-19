@@ -4423,7 +4423,7 @@ void create_spline_data_for_neurites
 	////////////////////////////////////////////////////////////////////////////
 	bool check_fragments
 	(
-		const std::vector<std::vector<vector3> > vFragments,
+		const std::vector<std::vector<vector3> >& vFragments,
 		const number desiredSegLength
 	)
 	{
@@ -4588,7 +4588,8 @@ void create_spline_data_for_neurites
 	void test_import_swc_and_regularize
 	(
 		const std::string& fileName,
-		const number segLength
+		const number segLength,
+		const int choice
 	) {
 		// read in file to intermediate structure
 		std::vector<SWCPoint> vPoints;
@@ -4636,7 +4637,7 @@ void create_spline_data_for_neurites
 			if (option == 1) {
 				// test splines evaluation with presribed desired edge length and save
 				// grid and statistics for edges afterwards, see eval_spline(..., ...).
-				eval_spline(vFragments, calculate_minimum_allowed_seg_length(vPos, segLength)/2.0);
+				eval_spline(vFragments, calculate_minimum_seg_length_between_fragments(vPos)/2.0);
 			}
 
 			if (option == 2) {
@@ -4648,18 +4649,22 @@ void create_spline_data_for_neurites
 			}
 		}
 
+
+		UG_LOGN("minimum seg length: " << calculate_minimum_seg_length_between_fragments(vPos) * 0.5);
+		number newSegLength = calculate_minimum_seg_length_between_fragments(vPos) * 0.5;
 		// test splines evaluation with presribed desired edge length and save
 		// grid and statistics for edges afterwards, see eval_spline(..., ...).
-		eval_spline(vFragments, segLength); // always generates one segment between fragments
+		eval_spline(vFragments, newSegLength);
+
+		// eval_spline(vFragments, segLength); // always generates one segment between fragments
 	}
 
 	////////////////////////////////////////////////////////////////////////////
 	/// calculate_minimum_allowed_seg_length
 	////////////////////////////////////////////////////////////////////////////
-	number calculate_minimum_allowed_seg_length
+	number calculate_minimum_seg_length_between_fragments
 	(
-		const std::vector<std::vector<vector3> > vFragments,
-		const number desiredSegLength
+		const std::vector<std::vector<vector3> >& vFragments
 	)
 	{
 		std::set<number> dists;
@@ -4669,13 +4674,8 @@ void create_spline_data_for_neurites
 			for (size_t j = 0; j < vFragments[i].size()-1; j++) {
 				number d = VecDistance(vFragments[i][j], vFragments[i][j+1]);
 				dist += d;
-				if (dist > desiredSegLength) {
-					break;
-				}
 			}
-			if (! (dist > desiredSegLength)) {
-				dists.insert(dist);
-			}
+			dists.insert(dist);
 		}
 		// find minimum
 		return *dists.begin();
