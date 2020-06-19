@@ -73,6 +73,7 @@
 
 /// other
 #include <boost/lexical_cast.hpp>
+#include <boost/algorithm/string.hpp>
 
 /// debug id
 ug::DebugID NC_TNP("NC_DID.TNP");
@@ -4589,7 +4590,7 @@ void create_spline_data_for_neurites
 	(
 		const std::string& fileName,
 		const number segLength,
-		const int choice
+		const std::string& choice
 	) {
 		// read in file to intermediate structure
 		std::vector<SWCPoint> vPoints;
@@ -4623,7 +4624,7 @@ void create_spline_data_for_neurites
 		create_spline_data_for_neurites(vFragments, vPos, vRad, NULL);
 
 		// check fragments length and ask the user what to do
-		if (!check_fragments(vPos, segLength)) {
+		if (!check_fragments(vPos, segLength) && boost::iequals(choice, std::string("auto"))) {
 			// Option 1: Automatically generate always 1 segment between bps
 			std::cout << "At least one fragment length is below the desired "
 					  << "segment length. Options: 1) Try halving segLength "
@@ -4647,16 +4648,29 @@ void create_spline_data_for_neurites
 				// grid and statistics for edges afterwards, see eval_spline(..., ...).
 				eval_spline(vFragments, segLengthNew);
 			}
+
+			if (option == 3) {
+				// test splines evaluation with presribed desired edge length and save
+				// grid and statistics for edges afterwards, see eval_spline(..., ...).
+				eval_spline(vFragments, segLength); // always generates one segment between fragments
+			}
 		}
 
+		/// Find minimum distance between branching points / minimum ragments length and halve it
+		if (boost::iequals(choice, std::string("min"))) {
+			number newSegLength = calculate_minimum_seg_length_between_fragments(vPos) * 0.5;
+			// test splines evaluation with presribed desired edge length and save
+			// grid and statistics for edges afterwards, see eval_spline(..., ...).
+			eval_spline(vFragments, newSegLength);
+		}
 
-		UG_LOGN("minimum seg length: " << calculate_minimum_seg_length_between_fragments(vPos) * 0.5);
-		number newSegLength = calculate_minimum_seg_length_between_fragments(vPos) * 0.5;
-		// test splines evaluation with presribed desired edge length and save
-		// grid and statistics for edges afterwards, see eval_spline(..., ...).
-		eval_spline(vFragments, newSegLength);
+		/// Use user prescriped segment length not matter what
+		if (boost::iequals(choice, std::string("user"))) {
+			// test splines evaluation with presribed desired edge length and save
+			// grid and statistics for edges afterwards, see eval_spline(..., ...).
+			eval_spline(vFragments, segLength);
+		}
 
-		// eval_spline(vFragments, segLength); // always generates one segment between fragments
 	}
 
 	////////////////////////////////////////////////////////////////////////////

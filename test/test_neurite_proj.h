@@ -546,19 +546,21 @@ void to_ugx(
 /*!
  * \brief regularizes the 1d geometry
  *
- * Options are: Use user specified segLength, calculate minimum seglength
- * based on fragment length or ignore warning about too large segLength and
- * ask the user for a new segLength (smaller)
+ * Options are: Use user specified segment length ("user") or automatically
+ * determine minimum possible segment length ("auto"). If user prescribed
+ * segment length is not compatible, the user will be warned and prompted
+ * to provide either a new segment length, ignore the warning or use the
+ * automatically calculated admissible segment length for mesh regularization
  *
  * \param[in] fileName name of the input geometry
  * \param[in] segLength desired segment length
- * \param[in] option one of the three options
+ * \param[in] chocie one of the two options above.
  */
 void test_import_swc_and_regularize
 (
 	const std::string& fileName,
 	number segLength,
-	int option
+	const std::string& choice
 );
 
 /*!
