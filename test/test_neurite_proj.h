@@ -556,12 +556,14 @@ void to_ugx(
  * \param[in] fileName name of the input geometry
  * \param[in] segLength desired segment length
  * \param[in] choice one of the two options above.
+ * \param[in] ref desired refinement level
  */
 void test_import_swc_and_regularize
 (
 	const std::string& fileName,
 	number segLength,
-	const std::string& choice
+	const std::string& choice,
+	const size_t ref
 );
 
 /*!
@@ -598,11 +600,13 @@ bool check_fragments
  *
  * \param[in] vNeurites spline data for each fragment of neurite
  * \param[in] desiredSegLength desired segment length (arclength!)
+ * \param[in] ref desired refinement level
  */
 void eval_spline
 (
 	const std::vector<NeuriteProjector::Neurite>& vNeurites,
-	number desiredSegLength
+	number desiredSegLength,
+	size_t ref
 );
 
 /*!

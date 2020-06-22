@@ -4251,6 +4251,8 @@ void create_spline_data_for_neurites
 		SavePreparedGridToFile(g, sh, "after_connect_pm_with_soma.ugx");
 
 
+		UG_LOGN("Failed connecting ER and PM to Soma");
+
 		if (!forVR) {
 	    // This connects the inner quad with the soma surface (ER)
 	    /// Extrude ER volume a little bit further into normal direction towards
@@ -4460,7 +4462,8 @@ void create_spline_data_for_neurites
 	void eval_spline
 	(
 		const std::vector<NeuriteProjector::Neurite>& vNeurites,
-		const number desiredSegLength
+		const number desiredSegLength,
+		const size_t ref
 	)
 	{
 		/// Prepare grid to create regularized SWC
@@ -4488,9 +4491,14 @@ void create_spline_data_for_neurites
 		for (size_t i = 0; i < vNeurites.size(); i++) {
 			std::vector<number> vSegAxPos;
 			number lengthOverRadius = calculate_length_over_radius_variant(0, 1, vNeurites[i], 0);
-			//number desiredSegLength = 2.0;
 			size_t nSeg = (size_t) ceil(lengthOverRadius / desiredSegLength);
 			if (!nSeg) { nSeg = 1; }
+
+			// refinement
+			if (ref > 0) {
+				nSeg *= (ref+1) - 1;
+			}
+
 			segLength = lengthOverRadius / nSeg;
 			UG_LOGN("nSeg (calculated new): " << nSeg);
 			UG_LOGN("Desired edge length: " << desiredSegLength);
@@ -4623,7 +4631,8 @@ void create_spline_data_for_neurites
 	(
 		const std::string& fileName,
 		const number segLength,
-		const std::string& choice
+		const std::string& choice,
+		const size_t ref
 	) {
 		// read in file to intermediate structure
 		std::vector<SWCPoint> vPoints;
@@ -4674,7 +4683,7 @@ void create_spline_data_for_neurites
 			if (option == 1) {
 				// test splines evaluation with presribed desired edge length and save
 				// grid and statistics for edges afterwards, see eval_spline(..., ...).
-				eval_spline(vFragments, calculate_minimum_seg_length_between_fragments(vPos)/2.0);
+				eval_spline(vFragments, calculate_minimum_seg_length_between_fragments(vPos)/2.0, ref);
 			}
 
 			if (option == 2) {
@@ -4682,13 +4691,13 @@ void create_spline_data_for_neurites
 				std::cin >> segLengthNew;
 				// test splines evaluation with presribed desired edge length and save
 				// grid and statistics for edges afterwards, see eval_spline(..., ...).
-				eval_spline(vFragments, segLengthNew);
+				eval_spline(vFragments, segLengthNew, ref);
 			}
 
 			if (option == 3) {
 				// test splines evaluation with presribed desired edge length and save
 				// grid and statistics for edges afterwards, see eval_spline(..., ...).
-				eval_spline(vFragments, segLength); // always generates one segment between fragments
+				eval_spline(vFragments, segLength, ref); // always generates one segment between fragments
 			}
 		}
 
@@ -4698,14 +4707,15 @@ void create_spline_data_for_neurites
 			UG_LOGN("min seg length: " << newSegLength);
 			// test splines evaluation with presribed desired edge length and save
 			// grid and statistics for edges afterwards, see eval_spline(..., ...).
-			eval_spline(vFragments, newSegLength);
+			eval_spline(vFragments, newSegLength, ref);
 		}
 
 		/// Use user prescriped segment length not matter what
 		if (boost::iequals(choice, std::string("user"))) {
 			// test splines evaluation with presribed desired edge length and save
 			// grid and statistics for edges afterwards, see eval_spline(..., ...).
-			eval_spline(vFragments, segLength);
+			eval_spline(vFragments, segLength, ref);
+			UG_LOGN("min seg length: " << segLength)
 		}
 
 	}
@@ -4718,7 +4728,7 @@ void create_spline_data_for_neurites
 		const std::string& fileName
 	) {
 		// delegate to general implementation and choose min strategy
-		test_import_swc_and_regularize(fileName, -1, "min");
+		test_import_swc_and_regularize(fileName, -1, "min", 0);
 	}
 
 	////////////////////////////////////////////////////////////////////////////
@@ -4848,13 +4858,17 @@ void create_spline_data_for_neurites
 		   			blowUpFactor, NULL, NULL, NULL, NULL, &newPoints, NULL, -1, option, segLength);
 		}
 
+
 		/// Debug output
+		/*
 		Grid gridOutput;
 		SubsetHandler shOutput(gridOutput);
 		Grid::VertexAttachmentAccessor<APosition> aaPos2(gridOutput, aPosition);
+		gridOutput.attach_to_vertices(aPosition);
 	    WriteEdgeStatistics(gridOutput, aaPos2, "statistics_edges.csv");
 	    MarkOutliers(gridOutput, shOutput, aaPos2, "marked_outliers.ugx", 3, 5);
 	    WriteEdgeStatistics(gridOutput, aaPos2, "statistics_edges_corrected.csv");
+	    */
 
 	    // face orientation correction and projection (and set normals)
 		FixFaceOrientation(g, g.faces_begin(), g.faces_end());
