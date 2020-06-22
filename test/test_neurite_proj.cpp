@@ -4643,7 +4643,7 @@ void create_spline_data_for_neurites
 		}
 
 		/// return this value to use later TODO
-		number somaRadiusOriginal = vSomaPoints[0].radius;
+		// number somaRadiusOriginal = vSomaPoints[0].radius;
 
 		// Write edge statistics for original grid
 	    Grid originalGrid;
@@ -4744,9 +4744,9 @@ void create_spline_data_for_neurites
 	}
 
 	////////////////////////////////////////////////////////////////////////////
-	/// test_import_swc_general_var_for_vr
+	/// test_import_swc_general_var_for_vr_var
 	////////////////////////////////////////////////////////////////////////////
-	void test_import_swc_general_var_for_vr_2(
+	void test_import_swc_general_var_for_vr_var(
 		const std::string& fileName,
 		bool correct,
 		number erScaleFactor,
@@ -5471,16 +5471,7 @@ void create_spline_data_for_neurites
 			UG_COND_THROW(!g.has_vertex_attachment(aDiam), "No diameter attachment attached to grid.");
 			Grid::AttachmentAccessor<Vertex, ANumber> aaDiam(g, aDiam);
 
-			/*
-			std::queue<Edge*> q;
-			EdgeIterator eit = g.begin<Edge>();
-			EdgeIterator eit_end = g.end<Edge>();
-			for (; eit != eit_end; ++eit) {
-				q.push(*eit);
-			}
-			*/
-
-			/// TODO: Add standard deviation
+			// average edge length
 			const number avg_length = factor * CalculateAverageEdgeLength(g, aaPos);
 
 			bool done = false;
@@ -5523,7 +5514,7 @@ void create_spline_data_for_neurites
 						done = false;
 					}
 				}
-				// TODO Add check for branching point -> never move BPs?
+				// Note: Add check for branching point -> never move BPs?
 			}
 			/// Store as UGX
 			std::stringstream ss;
@@ -5582,7 +5573,7 @@ void create_spline_data_for_neurites
 					aaDiam[newVrt] = diam2;
 					// diam2 >= diam1 always by neuron reconstruction expected (tapering off)
 					UG_COND_WARNING(diam2 < diam1, "Check input: diam2 < diam1, but we expect the diam2 > diam1.");
-					// TODO Add check for branching point -> never move BPs?
+					// Note: Add check for branching point -> never move BPs?
 				}
 			}
 			/// Store as UGX
