@@ -838,9 +838,11 @@ void convert_pointlist_to_neuritelist_variant
 				++nProcessed;
 
 				size_t nConn = pt.conns.size();
-				for (size_t j = 0; j < nConn; ++j)
-					if (pt.conns[j] != pind)
+				for (size_t j = 0; j < nConn; ++j) {
+					if (pt.conns[j] != pind) {
 						soma_queue.push(std::make_pair(ind, pt.conns[j]));
+					}
+				}
 			}
 			else
 				rootPts.push_back(std::make_pair(pind, ind));
@@ -4567,7 +4569,7 @@ void create_spline_data_for_neurites
 
 				ug::RegularVertex* vertex = *g.create<RegularVertex>();
 				/// very first soma vertex of first branch is soma
-				if (!somaVertex) { somaVertex = vertex; }
+				if (!somaVertex) { somaVertex = vertex; radius *= 10;}
 				aaPos[vertex] = curPos;
 				aaDiam[vertex] = radius*2.0;
 				vertices.push_back(vertex);
@@ -4600,6 +4602,8 @@ void create_spline_data_for_neurites
 			SelectSubset(sel, sh, i, true);
 		}
 		AssignSelectionToSubset(sel, sh, 0);
+
+		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
 
 		sh.subset_info(0).name = "dend";
 		sh.assign_subset(somaVertex, 1);
@@ -4638,6 +4642,9 @@ void create_spline_data_for_neurites
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
 			vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
 		}
+
+		/// return this value to use later TODO
+		number somaRadiusOriginal = vSomaPoints[0].radius;
 
 		// Write edge statistics for original grid
 	    Grid originalGrid;
@@ -4689,6 +4696,7 @@ void create_spline_data_for_neurites
 		/// Find minimum distance between branching points / minimum ragments length and halve it
 		if (boost::iequals(choice, std::string("min"))) {
 			number newSegLength = calculate_minimum_seg_length_between_fragments(vPos) * 0.5;
+			UG_LOGN("min seg length: " << newSegLength);
 			// test splines evaluation with presribed desired edge length and save
 			// grid and statistics for edges afterwards, see eval_spline(..., ...).
 			eval_spline(vFragments, newSegLength);
@@ -4764,7 +4772,8 @@ void create_spline_data_for_neurites
 		std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
 		std::vector<size_t> vRootNeuriteIndsOut;
 
-		convert_pointlist_to_neuritelist_variant(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+		convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+		//convert_pointlist_to_neuritelist_variant(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
 			UG_LOGN("root index: " << vRootNeuriteIndsOut[i]);
 			vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
@@ -4861,10 +4870,11 @@ void create_spline_data_for_neurites
 
 		// Create spline data for neurites
 		vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
-		create_spline_data_for_neurites(vNeurites, vPos, vRad, NULL);
+		create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
+		//create_spline_data_for_neurites(vNeurites, vPos, vRad, NULL);
 
 		// test splines
-		eval_spline(vNeurites, segLength);
+		//eval_spline(vNeurites, segLength);
 
 		std::vector<SWCPoint> newPoints;
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
