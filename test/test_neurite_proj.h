@@ -278,7 +278,7 @@ void test_import_swc_general
 	number anisotropy = 2.0,
 	size_t numRefs = 1,
 	bool regularize = false,
-	int option = 3,
+	const std::string& option = "identity",
 	number segLength=-1
 );
 
@@ -380,14 +380,15 @@ void test_import_swc_general_var(
 	number blowUpFactor,
 	bool forVR,
 	bool dryRun,
-	int option,
+	const std::string& option,
 	number segLength
 );
 
 /*!
  * \brief vr strategy (potentially deprecated!)
  */
-void test_import_swc_general_var_for_vr(
+void test_import_swc_general_var_for_vr
+(
 	const std::string& fileName,
 	bool correct,
 	number erScaleFactor,
@@ -404,7 +405,8 @@ void test_import_swc_general_var_for_vr(
  * \param[in] inFileName
  * \param[in] outFileName
  */
-void refine_swc_grid(
+void refine_swc_grid
+(
 	const std::string& inFileName,
 	const std::string& outFileName
 );
@@ -472,7 +474,6 @@ void test_import_swc_vr
 
 /*!
  * \brief main routine to generate grids for VR
- * TODO: refactor the option flag (only used with option=3)
  */
 void test_import_swc_general_var_for_vr_2(
 	const std::string& fileName,
@@ -483,7 +484,7 @@ void test_import_swc_general_var_for_vr_2(
 	size_t numRefs,
 	bool regularize,
 	number blowUpFactor,
-	int option,
+	const std::string& option,
 	number segLength
 );
 
@@ -593,7 +594,7 @@ bool check_fragments
 );
 
 /*!
- * \brief sample spline equidistanc in arclength
+ * \brief sample spline equidistant in arclength
  *
  * \param[in] vNeurites spline data for each fragment of neurite
  * \param[in] desiredSegLength desired segment length (arclength!)

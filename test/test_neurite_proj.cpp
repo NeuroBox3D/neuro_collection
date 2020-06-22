@@ -3534,7 +3534,7 @@ void create_spline_data_for_neurites
 		number anisotropy,
 		size_t numRefs,
 		bool regularize,
-		int option,
+		const std::string& option,
 		number segLength) {
 	{
 		// read in file to intermediate structure
@@ -3888,7 +3888,7 @@ void create_spline_data_for_neurites
 		number blowUpFactor,
 		bool forVR,
 		bool dryRun,
-		int option,
+		const std::string& option,
 		number segLength
 	) {
 
@@ -4473,12 +4473,13 @@ void create_spline_data_for_neurites
 		UG_COND_THROW(!GlobalAttachments::is_declared("diameter"),
 			"GlobalAttachment 'diameter' not declared.");
 		Attachment<number> aDiam = GlobalAttachments::attachment<Attachment<number> >("diameter");
-		if (!g.has_vertex_attachment(aDiam))
+		if (!g.has_vertex_attachment(aDiam)) {
 			g.attach_to_vertices(aDiam);
-
+		}
 		Grid::VertexAttachmentAccessor<Attachment<number> > aaDiam;
 		aaDiam.access(g, aDiam);
 
+		// save soma vertex
 		ug::RegularVertex* somaVertex = NULL;
 
 		/// actual seglength might differ from desired due to non integer multiplicity
@@ -4602,9 +4603,7 @@ void create_spline_data_for_neurites
 			SelectSubset(sel, sh, i, true);
 		}
 		AssignSelectionToSubset(sel, sh, 0);
-
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
-
 		sh.subset_info(0).name = "dend";
 		sh.assign_subset(somaVertex, 1);
 		sh.subset_info(1).name = "soma";
@@ -4711,10 +4710,14 @@ void create_spline_data_for_neurites
 
 	}
 
+	////////////////////////////////////////////////////////////////////////////
+	/// test_import_swc_and_regularize
+	////////////////////////////////////////////////////////////////////////////
 	void test_import_swc_and_regularize
 	(
 		const std::string& fileName
 	) {
+		// delegate to general implementation and choose min strategy
 		test_import_swc_and_regularize(fileName, -1, "min");
 	}
 
@@ -4752,14 +4755,13 @@ void create_spline_data_for_neurites
 		size_t numRefs,
 		bool regularize,
 		number blowUpFactor,
-		int option,
+		const std::string& option,
 		number segLength
 	) {
-
 		using namespace std;
 
 		// preconditioning
-		//test_smoothing(fileName, 5, 1.0, 1.0);
+		// test_smoothing(fileName, 5, 1.0, 1.0);
 
 		// read in file to intermediate structure
 		std::vector<SWCPoint> vPoints;
@@ -4773,57 +4775,23 @@ void create_spline_data_for_neurites
 		std::vector<size_t> vRootNeuriteIndsOut;
 
 		convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
-		//convert_pointlist_to_neuritelist_variant(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
-			UG_LOGN("root index: " << vRootNeuriteIndsOut[i]);
 			vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
 		}
 
-
-		size_t noNeurite = 0;
-		for (std::vector<std::vector<vector3> >::const_iterator it = vPos.begin(); it != vPos.end(); ++it) {
-			UG_LOGN("i-th neurite: " << noNeurite);
-			for (std::vector<vector3>::const_iterator it2 = it->begin(); it2 != it->end(); ++it2) {
-				UG_LOGN("vector3: " << *it2);
-			}
-			noNeurite++;
-		}
-
-
-	    Grid g11;
-	    SubsetHandler sh11(g11);
-	    swc_points_to_grid(vPoints, g11, sh11, 1.0);
-	    g11.attach_to_vertices(aPosition);
-		Grid::VertexAttachmentAccessor<APosition> aaPos3(g11, aPosition);
-	    WriteEdgeStatistics(g11, aaPos3, "statistics_edges_original.csv");
-
-		/*
-		std::string fn_noext = FilenameWithoutExtension(fileName);
-		std::string fn_precond = fn_noext + "_precond.swc";
-		std::vector<vector3> vPosSomaClosest;
-		size_t lines;
-	    get_closest_points_to_soma(fileName, vPosSomaClosest, lines);
-
-	    std::vector<ug::vector3> newVerts(vRootNeuriteIndsOut.size());
-	    std::fill(newVerts.begin(), newVerts.end(), vSomaPoints[0].coords);
-
-
-	    for (std::vector<ug::vector3>::const_iterator it = newVerts.begin(); it != newVerts.end(); ++it) {
-	    	UG_LOGN("newVert: " << *it);
-	    }
-
-		ReplaceFirstRootNeuriteVertexInSWC(lines, fileName, fn_precond, newVerts);
-		vPoints.clear();
-		import_swc(fn_precond, vPoints);
-		convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
-		*/
+		/// TODO: Remove debug output
+	    Grid gridOriginal;
+	    SubsetHandler shOriginal(gridOriginal);
+	    swc_points_to_grid(vPoints, gridOriginal, shOriginal, 1.0);
+	    gridOriginal.attach_to_vertices(aPosition);
+		Grid::VertexAttachmentAccessor<APosition> aaPos3(gridOriginal, aPosition);
+	    WriteEdgeStatistics(gridOriginal, aaPos3, "statistics_edges_original.csv");
 
 		// Prepare grid (selector and attachments)
 		Grid g;
 		SubsetHandler sh(g);
 		sh.set_default_subset_index(0);
 		g.attach_to_vertices(aPosition);
-
 		Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
 		Selector sel(g);
 
@@ -4871,11 +4839,8 @@ void create_spline_data_for_neurites
 		// Create spline data for neurites
 		vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
 		create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
-		//create_spline_data_for_neurites(vNeurites, vPos, vRad, NULL);
 
-		// test splines
-		//eval_spline(vNeurites, segLength);
-
+		// create the actual geometry
 		std::vector<SWCPoint> newPoints;
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
@@ -4883,42 +4848,16 @@ void create_spline_data_for_neurites
 		   			blowUpFactor, NULL, NULL, NULL, NULL, &newPoints, NULL, -1, option, segLength);
 		}
 
-	    UG_LOGN("SWC output")
-	    for (size_t i = 0; i < newPoints.size(); i++) {
-	    	UG_LOG("id:" << i << " ---")
-	    	UG_LOG(newPoints[i].coords << ", ");
-	    	/*if (i == 19) {
-	    		newPoints[i].conns.push_back(18);
-	    	}*/
-	    	for (size_t j = 0; j < newPoints[i].conns.size(); j++) {
-	    		UG_LOG(newPoints[i].conns[j] << "; ");
-	    	}
-	    	UG_LOGN("")
-	    	newPoints[i].type = SWC_AXON;
-	    }
-	    UG_LOGN("SWC output done")
-	    Grid g10;
-	    SubsetHandler sh10(g10);
-	    swc_points_to_grid(newPoints, g10, sh10, 1.0);
-	    g10.attach_to_vertices(aPosition);
-    	export_to_ugx(g10, sh10, "new_swc.ugx");
-		Grid::VertexAttachmentAccessor<APosition> aaPos2(g10, aPosition);
-	    WriteEdgeStatistics(g10, aaPos2, "statistics_edges.csv");
-	    MarkOutliers(g10, sh10, aaPos2, "foo.ugx", 3, 5); // 4 was desired, cannot accept edges smaller than half of requested and also not higher than
-	    CorrectOutliers(g10, sh10, aaPos2, "foo.ugx", 3, 7);
-	    WriteEdgeStatistics(g10, aaPos2, "statistics_edges_corrected_initially.csv"); /// overwrites previously corrected
-	    CorrectOutliers(g10, sh10, aaPos2, "foo.ugx", 3, 6);
-	    WriteEdgeStatistics(g10, aaPos2, "statistics_edges_corrected.csv"); /// overwrites previously corrected
+		/// Debug output
+		Grid gridOutput;
+		SubsetHandler shOutput(gridOutput);
+		Grid::VertexAttachmentAccessor<APosition> aaPos2(gridOutput, aPosition);
+	    WriteEdgeStatistics(gridOutput, aaPos2, "statistics_edges.csv");
+	    MarkOutliers(gridOutput, shOutput, aaPos2, "marked_outliers.ugx", 3, 5);
+	    WriteEdgeStatistics(gridOutput, aaPos2, "statistics_edges_corrected.csv");
 
-		/*
-	    Grid g10;
-	    SubsetHandler sh10(g10);
-	    swc_points_to_grid(points, g10, sh10, 1.0);
-    	export_to_ugx(g10, sh10, "new_swc.ugx");
-    	*/
-
+	    // face orientation correction and projection (and set normals)
 		FixFaceOrientation(g, g.faces_begin(), g.faces_end());
-
 		VertexIterator vit = g.begin<Vertex>();
 		VertexIterator vit_end = g.end<Vertex>();
 		for (; vit != vit_end; ++vit) {
@@ -4927,6 +4866,7 @@ void create_spline_data_for_neurites
 			aaNorm[*vit] = normal;
 		}
 
+		// grid housekeeping
 		sel.clear();
 		SelectSubset(sel, sh, 0, true);
 		SelectSubset(sel, sh, 1, true);
@@ -4934,6 +4874,7 @@ void create_spline_data_for_neurites
 		EraseSelectedObjects(sel);
 		EraseEmptySubsets(sh);
 
+		// soma
 		create_soma(vSomaPoints, g, aaPos, sh, 1);
 		sh.subset_info(0).name = "Neurites";
 		sh.subset_info(1).name = "Soma";
@@ -5025,7 +4966,7 @@ void create_spline_data_for_neurites
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, 1.0, g, aaPos, aaSurfParams, aaMapping, sh,
-		   			1.0, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1, 3, -1);
+		   			1.0, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1, "identity", -1);
 		}
 		SaveGridToFile(g, sh, "unprojected.ugx");
 
@@ -5502,7 +5443,7 @@ void create_spline_data_for_neurites
 			number segLength
 		) {
 			test_import_swc_general_var(fileName, correct, erScaleFactor, withER,
-					anisotropy, numRefs, regularize, blowUpFactor, true, false, 1, segLength);
+					anisotropy, numRefs, regularize, blowUpFactor, true, false, "user", segLength);
 		}
 
 		////////////////////////////////////////////////////////////////////////

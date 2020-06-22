@@ -95,7 +95,7 @@ namespace ug {
 			std::vector<SWCPoint>* points = NULL,
 			MeasuringSubsetCollection* subsets = NULL,
 			int bid = -1,
-			int option = 1,
+			const std::string& option = "user",
 			number desiredSegLength = -1
 		);
 
@@ -138,7 +138,7 @@ namespace ug {
 			std::vector<SWCPoint>* points,
 			MeasuringSubsetCollection* subsets,
 			int bid,
-			int option,
+			const std::string& option,
 			number segLength
 		);
 

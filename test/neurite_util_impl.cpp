@@ -3752,11 +3752,10 @@ namespace ug {
 					sh.assign_subset(*eit, 101);
 				}
 			}
-			sh.subset_info(100).name = "Outlier above (50% over chosen length)";
-			sh.subset_info(101).name = "Outliers below (50% below chosen length)";
+			sh.subset_info(sh.num_subsets()+1).name = "Outlier above (50% over chosen length)";
+			sh.subset_info(sh.num_subsets()+2).name = "Outliers below (50% below chosen length)";
 			EraseEmptySubsets(sh);
 			AssignSubsetColors(sh);
-			SaveGridToFile(grid, sh, "marked_outliers.ugx");
 			SaveGridToFile(grid, sh, fileName);
 		}
 

@@ -45,6 +45,7 @@
 #include "lib_disc/quadrature/gauss_legendre/gauss_legendre.h"
 #include "neurite_math_util.h"
 #include <algorithm>
+#include <boost/algorithm/string.hpp>
 
 namespace ug {
 	namespace neuro_collection {
@@ -74,7 +75,7 @@ namespace ug {
 		std::vector<SWCPoint>* points,
 		MeasuringSubsetCollection* subsets,
 		int bip,
-		int option,
+		const std::string& option,
 		number desiredSegLength
 	) {
 	const NeuriteProjector::Neurite& neurite = vNeurites[nid];
@@ -439,13 +440,13 @@ namespace ug {
 		number lengthOverRadius;
 		// calculate total length (Needed for option 1)
 		// = integral from t_start to t_end over: ||v(t)|| dt
-		if (option == 1) {
+		if (boost::iequals(option, std::string("user"))) {
 			lengthOverRadius = calculate_length_over_radius_variant(t_start, t_end, neurite, curSec);
 		}
 
 		// calculate total length in units of radius (Needed for option 2 and 3)
 		// = integral from t_start to t_end over: ||v(t)|| / r(t) dt
-		if (option == 2 || option == 3) {
+		if (!boost::iequals(option, std::string("user"))) {
 			 lengthOverRadius = calculate_length_over_radius(t_start, t_end, neurite, curSec);
 		}
 
@@ -459,7 +460,7 @@ namespace ug {
 		std::vector<number> vSegAxPos;
 
 		/// Force positions at given desiredSegLength
-		if (option == 1) {
+		if (boost::iequals(option, std::string("user"))) {
 			nSeg = (size_t) floor(lengthOverRadius / desiredSegLength);
 			segLength = desiredSegLength;
 			if (!nSeg) { nSeg = 1; }
@@ -469,7 +470,7 @@ namespace ug {
 		}
 
 		/// Option 2: Calculate positions automatically
-		if (option == 2) {
+		if (boost::iequals(option, std::string("auto"))) {
 			// to reach the desired anisotropy on the surface in the refinement limit,
 			// it has to be multiplied by pi/2 h
 			nSeg = (size_t) floor(lengthOverRadius / (anisotropy * 0.5 * PI));
@@ -480,7 +481,7 @@ namespace ug {
 		}
 
 		/// Option 3: Force evaluation positions to coincide with support nodes (original SWC 1d points)
-		if (option == 3) {
+		if (boost::iequals(option, std::string("identity"))) {
 			calculate_segment_axial_positions_at_support_nodes(vSegAxPos, t_start, t_end, neurite, curSec);
 			nSeg = vSegAxPos.size();
 		}
@@ -2733,7 +2734,7 @@ number calculate_length_over_radius_variant
                         std::vector<SWCPoint>* points,
                 		MeasuringSubsetCollection* subsets,
                         int bip,
-                        int option,
+                        const std::string& option,
                         number segLength
                 )
                 {
