@@ -3913,6 +3913,8 @@ void create_spline_data_for_neurites
 		std::string fn_precond_with_soma = fn_noext + "_precond_with_soma.swc";
 		import_swc_old(fn_precond, vPoints, correct, 1.0);
 
+		UG_LOGN("Input successful")
+
 		// Find the closest points towards soma
 		vector<vector3> vSurfacePoints;
 		vector<vector3> vPosSomaClosest;
@@ -4057,6 +4059,8 @@ void create_spline_data_for_neurites
 		   		&outRadsInner, withER); /// TODO add blow up factor here too (not needed however)
 		}
 		UG_DLOGN(NC_TNP, 0, " done.");
+
+		UG_LOGN("Meshing successful")
 
 		/// Checking root neurite intersections
 		if (CheckRootNeuriteIntersections(vPos, vRad, blowUpFactor)) {
@@ -4463,7 +4467,8 @@ void create_spline_data_for_neurites
 	(
 		const std::vector<NeuriteProjector::Neurite>& vNeurites,
 		const number desiredSegLength,
-		const size_t ref
+		const size_t ref,
+		const bool forceAdditionalPoint
 	)
 	{
 		/// Prepare grid to create regularized SWC
@@ -4493,8 +4498,13 @@ void create_spline_data_for_neurites
 			number lengthOverRadius = calculate_length_over_radius_variant(0, 1, vNeurites[i], 0);
 			size_t nSeg = (size_t) ceil(lengthOverRadius / desiredSegLength);
 			if (!nSeg) { nSeg = 1; }
+			if (forceAdditionalPoint) {
+				if (nSeg < 2) {
+					nSeg = 2;
+				}
+			}
 
-			// refinement
+			// refinement (1=identity, 0 for backward compatibility)
 			if (ref > 0) {
 				nSeg *= (ref+1) - 1;
 			}
@@ -4578,7 +4588,7 @@ void create_spline_data_for_neurites
 
 				ug::RegularVertex* vertex = *g.create<RegularVertex>();
 				/// very first soma vertex of first branch is soma
-				if (!somaVertex) { somaVertex = vertex; radius *= 10;}
+				if (!somaVertex) { somaVertex = vertex; radius *= 1;}
 				aaPos[vertex] = curPos;
 				aaDiam[vertex] = radius*2.0;
 				vertices.push_back(vertex);
@@ -4632,7 +4642,8 @@ void create_spline_data_for_neurites
 		const std::string& fileName,
 		const number segLength,
 		const std::string& choice,
-		const size_t ref
+		const size_t ref,
+		const bool force
 	) {
 		// read in file to intermediate structure
 		std::vector<SWCPoint> vPoints;
@@ -4647,7 +4658,16 @@ void create_spline_data_for_neurites
 		convert_pointlist_to_neuritelist_variant(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 
 		// push soma point in front of each root neurite
-		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
+        for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
+        	/// TODO: fix this
+        	/*
+            std::vector<vector3>& temp = vPos[vRootNeuriteIndsOut[i]];
+			temp.insert(temp.begin(), vSomaPoints[0].coords);
+
+			std::vector<number>& temp2 = vRad[vRootNeuriteIndsOut[i]];
+			temp2.insert(temp2.begin(), vSomaPoints[0].radius);
+        	 */
+
 			vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
 		}
 
@@ -4683,7 +4703,7 @@ void create_spline_data_for_neurites
 			if (option == 1) {
 				// test splines evaluation with presribed desired edge length and save
 				// grid and statistics for edges afterwards, see eval_spline(..., ...).
-				eval_spline(vFragments, calculate_minimum_seg_length_between_fragments(vPos)/2.0, ref);
+				eval_spline(vFragments, calculate_minimum_seg_length_between_fragments(vPos)/2.0, ref, force);
 			}
 
 			if (option == 2) {
@@ -4691,13 +4711,13 @@ void create_spline_data_for_neurites
 				std::cin >> segLengthNew;
 				// test splines evaluation with presribed desired edge length and save
 				// grid and statistics for edges afterwards, see eval_spline(..., ...).
-				eval_spline(vFragments, segLengthNew, ref);
+				eval_spline(vFragments, segLengthNew, ref, force);
 			}
 
 			if (option == 3) {
 				// test splines evaluation with presribed desired edge length and save
 				// grid and statistics for edges afterwards, see eval_spline(..., ...).
-				eval_spline(vFragments, segLength, ref); // always generates one segment between fragments
+				eval_spline(vFragments, segLength, ref, force); // always generates one segment between fragments
 			}
 		}
 
@@ -4707,14 +4727,14 @@ void create_spline_data_for_neurites
 			UG_LOGN("min seg length: " << newSegLength);
 			// test splines evaluation with presribed desired edge length and save
 			// grid and statistics for edges afterwards, see eval_spline(..., ...).
-			eval_spline(vFragments, newSegLength, ref);
+			eval_spline(vFragments, newSegLength, ref, force);
 		}
 
 		/// Use user prescriped segment length not matter what
 		if (boost::iequals(choice, std::string("user"))) {
 			// test splines evaluation with presribed desired edge length and save
 			// grid and statistics for edges afterwards, see eval_spline(..., ...).
-			eval_spline(vFragments, segLength, ref);
+			eval_spline(vFragments, segLength, ref, force);
 			UG_LOGN("min seg length: " << segLength)
 		}
 
@@ -4728,7 +4748,19 @@ void create_spline_data_for_neurites
 		const std::string& fileName
 	) {
 		// delegate to general implementation and choose min strategy
-		test_import_swc_and_regularize(fileName, -1, "min", 0);
+		test_import_swc_and_regularize(fileName, -1, "min", 0, false);
+	}
+
+	////////////////////////////////////////////////////////////////////////////
+	/// test_import_swc_and_regularize
+	////////////////////////////////////////////////////////////////////////////
+	void test_import_swc_and_regularize
+	(
+		const std::string& fileName,
+		const bool forceAdditionalPoint
+	) {
+		// delegate to general implementation and choose min strategy
+		test_import_swc_and_regularize(fileName, -1, "min", 0, forceAdditionalPoint);
 	}
 
 	////////////////////////////////////////////////////////////////////////////
@@ -4785,8 +4817,17 @@ void create_spline_data_for_neurites
 		std::vector<size_t> vRootNeuriteIndsOut;
 
 		convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+		/// TODO fix this
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
+
 			vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
+			/*
+			std::vector<vector3>& temp = vPos[vRootNeuriteIndsOut[i]];
+			temp.insert(temp.begin(), vSomaPoints[0].coords);
+
+			std::vector<number>& temp2 = vRad[vRootNeuriteIndsOut[i]];
+			temp2.insert(temp2.begin(), vSomaPoints[0].radius);
+			 */
 		}
 
 		/// TODO: Remove debug output
@@ -5061,7 +5102,7 @@ void create_spline_data_for_neurites
 			UG_THROW("Grid could not be written to file '" << outFileName << "'.");
 
 
-		// refine
+		// if no refinement then only one level in grid
 		if (numRefs == 0) {
 			SaveGridToFile(g, sh, outFileName.c_str());
 			return;
@@ -5073,15 +5114,17 @@ void create_spline_data_for_neurites
 		try {LoadDomain(dom, outFileName.c_str());}
 		UG_CATCH_THROW("Failed loading domain from '" << outFileName << "'.");
 
+		// otherwise refine the domain and save each of the grid levels to file
 		GlobalMultiGridRefiner ref(*dom.grid(), dom.refinement_projector());
+		SaveGridLevelToFile(*dom.grid(), *dom.subset_handler(), 0, outFileName.c_str());
 		for (uint i = 0; i < numRefs; ++i)
 		{
 			ref.refine();
 			ostringstream oss;
 			oss << "_refined_" << i+1 << ".ugx";
 			std::string curFileName = outFileName.substr(0, outFileName.size()-4) + oss.str();
-			try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), 50.0);}
-			UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
+			// try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), 50.0);}
+			// UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
 			SaveGridLevelToFile(*dom.grid(), *dom.subset_handler(), i+1, curFileName.c_str());
 		}
 	}

@@ -1083,6 +1083,8 @@ namespace ug {
 				// extrude to second third of BP //
 				segAxPos = 0.5 * (1.0 - erScaleFactor) * vSegAxPos[s - 1]
 				                                                   + 0.5 * (1.0 + erScaleFactor) * vSegAxPos[s];
+
+
 				vector3 secondPos;
 				VecScaleAdd(secondPos, 0.5 * (1.0 - erScaleFactor), lastPos,
 						0.5 * (1.0 + erScaleFactor), curPos);
@@ -2411,6 +2413,7 @@ number calculate_length_over_radius_variant
 		                     if (t_start >= t_end) break;
 		                     ++sec_it;
 		                }
+
 			}
 
             ////////////////////////////////////////////////////////////////////////
