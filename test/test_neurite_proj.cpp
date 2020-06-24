@@ -4382,7 +4382,10 @@ void create_spline_data_for_neurites
 		VertexIterator vit_end = g.end<Vertex>();
 		for (; vit != vit_end; ++vit) {
 			/// project not soma part for now since it does not work properly yet
-			if (!boost::iequals(sh.subset_info(sh.get_subset_index(*vit)).name, "soma")) {
+			/// ... and for other subsets we do not project by default because
+			/// these subset are not known to us / we do not know how to project them
+			if (!boost::iequals(sh.subset_info(sh.get_subset_index(*vit)).name, "soma") &&
+				!boost::iequals(sh.subset_info(sh.get_subset_index(*vit)).name, "defSub")) {
 				neuriteProj->project(*vit);
 			}
 		}
