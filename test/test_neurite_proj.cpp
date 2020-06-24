@@ -4381,7 +4381,10 @@ void create_spline_data_for_neurites
 		VertexIterator vit = g.begin<Vertex>();
 		VertexIterator vit_end = g.end<Vertex>();
 		for (; vit != vit_end; ++vit) {
-			neuriteProj->project(*vit);
+			/// project not soma part for now since it does not work properly yet
+			if (!boost::iequals(sh.subset_info(sh.get_subset_index(*vit)).name, "soma")) {
+				neuriteProj->project(*vit);
+			}
 		}
 
 	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
@@ -4588,7 +4591,7 @@ void create_spline_data_for_neurites
 
 				ug::RegularVertex* vertex = *g.create<RegularVertex>();
 				/// very first soma vertex of first branch is soma
-				if (!somaVertex) { somaVertex = vertex; radius *= 1;}
+				if (!somaVertex) { somaVertex = vertex; radius *= 10; } // TODO: Remove this. Soma needs to fit automatically...
 				aaPos[vertex] = curPos;
 				aaDiam[vertex] = radius*2.0;
 				vertices.push_back(vertex);
@@ -4659,15 +4662,15 @@ void create_spline_data_for_neurites
 
 		// push soma point in front of each root neurite
         for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
-        	/// TODO: fix this
+        	/// TODO: Push soma point in front and use in test_import_swc_general_var_for_vr_var
         	/*
             std::vector<vector3>& temp = vPos[vRootNeuriteIndsOut[i]];
 			temp.insert(temp.begin(), vSomaPoints[0].coords);
 
 			std::vector<number>& temp2 = vRad[vRootNeuriteIndsOut[i]];
-			temp2.insert(temp2.begin(), vSomaPoints[0].radius);
-        	 */
+			temp2.insert(temp2.begin(), vSomaPoints[0].radius);*/
 
+        	/// Let the soma point be the start point of each neurite
 			vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
 		}
 
@@ -4817,10 +4820,11 @@ void create_spline_data_for_neurites
 		std::vector<size_t> vRootNeuriteIndsOut;
 
 		convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
-		/// TODO fix this
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
-
+			/// TODO fix this. the soma point (first point) is ignored during grid generation,
+			/// duplicate the point in front of each root neurite starting at soma?
 			vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
+			//vRad[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].radius;
 			/*
 			std::vector<vector3>& temp = vPos[vRootNeuriteIndsOut[i]];
 			temp.insert(temp.begin(), vSomaPoints[0].coords);
@@ -4919,6 +4923,8 @@ void create_spline_data_for_neurites
 			ug::vector3 normal;
 			CalculateVertexNormal(normal, g, *vit, aaPos);
 			aaNorm[*vit] = normal;
+			/// TODO: BP projection needs to be done, but may fail in some cases.
+			/// neuriteProj->project(*vit);
 		}
 
 		// grid housekeeping
