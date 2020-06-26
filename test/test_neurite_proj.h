@@ -512,7 +512,7 @@ std::multimap<B,A> flip_map(const std::map<A,B> &src)
  * \param[in] erScaleFactor
  * \param[in] numRefs
  */
-void create_two_way_branch_from_swc(
+void create_branches_from_swc(
 	const std::string& fileName,
 	number erScaleFactor,
 	size_t numRefs

@@ -4959,7 +4959,7 @@ void create_spline_data_for_neurites
 	////////////////////////////////////////////////////////////////////////////
 	/// create_two_way_branch_from_swc
 	////////////////////////////////////////////////////////////////////////////
-	void create_two_way_branch_from_swc(
+	void create_branches_from_swc(
 		const std::string& fileName,
 		number erScaleFactor,
 		size_t numRefs
