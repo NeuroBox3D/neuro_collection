@@ -984,7 +984,7 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("coarsen_1d_grid", &coarsen_1d_grid, "input file name", "output file name");
 		reg.add_function("test_import_swc_vr", &test_import_swc_vr, "Filename # anisotropy # numRefs");
 		reg.add_function("test_import_swc_general_var_for_vr_var", &test_import_swc_general_var_for_vr_var, "");
-		reg.add_function("create_two_way_branch_from_swc", &create_branches_from_swc, "", "input file name # ER scale factor # number of refinements", "");
+		reg.add_function("create_branches_from_swc", &create_branches_from_swc, "", "input file name # ER scale factor # number of refinements", "");
 		reg.add_function("test_import_swc_and_regularize", static_cast<void (*)(const std::string&, number, const std::string&, const size_t, const bool)>(&test_import_swc_and_regularize), "", "file name # desired segment length", "");
 		reg.add_function("test_import_swc_and_regularize", static_cast<void (*)(const std::string&)>(&test_import_swc_and_regularize), "", "file name # desired segment length", "");
 		reg.add_function("test_import_swc_and_regularize", static_cast<void (*)(const std::string&, const bool)>(&test_import_swc_and_regularize), "", "file name # desired segment length", "");
