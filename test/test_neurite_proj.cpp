@@ -4727,7 +4727,7 @@ void create_spline_data_for_neurites
 			}
 		}
 
-		/// Find minimum distance between branching points / minimum ragments length and halve it
+		/// Find minimum distance between branching points / minimum fragments length and halve it
 		if (boost::iequals(choice, std::string("min"))) {
 			number newSegLength = calculate_minimum_seg_length_between_fragments(vPos) * 0.5;
 			UG_LOGN("min seg length: " << newSegLength);
@@ -5097,8 +5097,12 @@ void create_spline_data_for_neurites
 			itf++;
 		}
 
-		// color measuring subsets
+		// color measuring subsets and assign subset names
 		AssignSubsetColors(sh);
+		sh.subset_info(0).name = "cyt";
+		sh.subset_info(1).name = "er";
+		sh.subset_info(2).name = "pm";
+		sh.subset_info(3).name = "erm";
 
 		// save coarse grid
 		std::string outFileName = "imported_y_structure.ugx";
