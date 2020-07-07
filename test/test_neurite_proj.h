@@ -520,6 +520,16 @@ void create_branches_from_swc(
 	bool assignMeasurementSubsets
 );
 
+/*!
+ * \brief delegate
+ * \see create_branches_from_swc
+ */
+void create_branches_from_swc(
+	const std::string& fileName,
+	number erScaleFactor,
+	size_t numRefs
+);
+
 
 /*!
  * \brief special method to respect reordering during UGX export

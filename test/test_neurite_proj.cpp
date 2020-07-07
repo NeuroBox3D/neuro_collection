@@ -4958,6 +4958,14 @@ void create_spline_data_for_neurites
 	void create_branches_from_swc(
 		const std::string& fileName,
 		number erScaleFactor,
+		size_t numRefs
+	) {
+		create_branches_from_swc(fileName, erScaleFactor, numRefs, true);
+	}
+
+	void create_branches_from_swc(
+		const std::string& fileName,
+		number erScaleFactor,
 		size_t numRefs,
 		const bool assignMeasurementSubsets
 	) {
