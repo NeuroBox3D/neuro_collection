@@ -3,3 +3,7 @@
 .tags
 .tags_sorted_by_file
 .settings
+*.cmake
+*.bin
+CMakeFiles/2.8.12.2/CompilerIdC/CMakeCCompilerId.c
+CMakeFiles/2.8.12.2/CompilerIdCXX/CMakeCXXCompilerId.cpp

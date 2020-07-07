@@ -144,7 +144,6 @@ namespace ug {
 	number t_start = 0.0;
 	number t_end = 0.0;
 
-	int rootId = -1;
 	if (connectingVrts && connectingEdges && connectingFaces) {
 		vVrt = *connectingVrts;
 		vEdge = *connectingEdges;
@@ -199,7 +198,6 @@ namespace ug {
 			// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 		}
 
-		UG_LOGN("After recursive call: " << points->size());
 
 		if (subsets) {
 			subsets->vertices.push_back(*connectingVrts);
@@ -240,19 +238,6 @@ namespace ug {
 			}
 		}
 
-
-		/// Root point connected to soma
-		ug::vector3 center;
-		CalculateCenter(vVrt, aaPos, 4, center);
-		UG_LOGN("SWC: " << center << " " << r[0]);
-		SWCPoint p;
-		p.coords = center;
-		p.radius = r[0];
-		p.conns.push_back(points->size()+1);
-		points->resize(points->size()+1);
-		points->at(points->size()-1) = p;
-		rootId = points->size();
-
 		for (size_t i = 0; i < 12; ++i) {
 			Vertex* v = *g.create<RegularVertex>();
 			vVrt[i + 4] = v;
@@ -270,8 +255,6 @@ namespace ug {
 			vector3 vOut;
 			ProjectPointToLine(vOut, aaPos[v], pos[0], pos[1]);
 			aaMappingParams[v].lambda = VecDistance(vOut, pos[0]);
-			// std::vector<SWCPoint> vPoints;
-			// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 
 			sh.assign_subset(v, 2);
 			if (outVerts) {
@@ -338,8 +321,6 @@ namespace ug {
 
 	/// FIXME: This is not the correct way to check for root branching neurites
 	/// UG_COND_THROW(!brit->bp.get(), "BP is null. This can happen for bogus input geometries.");
-	int bpPointId = -1;
-	int bpPointIdSize = -1;
 	while (true) {
 		t_start = t_end;
 
@@ -609,8 +590,6 @@ namespace ug {
 		}
 		*/
 
-		int sizePts = -1;
-		int savedPoint = -1;
 		ug::vector3 currentPoint;
 		// create mesh for segments
 		Selector sel(g);
@@ -752,75 +731,11 @@ namespace ug {
 
 				// ensure correct volume orientation
 				FixOrientation(g, vVol.begin(), vVol.end(), aaPos);
-
-				ug::vector3 center;
-				CalculateCenter(vVrt, aaPos, 4, center);
-				UG_LOGN("SWC: " << center << radius);
-				SWCPoint p;
-				p.coords = center;
-				p.radius = radius;
-
-				/*
-				if (s == 0) {
-					/// connecting point is found when s==0
-					UG_LOGN("bpId:" << bpPointId);
-										UG_LOGN("s=0: points.size(): "<< points->size());
-										savedPoint = points->size()+2;
-										if (bip != -1) {
-											points->at(points->size()-1).conns.push_back(bip);
-											points->at(bip).conns.push_back(points->size()-1);
-											UG_LOGN("BIP PRESENT!");
-											UG_LOGN("bip: " << bip);
-										}
-									}
-									*/
-
-				if (points->size() > bpPointIdSize) {
-					if (bpPointId != -1) {
-						points->at(bpPointIdSize).conns.push_back(bpPointId);
-						bpPointId = -1;
-					}
-				}
-
-				if (rootId != -1 && (connectingVrts == NULL) && s == 1) {
-					points->at(rootId).conns.push_back(rootId-1);
-					rootId = -1;
-				}
-
-				/// intermediate points between branching points
-				if (s > 0) {
-					p.conns.push_back(points->size()-1);
-				}
-
-				if (s < nSeg-1) {
-					p.conns.push_back(points->size()+1);
-				}
-
-				points->resize(points->size()+1);
-				points->at(points->size()-1) = p;
-
-			//	if (s == nSeg-1) {
-					if (bip != -1) {
-						points->at(bip+1).conns.push_back(bip);
-						sizePts = points->size(); // connection point
-						bip = -1;
-					}
-				//}
 			}
+
 
 			// BP segment: create BP with tetrahedra/pyramids and create whole branch
 			else {
-#if 1
-				if (points->size() > bpPointIdSize) {
-					if (bpPointId != -1) {
-						points->at(bpPointIdSize).conns.push_back(bpPointId);
-						bpPointId = -1;
-					}
-				}
-
-				bpPointId = points->size(); // at this point id we branch, then recursive call
-				/// the recursive call has the next point id points.size(), so we need to
-				// add bpPointId to this point with id points.size()
 				std::vector<Volume*> vBPVols;
 				vBPVols.reserve(27);
 
@@ -975,18 +890,6 @@ namespace ug {
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
 
-				/*
-				ug::vector3 center;
-				CalculateCenter(vVrt, aaPos, 4, center);
-				SWCPoint p;
-				p.coords = center;
-				p.radius = radius;
-				p.conns.push_back(bpPointId-1);
-				p.conns.push_back(bpPointId+1);
-				points->resize(points->size()+1);
-				points->at(points->size()-1) = p;
-				int nextBPId = points->size()-1; /// index of this BP point
-				*/
 
 				// correct vertex offsets to reflect angle at which child branches
 				VecScaleAppend(aaPos[vVrt[(connFaceInd) % 4]],
@@ -1146,21 +1049,7 @@ namespace ug {
 				}
 
 
-				/*
-				ug::vector3 center;
-				CalculateCenter(vVrt, aaPos, 4, center);
-				SWCPoint p;
-				p.coords = center;
-				p.radius = radius;
-				p.conns.push_back(bpPointId-1);
-				p.conns.push_back(bpPointId+1);
-				points->resize(points->size()+1);
-				points->at(points->size()-1) = p;
-				int nextBPId = points->size()-1; /// index of this BP point
-				*/
-				points->at(points->size()-1).conns.push_back(bpPointId+1);
-				points->at(points->size()-1).conns.push_back(bpPointId-1);
-				int nextBPId = points->size()-1;
+
 
 
 				// correct vertex offsets to reflect angle at which child branches
@@ -1313,18 +1202,6 @@ namespace ug {
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
 
-				/*
-				ug::vector3 center;
-				CalculateCenter(vVrt, aaPos, 4, center);
-				SWCPoint p;
-				p.coords = center;
-				p.radius = radius;
-				p.conns.push_back(bpPointId-1);
-				p.conns.push_back(bpPointId+1);
-				points->resize(points->size()+1);
-				points->at(points->size()-1) = p;
-				int nextBPId = points->size()-1; /// index of this BP point
-				*/
 
 				// correct vertex offsets to reflect angle at which child branches
 				VecScaleAppend(aaPos[vVrt[(connFaceInd) % 4]],
@@ -1532,10 +1409,7 @@ namespace ug {
 						erScaleFactor, anisotropy, g, aaPos, aaSurfParams,
 						aaMappingParams, sh, blowUpFactor,
 						&vBranchVrts, &vBranchEdges, &vBranchFaces,
-						branchOffset[1], NULL, NULL, NULL, NULL, points, subsets, nextBPId, option, segLength);
-				/// TODO: if wihin branching point, then bpPointIdSize is not point->size() but bpPointId+1
-				bpPointIdSize = points->size();
-#endif
+						branchOffset[1], NULL, NULL, NULL, NULL, points, subsets, -1, option, segLength);
 			}
 
 			lastPos = curPos;

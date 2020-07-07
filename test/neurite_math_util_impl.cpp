@@ -45,6 +45,10 @@
 #include <boost/algorithm/clamp.hpp>
 #include <boost/math/special_functions/sign.hpp>
 #include "neurite_math_util.h"
+#include <lib_grid/algorithms/space_partitioning/lg_ntree.h>
+#include "lib_disc/domain_util.h"
+#include "lib_grid/file_io/file_io.h"
+#include "lib_grid/algorithms/remeshing/resolve_intersections.h"
 
 namespace ug {
 	namespace neuro_collection {
@@ -592,6 +596,99 @@ namespace ug {
 			}
 			UG_LOGN("scale it")
 			VecScale(center, center, 1./(number)size);
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// GetNumberOfTriangleIntersections
+		////////////////////////////////////////////////////////////////////////
+		int GetNumberOfTriangleIntersections
+		(
+			const std::string& fileName,
+			const number snapThreshold,
+			const bool verbose
+		) {
+			Domain3d dom;
+			try {LoadDomain(dom, fileName.c_str()); }
+			UG_CATCH_THROW("Failed loading domain from '" << fileName << "'.");
+			ug::MultiGrid* grid = dom.grid().get();
+			Grid::VertexAttachmentAccessor<APosition> aaPos(*grid, aPosition);
+			Selector sel(*grid);
+			MultiGridSubsetHandler* sh = dom.subset_handler().get();
+			Triangulate(*grid, grid->begin<ug::Quadrilateral>(), grid->end<ug::Quadrilateral>());
+			RemoveDoubles<3>(*grid, grid->begin<Vertex>(), grid->end<Vertex>(), aPosition, SMALL);
+			int numSubsets = sh->num_subsets();
+			int numIntersections = 0;
+			typedef lg_ntree<3, 3, Face> octree_t;
+			typedef octree_t::box_t	box_t;
+			size_t triCounter = 0;
+			octree_t octree(*grid, aPosition);
+			octree.create_tree(grid->begin<Triangle>(), grid->end<Triangle>());
+			for(TriangleIterator triIter1 = grid->begin<Triangle>();
+				triIter1 != grid->end<Triangle>(); ++triIter1, ++triCounter)
+			{
+				std::vector<Face*> closeTris;
+				Face* t1 = *triIter1;
+
+				box_t bbox;
+				bbox.min = bbox.max = aaPos[t1->vertex(0)];
+				for(size_t i = 1; i < t1->num_vertices(); ++i)
+					bbox = box_t(bbox, aaPos[t1->vertex(i)]);
+				bbox.min -= vector3(snapThreshold, snapThreshold, snapThreshold);
+				bbox.max += vector3(snapThreshold, snapThreshold, snapThreshold);
+
+				FindElementsInIntersectingNodes(closeTris, octree, bbox);
+
+				for (size_t i_close = 0; i_close < closeTris.size(); ++i_close) {
+					Face* t2 = closeTris[i_close];
+
+					// avoid checking t1 with t1 for intersections
+					if(grid->get_attachment_data_index(t1) >= grid->get_attachment_data_index(t2)) {
+						continue;
+					}
+
+
+					// coplanar triangles
+					vector3 n1, n2;
+					CalculateNormal(n1, t1, aaPos);
+					CalculateNormal(n2, t2, aaPos);
+					number d = VecDot(n1, n2);
+					if(fabs(d) > 1. - snapThreshold) {
+						continue;
+					}
+
+					// potential intersection
+					vector3 ip[2];
+					if(TriangleTriangleIntersection(aaPos[t1->vertex(0)], aaPos[t1->vertex(1)],
+						aaPos[t1->vertex(2)], aaPos[t2->vertex(0)], aaPos[t2->vertex(1)], aaPos[t2->vertex(2)],
+						&ip[0], &ip[1], SMALL) == 1)
+					{
+						// shared edge is no intersection
+						size_t numShared = NumSharedVertices(*grid, t1, t2);
+						if(! (numShared >= 1)) {
+							numIntersections++;
+							// report some information if intersection occured
+							if (verbose) {
+								UG_LOGN("Intersection of triangle # " << grid->get_attachment_data_index(t1) <<
+									"(" << aaPos[t1->vertex(0)] << ", " << aaPos[t1->vertex(1)] << ", " << aaPos[t1->vertex(2)] << ") " <<
+									"with # " << grid->get_attachment_data_index(t2) <<
+									"(" << aaPos[t2->vertex(0)] << ", " << aaPos[t2->vertex(1)] << ", " << aaPos[t2->vertex(2)] << ") " <<
+									"at (intersection point): " << ip[0] << ", " << ip[1] << std::endl);
+							}
+							sel.select(t1); sel.select(t2);
+							sel.select(t1->vertex(0)); sel.select(t1->vertex(1)); sel.select(t1->vertex(2));
+							sel.select(t2->vertex(0)); sel.select(t2->vertex(1)); sel.select(t2->vertex(2));
+						}
+					}
+				}
+			}
+
+			AssignSelectionToSubset(sel, *sh, numSubsets);
+			sh->subset_info(numSubsets).name = "intersections";
+			AssignSubsetColors(*sh);
+			EraseEmptySubsets(*sh);
+			std::string outFileName = fileName.substr(0, fileName.size()-4) + "_intersections.ugx";
+			SaveGridToFile(*grid, *sh, outFileName.c_str());
+			return numIntersections;
 		}
 	}
 }

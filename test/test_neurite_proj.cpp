@@ -3934,6 +3934,7 @@ void create_spline_data_for_neurites
 		convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 	    vector<SWCPoint> somaPoint = vSomaPoints;
 	    vector<SWCPoint> savedSomaPoint = vSomaPoints;
+	    UG_LOGN("Converted pointlist to neuritelist successfull")
 
 		// Prepare grid (selector and attachments)
 		Grid g;
@@ -3987,6 +3988,7 @@ void create_spline_data_for_neurites
 	    somaPoint[0].radius *= 1.05;
 		UG_DLOGN(NC_TNP, 0, "Creating (outer sphere) soma in subset 1");
 	    create_soma(somaPoint, g, aaPos, sh, 1);
+	    UG_LOGN("Created soma")
 
 	    // Get closest _vertices_ on soma surface for each connecting neurite
 		vector<Vertex*> vPointSomaSurface2;
@@ -4004,6 +4006,8 @@ void create_spline_data_for_neurites
 
 	    // Re-read the now corrected SWC file with soma
 	    import_swc_old(fn_precond_with_soma, vPoints, correct, 1.0);
+
+	    UG_LOGN("Reimported SWC")
 
 	    /// Checking for cycles in geometries, which is not a sensible input geometry
 	    UG_DLOG(NC_TNP, 0, "Checking for cycles...")
@@ -4024,6 +4028,8 @@ void create_spline_data_for_neurites
 	    /// Fix root neurites. Could be improved by inserting additional point
 	    UG_DLOG(NC_TNP, 0, "Mitigating root branching neurites...")
 	    MitigateRootBranchingNeurites(vPoints);
+
+	    UG_LOGN("After checks...")
 	    UG_DLOGN(NC_TNP, 0, " passed!");
     	Grid g2;
     	SubsetHandler sh2(g2);
@@ -4032,6 +4038,8 @@ void create_spline_data_for_neurites
     	/// TODO Smooth again? Or smooth much before in the beginning? Probably smooth before fixing branches
 		/// constrained_smoothing(vPoints, vRootNeuriteIndsOut.size(), 0.1, 0.1, 10, 0.1);
 	    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+
+	    UG_LOGN("Converted again")
 
 	    // Projection handling setup
 		SubsetHandler psh(g);
@@ -4059,6 +4067,8 @@ void create_spline_data_for_neurites
 		   		&outRadsInner, withER); /// TODO add blow up factor here too (not needed however)
 		}
 		UG_DLOGN(NC_TNP, 0, " done.");
+
+		UG_LOGN("Created neurites...")
 
 		UG_LOGN("Meshing successful")
 
@@ -4128,35 +4138,13 @@ void create_spline_data_for_neurites
 		   	}
 		 	/// TODO: Why do the lines below now cause a segmentation fault in HEAD revision?
 		 	/*
-		 	ss << "testNeuriteProjector_after_generating_neurite_no=" << i <<  ".ugx";
+		 	ss << "testNeuriteProjector_after_generating_neurite_no="testNeuriteProjector_after_generating_neurite_no="" << i <<  ".ugx";
 		    SaveGridToFile(g, sh, ss.str());
 		    ss.str(""); ss.clear();
 		    */
 		}
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
 
-	    UG_LOGN("SWC output")
-	    for (size_t i = 0; i < newPoints.size(); i++) {
-	    	UG_LOG("id:" << i << " ---")
-	    	UG_LOG(newPoints[i].coords << ", ");
-	    	/*if (i == 19) {
-	    		newPoints[i].conns.push_back(18);
-	    	}*/
-	    	for (size_t j = 0; j < newPoints[i].conns.size(); j++) {
-	    		UG_LOG(newPoints[i].conns[j] << "; ");
-	    	}
-	    	UG_LOGN("")
-	    	newPoints[i].type = SWC_AXON;
-	    }
-	    UG_LOGN("SWC output done")
-	    Grid g10;
-	    SubsetHandler sh10(g10);
-	    swc_points_to_grid(newPoints, g10, sh10, 1.0);
-	    g10.attach_to_vertices(aPosition);
-		Grid::VertexAttachmentAccessor<APosition> aaPos2(g10, aPosition);
-	    WriteEdgeStatistics(g10, aaPos2, "statistics_edges.csv");
-    	export_to_ugx(g10, sh10, "new_swc.ugx");
-		SaveGridToFile(g, sh, "vanilla_output.ugx");
 
 	    UG_DLOGN(NC_TNP, 0, " done.");
 	    UG_LOGN("Generating inner soma");
@@ -4336,6 +4324,52 @@ void create_spline_data_for_neurites
 			return;
 		}
 
+		// output
+				string outFileNameBase = FilenameAndPathWithoutExtension(fileName);
+				string outFileName = outFileNameBase + ".ugx";
+				GridWriterUGX ugxWriter;
+				ugxWriter.add_grid(g, "defGrid", aPosition);
+				ugxWriter.add_subset_handler(sh, "defSH", 0);
+				ugxWriter.add_subset_handler(psh, "projSH", 0);
+				ugxWriter.add_projection_handler(projHandler, "defPH", 0);
+				if (!ugxWriter.write_to_file(outFileName.c_str()))
+					UG_THROW("Grid could not be written to file '" << outFileName << "'.");
+
+				if (numRefs == 0)
+					return;
+
+
+
+
+				// if no refinement then only one level in grid
+				if (numRefs == 0) {
+					SaveGridToFile(g, sh, outFileName.c_str());
+					return;
+				}
+
+				// create and save refined grids
+				Domain3d dom;
+				dom.create_additional_subset_handler("projSH");
+				try {LoadDomain(dom, outFileName.c_str());}
+				UG_CATCH_THROW("Failed loading domain from '" << outFileName << "'.");
+
+				// otherwise refine the domain and save each of the grid levels to file
+				GlobalMultiGridRefiner ref(*dom.grid(), dom.refinement_projector());
+				SaveGridLevelToFile(*dom.grid(), *dom.subset_handler(), 0, outFileName.c_str());
+				for (uint i = 0; i < numRefs; ++i)
+				{
+					ref.refine();
+					ostringstream oss;
+					oss << "_refined_" << i+1 << ".ugx";
+					std::string curFileName = outFileName.substr(0, outFileName.size()-4) + oss.str();
+					// try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), 50.0);}
+					// UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
+					SaveGridLevelToFile(*dom.grid(), *dom.subset_handler(), i+1, curFileName.c_str());
+				}
+
+
+
+
 
 		/// TODO: Remove connecting faces but keep volumes
 		//g.set_options(VOLOPT_AUTOGENERATE_FACES )
@@ -4377,60 +4411,22 @@ void create_spline_data_for_neurites
 		}
 
 	    // at branching points, we have not computed the correct positions yet,
-		// so project the complete geometry using the projector
-		VertexIterator vit = g.begin<Vertex>();
-		VertexIterator vit_end = g.end<Vertex>();
-		for (; vit != vit_end; ++vit) {
-			/// project not soma part for now since it does not work properly yet
-			/// ... and for other subsets we do not project by default because
-			/// these subset are not known to us / we do not know how to project them
-			if (!boost::iequals(sh.subset_info(sh.get_subset_index(*vit)).name, "soma") &&
-				!boost::iequals(sh.subset_info(sh.get_subset_index(*vit)).name, "defSub")) {
-				neuriteProj->project(*vit);
-			}
-		}
+						// so project the complete geometry using the projector
+						VertexIterator vit = g.begin<Vertex>();
+						VertexIterator vit_end = g.end<Vertex>();
+						for (; vit != vit_end; ++vit) {
+							/// project not soma part for now since it does not work properly yet
+							/// ... and for other subsets we do not project by default because
+							/// these subset are not known to us / we do not know how to project them
+							if (!boost::iequals(sh.subset_info(sh.get_subset_index(*vit)).name, "soma") &&
+								!boost::iequals(sh.subset_info(sh.get_subset_index(*vit)).name, "defSub")) {
+								neuriteProj->project(*vit);
+							}
+						}
+
 
 	    IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_all.ugx");
-
-		// output
-		string outFileNameBase = FilenameAndPathWithoutExtension(fileName);
-		string outFileName = outFileNameBase + ".ugx";
-		GridWriterUGX ugxWriter;
-		ugxWriter.add_grid(g, "defGrid", aPosition);
-		ugxWriter.add_subset_handler(sh, "defSH", 0);
-		ugxWriter.add_subset_handler(psh, "projSH", 0);
-		ugxWriter.add_projection_handler(projHandler, "defPH", 0);
-		if (!ugxWriter.write_to_file(outFileName.c_str()))
-			UG_THROW("Grid could not be written to file '" << outFileName << "'.");
-
-		if (numRefs == 0)
-			return;
-
-	    return;
-
-		// refinement
-		Domain3d dom;
-		dom.create_additional_subset_handler("projSH");
-		try {LoadDomain(dom, outFileName.c_str());}
-		UG_CATCH_THROW("Failed loading domain from '" << outFileName << "'.");
-
-		number offset = 5.0;
-		string curFileName = outFileNameBase + "_refined_0.ugx";
-
-		try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
-		UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
-
-		GlobalMultiGridRefiner ref(*dom.grid(), dom.refinement_projector());
-		for (uint i = 0; i < numRefs; ++i)
-		{
-			ref.refine();
-			ostringstream oss;
-			oss << "_refined_" << i+1 << ".ugx";
-			curFileName = outFileName.substr(0, outFileName.size()-4) + oss.str();
-			try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
-			UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
-		}
 	}
 
 	////////////////////////////////////////////////////////////////////////////
@@ -4594,7 +4590,7 @@ void create_spline_data_for_neurites
 
 				ug::RegularVertex* vertex = *g.create<RegularVertex>();
 				/// very first soma vertex of first branch is soma
-				if (!somaVertex) { somaVertex = vertex; radius *= 10; } // TODO: Remove this. Soma needs to fit automatically...
+				if (!somaVertex) { somaVertex = vertex; radius *= 3; } // TODO: Remove this. Soma needs to fit automatically...
 				aaPos[vertex] = curPos;
 				aaDiam[vertex] = radius*2.0;
 				vertices.push_back(vertex);
@@ -4957,12 +4953,13 @@ void create_spline_data_for_neurites
 
 
 	////////////////////////////////////////////////////////////////////////////
-	/// create_two_way_branch_from_swc
+	/// create_branches_from_swc
 	////////////////////////////////////////////////////////////////////////////
 	void create_branches_from_swc(
 		const std::string& fileName,
 		number erScaleFactor,
-		size_t numRefs
+		size_t numRefs,
+		const bool assignMeasurementSubsets
 	) {
 		using namespace std;
 
@@ -5043,60 +5040,61 @@ void create_spline_data_for_neurites
 		AssignSubsetColors(sh);
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
 
-		// assign subsets
-		std::stringstream ss;
-		const size_t startSI = sh.num_subsets();
-		size_t measCounter = 0;
-		size_t subsetName = 1;
+		if (assignMeasurementSubsets) {
+			// assign subsets
+			std::stringstream ss;
+			const size_t startSI = sh.num_subsets();
+			size_t measCounter = 0;
+			size_t subsetName = 1;
 
-		/// vertices
-		UG_LOGN("Size of vertices: " << subsets.vertices.size());
-		std::vector<std::vector<ug::Vertex*> >::const_iterator itv = subsets.vertices.begin();
-		while (itv != subsets.vertices.end()) {
-			UG_LOGN("measCounter (verts): " << measCounter);
-			sh.assign_subset(itv->begin(), itv->end(), measCounter+startSI);
-			ss << "meas #" << subsetName;
-			sh.subset_info(measCounter+startSI).name = ss.str();
-			ss.str(""); ss.clear();
-			measCounter++;
-			subsetName++;
-			itv++;
-		}
-
-		/// edges
-		UG_LOGN("Size of edges: " << subsets.edges.size());
-		measCounter = 0;
-		std::vector<std::vector<ug::Edge*> >::const_iterator ite = subsets.edges.begin();
-		while (ite != subsets.edges.end()) {
-			std::vector<ug::Edge*>::const_iterator it2 = ite->begin();
-			UG_LOGN("measCounter (edges): " << measCounter);
-			while (it2 != ite->end()) {
-				if (*it2) {
-					sh.assign_subset(*it2, measCounter+startSI);
-				}
-				it2++;
+			/// vertices
+			UG_LOGN("Size of vertices: " << subsets.vertices.size());
+			std::vector<std::vector<ug::Vertex*> >::const_iterator itv = subsets.vertices.begin();
+			while (itv != subsets.vertices.end()) {
+				UG_LOGN("measCounter (verts): " << measCounter);
+				sh.assign_subset(itv->begin(), itv->end(), measCounter+startSI);
+				ss << "meas#" << subsetName;
+				sh.subset_info(measCounter+startSI).name = ss.str();
+				ss.str(""); ss.clear();
+				measCounter++;
+				subsetName++;
+				itv++;
 			}
-			measCounter++;
-			ite++;
-		}
 
-		/// faces
-		UG_LOGN("Size of faces " << subsets.faces.size());
-		measCounter = 0;
-		std::vector<std::vector<ug::Face*> >::const_iterator itf = subsets.faces.begin();
-		while (itf != subsets.faces.end()) {
-			std::vector<ug::Face*>::const_iterator it2 = itf->begin();
-			UG_LOGN("measCounter (faces): " << measCounter);
-			while (it2 != itf->end()) {
-				if (*it2) {
-					sh.assign_subset(*it2, measCounter+startSI);
+			/// edges
+			UG_LOGN("Size of edges: " << subsets.edges.size());
+			measCounter = 0;
+			std::vector<std::vector<ug::Edge*> >::const_iterator ite = subsets.edges.begin();
+			while (ite != subsets.edges.end()) {
+				std::vector<ug::Edge*>::const_iterator it2 = ite->begin();
+				UG_LOGN("measCounter (edges): " << measCounter);
+				while (it2 != ite->end()) {
+					if (*it2) {
+						sh.assign_subset(*it2, measCounter+startSI);
+					}
+					it2++;
 				}
-				it2++;
+				measCounter++;
+				ite++;
 			}
-			measCounter++;
-			itf++;
-		}
 
+			/// faces
+			UG_LOGN("Size of faces " << subsets.faces.size());
+			measCounter = 0;
+			std::vector<std::vector<ug::Face*> >::const_iterator itf = subsets.faces.begin();
+			while (itf != subsets.faces.end()) {
+				std::vector<ug::Face*>::const_iterator it2 = itf->begin();
+				UG_LOGN("measCounter (faces): " << measCounter);
+				while (it2 != itf->end()) {
+					if (*it2) {
+						sh.assign_subset(*it2, measCounter+startSI);
+					}
+					it2++;
+				}
+				measCounter++;
+				itf++;
+			}
+		}
 		// color measuring subsets and assign subset names
 		AssignSubsetColors(sh);
 		sh.subset_info(0).name = "cyt";

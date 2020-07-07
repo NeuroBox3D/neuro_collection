@@ -511,11 +511,13 @@ std::multimap<B,A> flip_map(const std::map<A,B> &src)
  * \param[in] fileName
  * \param[in] erScaleFactor
  * \param[in] numRefs
+ * \param[in] assignMeasurementSubsets
  */
 void create_branches_from_swc(
 	const std::string& fileName,
 	number erScaleFactor,
-	size_t numRefs
+	size_t numRefs,
+	bool assignMeasurementSubsets
 );
 
 

@@ -279,6 +279,19 @@ namespace ug {
 			size_t size,
 			ug::vector3& center
 		);
+
+		/*
+		 * \brief Report the number of triangle intersections in grid
+		 * \param[in] fileName name of the grid
+		 * \param[in] snapThreshold
+		 * \param[in] verbose report triangle indices, coordinates and intersection points
+		 */
+		int GetNumberOfTriangleIntersections
+		(
+			const std::string& fileName,
+			number snapThreshold,
+			bool verbose
+		);
 	}
 }
 
