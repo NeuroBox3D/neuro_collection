@@ -69,6 +69,20 @@ void import_swc
 );
 
 /*!
+ * \brief import a SWC file
+ * \param[in] fileName
+ * \param[out] vPointsOut
+ * \param[in] scale
+ */
+void import_swc
+(
+	const std::string& fileName,
+	std::vector<SWCPoint>& vPointsOut,
+	number scale
+);
+
+
+/*!
  * \brief smoothing
  * \param[inout] vPointsInOut
  * \param[in] n
@@ -116,10 +130,19 @@ void convert_pointlist_to_neuritelist
 void convert_pointlist_to_neuritelist_variant
 (
     const std::vector<SWCPoint>& vPoints,
+    std::vector<SWCPoint>& vSomaPoints,
     std::vector<std::vector<vector3> >& vPosOut,
     std::vector<std::vector<number> >& vRadOut,
     std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > >& vBPInfoOut,
     std::vector<size_t>& vRootNeuriteIndsOut
+);
+
+void create_spline_data_for_neurites
+(
+    std::vector<NeuriteProjector::Neurite>& vNeuritesOut,
+    const std::vector<std::vector<vector3> >& vPos,
+    const std::vector<std::vector<number> >& vR,
+    std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > >* vBPInfo
 );
 
 /*!

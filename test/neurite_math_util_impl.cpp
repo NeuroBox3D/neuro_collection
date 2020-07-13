@@ -49,6 +49,12 @@
 #include "lib_disc/domain_util.h"
 #include "lib_grid/file_io/file_io.h"
 #include "lib_grid/algorithms/remeshing/resolve_intersections.h"
+#include <boost/random/linear_congruential.hpp>
+#include <boost/random/uniform_int.hpp>
+#include <boost/random/uniform_real.hpp>
+#include <boost/random/variate_generator.hpp>
+#include <boost/generator_iterator.hpp>
+#include <ctime>
 
 namespace ug {
 	namespace neuro_collection {
@@ -171,30 +177,36 @@ namespace ug {
 		void FindPermissibleRenderVector
 		(
 			const std::vector<vector3>& directions,
-			number minAngle,
-			size_t maxIter,
+			const number minAngle,
+			const size_t maxIter,
 			vector3& v_permissible
 		)
 		{
+			typedef boost::minstd_rand base_generator_type;
+			base_generator_type generator(std::time(NULL));
+			boost::uniform_real<> uni_dist(0,1);
+			boost::variate_generator<base_generator_type&, boost::uniform_real<> > uni(generator, uni_dist);
 			number angleMin = minAngle;
-			vector<vector3>::const_iterator it = directions.begin();
 			bool found = false;
 			size_t iter = 0;
 			while (!found) {
 				bool below = false;
-				vector3 renderVec(rand(), rand(), rand());
-				for (; it != directions.end(); ++it) {
-					number angle = 0;
+				vector3 renderVec(uni(), uni(), uni());
+				for (size_t i = 0; i < directions.size(); i++) {
+					number angle = rad_to_deg(AngleBetweenDirections(renderVec, directions[i]));
+					UG_LOGN("angle: " << angle);
 					if (angle < angleMin) {
 						below = true;
 					}
 				}
+
 				if (below) {
-					renderVec = vector3(rand(), rand(), rand());
+					renderVec = vector3(uni(), uni(), uni());
 					below = false;
 				} else {
-					found = false;
+					found = true;
 					v_permissible = renderVec;
+					UG_LOGN("Found render vec: " << v_permissible);
 				}
 				if (iter > maxIter) {
 					angleMin -= 1.0;
@@ -688,7 +700,7 @@ namespace ug {
 			EraseEmptySubsets(*sh);
 			std::string outFileName = fileName.substr(0, fileName.size()-4) + "_intersections.ugx";
 			SaveGridToFile(*grid, *sh, outFileName.c_str());
-			return numIntersections;
+			return sel.num<Triangle>();
 		}
 	}
 }

@@ -323,13 +323,60 @@ BOOST_FIXTURE_TEST_CASE(RotateVectorAroundAxisOld, FixtureEmptyGrid) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-BOOST_AUTO_TEST_CASE(FindPermissibleRenderVector) {
-	/*
-	std::vector<SWCPoint> vPoints;
+BOOST_AUTO_TEST_CASE(FindPermissibleRenderVectorTest) {
+	GlobalAttachments::declare_attachment<ANumber>("diameter", true);
 	std::string fileName = "test.swc";
-	import_swc(fileName, vPoints);
-	*/
-	/// TODO: Implement
+	// read in file to intermediate structure
+	std::vector<SWCPoint> vPoints;
+	std::vector<SWCPoint> vSomaPoints;
+	import_swc(fileName, vPoints, 1.0);
+
+	// convert intermediate structure to neurite data
+	std::vector<std::vector<vector3> > vPos;
+	std::vector<std::vector<number> > vRad;
+	std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
+	std::vector<size_t> vRootNeuriteIndsOut;
+	convert_pointlist_to_neuritelist_variant(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+
+	std::cout << "Regularize domain..." << std::endl;
+	// create and evalulate splines
+	std::vector<NeuriteProjector::Neurite> vFragments;
+	create_spline_data_for_neurites(vFragments, vPos, vRad, NULL);
+	eval_spline(vFragments, 2, 0, false);
+
+	// read in regularized structure
+	std::cout << "read in geometry" << std::endl;
+	import_swc(std::string("new_strategy.swc"), vPoints, 1.0);
+	convert_pointlist_to_neuritelist_variant(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+
+	std::cout << "Finding permisible render vectors for fragments..." << std::endl;
+	// find render vector for each fragment
+	for (size_t i = 0; i < vPos.size(); i++) {
+		UG_LOG("Finding permissible render vector for fragment #" << i << "... ");
+		std::vector<ug::vector3> directions;
+		for (size_t j = 0; j < vPos[i].size()-1; j++) {
+			ug::vector3 temp;
+			VecSubtract(temp, vPos[i][j+1], vPos[i][j]);
+			directions.push_back(temp);
+		}
+		ug::vector3 renderVec;
+		FindPermissibleRenderVector(directions, 10, 5, renderVec);
+		UG_LOGN("Found render vector for fragment (" << i << ")" << renderVec);
+	}
+
+	std::cout << "Finding permisible render vectors globally..." << std::endl;
+	std::vector<ug::vector3> directions;
+	for (size_t i = 0; i < vPos.size(); i++) {
+		for (size_t j = 0; j < vPos[i].size()-1; j++) {
+			ug::vector3 temp;
+			VecSubtract(temp, vPos[i][j+1], vPos[i][j]);
+			directions.push_back(temp);
+		}
+	}
+
+	ug::vector3 renderVec;
+	FindPermissibleRenderVector(directions, 10, 5, renderVec);
+	UG_LOGN("Found render vector globally: " << renderVec);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

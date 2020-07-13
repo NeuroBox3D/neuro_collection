@@ -181,9 +181,9 @@ namespace ug {
 	}
 
 	////////////////////////////////////////////////////////////////////////
-	/// import_swc_old
+	/// import_swc
 	////////////////////////////////////////////////////////////////////////
-	void import_swc_old
+	void import_swc
 	(
 		const std::string& fileName,
 		std::vector<SWCPoint>& vPointsOut,
@@ -801,6 +801,7 @@ void convert_pointlist_to_neuritelist_variant
     vRadOut.clear();
     vBPInfoOut.clear();
     vRootNeuriteIndsOut.clear();
+    vSomaPoints.clear();
 
 	size_t nPts = vPoints.size();
 	std::vector<bool> ptProcessed(nPts, false);
@@ -909,6 +910,7 @@ void convert_pointlist_to_neuritelist_variant
 				bool pushed = false;
 				for (size_t i = 0; i < nConn; ++i)
 				{
+					UG_LOGN("nConns:" << nConn);
 					if (pt.conns[i] == pind) /// parent fragment already created
 					{
 						continue;
@@ -966,7 +968,8 @@ void convert_pointlist_to_neuritelist_variant
 				{
 					if (pt.conns[i] != pind) {
 						processing_stack.push(std::make_pair(ind, pt.conns[i]));
-						bp_stack.push(std::make_pair(vector3(0, 0, 0), -1)); // dummy value, should never be used and refactored to be avoided completely
+						bp_stack.push(std::make_pair(vector3(0, 0, 0), -1));
+						// dummy value, should never be used and refactored to be avoided completely
 					}
 				}
 			}
@@ -3547,7 +3550,7 @@ void create_spline_data_for_neurites
 
 		///std::string fn_precond = fn_noext + ".swc";
 	    std::string fn_precond_with_soma = fn_noext + "_precond_with_soma.swc";
-		import_swc_old(fn_precond, vPoints, correct, 1.0);
+		import_swc(fn_precond, vPoints, correct, 1.0);
 
 		std::vector<ug::vector3> vSurfacePoints;
 		std::vector<ug::vector3> vPosSomaClosest;
@@ -3609,7 +3612,7 @@ void create_spline_data_for_neurites
 	    ReplaceFirstRootNeuriteVertexInSWC(lines, fn_precond, fn_precond_with_soma, newVerts);
 	    UG_DLOGN(NC_TNP, 0, "Replaced soma points for neurites to SWC file.")
 	    g.clear_geometry();
-	    import_swc_old(fn_precond_with_soma, vPoints, correct, 1.0);
+	    import_swc(fn_precond_with_soma, vPoints, correct, 1.0);
 
 	    /// TODO: Smooth before or after regularize?
     	Grid g3;
@@ -3911,7 +3914,7 @@ void create_spline_data_for_neurites
 
 		// Import preconditioned SWC structure (Now contains only one soma point)
 		std::string fn_precond_with_soma = fn_noext + "_precond_with_soma.swc";
-		import_swc_old(fn_precond, vPoints, correct, 1.0);
+		import_swc(fn_precond, vPoints, correct, 1.0);
 
 		UG_LOGN("Input successful")
 
@@ -4005,7 +4008,7 @@ void create_spline_data_for_neurites
 	    UG_DLOGN(NC_TNP, 0, "Replaced soma points for root neurites to SWC file.")
 
 	    // Re-read the now corrected SWC file with soma
-	    import_swc_old(fn_precond_with_soma, vPoints, correct, 1.0);
+	    import_swc(fn_precond_with_soma, vPoints, correct, 1.0);
 
 	    UG_LOGN("Reimported SWC")
 
@@ -4590,7 +4593,8 @@ void create_spline_data_for_neurites
 
 				ug::RegularVertex* vertex = *g.create<RegularVertex>();
 				/// very first soma vertex of first branch is soma
-				if (!somaVertex) { somaVertex = vertex; radius *= 3; } // TODO: Remove this. Soma needs to fit automatically...
+				// TODO: Remove this. Soma needs to fit automatically...
+				if (!somaVertex) { somaVertex = vertex; radius *= 3; }
 				aaPos[vertex] = curPos;
 				aaDiam[vertex] = radius*2.0;
 				vertices.push_back(vertex);
