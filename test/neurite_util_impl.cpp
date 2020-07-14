@@ -2417,7 +2417,7 @@ namespace ug {
 			ug::vector3 center = CalculateCenter(quad, aaPos);
 			aaPos[top] = center;
 			/// TODO: height should depend on the base edge length => best aspect ratio (1.0)
-			VecScaleAdd(aaPos[top], 1.0, aaPos[top], scale*0.25*0.1, vNormOut);
+			VecScaleAdd(aaPos[top], 1.0, aaPos[top], -scale*0.25*0.1, vNormOut);
 			if (aaSurfParams) {
 				(*aaSurfParams)[top].axial = -scale/VecLength(vNormOut);
 			}

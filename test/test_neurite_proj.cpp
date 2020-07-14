@@ -4338,10 +4338,11 @@ void create_spline_data_for_neurites
 				if (!ugxWriter.write_to_file(outFileName.c_str()))
 					UG_THROW("Grid could not be written to file '" << outFileName << "'.");
 
-				if (numRefs == 0)
-					return;
+			//	if (numRefs == 0)
+			//		return;
 
 
+				/*
 
 
 				// if no refinement then only one level in grid
@@ -4369,6 +4370,8 @@ void create_spline_data_for_neurites
 					// UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
 					SaveGridLevelToFile(*dom.grid(), *dom.subset_handler(), i+1, curFileName.c_str());
 				}
+
+				*/
 
 
 

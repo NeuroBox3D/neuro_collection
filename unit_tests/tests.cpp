@@ -349,7 +349,7 @@ BOOST_AUTO_TEST_CASE(FindPermissibleRenderVectorTest) {
 	import_swc(std::string("new_strategy.swc"), vPoints, 1.0);
 	convert_pointlist_to_neuritelist_variant(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 
-	std::cout << "Finding permisible render vectors for fragments..." << std::endl;
+	std::cout << "Finding permisible render vectors for (root) fragments..." << std::endl;
 	// find render vector for each fragment
 	for (size_t i = 0; i < vPos.size(); i++) {
 		UG_LOG("Finding permissible render vector for fragment #" << i << "... ");
