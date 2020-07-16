@@ -2409,15 +2409,24 @@ namespace ug {
 			const Quadrilateral* const quad,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			const number scale,
-			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >* aaSurfParams
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >* aaSurfParams,
+			const SWCPoint* somaPoint
 		) {
 			Vertex* top = *grid.create<RegularVertex>();
 			ug::vector3 vNormOut;
 			CalculateNormal(vNormOut, quad, aaPos);
 			ug::vector3 center = CalculateCenter(quad, aaPos);
 			aaPos[top] = center;
-			/// TODO: height should depend on the base edge length => best aspect ratio (1.0)
-			VecScaleAdd(aaPos[top], 1.0, aaPos[top], -scale*0.25*0.1, vNormOut);
+			number scaleFactor = scale*0.25*0.1;
+			if (somaPoint) {
+				scaleFactor = (1.0-scale)*somaPoint->radius * 0.25;
+			}
+			VecNormalize(vNormOut, vNormOut);
+			/// TODO: height should depend on the base edge length of quadrilateral
+			/// => best aspect ratio (1.0) then need to check if height not larger
+			/// than the soma's diameter between ER and PM (1-scale)*radius;
+			//VecScaleAdd(aaPos[top], 1.0, aaPos[top], -scale*0.25*0.1, vNormOut);
+			VecScaleAdd(aaPos[top], 1.0, aaPos[top], scaleFactor, vNormOut);
 			if (aaSurfParams) {
 				(*aaSurfParams)[top].axial = -scale/VecLength(vNormOut);
 			}
@@ -2481,7 +2490,7 @@ namespace ug {
 			// Create pyramids at connectiong region of soma and dendrite
 			for (size_t i = 0; i < quadCont2.size(); i++) {
 				sh.assign_subset(quadCont2[i], somaIndex);
-				create_pyramid(grid, quadCont2[i], aaPos, scale, &aaSurfParams);
+				create_pyramid(grid, quadCont2[i], aaPos, scale, &aaSurfParams, &somaPoint.front());
 			}
 			//grid.enable_options(EO_CREATE_VOLUMES);
 
@@ -2611,6 +2620,12 @@ namespace ug {
 				Grid::traits<Edge>::secure_container edges;
 				grid.associated_elements(edges, quadCont[i]);
 				vector<Vertex*> vertices;
+
+				/// TODO: need to get orientation of normal -> calculate vector between soma center and quad -> take sign, this is the direction of the vector we ned to extrude in
+				VecNormalize(vNormOut, vNormOut);
+				number scaleFactor = somaPoint.radius * (1-scale);
+				scaleFactor = scaleFactor * 0.5;
+				VecScale(vNormOut, vNormOut, scaleFactor);
 
 				for (size_t j = 0; j < quadCont[i]->size(); j++) vertices.push_back(quadCont[i]->vertex(j));
 				for (size_t j = 0; j < edges.size(); j++) vEdges.push_back(edges[j]);

@@ -324,6 +324,7 @@ BOOST_FIXTURE_TEST_CASE(RotateVectorAroundAxisOld, FixtureEmptyGrid) {
 
 ////////////////////////////////////////////////////////////////////////////////
 BOOST_AUTO_TEST_CASE(FindPermissibleRenderVectorTest) {
+	/// TODO: use this method to find permissible render vector and add to the general method
 	GlobalAttachments::declare_attachment<ANumber>("diameter", true);
 	std::string fileName = "test.swc";
 	// read in file to intermediate structure
@@ -336,18 +337,13 @@ BOOST_AUTO_TEST_CASE(FindPermissibleRenderVectorTest) {
 	std::vector<std::vector<number> > vRad;
 	std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
 	std::vector<size_t> vRootNeuriteIndsOut;
-	convert_pointlist_to_neuritelist_variant(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+	convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 
-	std::cout << "Regularize domain..." << std::endl;
-	// create and evalulate splines
-	std::vector<NeuriteProjector::Neurite> vFragments;
-	create_spline_data_for_neurites(vFragments, vPos, vRad, NULL);
-	eval_spline(vFragments, 2, 0, false);
-
-	// read in regularized structure
-	std::cout << "read in geometry" << std::endl;
-	import_swc(std::string("new_strategy.swc"), vPoints, 1.0);
-	convert_pointlist_to_neuritelist_variant(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+	// push soma point in front of each root neurite
+	UG_LOGN("vPos.size(): " << vPos.size());
+    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
+		vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
+	}
 
 	std::cout << "Finding permisible render vectors for (root) fragments..." << std::endl;
 	// find render vector for each fragment
@@ -364,7 +360,7 @@ BOOST_AUTO_TEST_CASE(FindPermissibleRenderVectorTest) {
 		UG_LOGN("Found render vector for fragment (" << i << ")" << renderVec);
 	}
 
-	std::cout << "Finding permisible render vectors globally..." << std::endl;
+	std::cout << "Finding permissible render vectors globally..." << std::endl;
 	std::vector<ug::vector3> directions;
 	for (size_t i = 0; i < vPos.size(); i++) {
 		for (size_t j = 0; j < vPos[i].size()-1; j++) {

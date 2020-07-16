@@ -772,6 +772,7 @@ namespace ug {
 		 * \param[in,out] aaPos
 		 * \param[in] scale
 		 * \param[in,out] aaSurfParams
+		 * \param[in] somaPoint
 		 * \return \c pointer to new pyramid
 		 */
 		Pyramid* create_pyramid
@@ -780,7 +781,8 @@ namespace ug {
 			const Quadrilateral* const quad,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			number scale = 1.0,
-			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >* aaSurfParams = NULL
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >* aaSurfParams = NULL,
+			const SWCPoint* somaPoint = NULL
 		);
 
 		/*!

@@ -121,6 +121,7 @@ void collapse_short_edges
 void convert_pointlist_to_neuritelist
 (
     const std::vector<SWCPoint>& vPoints,
+    std::vector<SWCPoint>& vSomaPoints,
     std::vector<std::vector<vector3> >& vPosOut,
     std::vector<std::vector<number> >& vRadOut,
     std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > >& vBPInfoOut,
@@ -678,6 +679,20 @@ number calculate_minimum_seg_length_between_fragments
 (
 	const std::vector<std::vector<vector3> >& vFragments
 );
+
+/*!
+ * \brief finds and sets the permissible render vector for neurites
+ * \param[in] fileName input 1d structure
+ * \param[out] vNeurites neurites
+ *
+ */
+void set_permissible_render_vector
+(
+	const std::vector<std::vector<ug::vector3> >& vPos,
+	std::vector<NeuriteProjector::Neurite>& vNeurites
+);
+
+
 
 } // namespace neuro_collection
 } // namespace ug

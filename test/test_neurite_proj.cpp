@@ -4795,6 +4795,28 @@ void create_spline_data_for_neurites
 	}
 
 	////////////////////////////////////////////////////////////////////////////
+	/// set_permissible_render_vector
+	////////////////////////////////////////////////////////////////////////////
+	void set_permissible_render_vector
+	(
+		const std::vector<std::vector<ug::vector3> >& vPos,
+		std::vector<NeuriteProjector::Neurite>& vNeurites
+	) {
+		// find render vector for each fragment
+		for (size_t i = 0; i < vPos.size(); i++) {
+			std::vector<ug::vector3> directions;
+			for (size_t j = 0; j < vPos[i].size()-1; j++) {
+				ug::vector3 temp;
+				VecSubtract(temp, vPos[i][j+1], vPos[i][j]);
+				directions.push_back(temp);
+			}
+			ug::vector3 renderVec;
+			FindPermissibleRenderVector(directions, 10, 5, renderVec);
+			vNeurites[i].refDir = renderVec;
+		}
+	}
+
+	////////////////////////////////////////////////////////////////////////////
 	/// test_import_swc_general_var_for_vr_var
 	////////////////////////////////////////////////////////////////////////////
 	void test_import_swc_general_var_for_vr_var(
@@ -5024,6 +5046,9 @@ void create_spline_data_for_neurites
 		// Create spline data for neurites
 		vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
 		create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
+
+		// adjust render vectors
+		// set_permissible_render_vector(vPos, vNeurites);
 
 		/// mapping
 	    typedef NeuriteProjector::Mapping NPMapping;
