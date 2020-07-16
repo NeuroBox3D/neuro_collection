@@ -324,7 +324,6 @@ BOOST_FIXTURE_TEST_CASE(RotateVectorAroundAxisOld, FixtureEmptyGrid) {
 
 ////////////////////////////////////////////////////////////////////////////////
 BOOST_AUTO_TEST_CASE(FindPermissibleRenderVectorTest) {
-	/// TODO: use this method to find permissible render vector and add to the general method
 	GlobalAttachments::declare_attachment<ANumber>("diameter", true);
 	std::string fileName = "test.swc";
 	// read in file to intermediate structure

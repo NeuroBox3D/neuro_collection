@@ -5048,6 +5048,8 @@ void create_spline_data_for_neurites
 		create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
 
 		// adjust render vectors
+		// TODO: Add as an option
+		// UG_LOGN("Find and set render vector")
 		// set_permissible_render_vector(vPos, vNeurites);
 
 		/// mapping
