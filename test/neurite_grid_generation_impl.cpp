@@ -121,11 +121,12 @@ namespace ug {
 	UG_LOGN("fac: " << fac << " for neurite with ID: " << nid);
 	UG_LOGN("fac neurite.refDir: " << neurite.refDir);
 
+	/// TODO: Add warning when fac is small neurite.refDir * vel is close too zero: Check this is correct
+	///       Then add as as separate method, because it will be necessary to use also in refinements!
 	/// This corresponds to a deviation of 18° from the neurite direction
 	UG_COND_WARNING(fabs(1.0-fabs(fac)) < 0.05, "Neurite render vector coincides with "
 	"tangential vector... Expect twisted segments. Offending neurite location: " << vPos[nid][0]);
 
-	/// TODO: Add warning when fac is small neurite.refDir * vel is close too zero, need to find better render vector...
 	VecScaleAdd(projRefDir, 1.0, neurite.refDir, -fac, vel);
 	VecNormalize(projRefDir, projRefDir);
 
@@ -3428,3 +3429,4 @@ number calculate_length_over_radius_variant
 		}
 	} // end namespace neuro_collection
 } // end namespace ug
+

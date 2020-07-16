@@ -172,7 +172,6 @@ namespace ug {
 
 		////////////////////////////////////////////////////////////////////////
 		/// FindPermissibleRenderVector
-		/// TODO: Test in grid generation method test_import_swc_general_var
 		////////////////////////////////////////////////////////////////////////
 		void FindPermissibleRenderVector
 		(
@@ -184,7 +183,7 @@ namespace ug {
 		{
 			typedef boost::minstd_rand base_generator_type;
 			base_generator_type generator(std::time(NULL));
-			boost::uniform_real<> uni_dist(0,1);
+			boost::uniform_real<> uni_dist(0, 1);
 			boost::variate_generator<base_generator_type&, boost::uniform_real<> > uni(generator, uni_dist);
 			number angleMin = minAngle;
 			bool found = false;
@@ -194,7 +193,7 @@ namespace ug {
 				vector3 renderVec(uni(), uni(), uni());
 				for (size_t i = 0; i < directions.size(); i++) {
 					number angle = rad_to_deg(AngleBetweenDirections(renderVec, directions[i]));
-					UG_LOGN("angle: " << angle);
+					UG_DLOGN(NC_TNP, 0, "angle: " << angle);
 					if (angle < angleMin) {
 						below = true;
 					}
@@ -206,7 +205,7 @@ namespace ug {
 				} else {
 					found = true;
 					v_permissible = renderVec;
-					UG_LOGN("Found render vec: " << v_permissible);
+					UG_DLOGN(NC_TNP, 0, "Found render vec: " << v_permissible);
 				}
 				if (iter > maxIter) {
 					angleMin -= 1.0;
