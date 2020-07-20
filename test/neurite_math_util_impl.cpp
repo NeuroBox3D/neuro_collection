@@ -56,6 +56,9 @@
 #include <boost/generator_iterator.hpp>
 #include <ctime>
 
+/// debug id
+ug::DebugID NC_NMU("NC_DID.NMU");
+
 namespace ug {
 	namespace neuro_collection {
 		using namespace std;
@@ -193,7 +196,7 @@ namespace ug {
 				vector3 renderVec(uni(), uni(), uni());
 				for (size_t i = 0; i < directions.size(); i++) {
 					number angle = rad_to_deg(AngleBetweenDirections(renderVec, directions[i]));
-					UG_DLOGN(NC_TNP, 0, "angle: " << angle);
+					UG_DLOGN(NC_NMU, 0, "angle: " << angle);
 					if (angle < angleMin) {
 						below = true;
 					}
@@ -205,7 +208,7 @@ namespace ug {
 				} else {
 					found = true;
 					v_permissible = renderVec;
-					UG_DLOGN(NC_TNP, 0, "Found render vec: " << v_permissible);
+					UG_DLOGN(NC_NMU, 0, "Found render vec: " << v_permissible);
 				}
 				if (iter > maxIter) {
 					angleMin -= 1.0;
