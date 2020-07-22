@@ -55,6 +55,7 @@
 #include "lib_grid/file_io/file_io_ugx.h"  // GridWriterUGX
 #include "lib_grid/file_io/file_io.h"  // SaveGridHierarchyTransformed
 #include "lib_grid/grid/geometry.h" // MakeGeometry3d
+#include "lib_grid/algorithms/grid_generation/triangle_fill.h"
 #include "lib_grid/refinement/global_multi_grid_refiner.h" // GlobalMultigridRefiner
 #include "lib_grid/global_attachments.h" // GlobalAttachments
 #include "lib_grid/algorithms/extrusion/extrusion.h" // Extrude
@@ -4958,13 +4959,16 @@ void create_spline_data_for_neurites
 		vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
 		create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
 
+		MeasuringSubsetCollection subsets;
 		// create the actual geometry
 		std::vector<SWCPoint> newPoints;
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh,
-		   			blowUpFactor, NULL, NULL, NULL, NULL, &newPoints, NULL, -1, option, segLength);
+		   			blowUpFactor, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1, option, segLength);
 		}
+
+
 
 
 		/// Debug output
@@ -4986,7 +4990,9 @@ void create_spline_data_for_neurites
 			ug::vector3 normal;
 			CalculateVertexNormal(normal, g, *vit, aaPos);
 			aaNorm[*vit] = normal;
-			/// TODO: BP projection needs to be done, but may fail in some cases.
+			/// TODO: BP projection needs to be done, but may fail in some cases..
+			/// Should we convert the throws to a warning or error message?! This
+			/// way we could also count the occurances of the failed BP projection!
 			/// neuriteProj->project(*vit);
 		}
 
@@ -4998,12 +5004,39 @@ void create_spline_data_for_neurites
 		EraseSelectedObjects(sel);
 		EraseEmptySubsets(sh);
 
+		// close ends of dendrites (we erase before the ER part, so we have to close the dendrites)
+		// Note: This can be improved if time allows...
+		std::vector<number>::iterator iter = subsets.ts.begin();
+		while ((iter = std::find(iter, subsets.ts.end(), 1.0)) != subsets.ts.end())
+		{
+			sel.clear();
+			int index = std::distance(subsets.ts.begin(), iter);
+			for (size_t i = 0; i < subsets.edges[index].size(); i++) {
+				sel.select(subsets.edges[index][i]);
+				sel.select(subsets.vertices[index][i]);
+			}
+			TriangleFill(g, sel.edges_begin(), sel.edges_end());
+			for (size_t i = 0; i < subsets.edges[index].size(); i++) {
+				sel.select(subsets.edges[index][i]);
+				sel.select(subsets.vertices[index][i]);
+			}
+
+			// all vertices on the end of the neurite are mapped to the 1d corresponding SWC point
+			// ... and also the newly created center vertex returned by TriangleFill thus ...
+			aaMapping[*sel.vertices_begin()].v1 = aaMapping[subsets.vertices[index][0]].v1;
+			aaMapping[*sel.vertices_begin()].v2 = aaMapping[subsets.vertices[index][0]].v2;
+			aaMapping[*sel.vertices_begin()].lambda = aaMapping[subsets.vertices[index][0]].lambda;
+		    iter++;
+		}
+
 		// soma
 		create_soma(vSomaPoints, g, aaPos, sh, 1);
 		sh.subset_info(0).name = "Neurites";
 		sh.subset_info(1).name = "Soma";
 		AssignSubsetColors(sh);
 		set_somata_mapping_parameters(g, sh, aaMapping, 1, 1, vSomaPoints.front());
+
+
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements.ugx");
 		Triangulate(g, g.begin<ug::Quadrilateral>(), g.end<ug::Quadrilateral>());
 		/// apply a hint of laplacian smoothin for soma region
@@ -5013,6 +5046,8 @@ void create_spline_data_for_neurites
 		/// Use to warn if triangles intersect and correct triangle intersections
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
 		ResolveTriangleIntersections(g, g.begin<Triangle>(), g.end<Triangle>(), 0.1, aPosition);
+
+
 	}
 
 

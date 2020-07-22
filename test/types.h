@@ -120,6 +120,7 @@ namespace ug {
 			std::vector<std::vector<Vertex*> > vertices;
 			std::vector<std::vector<Edge*> > edges;
 			std::vector<std::vector<Face*> > faces;
+			std::vector<number> ts;
 		};
 	}
 }

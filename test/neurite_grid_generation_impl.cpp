@@ -307,6 +307,7 @@ namespace ug {
 			subsets->vertices.push_back(vVrt);
 			subsets->edges.push_back(vEdge);
 			subsets->faces.push_back(vFace);
+			subsets->ts.push_back(t_start);
 		}
 	}
 
@@ -1429,6 +1430,7 @@ namespace ug {
 					subsets->vertices.push_back(vVrt);
 					subsets->edges.push_back(vEdge);
 					subsets->faces.push_back(vFace);
+					subsets->ts.push_back(t_end);
 				}
 				break;
 			}

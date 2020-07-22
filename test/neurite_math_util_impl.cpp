@@ -214,6 +214,7 @@ namespace ug {
 					iter = 1;
 				}
 
+				/// TODO: conditional in this throw is a tautology?
 				UG_COND_THROW((std::abs(angleMin) <= SMALL * std::abs(angleMin)),
 						"No permissible render vector found for minimal angle");
 			}
