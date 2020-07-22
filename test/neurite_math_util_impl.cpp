@@ -56,6 +56,8 @@
 #include <boost/generator_iterator.hpp>
 #include <ctime>
 
+extern ug::DebugID NC_TNP;
+
 namespace ug {
 	namespace neuro_collection {
 		using namespace std;

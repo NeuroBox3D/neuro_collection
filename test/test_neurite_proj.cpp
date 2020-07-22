@@ -1,4 +1,5 @@
 /*
+ *
  * Copyright (c) 2009-2019: G-CSC, Goethe University Frankfurt
  *
  * Author: Markus Breit
@@ -3800,6 +3801,10 @@ void create_spline_data_for_neurites
 		/// assign correct axial parameters for "somata"
 		set_somata_axial_parameters(g, sh, aaSurfParams, 4, 5);
 
+
+
+		//LaplacianSmooth(g, sh.begin<Vertex>(4), sh.end<Vertex>(4), aaPos, 0.25, 1);
+		///RetriangulateConnectingRegions(sh, g, aaPos, 4, 20);
 	    /// tetrahedralizes somata with specified and fixed indices 4 and 5
 	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 5, savedSomaPoint);
 
@@ -3988,27 +3993,44 @@ void create_spline_data_for_neurites
 	    ///       Also. Does the number of refinements of the soma might depend on
 	    ///       the radius of the soma itself? Will this improve grid generation?
 		///       somaPoint[0].radius *= 1.05
-	    somaPoint[0].radius *= 1.05;
+	    somaPoint[0].radius *= 1.00;
 		UG_DLOGN(NC_TNP, 0, "Creating (outer sphere) soma in subset 1");
 	    create_soma(somaPoint, g, aaPos, sh, 1);
 	    UG_LOGN("Created soma")
 
 	    // Get closest _vertices_ on soma surface for each connecting neurite
 		vector<Vertex*> vPointSomaSurface2;
-		get_closest_vertices_on_soma(vPosSomaClosest, vPointSomaSurface2, g, aaPos, sh, 1);
+		//get_closest_vertices_on_soma(vPosSomaClosest, vPointSomaSurface2, g, aaPos, sh, 1);
+		get_closest_vertices_on_soma_var(vPos, vPointSomaSurface2, g, aaPos, sh, 1, vRootNeuriteIndsOut);
+
+		// Get normals of closest vertices on soma surface
+	    std::vector<ug::vector3> normals;
+	    for (size_t i = 0; i < vPointSomaSurface2.size(); i++) {
+	    	ug::vector3 normal;
+	    	CalculateVertexNormal(normal, g, vPointSomaSurface2[i], aaPos);
+	    	VecNormalize(normal, normal);
+	    	normals.push_back(normal);
+	    	UG_LOGN("Center: " << aaPos[vPointSomaSurface2[i]]);
+	    }
+
 	    UG_DLOGN(NC_TNP, 0, "Found " << "# " << vPointSomaSurface2.size()
 	    		<< " closest vertices on (outer sphere) soma in subset 1");
 
+	    UG_LOGN("Found closest vertices: " << vPointSomaSurface2.size());
 	    // Replace first vertex of each root neurite (starting at soma) with the closest soma surface vertex
-	    std::vector<ug::vector3> centers = FindSomaSurfaceCenters(g, aaPos, vPointSomaSurface2, vRad, 1, sh, 1.0, vPos.size());
-	    UG_DLOGN(NC_TNP, 0, "Found soma surface centers...");
-	    ReplaceFirstRootNeuriteVertexInSWC(lines, fn_precond, fn_precond_with_soma, centers);
+	    //std::vector<ug::vector3> centers = FindSomaSurfaceCenters(g, aaPos, vPointSomaSurface2, vRad, 1, sh, 1.0, vRootNeuriteIndsOut.size());
+	    /*for (size_t i = 0; i  < centers.size(); i++) {
+	    	UG_LOGN("Centers: " << centers[i]);
+	    }*/
 
-	    g.clear_geometry();
+	    UG_DLOGN(NC_TNP, 0, "Found soma surface centers...");
+	   // ReplaceFirstRootNeuriteVertexInSWC(lines, fn_precond, fn_precond_with_soma, centers);
+
+	    //g.clear_geometry();
 	    UG_DLOGN(NC_TNP, 0, "Replaced soma points for root neurites to SWC file.")
 
 	    // Re-read the now corrected SWC file with soma
-	    import_swc(fn_precond_with_soma, vPoints, correct, 1.0);
+	    //import_swc(fn_precond_with_soma, vPoints, correct, 1.0);
 
 	    UG_LOGN("Reimported SWC")
 
@@ -4040,7 +4062,20 @@ void create_spline_data_for_neurites
     	export_to_ugx(g2, sh2, "after_regularize.ugx");
     	/// TODO Smooth again? Or smooth much before in the beginning? Probably smooth before fixing branches
 		/// constrained_smoothing(vPoints, vRootNeuriteIndsOut.size(), 0.1, 0.1, 10, 0.1);
-	    convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+	    ///convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+
+	    /// Add normal to first point and replace second point with it
+	    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
+	    	UG_LOGN("Setting i-th position... " << i)
+	    	/// Replace first point with closest soma surface point (vertex)
+	    	vPos[vRootNeuriteIndsOut[i]][0] = aaPos[vPointSomaSurface2[i]];
+	    	VecAdd(vPos[vRootNeuriteIndsOut[i]][1], vPos[vRootNeuriteIndsOut[i]][0], normals[i]);
+	    	UG_LOGN("normal centers: " << vPos[vRootNeuriteIndsOut[i]][1]);
+	    	UG_LOGN("vPos[i][0]: " << vPos[vRootNeuriteIndsOut[i]][0]);
+	    	UG_LOGN("normals[i]: " << normals[i]);
+	    }
+
+	    g.clear_geometry();
 
 	    UG_LOGN("Converted again")
 
@@ -4240,7 +4275,7 @@ void create_spline_data_for_neurites
 			connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, false, 0, false);
 		} else {
 			if (connect) {
-				connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, false, 0, true); /// soma ER subset stored as last subset index
+				connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, false, 0, false); /// soma ER subset stored as last subset index
 			}
 		}
 		SavePreparedGridToFile(g, sh, "after_connect_pm_with_soma.ugx");
@@ -4265,7 +4300,7 @@ void create_spline_data_for_neurites
 			UG_LOGN("newSomaIndex (er with er): " << newSomaIndex);
 			UG_LOGN(newSomaIndex+2*numQuads-1);
 			UG_LOGN(2*numQuads-1);
-	    	///connect_er_with_er(newSomaIndex+2*numQuads-1, g, aaPos, sh, outVertsInnerClean, 2*numQuads-1, false, false);
+	    	//connect_er_with_er(newSomaIndex+2*numQuads-1, g, aaPos, sh, outVertsInnerClean, 2*numQuads-1, false, false);
 	    	connect_er_with_er(newSomaIndex, g, aaPos, sh, outVertsInnerClean, numQuads+1, false, false);
 	    	SavePreparedGridToFile(g, sh, "after_connect_er_with_er.ugx");
 	    }
@@ -5049,8 +5084,8 @@ void create_spline_data_for_neurites
 
 		// adjust render vectors
 		// TODO: Add as an option
-		// UG_LOGN("Find and set render vector")
-		// set_permissible_render_vector(vPos, vNeurites);
+		UG_LOGN("Find and set render vector")
+		set_permissible_render_vector(vPos, vNeurites);
 
 		/// mapping
 	    typedef NeuriteProjector::Mapping NPMapping;

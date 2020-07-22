@@ -2246,19 +2246,57 @@ namespace ug {
 	    	lines = lineCnt;
 		}
 
+		void get_closest_vertices_on_soma_var
+		(
+			const std::vector<std::vector<ug::vector3> >& vPos,
+			std::vector<ug::Vertex*>& vPointsSomaSurface,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			SubsetHandler& sh,
+			size_t si,
+			const std::vector<size_t> indices
+		)
+		{
+			for (size_t i = 0; i < indices.size(); i++) {
+				UG_LOGN("i-th root neurite: " << i);
+				ug::vector3 centerOut = vPos[indices[i]][0];
+				Selector sel(g);
+				SelectSubsetElements<Vertex>(sel, sh, si, true);
+				UG_DLOGN(NC_TNP, 0, "selected vertices: " << sel.num<Vertex>());
+				Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
+				Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
+				number best = -1;
+				ug::Vertex* best_vertex = NULL;
+				for (; vit != vit_end; ++vit) {
+					number dist = VecDistance(aaPos[*vit], centerOut);
+					if (best == -1) {
+						best = dist;
+						best_vertex = *vit;
+					} else if (dist < best) {
+						best = dist;
+						best_vertex = *vit;
+					}
+				}
+				UG_COND_THROW(!best_vertex, "No best vertex found for root neurite >>" << i << "<<.");
+				vPointsSomaSurface.push_back(best_vertex);
+			}
+		}
+
 		////////////////////////////////////////////////////////////////////////
 		/// get_closet_vertices_on_soma
 		////////////////////////////////////////////////////////////////////////
 		void get_closest_vertices_on_soma
 		(
 			const std::vector<ug::vector3>& vPos,
-			std::vector<ug::Vertex*>& vPointsSomaSurface, Grid& g,
+			std::vector<ug::Vertex*>& vPointsSomaSurface,
+			Grid& g,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			SubsetHandler& sh,
 			size_t si
 		) {
 			UG_DLOGN(NC_TNP, 0, "Finding now: " << vPos.size());
 			for (size_t i = 0; i < vPos.size(); i++) {
+				UG_LOGN("i-th root neurite: " << i);
 				const ug::vector3* pointSet = &vPos[i];
 				ug::vector3 centerOut;
 				CalculateCenter(centerOut, pointSet, 1);
@@ -2426,7 +2464,7 @@ namespace ug {
 			/// => best aspect ratio (1.0) then need to check if height not larger
 			/// than the soma's diameter between ER and PM (1-scale)*radius;
 			//VecScaleAdd(aaPos[top], 1.0, aaPos[top], -scale*0.25*0.1, vNormOut);
-			VecScaleAdd(aaPos[top], 1.0, aaPos[top], scaleFactor, vNormOut);
+			VecScaleAdd(aaPos[top], 1.0, aaPos[top], scaleFactor*0.5, vNormOut);
 			if (aaSurfParams) {
 				(*aaSurfParams)[top].axial = -scale/VecLength(vNormOut);
 			}

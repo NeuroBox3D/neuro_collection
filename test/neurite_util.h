@@ -653,6 +653,7 @@ namespace ug {
 		 * \param[in, out] aaPos
 		 * \param[in] sh
 		 * \param[in] si
+		 * \param[in] root neurite indices
 		 */
 		void get_closest_vertices_on_soma
 		(
@@ -662,6 +663,17 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			SubsetHandler& sh,
 			size_t si
+		);
+
+		void get_closest_vertices_on_soma_var
+		(
+			const std::vector<std::vector<ug::vector3> >& vPos,
+			std::vector<ug::Vertex*>& vPointsSomaSurface,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			SubsetHandler& sh,
+			size_t si,
+			const std::vector<size_t> indices
 		);
 
 		/*!
