@@ -190,16 +190,20 @@ namespace ug {
 			number angleMin = minAngle;
 			bool found = false;
 			size_t iter = 0;
+			size_t upperLimit = 0;
 			while (!found) {
 				bool below = false;
+				/// TODO: Print out found angle too to debug
 				vector3 renderVec(uni(), uni(), uni());
 				for (size_t i = 0; i < directions.size(); i++) {
 					number angle = rad_to_deg(AngleBetweenDirections(renderVec, directions[i]));
 					UG_DLOGN(NC_TNP, 0, "angle: " << angle);
-					if (angle < angleMin) {
+					if (angle < angleMin) { /// TODO: Angle must be bounded also from above
 						below = true;
 					}
 				}
+
+				iter++;
 
 				if (below) {
 					renderVec = vector3(uni(), uni(), uni());
@@ -208,16 +212,20 @@ namespace ug {
 					found = true;
 					v_permissible = renderVec;
 					UG_DLOGN(NC_TNP, 0, "Found render vec: " << v_permissible);
+					UG_LOGN("Found render vector")
 				}
 				if (iter > maxIter) {
 					angleMin -= 1.0;
-					iter = 1;
+					iter = 0;
+					upperLimit++;
 				}
-
-				/// TODO: conditional in this throw is a tautology?
-				UG_COND_THROW((std::abs(angleMin) <= SMALL * std::abs(angleMin)),
-						"No permissible render vector found for minimal angle");
+				if (upperLimit == maxIter) {
+					break;
+				}
 			}
+
+			if (!found) UG_THROW("No permissible render vector could be found with "
+					"parameters (minAngle/maxIter): " << minAngle << ", " << maxIter);
 		}
 
 		////////////////////////////////////////////////////////////////////////

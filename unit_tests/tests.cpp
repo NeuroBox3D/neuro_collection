@@ -418,6 +418,11 @@ BOOST_FIXTURE_TEST_CASE(RotateVectorAroundAxisTest, FixtureEmptyGrid) {
 
 ////////////////////////////////////////////////////////////////////////////////
 BOOST_AUTO_TEST_CASE(FindAngleBetweenDirections) {
+	ug::vector3 p1(1, 0, 0);
+	ug::vector3 p2(0, 1, 0);
+	number angle = rad_to_deg(AngleBetweenDirections(p1, p2));
+	UG_LOGN("Angle: " << angle)
+	BOOST_REQUIRE_MESSAGE(angle == 90.0, "Vectors are orthogonal, but reported is non-orthogonal!");
 	/// TODO: Implement
 }
 

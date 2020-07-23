@@ -4839,6 +4839,7 @@ void create_spline_data_for_neurites
 		std::vector<NeuriteProjector::Neurite>& vNeurites
 	) {
 		// find render vector for each fragment
+		UG_LOGN("We have " << vPos.size() << " fragments which need a permissible render vector");
 		for (size_t i = 0; i < vPos.size(); i++) {
 			std::vector<ug::vector3> directions;
 			for (size_t j = 0; j < vPos[i].size()-1; j++) {
@@ -5004,6 +5005,7 @@ void create_spline_data_for_neurites
 		EraseSelectedObjects(sel);
 		EraseEmptySubsets(sh);
 
+		/*
 		// close ends of dendrites (we erase before the ER part, so we have to close the dendrites)
 		// Note: This can be improved if time allows...
 		std::vector<number>::iterator iter = subsets.ts.begin();
@@ -5028,6 +5030,7 @@ void create_spline_data_for_neurites
 			aaMapping[*sel.vertices_begin()].lambda = aaMapping[subsets.vertices[index][0]].lambda;
 		    iter++;
 		}
+		*/
 
 		// soma
 		create_soma(vSomaPoints, g, aaPos, sh, 1);
