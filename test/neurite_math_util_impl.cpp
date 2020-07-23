@@ -193,12 +193,11 @@ namespace ug {
 			size_t upperLimit = 0;
 			while (!found) {
 				bool below = false;
-				/// TODO: Print out found angle too to debug
 				vector3 renderVec(uni(), uni(), uni());
 				for (size_t i = 0; i < directions.size(); i++) {
 					number angle = rad_to_deg(AngleBetweenDirections(renderVec, directions[i]));
 					UG_DLOGN(NC_TNP, 0, "angle: " << angle);
-					if (angle < angleMin) { /// TODO: Angle must be bounded also from above
+					if ( (angle < angleMin) && (angle > (180-angleMin))) {
 						below = true;
 					}
 				}
@@ -224,7 +223,7 @@ namespace ug {
 				}
 			}
 
-			if (!found) UG_THROW("No permissible render vector could be found with "
+			UG_COND_THROW(!found, "No permissible render vector could be found with "
 					"parameters (minAngle/maxIter): " << minAngle << ", " << maxIter);
 		}
 
