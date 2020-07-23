@@ -3236,16 +3236,33 @@ namespace ug {
 				ug::vector3 normal;
 				CalculateVertexNormal(normal, g, bestVertices[i], aaPos);
 				number radius = outRads[i] * blowUpFactor;
-				AdaptSurfaceGridToCylinder(sel, g, bestVertices[i], normal, radius,
+				AdaptSurfaceGridToCylinder(sel, g, bestVertices[i], normal, radius*1.5, // slightly larger on soma surface
 						1.0*rimSnapThresholdFactor, aPosition);
 				Selector sel2(g);
 				CloseSelection(sel);
 				SelectAreaBoundary(sel2, sel.begin<Face>(), sel.end<Face>());
-				UG_LOGN("Selected area boundary faces: " << sel2.num());
 				CloseSelection(sel2);
+				for (ConstEdgeIterator eit = sel2.begin<Edge>(); eit != sel2.end<Edge>(); ++eit) {
+					sel.deselect(*eit);
+				}
+
+				for (ConstVertexIterator vit = sel2.begin<Vertex>(); vit != sel2.end<Vertex>(); ++vit) {
+					sel.deselect(*vit);
+				}
+
+				CloseSelection(sel2);
+				EraseSelectedObjects(sel);
+				//AssignSelectionToSubset(sel, sh, sh.num_subsets()+1);
+				UG_LOGN("Selected area boundary edges: " << sel2.num<Edge>());
+				UG_LOGN("Selected area boundary vertices: " << sel2.num<Vertex>());
+				UG_LOGN("Selected interior faces: " << sel.num<Face>());
+				UG_LOGN("Selected interior edges: " << sel.num<Edge>());
+				UG_LOGN("Selected interior vertices: " << sel.num<Vertex>());
 				AssignSelectionToSubset(sel2, sh, sh.num_subsets()+1);
 				UG_LOGN("new method")
 			}
+			AssignSubsetColors(sh);
+			SaveGridToFile(g, sh, "after_adapting_surface_grid.ugx");
 
 			UG_LOGN("Done with bestvertices")
 
@@ -3270,6 +3287,8 @@ namespace ug {
 				sel.clear();
 			}
 			*/
+
+			/*
 
 			AssignSubsetColors(sh);
 			ss << fileName << "_before_getting_neighborhoods.ugx";
@@ -3296,6 +3315,14 @@ namespace ug {
 			SaveGridToFile(g, sh, ss.str().c_str());
 			ss.str(""); ss.clear();
 
+			*/
+
+			EraseEmptySubsets(sh);
+			AssignSubsetColors(sh);
+			ss << fileName << "_after_deleting_center_vertices.ugx";
+			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
+			SaveGridToFile(g, sh, ss.str().c_str());
+			ss.str(""); ss.clear();
 			/// refine outer polygon once to get 12 vertices
 			int beginningOfQuads = si+1+numDodecagons; // subset index where inner quads are stored in
 			beginningOfQuads = si+1; // subset index where outer quads are stored

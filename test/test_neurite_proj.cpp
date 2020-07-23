@@ -4004,7 +4004,7 @@ void create_spline_data_for_neurites
 		//get_closest_vertices_on_soma(vPosSomaClosest, vPointSomaSurface2, g, aaPos, sh, 1);
 		get_closest_vertices_on_soma_var(vPos, vPointSomaSurface2, g, aaPos, sh, 1, vRootNeuriteIndsOut);
 
-		// Get normals of closest vertices on soma surface
+		// Get normals of closest vertices on soma surface (TODO: how far to extrude?)
 	    std::vector<ug::vector3> normals;
 	    for (size_t i = 0; i < vPointSomaSurface2.size(); i++) {
 	    	ug::vector3 normal;
@@ -4273,7 +4273,7 @@ void create_spline_data_for_neurites
 		// The indices start from 5 (4 is outer sphere) up to 5+numRootNeurites (5+numRootNeurites+1 is inner sphere)
 	    /// connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12, true);
 		if (!forVR) {
-			connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, false, 0, false);
+			connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, false, 0, true); /// need to merge on soma surface (true)
 		} else {
 			if (connect) {
 				connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, false, 0, false); /// soma ER subset stored as last subset index
@@ -4302,7 +4302,7 @@ void create_spline_data_for_neurites
 			UG_LOGN(newSomaIndex+2*numQuads-1);
 			UG_LOGN(2*numQuads-1);
 	    	//connect_er_with_er(newSomaIndex+2*numQuads-1, g, aaPos, sh, outVertsInnerClean, 2*numQuads-1, false, false);
-	    	connect_er_with_er(newSomaIndex, g, aaPos, sh, outVertsInnerClean, numQuads+1, false, false);
+	    	connect_er_with_er(newSomaIndex, g, aaPos, sh, outVertsInnerClean, numQuads+1, false, true);
 	    	SavePreparedGridToFile(g, sh, "after_connect_er_with_er.ugx");
 	    }
 		}
