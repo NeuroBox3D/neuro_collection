@@ -3163,7 +3163,6 @@ namespace ug {
 
 		////////////////////////////////////////////////////////////////////////
 		/// connect_neurites_with_soma
-		/// TODO: Cleanup method
 		////////////////////////////////////////////////////////////////////////
 		void connect_neurites_with_soma_var
 		(
@@ -3227,16 +3226,16 @@ namespace ug {
 
 			UG_DLOGN(NC_TNP, 0, "3. AdaptSurfaceGridToCylinder")
 			UG_DLOGN(NC_TNP, 0, "Best vertices size: " << bestVertices.size());
-			/// 3. Für jeden Vertex v führe AdaptSurfaceGridToCylinder mit Radius entsprechend
-			///    dem anzuschließenden Dendritenende aus. Dadurch entsteht auf der Icosphere
-			///    um jedes v ein trianguliertes 6- bzw. 5-Eck.
+
 			Selector sel(g);
 			for (size_t i = 0; i < bestVertices.size(); i++) {
 				sel.clear();
 				ug::vector3 normal;
 				CalculateVertexNormal(normal, g, bestVertices[i], aaPos);
 				number radius = outRads[i] * blowUpFactor;
-				AdaptSurfaceGridToCylinder(sel, g, bestVertices[i], normal, radius*1.5, // slightly larger on soma surface
+				// slightly larger on soma surface to ensure good connecting element quality
+				// could also use iterative approach, i.e. increasing radius until good fit
+				AdaptSurfaceGridToCylinder(sel, g, bestVertices[i], normal, radius*1.5,
 						1.0*rimSnapThresholdFactor, aPosition);
 				Selector sel2(g);
 				CloseSelection(sel);
@@ -3252,7 +3251,6 @@ namespace ug {
 
 				CloseSelection(sel2);
 				EraseSelectedObjects(sel);
-				//AssignSelectionToSubset(sel, sh, sh.num_subsets()+1);
 				UG_LOGN("Selected area boundary edges: " << sel2.num<Edge>());
 				UG_LOGN("Selected area boundary vertices: " << sel2.num<Vertex>());
 				UG_LOGN("Selected interior faces: " << sel.num<Face>());
@@ -3273,49 +3271,6 @@ namespace ug {
 			ss.str(""); ss.clear();
 
 			UG_DLOGN(NC_TNP, 0, "5. MergeVertices")
-
-
-			/*
-			/// 5. Wandle die stückweise linearen Ringe um die Anschlusslöcher per
-			///    MergeVertices zu Vierecken um.
-			sel.clear();
-				for (std::vector<Vertex*>::iterator it = bestVertices.begin(); it != bestVertices.end(); ++it) {
-				sel.select(*it);
-				ExtendSelection(sel, 1, true);
-				CloseSelection(sel);
-				AssignSelectionToSubset(sel, sh, sh.num_subsets()+1);
-				sel.clear();
-			}
-			*/
-
-			/*
-
-			AssignSubsetColors(sh);
-			ss << fileName << "_before_getting_neighborhoods.ugx";
-			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
-			ss.str(""); ss.clear();
-
-			UG_DLOGN(NC_TNP, 0, "4. Remove each vertex. Creates holes in soma")
-			/// 4. Lösche jedes v, sodass im Soma Anschlusslöcher für die Dendriten entstehen.
-			sel.clear();
-			for (std::vector<Vertex*>::iterator it = bestVertices.begin(); it != bestVertices.end(); ++it) {
-				sel.select(*it);
-			}
-
-			/// TODO: need to delete complement of boundary selection from above:
-			/// (Not just the 1-neighborhood starting from the center vertex)
-
-			size_t numSubsets = sh.num_subsets();
-			AssignSelectionToSubset(sel, sh, numSubsets);
-			EraseElements<Vertex>(g, sh.begin<Vertex>(numSubsets), sh.end<Vertex>(numSubsets));
-			EraseEmptySubsets(sh);
-			AssignSubsetColors(sh);
-			ss << fileName << "_after_deleting_center_vertices.ugx";
-			IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, ss.str().c_str());
-			SaveGridToFile(g, sh, ss.str().c_str());
-			ss.str(""); ss.clear();
-
-			*/
 
 			EraseEmptySubsets(sh);
 			AssignSubsetColors(sh);
