@@ -692,6 +692,18 @@ void set_permissible_render_vector
 	std::vector<NeuriteProjector::Neurite>& vNeurites
 );
 
+/*!
+ * \brief finds the global minimum allowed segment length for branching points
+ * Returns the minimum global allowed segment length
+ * \param[in] fileName
+ *
+ * \return \c nubmer
+ */
+number find_min_bp_dist
+(
+	const std::string& fileName
+);
+
 
 
 } // namespace neuro_collection

@@ -4679,6 +4679,105 @@ void create_spline_data_for_neurites
 		WriteEdgeStatistics(g, aaPos, "new_strategy_statistics.csv");
 	}
 
+	struct Point {
+		number radius;
+		number angle;
+		Point (const number radius, const number angle) : radius(radius), angle(angle) {}
+	};
+
+	////////////////////////////////////////////////////////////////////////////
+	/// find_min_bp_dist
+	////////////////////////////////////////////////////////////////////////////
+	number find_min_bp_dist
+	(
+		const std::string& fileName
+	) {
+		/// import file
+		std::vector<SWCPoint> vPoints;
+		import_swc(fileName, vPoints);
+
+		/// grid setup
+		Grid g;
+		SubsetHandler sh(g);
+		g.attach_to_vertices(aPosition);
+		Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+
+		UG_COND_THROW(!GlobalAttachments::is_declared("diameter"),
+			"GlobalAttachment 'diameter' not declared.");
+		Attachment<number> aDiam = GlobalAttachments::attachment<Attachment<number> >("diameter");
+		if (!g.has_vertex_attachment(aDiam)) {
+			g.attach_to_vertices(aDiam);
+		}
+		Grid::VertexAttachmentAccessor<Attachment<number> > aaDiam;
+		aaDiam.access(g, aDiam);
+
+		/// swc to grid
+		swc_points_to_grid(vPoints, g, sh, 1.0);
+		Selector sel(g);
+		ConstVertexIterator vit = g.begin<Vertex>();
+		std::vector<std::vector<Point> > allAngles;
+
+		/// for each vertex of the grid ...
+		for (; vit != g.end<Vertex>(); ++vit) {
+			sel.clear();
+			sel.select(*vit);
+			ExtendSelection(sel, 1, true);
+			CloseSelection(sel);
+
+			const ug::Vertex* bpVertex = *vit;
+			sel.deselect(*vit);
+
+			/// check for branching point presence
+			if (sel.num<Vertex>() > 2) {
+				std::vector<Vertex*> vertices;
+				vertices.assign(sel.begin<Vertex>(), sel.end<Vertex>());
+
+				std::vector<number> diams;
+				for (size_t i = 0; i < vertices.size(); i++) {
+					diams.push_back(aaDiam[vertices[i]]);
+				}
+
+				/// determine parent branch index and direction
+				const size_t maxElementIndex = std::max_element(diams.begin(), diams.end()) - diams.begin();
+
+				vector3 parentDir;
+				VecSubtract(parentDir, aaPos[bpVertex], aaPos[vertices[maxElementIndex]]);
+				VecNormalize(parentDir, parentDir);
+				UG_LOGN("parentDir: " << parentDir);
+				std::vector<Point> angles;
+				for (size_t i = 0; i < vertices.size(); i++) {
+					if (i != maxElementIndex) {
+						vector3 dir;
+						VecSubtract(dir, aaPos[vertices[i]], aaPos[bpVertex]);
+						VecNormalize(dir, dir);
+						UG_LOGN("childDir: " << dir);
+						angles.push_back(Point(0.5*aaDiam[vertices[i]], acos(VecProd(dir, parentDir))));
+						UG_LOGN("angle: " << rad_to_deg(acos(VecProd(dir, parentDir))));
+					}
+				}
+				allAngles.push_back(angles);
+			}
+		}
+
+		number maxDist = 0;
+		for (std::vector<std::vector<Point> >::const_iterator it = allAngles.begin(); it != allAngles.end(); it++) {
+			for (std::vector<Point>::const_iterator it2 = it->begin(); it2 != it->end(); it2++) {
+				/// Note/TODO: Can we ignore the minimum angle as this is the root branch continuation?
+				if (std::fabs(it2->angle) < SMALL) {
+					continue;
+				}
+				const number beta =  PI/4.0 - it2->angle;
+				const number y = it2->radius  / sin(beta);
+				const number x = y / tan(it2->angle);
+				if (x > maxDist) {
+					maxDist = x;
+				}
+			}
+			UG_LOGN("Local max dist:" << maxDist);
+		}
+		UG_LOGN("Global max dist: " << std::setprecision(12) << maxDist);
+		return maxDist;
+	}
 
 	////////////////////////////////////////////////////////////////////////////
 	/// test_import_swc_and_regularize

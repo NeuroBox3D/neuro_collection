@@ -440,6 +440,12 @@ BOOST_AUTO_TEST_CASE(CylinderCylinderSeparation) {
 	BOOST_REQUIRE_MESSAGE(!CylinderCylinderSeparationTest(a, c), "Non-separated cylinders required.");
 }
 
+////////////////////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_CASE(FindMinimumBPDistance) {
+	GlobalAttachments::declare_attachment<ANumber>("diameter", true);
+	const number maxDist = find_min_bp_dist("test.swc");
+	BOOST_REQUIRE_CLOSE(maxDist, 11.2106470681, 0.01); // check if values differ by at most 0.01%
+}
 
 void addEdge(std::vector<int> adj[], int u, int v)
 {
