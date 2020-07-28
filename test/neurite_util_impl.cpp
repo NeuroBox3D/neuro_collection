@@ -1139,7 +1139,7 @@ namespace ug {
 				ug::vector3 normal;
 				CalculateVertexNormal(normal, g, bestVertices[i], aaPos);
 				number radius = outRads[i];
-				AdaptSurfaceGridToCylinder(sel, g, bestVertices[i], normal, radius, 1.0*rimSnapThresholdFactor, aPosition);
+				AdaptSurfaceGridToCylinder(sel, g, bestVertices[i], normal, radius*2, 1.0*rimSnapThresholdFactor, aPosition);
 			}
 
 			AssignSubsetColors(sh);
@@ -2459,6 +2459,7 @@ namespace ug {
 			if (somaPoint) {
 				scaleFactor = (1.0-scale)*somaPoint->radius * 0.25;
 			}
+			scaleFactor*=0.1;
 			VecNormalize(vNormOut, vNormOut);
 			/// TODO: height should depend on the base edge length of quadrilateral
 			/// => best aspect ratio (1.0) then need to check if height not larger
@@ -2659,11 +2660,13 @@ namespace ug {
 				grid.associated_elements(edges, quadCont[i]);
 				vector<Vertex*> vertices;
 
-				/// TODO: need to get orientation of normal -> calculate vector between soma center and quad -> take sign, this is the direction of the vector we ned to extrude in
+				/// TODO: need to get orientation of normal -> calculate vector
+				/// between soma center and quad -> take sign, this is the direction
+				/// of the vector we nee to extrude into
 				VecNormalize(vNormOut, vNormOut);
 				number scaleFactor = somaPoint.radius * (1-scale);
 				scaleFactor = scaleFactor * 0.5;
-				VecScale(vNormOut, vNormOut, scaleFactor);
+				VecScale(vNormOut, vNormOut, scaleFactor * 0.1);
 
 				for (size_t j = 0; j < quadCont[i]->size(); j++) vertices.push_back(quadCont[i]->vertex(j));
 				for (size_t j = 0; j < edges.size(); j++) vEdges.push_back(edges[j]);
@@ -3367,6 +3370,9 @@ namespace ug {
 			Grid::traits<Vertex>::iterator vit_end = sh.end<Vertex>(siInner);
 			/// Store mapping of vertices
 			std::map<Vertex*, RegularVertex*> vertices;
+
+			/// TODO: Should we extend this far from inner er to soma surface?
+			VecScale(dir, dir, 0.5);
 			for (; vit != vit_end; ++vit) {
 				Vertex* e = *vit;
 				ug::RegularVertex* v = *g.create<RegularVertex>();

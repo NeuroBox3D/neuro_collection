@@ -4273,7 +4273,7 @@ void create_spline_data_for_neurites
 		// The indices start from 5 (4 is outer sphere) up to 5+numRootNeurites (5+numRootNeurites+1 is inner sphere)
 	    /// connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12, true);
 		if (!forVR) {
-			connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, false, 0, true); /// need to merge on soma surface (true)
+			connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, false, 0, false); /// need to merge on soma surface (true)
 		} else {
 			if (connect) {
 				connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, false, 0, false); /// soma ER subset stored as last subset index
@@ -4302,7 +4302,8 @@ void create_spline_data_for_neurites
 			UG_LOGN(newSomaIndex+2*numQuads-1);
 			UG_LOGN(2*numQuads-1);
 	    	//connect_er_with_er(newSomaIndex+2*numQuads-1, g, aaPos, sh, outVertsInnerClean, 2*numQuads-1, false, false);
-	    	connect_er_with_er(newSomaIndex, g, aaPos, sh, outVertsInnerClean, numQuads+1, false, true);
+			/// TODO: this method gives wrong result for merging at soma (last parameter: true not false)
+	    	connect_er_with_er(newSomaIndex, g, aaPos, sh, outVertsInnerClean, numQuads+1, false, false);
 	    	SavePreparedGridToFile(g, sh, "after_connect_er_with_er.ugx");
 	    }
 		}
