@@ -197,7 +197,7 @@ namespace ug {
 				for (size_t i = 0; i < directions.size(); i++) {
 					number angle = rad_to_deg(AngleBetweenDirections(renderVec, directions[i]));
 					UG_DLOGN(NC_TNP, 0, "angle: " << angle);
-					if ( (angle < angleMin) && (angle > (180-angleMin))) {
+					if ( (angle < angleMin) || (angle > (180-angleMin))) {
 						below = true;
 					}
 				}
