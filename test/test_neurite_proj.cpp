@@ -3705,7 +3705,7 @@ void create_spline_data_for_neurites
 	    	if (withER) {
 	    		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 	    			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh, 1.0, &outVerts,
-	    			&outVertsInner, &outRads, &outRadsInner, &swcPoints, NULL, -1, option, segLength);
+	    			&outVertsInner, &outRads, &outRadsInner, &swcPoints, NULL, -1, option, segLength, false);
 	    	} else {
 	    		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 	    				anisotropy, g, aaPos, aaSurfParams);
@@ -4169,7 +4169,7 @@ void create_spline_data_for_neurites
 		 	if (withER) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh, blowUpFactor,
-		   			&outVerts, &outVertsInner, &outRads, &outRadsInner, &newPoints, NULL, -1, option, segLength);
+		   			&outVerts, &outVertsInner, &outRads, &outRadsInner, &newPoints, NULL, -1, option, segLength, false);
 
 		   	} else {
 		   		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
@@ -5066,11 +5066,8 @@ void create_spline_data_for_neurites
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh,
-		   			blowUpFactor, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1, option, segLength);
+		   			blowUpFactor, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1, option, segLength, true);
 		}
-
-
-
 
 		/// Debug output
 		/*
@@ -5099,38 +5096,31 @@ void create_spline_data_for_neurites
 
 		// grid housekeeping
 		sel.clear();
+
+		// assign subsets
+		std::vector<std::vector<ug::Edge*> >::const_iterator ite = subsets.edges.begin();
+		int counter = 0;
+		while (ite != subsets.edges.end()) {
+			sel.clear();
+			sel.select(ite->begin()+12, ite->end(), true);
+			CloseSelection(sel);
+			AssignSelectionToSubset(sel, sh, sh.num_subsets()+counter);
+			ite++;
+			counter++;
+		}
+
 		SelectSubset(sel, sh, 0, true);
 		SelectSubset(sel, sh, 1, true);
 		SelectSubset(sel, sh, 3, true);
 		EraseSelectedObjects(sel);
 		EraseEmptySubsets(sh);
 
-		/*
-		// close ends of dendrites (we erase before the ER part, so we have to close the dendrites)
-		// Note: This can be improved if time allows...
-		std::vector<number>::iterator iter = subsets.ts.begin();
-		while ((iter = std::find(iter, subsets.ts.end(), 1.0)) != subsets.ts.end())
-		{
+		for (int i = 0; i < counter; i++) {
 			sel.clear();
-			int index = std::distance(subsets.ts.begin(), iter);
-			for (size_t i = 0; i < subsets.edges[index].size(); i++) {
-				sel.select(subsets.edges[index][i]);
-				sel.select(subsets.vertices[index][i]);
-			}
+			SelectSubset(sel, sh, sh.num_subsets()-i-1, true);
+			AssignSelectionToSubset(sel, sh, 0); // Neurite caps go to neurites
 			TriangleFill(g, sel.edges_begin(), sel.edges_end());
-			for (size_t i = 0; i < subsets.edges[index].size(); i++) {
-				sel.select(subsets.edges[index][i]);
-				sel.select(subsets.vertices[index][i]);
-			}
-
-			// all vertices on the end of the neurite are mapped to the 1d corresponding SWC point
-			// ... and also the newly created center vertex returned by TriangleFill thus ...
-			aaMapping[*sel.vertices_begin()].v1 = aaMapping[subsets.vertices[index][0]].v1;
-			aaMapping[*sel.vertices_begin()].v2 = aaMapping[subsets.vertices[index][0]].v2;
-			aaMapping[*sel.vertices_begin()].lambda = aaMapping[subsets.vertices[index][0]].lambda;
-		    iter++;
 		}
-		*/
 
 		// soma
 		create_soma(vSomaPoints, g, aaPos, sh, 1);
@@ -5239,7 +5229,7 @@ void create_spline_data_for_neurites
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, 1.0, g, aaPos, aaSurfParams, aaMapping, sh,
-		   			1.0, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1, "identity", -1);
+		   			1.0, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1, "identity", -1, false);
 		}
 		SaveGridToFile(g, sh, "unprojected.ugx");
 

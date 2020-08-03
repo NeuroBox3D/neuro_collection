@@ -76,7 +76,8 @@ namespace ug {
 		MeasuringSubsetCollection* subsets,
 		int bip,
 		const std::string& option,
-		number desiredSegLength
+		number desiredSegLength,
+		const bool onlyCaps
 	) {
 	const NeuriteProjector::Neurite& neurite = vNeurites[nid];
 	const std::vector<vector3>& pos = vPos[nid];
@@ -200,10 +201,11 @@ namespace ug {
 		}
 
 
-		if (subsets) {
+		if (subsets && ! onlyCaps) {
 			subsets->vertices.push_back(*connectingVrts);
 			subsets->edges.push_back(*connectingEdges);
 			subsets->faces.push_back(*connectingFaces);
+			subsets->ts.push_back(0);
 		}
 	} else {
 		// create first layer of vertices/edges //
@@ -303,7 +305,7 @@ namespace ug {
 			sh.assign_subset(vFace[i + 5], 0);
 		}
 
-		if (subsets) {
+		if (subsets && ! onlyCaps) {
 			subsets->vertices.push_back(vVrt);
 			subsets->edges.push_back(vEdge);
 			subsets->faces.push_back(vFace);
@@ -1411,7 +1413,7 @@ namespace ug {
 						erScaleFactor, anisotropy, g, aaPos, aaSurfParams,
 						aaMappingParams, sh, blowUpFactor,
 						&vBranchVrts, &vBranchEdges, &vBranchFaces,
-						branchOffset[1], NULL, NULL, NULL, NULL, points, subsets, -1, option, segLength);
+						branchOffset[1], NULL, NULL, NULL, NULL, points, subsets, -1, option, segLength, onlyCaps);
 			}
 
 			lastPos = curPos;
@@ -1426,7 +1428,7 @@ namespace ug {
 		for (; curSec < nSec; ++curSec) {
 			const NeuriteProjector::Section& sec = neurite.vSec[curSec];
 			if (sec.endParam >= t_end) {
-				if (subsets) {
+				if (subsets && ! onlyCaps) {
 					subsets->vertices.push_back(vVrt);
 					subsets->edges.push_back(vEdge);
 					subsets->faces.push_back(vFace);
@@ -1437,10 +1439,18 @@ namespace ug {
 		}
 
 		// check whether tip has been reached
-		if (brit == brit_end)
+		if (brit == brit_end) {
+			if (subsets && onlyCaps) {
+				subsets->vertices.push_back(vVrt);
+				subsets->edges.push_back(vEdge);
+				subsets->faces.push_back(vFace);
+				subsets->ts.push_back(t_end);
+			}
 			break;
-		else
+		}
+		else {
 			++brit;
+			}
 		}
 	}
 
@@ -2615,13 +2625,14 @@ number calculate_length_over_radius_variant
                 		MeasuringSubsetCollection* subsets,
                         int bip,
                         const std::string& option,
-                        number segLength
+                        number segLength,
+                        const bool onlyCaps
                 )
                 {
                         create_neurite_with_er(vNeurites, vPos, vR, nid, erScaleFactor,
                         		anisotropy, g, aaPos, aaSurfParams, aaMappingParams, sh,
                         		blowUpFactor, NULL, NULL, NULL, 0, outVerts, outVertsInner,
-                        		outRads, outRadsInner, points, subsets, bip, option, segLength);
+                        		outRads, outRadsInner, points, subsets, bip, option, segLength, onlyCaps);
                 }
 
                 ////////////////////////////////////////////////////////////////////////

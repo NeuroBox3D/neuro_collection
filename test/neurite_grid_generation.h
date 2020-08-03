@@ -96,7 +96,8 @@ namespace ug {
 			MeasuringSubsetCollection* subsets = NULL,
 			int bid = -1,
 			const std::string& option = "user",
-			number desiredSegLength = -1
+			number desiredSegLength = -1,
+			bool onlyCaps = false
 		);
 
 		/*!
@@ -139,7 +140,8 @@ namespace ug {
 			MeasuringSubsetCollection* subsets,
 			int bid,
 			const std::string& option,
-			number segLength
+			number segLength,
+			bool onlyCaps
 		);
 
 
