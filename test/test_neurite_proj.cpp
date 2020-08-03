@@ -4273,7 +4273,7 @@ void create_spline_data_for_neurites
 		// The indices start from 5 (4 is outer sphere) up to 5+numRootNeurites (5+numRootNeurites+1 is inner sphere)
 	    /// connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVerts, 12, true);
 		if (!forVR) {
-			connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, false, 0, false); /// need to merge on soma surface (true)
+			connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, false, 0, true); /// need to merge on soma surface (true)
 		} else {
 			if (connect) {
 				connect_pm_with_soma(newSomaIndex, g, aaPos, sh, outVertsClean, false, 0, false); /// soma ER subset stored as last subset index
@@ -4303,7 +4303,7 @@ void create_spline_data_for_neurites
 			UG_LOGN(2*numQuads-1);
 	    	//connect_er_with_er(newSomaIndex+2*numQuads-1, g, aaPos, sh, outVertsInnerClean, 2*numQuads-1, false, false);
 			/// TODO: this method gives wrong result for merging at soma (last parameter: true not false)
-	    	connect_er_with_er(newSomaIndex, g, aaPos, sh, outVertsInnerClean, numQuads+1, false, false);
+	    	connect_er_with_er(newSomaIndex, g, aaPos, sh, outVertsInnerClean, 2*numQuads+1, true, true);
 	    	SavePreparedGridToFile(g, sh, "after_connect_er_with_er.ugx");
 	    }
 		}
@@ -5139,7 +5139,6 @@ void create_spline_data_for_neurites
 		AssignSubsetColors(sh);
 		set_somata_mapping_parameters(g, sh, aaMapping, 1, 1, vSomaPoints.front());
 
-
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements.ugx");
 		Triangulate(g, g.begin<ug::Quadrilateral>(), g.end<ug::Quadrilateral>());
 		/// apply a hint of laplacian smoothin for soma region
@@ -5149,8 +5148,6 @@ void create_spline_data_for_neurites
 		/// Use to warn if triangles intersect and correct triangle intersections
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
 		ResolveTriangleIntersections(g, g.begin<Triangle>(), g.end<Triangle>(), 0.1, aPosition);
-
-
 	}
 
 
