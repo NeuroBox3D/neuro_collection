@@ -594,6 +594,7 @@ void to_ugx(
  * \param[in] choice one of the two options above
  * \param[in] ref desired refinement level
  * \param[in] forceAdditionalPoint forces insertion of an additional point
+ * \param[in] includeSoma include soma in regularization - or not
  */
 void test_import_swc_and_regularize
 (
@@ -601,7 +602,8 @@ void test_import_swc_and_regularize
 	number segLength,
 	const std::string& choice,
 	size_t ref,
-	bool forceAdditionalPoint
+	bool forceAdditionalPoint,
+	bool includeSoma
 );
 
 /*!
@@ -620,12 +622,14 @@ void test_import_swc_and_regularize
  *
  * \param[in] fileName name of the input geometry
  * \param[in] forceAdditionalPoint forces insertion of an additional point
+ * \param[in] includeSoma soma point will be included in regularization
  * \see test_import_swc_and_regularize
  */
 void test_import_swc_and_regularize
 (
 	const std::string& fileName,
-	bool forceAdditionalPoint
+	bool forceAdditionalPoint,
+	bool includeSoma
 );
 
 /*!

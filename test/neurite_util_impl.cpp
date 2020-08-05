@@ -1139,6 +1139,7 @@ namespace ug {
 				ug::vector3 normal;
 				CalculateVertexNormal(normal, g, bestVertices[i], aaPos);
 				number radius = outRads[i];
+				/// TODO: radius*2 is not good, should be radius*erScaleFactor
 				AdaptSurfaceGridToCylinder(sel, g, bestVertices[i], normal, radius*2, 1.0*rimSnapThresholdFactor, aPosition);
 			}
 

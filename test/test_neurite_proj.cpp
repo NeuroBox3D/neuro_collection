@@ -69,6 +69,7 @@
 #include "lib_disc/domain_util.h"   // LoadDomain
 #include "lib_disc/quadrature/gauss_legendre/gauss_legendre.h" // Gauss-Legendre
 #include "lib_algebra/small_algebra/small_algebra.h" // Invert
+#include "lib_algebra/vector_interface/vec_functions.h" // VecNorm2
 #include "common/util/string_util.h"  // TrimString
 #include "common/util/file_util.h"  // FindFileInStandardPaths
 #include <list>
@@ -4779,6 +4780,23 @@ void create_spline_data_for_neurites
 		return maxDist;
 	}
 
+	void project_to_sphere
+	(
+		const ug::vector3& center,
+		const number radius,
+		const ug::vector3& point,
+		ug::vector3& q
+	)
+	{
+		ug::vector3 v;
+		VecSubtract(v, point, center); // v.x = p.x - c.x, v.y = p.y - c.y, v.z = p.z - c.z
+		const number length = VecNorm2(v);  // = sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+		VecScale(v, v, 1.0/length); //  //v.x = v.x / length , v.y = v.y / length, v.z = v.z / length
+		VecScale(v, v, radius); // v.x = v.x * r , v.y = v.y * r, v.z = v.z * r
+		VecAdd(q, v, center);  // q.x = v.x + c.x, q.y = v.y + c.y, q.z = v.z + c.z
+	}
+
+
 	////////////////////////////////////////////////////////////////////////////
 	/// test_import_swc_and_regularize
 	////////////////////////////////////////////////////////////////////////////
@@ -4788,7 +4806,8 @@ void create_spline_data_for_neurites
 		const number segLength,
 		const std::string& choice,
 		const size_t ref,
-		const bool force
+		const bool force,
+		const bool somaIncluded
 	) {
 		// read in file to intermediate structure
 		std::vector<SWCPoint> vPoints;
@@ -4803,18 +4822,30 @@ void create_spline_data_for_neurites
 		convert_pointlist_to_neuritelist_variant(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 
 		// push soma point in front of each root neurite
-        for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
-        	/// TODO: Push soma point in front and use in test_import_swc_general_var_for_vr_var
-        	/*
-            std::vector<vector3>& temp = vPos[vRootNeuriteIndsOut[i]];
-			temp.insert(temp.begin(), vSomaPoints[0].coords);
+		if (somaIncluded) {
+			for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
+				/// TODO: Push soma point in front and use in test_import_swc_general_var_for_vr_var
+				/*
+            	std::vector<vector3>& temp = vPos[vRootNeuriteIndsOut[i]];
+				temp.insert(temp.begin(), vSomaPoints[0].coords);
 
-			std::vector<number>& temp2 = vRad[vRootNeuriteIndsOut[i]];
-			temp2.insert(temp2.begin(), vSomaPoints[0].radius);*/
+				std::vector<number>& temp2 = vRad[vRootNeuriteIndsOut[i]];
+				temp2.insert(temp2.begin(), vSomaPoints[0].radius);*/
 
-        	/// Let the soma point be the start point of each neurite
-			vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
+				/// Let the soma point be the start point of each neurite
+				vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
+			}
+		} else {
+			for  (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
+				ug::vector3 q;
+				project_to_sphere(vSomaPoints[0].coords, vSomaPoints[0].radius, vPos[vRootNeuriteIndsOut[i]][0], q);
+				vPos[vRootNeuriteIndsOut[i]][0] = q;
+				vRad[vRootNeuriteIndsOut[i]][0] = vRad[vRootNeuriteIndsOut[i]][1];
+				UG_LOGN("q: " << q)
+			}
 		}
+
+		/// Take q and vSomaPoints[0] (calculate center) and connect these...
 
 		/// return this value to use later TODO
 		// number somaRadiusOriginal = vSomaPoints[0].radius;
@@ -4823,6 +4854,7 @@ void create_spline_data_for_neurites
 	    Grid originalGrid;
 	    SubsetHandler sh(originalGrid);
 	    swc_points_to_grid(vPoints, originalGrid, sh, 1.0);
+	    SaveGridToFile(originalGrid, sh, "new_method.ugx");
 	    originalGrid.attach_to_vertices(aPosition);
 		Grid::VertexAttachmentAccessor<APosition> aaPos(originalGrid, aPosition);
 	    WriteEdgeStatistics(originalGrid, aaPos, "statistics_edges_original.csv");
@@ -4893,7 +4925,7 @@ void create_spline_data_for_neurites
 		const std::string& fileName
 	) {
 		// delegate to general implementation and choose min strategy
-		test_import_swc_and_regularize(fileName, -1, "min", 0, false);
+		test_import_swc_and_regularize(fileName, -1, "min", 0, false, true);
 	}
 
 	////////////////////////////////////////////////////////////////////////////
@@ -4902,10 +4934,11 @@ void create_spline_data_for_neurites
 	void test_import_swc_and_regularize
 	(
 		const std::string& fileName,
-		const bool forceAdditionalPoint
+		const bool forceAdditionalPoint,
+		const bool includeSoma
 	) {
 		// delegate to general implementation and choose min strategy
-		test_import_swc_and_regularize(fileName, -1, "min", 0, forceAdditionalPoint);
+		test_import_swc_and_regularize(fileName, -1, "min", 0, forceAdditionalPoint, includeSoma);
 	}
 
 	////////////////////////////////////////////////////////////////////////////
@@ -5097,6 +5130,7 @@ void create_spline_data_for_neurites
 		// grid housekeeping
 		sel.clear();
 
+		/// TODO: This could be improved...
 		// assign subsets
 		std::vector<std::vector<ug::Edge*> >::const_iterator ite = subsets.edges.begin();
 		int counter = 0;
