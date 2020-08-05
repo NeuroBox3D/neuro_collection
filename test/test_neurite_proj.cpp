@@ -5149,7 +5149,7 @@ void create_spline_data_for_neurites
 		EraseSelectedObjects(sel);
 		EraseEmptySubsets(sh);
 
-		for (int i = 0; i < counter; i++) {
+		for (int i = 0; i < counter-1; i++) {
 			sel.clear();
 			SelectSubset(sel, sh, sh.num_subsets()-i-1, true);
 			AssignSelectionToSubset(sel, sh, 0); // Neurite caps go to neurites
@@ -5186,6 +5186,9 @@ void create_spline_data_for_neurites
 		create_branches_from_swc(fileName, erScaleFactor, numRefs, true);
 	}
 
+	////////////////////////////////////////////////////////////////////////////
+	/// create_branches_from_swc
+	////////////////////////////////////////////////////////////////////////////
 	void create_branches_from_swc(
 		const std::string& fileName,
 		number erScaleFactor,
