@@ -41,6 +41,7 @@
 #include "tetrahedralize_util.h"
 #include "common/log.h"
 #include "common/error.h"
+#include "common/math/math_vector_matrix/math_vector_functions.h"
 #include "bridge/domain_bridges/selection_bridge.h"
 #include "lib_grid/algorithms/remeshing/grid_adaption.h"
 #include "lib_grid/refinement/regular_refinement.h"
@@ -3583,6 +3584,151 @@ namespace ug {
 		        return fabs(left.second - right.second) < SMALL;
 		    }
 		};
+
+		////////////////////////////////////////////////////////////////////////
+		/// check_winding
+		////////////////////////////////////////////////////////////////////////
+		/*!
+		 * \brief check winding
+		 */
+		number check_winding
+		(
+			const ug::vector3& N,
+			const ug::vector3& A,
+			const ug::vector3& B,
+			const ug::vector3& C
+		) {
+			ug::vector3 CA;
+			ug::vector3 CB;
+			VecSubtract(CA, A, C);
+			VecSubtract(CB, B, C);
+			ug::vector3 cross;
+			VecCross(cross, CA, CB);
+			return VecDot(N, cross);
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// connect_polygon_with_polygon_new
+		/// TODO: Use in grid generation... and test
+		////////////////////////////////////////////////////////////////////////
+		void connect_polygon_with_polygon_new
+		(
+			const std::vector<Vertex*>& from,
+			const std::vector<Vertex*>& to,
+			const std::vector<Edge*>& edgesFrom,
+			const std::vector<Edge*>& edgesTo,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			std::vector<std::pair<Vertex*, Vertex*> >& pairs
+		) {
+			ug::vector3 centerA = CalculateCenter(from.begin(), from.end(), aaPos);
+			ug::vector3 centerB = CalculateCenter(to.begin(), to.end(), aaPos);
+			ug::vector3 dir;
+			VecSubtract(dir, centerB, centerA);
+
+			ug::vector3 p1, p2, v0, v1, v2, normal;
+			v1 = aaPos[*to.begin()];
+			v2 = aaPos[*to.end()];
+			VecSubtract(p1, v1, centerB);
+			VecSubtract(p2, v2, centerB);
+			VecCross(normal, p1, p2);
+			VecNormalize(normal, normal);
+
+			std::vector<ug::Vertex*> fromNew;
+			for (size_t i = 0; i < from.size(); i++) {
+				///	calculates the intersection of the ray rayFrom+t*rayDir and the plane (x-p)*n=0.
+				ug::vector3 vOut;
+				number tOut;
+				bool found = RayPlaneIntersection(vOut, tOut, centerA, dir, centerB, normal);
+				UG_COND_THROW(!found, "No intersection point found!")
+				Grid g;
+				Vertex* v = *g.create<RegularVertex>();
+				aaPos[v] = vOut;
+				fromNew.push_back(v);
+			}
+
+			/// Find nearest neighbor
+			number distMin = std::numeric_limits<number>::infinity();
+			size_t minIndexA = -1;
+			size_t minIndexB = -1;
+			for (size_t i = 0; i < fromNew.size(); i++) {
+				for (size_t j = 0; j < to.size(); j++) {
+					number dist = VecDistance(aaPos[fromNew[i]], aaPos[to[j]]);
+					if (dist < distMin) {
+						distMin = dist;
+						minIndexA = i;
+						minIndexB = j;
+					}
+				}
+			}
+
+			/// polygon A (from)
+			std::vector<size_t> fromOrdered;
+			fromOrdered.push_back(minIndexA);
+			size_t i = 1;
+			size_t numPoints = fromNew.size();
+			short int order = -1; // CCW
+
+			while (i < numPoints) {
+				/// Find neighbors
+				std::vector<size_t> neighbors;
+				for (size_t i = 0; i < edgesFrom.size(); i++) {
+					for (size_t l = 0; l < 2; l++) {
+						if (edgesFrom[i]->vertex(l) == from[minIndexA]) {
+							size_t index = std::distance(from.begin(), std::find(from.begin(), from.end(), edgesFrom[i]->vertex(l)));
+							neighbors.push_back(index);
+
+						}
+					}
+				}
+
+				for (size_t i = 0; i < neighbors.size(); i++) {
+					short int winding = sgn(check_winding(normal, aaPos[fromNew[minIndexA]], aaPos[fromNew[neighbors[i]]], centerB));
+
+					if (winding < order) {
+						minIndexA = std::distance(from.begin(), std::find(from.begin(), from.end(), from[neighbors[i]]));
+						fromOrdered.push_back(minIndexA);
+						i++;
+						break;
+					}
+				}
+			}
+
+
+			std::vector<size_t> toOrdered;
+			toOrdered.push_back(minIndexB);
+			/// polygon B (to)
+			i = 1;
+			numPoints = to.size();
+			while (i < numPoints) {
+				/// Find neighbors
+				std::vector<size_t> neighbors;
+				for (size_t i = 0; i < edgesTo.size(); i++) {
+					for (size_t l = 0; l < 2; l++) {
+						if (edgesTo[i]->vertex(l) == to[minIndexB]) {
+							size_t index = std::distance(to.begin(), std::find(to.begin(), to.end(), edgesTo[i]->vertex(l)));
+							neighbors.push_back(index);
+						}
+					}
+				}
+
+				for (size_t i = 0; i < neighbors.size(); i++) {
+					short int winding = sgn(check_winding(normal, aaPos[to[minIndexB]], aaPos[to[neighbors[i]]], centerB));
+					if (winding < order) {
+						minIndexB = std::distance(to.begin(), std::find(to.begin(), to.end(), to[neighbors[i]]));
+						toOrdered.push_back(minIndexB);
+						i++;
+						break;
+					}
+				}
+			}
+
+			UG_COND_THROW(toOrdered.size() != to.size(), "Mismatch in found vertices!");
+			UG_COND_THROW(fromOrdered.size() != from.size(), "Mismatch in found vertices!");
+			/// Create pairs of polygon A and B which should be merged.
+			for (size_t i = 0; i < toOrdered.size(); i++) {
+				pairs.push_back(make_pair(to[toOrdered[i]], from[fromOrdered[i]]));
+			}
+		}
 
 		////////////////////////////////////////////////////////////////////////
 		/// connect_polygon_with_polygon

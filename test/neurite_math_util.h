@@ -48,6 +48,16 @@
 namespace ug {
 	namespace neuro_collection {
 		/*!
+		 * \brief signum function {-1,0,1}
+		 * \tparam[T] type
+		 * \param[in] val - value
+		 * \return \c integer \f$ i \in {-1,0,1} \f$
+		 */
+		template <typename T> int sgn(T val) {
+			return (T(0) < val) - (val < T(0));
+		}
+
+		/*!
 		 * \brief Rotate a vector (OP) around axis (OQ) using Rodrigues' rotation
 		 * \f$ \vec{v}_{rot} =
 		 * 		\vec{v} cos(\theta) + (\vec{v} \times \vec{k}) sin(\theta) +
