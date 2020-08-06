@@ -2457,17 +2457,14 @@ namespace ug {
 			CalculateNormal(vNormOut, quad, aaPos);
 			ug::vector3 center = CalculateCenter(quad, aaPos);
 			aaPos[top] = center;
-			number scaleFactor = scale*0.25*0.1;
+			number scaleFactor;
 			if (somaPoint) {
-				scaleFactor = (1.0-scale)*somaPoint->radius * 0.25;
+				/// Pyramid height is 1.25% of soma inner's radius
+				/// TODO: To achieve optimal AR should depend on quad diameter!
+				scaleFactor = (1.0-scale)*somaPoint->radius * 0.0125;
 			}
-			scaleFactor*=0.1;
 			VecNormalize(vNormOut, vNormOut);
-			/// TODO: height should depend on the base edge length of quadrilateral
-			/// => best aspect ratio (1.0) then need to check if height not larger
-			/// than the soma's diameter between ER and PM (1-scale)*radius;
-			//VecScaleAdd(aaPos[top], 1.0, aaPos[top], -scale*0.25*0.1, vNormOut);
-			VecScaleAdd(aaPos[top], 1.0, aaPos[top], scaleFactor*0.5, vNormOut);
+			VecScaleAdd(aaPos[top], 1.0, aaPos[top], scaleFactor, vNormOut);
 			if (aaSurfParams) {
 				(*aaSurfParams)[top].axial = -scale/VecLength(vNormOut);
 			}
@@ -2661,14 +2658,9 @@ namespace ug {
 				Grid::traits<Edge>::secure_container edges;
 				grid.associated_elements(edges, quadCont[i]);
 				vector<Vertex*> vertices;
-
-				/// TODO: need to get orientation of normal -> calculate vector
-				/// between soma center and quad -> take sign, this is the direction
-				/// of the vector we nee to extrude into
 				VecNormalize(vNormOut, vNormOut);
-				number scaleFactor = somaPoint.radius * (1-scale);
-				scaleFactor = scaleFactor * 0.5;
-				VecScale(vNormOut, vNormOut, scaleFactor * 0.1);
+				number scaleFactor = (1.0-scale) * somaPoint.radius * 0.0125;
+				VecScale(vNormOut, vNormOut, scaleFactor);
 
 				for (size_t j = 0; j < quadCont[i]->size(); j++) vertices.push_back(quadCont[i]->vertex(j));
 				for (size_t j = 0; j < edges.size(); j++) vEdges.push_back(edges[j]);

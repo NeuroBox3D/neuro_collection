@@ -4010,6 +4010,7 @@ void create_spline_data_for_neurites
 	    std::vector<ug::vector3> normals;
 	    for (size_t i = 0; i < vPointSomaSurface2.size(); i++) {
 	    	ug::vector3 normal;
+	    	// normal: n = a x b, n is bound by ||n|| < ||a|| ||b||
 	    	CalculateVertexNormal(normal, g, vPointSomaSurface2[i], aaPos);
 	    	VecNormalize(normal, normal);
 	    	normals.push_back(normal);
@@ -4067,7 +4068,7 @@ void create_spline_data_for_neurites
 		/// constrained_smoothing(vPoints, vRootNeuriteIndsOut.size(), 0.1, 0.1, 10, 0.1);
 	    ///convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 
-	    /// Add normal to first point and replace second point with it
+	    /// Add normal to first point and replace second point with it: TODO: how far to extrude in normal direction?
 	    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
 	    	UG_LOGN("Setting i-th position... " << i)
 	    	/// Replace first point with closest soma surface point (vertex)
@@ -4667,13 +4668,14 @@ void create_spline_data_for_neurites
 			SelectSubset(sel, sh, i, true);
 		}
 		AssignSelectionToSubset(sel, sh, 0);
-		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
-		EraseEmptySubsets(sh);
 
 		/// if some included, assign to subset
 		if (somaIncluded) {
 			sh.assign_subset(somaVertex, 1);
 		}
+
+		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
+		EraseEmptySubsets(sh);
 
 		/// assign to subsets
 		sh.subset_info(0).name = "dend";
@@ -4937,7 +4939,7 @@ void create_spline_data_for_neurites
 			}
 			sh2.assign_subset(somaVertex, 1);
 		} else {
-			/// hacky: assumes begin() of vertex vector is always soma, safe to assume?
+			/// kludge: assumes begin() iterator of vertex vector is always soma, safe to assume?
 			aaDiam[*g2.begin<Vertex>()] = vSomaPoints[0].radius;
 		}
 
