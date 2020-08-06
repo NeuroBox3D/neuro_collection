@@ -797,7 +797,7 @@ void convert_pointlist_to_neuritelist_variant
     std::vector<std::vector<number> >& vRadOut,
     std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > >& vBPInfoOut,
     std::vector<size_t>& vRootNeuriteIndsOut
-    /// TODO: Add std::vector<SWC_TYPE>& vRootNeuriteTypes (dend, axon, etc.) to assign later
+    /// TODO: Add std::vector<SWC_TYPE>& vRootNeuriteTypes (dend, axon, etc.) to assign later to appropriate subsets
 )
 {
     // clear out vectors
@@ -4668,6 +4668,7 @@ void create_spline_data_for_neurites
 		}
 		AssignSelectionToSubset(sel, sh, 0);
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
+		EraseEmptySubsets(sh);
 
 		/// if some included, assign to subset
 		if (somaIncluded) {
@@ -4676,9 +4677,9 @@ void create_spline_data_for_neurites
 
 		/// assign to subsets
 		sh.subset_info(0).name = "dend";
-		sh.assign_subset(somaVertex, 1);
 		sh.subset_info(1).name = "soma";
 		EraseEmptySubsets(sh);
+		SaveGridToFile(g, sh, "new_strategy_assigned.ugx");
 
 	}
 
@@ -4931,14 +4932,19 @@ void create_spline_data_for_neurites
 			for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
 				ug::RegularVertex* v1 = *g2.create<RegularVertex>();
 				aaPos[v1] = vPos[vRootNeuriteIndsOut[i]][0];
-				*g2.create<RegularEdge>(EdgeDescriptor(v1, somaVertex));
+				RegularEdge* edge = *g2.create<RegularEdge>(EdgeDescriptor(v1, somaVertex));
+				sh2.assign_subset(edge, 0);
 			}
+			sh2.assign_subset(somaVertex, 1);
 		} else {
 			/// hacky: assumes begin() of vertex vector is always soma, safe to assume?
 			aaDiam[*g2.begin<Vertex>()] = vSomaPoints[0].radius;
 		}
 
 		/// export grid to swc
+		RemoveDoubles<3>(g2, g2.begin<Vertex>(), g2.end<Vertex>(), aPosition, SMALL);
+		sh2.subset_info(1).name = "soma";
+		SaveGridToFile(g2, sh2, "new_strategy_final.ugx");
 		export_to_swc(g2, sh2, "new_strategy.swc");
 
 		/// Statistics
