@@ -797,6 +797,7 @@ void convert_pointlist_to_neuritelist_variant
     std::vector<std::vector<number> >& vRadOut,
     std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > >& vBPInfoOut,
     std::vector<size_t>& vRootNeuriteIndsOut
+    /// TODO: Add std::vector<SWC_TYPE>& vRootNeuriteTypes (dend, axon, etc.) to assign later
 )
 {
     // clear out vectors
@@ -4514,12 +4515,11 @@ void create_spline_data_for_neurites
 		const std::vector<NeuriteProjector::Neurite>& vNeurites,
 		const number desiredSegLength,
 		const size_t ref,
-		const bool forceAdditionalPoint
-	)
-	{
-		/// Prepare grid to create regularized SWC
-		Grid g;
-		SubsetHandler sh(g);
+		const bool forceAdditionalPoint,
+		Grid& g,
+		SubsetHandler& sh,
+		const bool somaIncluded
+	) {
 		g.attach_to_vertices(aPosition);
 		Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
 
@@ -4533,9 +4533,8 @@ void create_spline_data_for_neurites
 		Grid::VertexAttachmentAccessor<Attachment<number> > aaDiam;
 		aaDiam.access(g, aDiam);
 
-		// save soma vertex
-		ug::RegularVertex* somaVertex = NULL;
 
+		ug::RegularVertex* somaVertex;
 		/// actual seglength might differ from desired due to non integer multiplicity
 		number segLength;
 		UG_LOGN("*** eval_spline ***")
@@ -4633,9 +4632,8 @@ void create_spline_data_for_neurites
 				UG_LOGN("v0: " << v0 << ", v1: " << v1 << ", v2: " << v2 << ", radius:" << radius)
 
 				ug::RegularVertex* vertex = *g.create<RegularVertex>();
-				/// very first soma vertex of first branch is soma
-				// TODO: Remove this. Soma needs to fit automatically...
-				if (!somaVertex) { somaVertex = vertex; radius *= 3; }
+				/// very first soma vertex of first branch is soma, store new soma center
+				if (!somaVertex) { somaVertex = vertex; }
 				aaPos[vertex] = curPos;
 				aaDiam[vertex] = radius*2.0;
 				vertices.push_back(vertex);
@@ -4662,22 +4660,26 @@ void create_spline_data_for_neurites
 		AssignSubsetColors(sh);
 		SaveGridToFile(g, sh, "new_strategy.ugx");
 
-		/// SWC export
+		/// SWC export (All fragments go to one subset: dend! -> need to store
+		/// type of root neurite in vector, see note elsewhere)
 		Selector sel(g);
 		for (int i = 0; i < sh.num_subsets(); i++) {
 			SelectSubset(sel, sh, i, true);
 		}
 		AssignSelectionToSubset(sel, sh, 0);
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
+
+		/// if some included, assign to subset
+		if (somaIncluded) {
+			sh.assign_subset(somaVertex, 1);
+		}
+
+		/// assign to subsets
 		sh.subset_info(0).name = "dend";
 		sh.assign_subset(somaVertex, 1);
 		sh.subset_info(1).name = "soma";
 		EraseEmptySubsets(sh);
-		export_to_swc(g, sh, "new_strategy.swc");
 
-		/// Statistics
-		MarkOutliers(g, sh, aaPos, "new_strategy_outliers.ugx", segLength, desiredSegLength);
-		WriteEdgeStatistics(g, aaPos, "new_strategy_statistics.csv");
 	}
 
 	struct Point {
@@ -4824,31 +4826,18 @@ void create_spline_data_for_neurites
 		// push soma point in front of each root neurite
 		if (somaIncluded) {
 			for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
-				/// TODO: Push soma point in front and use in test_import_swc_general_var_for_vr_var
-				/*
-            	std::vector<vector3>& temp = vPos[vRootNeuriteIndsOut[i]];
-				temp.insert(temp.begin(), vSomaPoints[0].coords);
-
-				std::vector<number>& temp2 = vRad[vRootNeuriteIndsOut[i]];
-				temp2.insert(temp2.begin(), vSomaPoints[0].radius);*/
-
-				/// Let the soma point be the start point of each neurite
+				/// Let the soma point (Sphere center) be the start point of each neurite fragment for vr use case
 				vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
 			}
 		} else {
+			/// project neurite start vertex to soma sphere and let this be the start of the neurites
 			for  (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
 				ug::vector3 q;
 				project_to_sphere(vSomaPoints[0].coords, vSomaPoints[0].radius, vPos[vRootNeuriteIndsOut[i]][0], q);
 				vPos[vRootNeuriteIndsOut[i]][0] = q;
 				vRad[vRootNeuriteIndsOut[i]][0] = vRad[vRootNeuriteIndsOut[i]][1];
-				UG_LOGN("q: " << q)
 			}
 		}
-
-		/// Take q and vSomaPoints[0] (calculate center) and connect these...
-
-		/// return this value to use later TODO
-		// number somaRadiusOriginal = vSomaPoints[0].radius;
 
 		// Write edge statistics for original grid
 	    Grid originalGrid;
@@ -4865,6 +4854,11 @@ void create_spline_data_for_neurites
 		std::vector<NeuriteProjector::Neurite> vFragments;
 		create_spline_data_for_neurites(vFragments, vPos, vRad, NULL);
 
+		Grid g2;
+		SubsetHandler sh2(g2);
+		ug::RegularVertex* somaVertex = NULL;
+		std::vector<ug::RegularVertex*> rootNeurites;
+
 		// check fragments length and ask the user what to do
 		if (!check_fragments(vPos, segLength) && boost::iequals(choice, std::string("auto"))) {
 			// Option 1: Automatically generate always 1 segment between bps
@@ -4880,7 +4874,7 @@ void create_spline_data_for_neurites
 			if (option == 1) {
 				// test splines evaluation with presribed desired edge length and save
 				// grid and statistics for edges afterwards, see eval_spline(..., ...).
-				eval_spline(vFragments, calculate_minimum_seg_length_between_fragments(vPos)/2.0, ref, force);
+				eval_spline(vFragments, calculate_minimum_seg_length_between_fragments(vPos)/2.0, ref, force, g2, sh2, somaIncluded);
 			}
 
 			if (option == 2) {
@@ -4888,13 +4882,13 @@ void create_spline_data_for_neurites
 				std::cin >> segLengthNew;
 				// test splines evaluation with presribed desired edge length and save
 				// grid and statistics for edges afterwards, see eval_spline(..., ...).
-				eval_spline(vFragments, segLengthNew, ref, force);
+				eval_spline(vFragments, segLengthNew, ref, force, g2, sh2, somaIncluded);
 			}
 
 			if (option == 3) {
 				// test splines evaluation with presribed desired edge length and save
 				// grid and statistics for edges afterwards, see eval_spline(..., ...).
-				eval_spline(vFragments, segLength, ref, force); // always generates one segment between fragments
+				eval_spline(vFragments, segLength, ref, force, g2, sh2, somaIncluded); // always generates one segment between fragments
 			}
 		}
 
@@ -4904,16 +4898,52 @@ void create_spline_data_for_neurites
 			UG_LOGN("min seg length: " << newSegLength);
 			// test splines evaluation with presribed desired edge length and save
 			// grid and statistics for edges afterwards, see eval_spline(..., ...).
-			eval_spline(vFragments, newSegLength, ref, force);
+			eval_spline(vFragments, newSegLength, ref, force, g2, sh2, somaIncluded);
 		}
 
 		/// Use user prescriped segment length not matter what
 		if (boost::iequals(choice, std::string("user"))) {
 			// test splines evaluation with presribed desired edge length and save
 			// grid and statistics for edges afterwards, see eval_spline(..., ...).
-			eval_spline(vFragments, segLength, ref, force);
+			eval_spline(vFragments, segLength, ref, force, g2, sh2, somaIncluded);
 			UG_LOGN("min seg length: " << segLength)
 		}
+
+		/// if soma was not included in regularization (non-VR use-case), then
+		/// assign correct soma diameter for start vertices and edges
+		UG_COND_THROW(!GlobalAttachments::is_declared("diameter"),
+		"GlobalAttachment 'diameter' not declared.");
+		Attachment<number> aDiam = GlobalAttachments::attachment<Attachment<number> >("diameter");
+		if (!g2.has_vertex_attachment(aDiam)) {
+			g2.attach_to_vertices(aDiam);
+		}
+		Grid::VertexAttachmentAccessor<Attachment<number> > aaDiam;
+		aaDiam.access(g2, aDiam);
+
+		if (!somaIncluded) {
+			/// Connect all root neurite starts with soma
+			g2.attach_to_vertices(aPosition);
+			Grid::VertexAttachmentAccessor<APosition> aaPos(g2, aPosition);
+			somaVertex = *g2.create<RegularVertex>();
+			sh2.assign_subset(somaVertex, 1);
+			aaPos[somaVertex] = vSomaPoints[0].coords;
+			aaDiam[somaVertex] = vSomaPoints[0].radius;
+			for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
+				ug::RegularVertex* v1 = *g2.create<RegularVertex>();
+				aaPos[v1] = vPos[vRootNeuriteIndsOut[i]][0];
+				*g2.create<RegularEdge>(EdgeDescriptor(v1, somaVertex));
+			}
+		} else {
+			/// hacky: assumes begin() of vertex vector is always soma, safe to assume?
+			aaDiam[*g2.begin<Vertex>()] = vSomaPoints[0].radius;
+		}
+
+		/// export grid to swc
+		export_to_swc(g2, sh2, "new_strategy.swc");
+
+		/// Statistics
+		/// MarkOutliers(g, sh, aaPos, "new_strategy_outliers.ugx", segLength, desiredSegLength);
+		WriteEdgeStatistics(g2, aaPos, "new_strategy_statistics.csv");
 
 	}
 
@@ -5124,7 +5154,7 @@ void create_spline_data_for_neurites
 			/// TODO: BP projection needs to be done, but may fail in some cases..
 			/// Should we convert the throws to a warning or error message?! This
 			/// way we could also count the occurances of the failed BP projection!
-			/// neuriteProj->project(*vit);
+			// neuriteProj->project(*vit);
 		}
 
 		// grid housekeeping

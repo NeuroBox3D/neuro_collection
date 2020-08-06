@@ -663,7 +663,10 @@ void eval_spline
 	const std::vector<NeuriteProjector::Neurite>& vNeurites,
 	number desiredSegLength,
 	size_t ref,
-	bool forceAdditionalPoint
+	bool forceAdditionalPoint,
+	Grid& g,
+	SubsetHandler& sh,
+	bool somaIncluded
 );
 
 /*!
