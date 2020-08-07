@@ -4675,11 +4675,12 @@ void create_spline_data_for_neurites
 		if (somaIncluded) {
 			if (somaVertex) {
 				UG_LOGN("somaVertex: " << somaVertex);
+				UG_LOGN("aaPos[somaVertex:" << aaPos[somaVertex])
 				sh.assign_subset(somaVertex, 1);
+				UG_LOGN("After some assigned...")
 			}
 		}
 
-		UG_LOGN("After some assigned...")
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
 		UG_LOGN("After remove doubles...")
 		EraseEmptySubsets(sh);
