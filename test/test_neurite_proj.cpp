@@ -4638,7 +4638,7 @@ void create_spline_data_for_neurites
 				aaPos[vertex] = curPos;
 				aaDiam[vertex] = radius*2.0;
 				vertices.push_back(vertex);
-				sh.assign_subset(vertex, i+1);
+				if (vertex != somaVertex) sh.assign_subset(vertex, i+1);
 				if (!somaVertex) { somaVertex = vertex; if (somaIncluded) {sh.assign_subset(somaVertex, 0);} }
 			}
 			UG_LOGN("*******")
