@@ -3440,6 +3440,90 @@ namespace ug {
 			connect_pm_with_soma(somaIndex, g, aaPos, sh, rootNeuritesInner, merge, offset, mergeFirst);
 		}
 
+
+		////////////////////////////////////////////////////////////////////////
+		/// connect_polys
+		////////////////////////////////////////////////////////////////////////
+		void connect_polys(
+			const size_t somaIndex,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			SubsetHandler& sh,
+			std::vector<std::vector<ug::Vertex*> >& vPolygonVertices,
+			const bool mergeVertices, /// TODO: should be false only in debug mode
+			const size_t offset,
+			const bool mergeAtFirstVertex
+		) {
+			/// selectors
+			Selector::traits<Vertex>::iterator vit;
+			Selector::traits<Vertex>::iterator vit_end;
+			Selector::traits<Edge>::iterator eit;
+			Selector::traits<Edge>::iterator eit_end;
+			Selector sel(g);
+			/// number of neurites
+			size_t numNeurites = vPolygonVertices.size();
+
+			for (size_t i = 0; i < numNeurites; i++) {
+				sel.clear();
+				/// vertices from poly A
+				UG_LOGN("Selecting index " << somaIndex-numNeurites+offset+i
+										   << " as index for projection to plane");
+				SelectSubsetElements<Vertex>(sel, sh, somaIndex-numNeurites+offset+i, true);
+				vector<Vertex*> vertsPolyA;
+				vit = sel.begin<Vertex>(); vit_end = sel.end<Vertex>();
+				for (; vit != vit_end; ++vit) { vertsPolyA.push_back(*vit); }
+
+				/// edges from poly A
+				std::vector<Edge*> edgesPolyA;
+				sel.clear();
+				SelectSubsetElements<Edge>(sel, sh, somaIndex-numNeurites+offset+i, true);
+				eit = sel.begin<Edge>(); eit_end = sel.end<Edge>();
+				for (; eit != eit_end; ++eit) { edgesPolyA.push_back(*eit); }
+
+				/// vertices from poly B
+				size_t numVerts = vPolygonVertices[i].size();
+				vector<Vertex*> vertsPolyB;
+				for (size_t l = 0; l < numVerts; l++) { vertsPolyB.push_back(vPolygonVertices[i][l]); }
+
+				/// edges from poly B
+				std::vector<Edge*> edgesPolyB;
+				sel.clear();
+				for (size_t l = 0; l < numVerts; l++) {
+					for (size_t m = 0; m < numVerts; m++) {
+						Edge* e = g.get_edge(vPolygonVertices[i][l], vPolygonVertices[i][m]);
+						if (!e) {
+							e =  g.get_edge(vPolygonVertices[i][m], vPolygonVertices[i][l]);
+							if (e) {
+								edgesPolyB.push_back(e);
+							}
+						}
+					}
+				}
+
+				/// connect polyA with polyB
+				vector<pair<Vertex*, Vertex*> > pairs;
+				connect_polygon_with_polygon_new(vertsPolyA, vertsPolyB, edgesPolyA, edgesPolyB, aaPos, g, pairs);
+				vector<pair<Vertex*, Vertex*> >::iterator it = pairs.begin();
+				for (; it != pairs.end(); ++it) {
+					if (!mergeVertices) {
+						UG_DLOGN(NC_TNP, 0, "Creating edge between vertex: " << aaPos[it->first]
+						                     << " and vertex: " << aaPos[mapVertices[it->second]]);
+						Edge* e = *g.create<RegularEdge>(EdgeDescriptor(it->first, it->second));
+						/// TODO: remove this debug statement (subset index might not work always, e.g. too small)
+						sh.assign_subset(e, 101);
+					} else {
+						if (mergeAtFirstVertex) {
+							UG_LOGN("Merging vertex: " << it->first << "with vertex: " << it->second);
+							MergeVertices(g, it->first, it->second);
+						} else {
+							UG_LOGN("Merging vertex: " << it->second << "with vertex: " << it->first);
+							MergeVertices(g, it->second, it->first);
+						}
+					}
+				}
+			}
+		}
+
 		////////////////////////////////////////////////////////////////////////
 		/// connect_pm_with_soma
 		/// Note: unprojectedVertices are the vertices on the soma surface,
@@ -3610,6 +3694,7 @@ namespace ug {
 			const std::vector<Edge*>& edgesFrom,
 			const std::vector<Edge*>& edgesTo,
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid& g,
 			std::vector<std::pair<Vertex*, Vertex*> >& pairs
 		) {
 			ug::vector3 centerA = CalculateCenter(from.begin(), from.end(), aaPos);
@@ -3632,7 +3717,6 @@ namespace ug {
 				number tOut;
 				bool found = RayPlaneIntersection(vOut, tOut, centerA, dir, centerB, normal);
 				UG_COND_THROW(!found, "No intersection point found!")
-				Grid g;
 				Vertex* v = *g.create<RegularVertex>();
 				aaPos[v] = vOut;
 				fromNew.push_back(v);
@@ -3719,6 +3803,11 @@ namespace ug {
 			/// Create pairs of polygon A and B which should be merged.
 			for (size_t i = 0; i < toOrdered.size(); i++) {
 				pairs.push_back(make_pair(to[toOrdered[i]], from[fromOrdered[i]]));
+			}
+
+			/// Delete projected vertices to find conenction;
+			for (size_t i = 0; i < fromNew.size(); i++) {
+				g.erase(fromNew[i]);
 			}
 		}
 

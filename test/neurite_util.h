@@ -1094,6 +1094,51 @@ namespace ug {
 		);
 
 		/*!
+		 * \brief new universal connect method for multiple n-polygons in 3d
+		 * One set of the polygon vertices is specified by polygonVertices and
+		 * the other set of the polygon vertices is specified by subset indices
+		 * \param[in] somaIndex
+		 * \param[in,out] grid
+		 * \param[in,out] aaPos
+		 * \param[in,out] sh
+		 * \param[in,out] polygonVertices
+		 * \param[in] mergeVertices
+		 * \param[in] offset
+		 * \param[in] mergeAtFirstVertex
+		 */
+		void connect_polys(
+			size_t somaIndex,
+			Grid& g,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			SubsetHandler& sh,
+			std::vector<std::vector<ug::Vertex*> >&  polygonVertices,
+			bool mergeVertices,
+			size_t offset,
+			bool mergeAtFirstVertex
+		);
+
+		/*!
+		 * \brief new universal method to connect two n-polygons in 3d
+		 * \param[in] from vertices from polygon A
+		 * \param[in] to vertices from polygon B
+		 * \param[in] edgesFrom edges from polygon A
+		 * \param[in] edgesTo edges from polygon B
+		 * \param[in,out] aaPos position attachment
+		 * \param[in,out] g grid
+		 * \param[out] pairs vertex pairs which should be merged
+		 */
+		void connect_polygon_with_polygon_new
+		(
+			const std::vector<Vertex*>& from,
+			const std::vector<Vertex*>& to,
+			const std::vector<Edge*>& edgesFrom,
+			const std::vector<Edge*>& edgesTo,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid& g,
+			std::vector<std::pair<Vertex*, Vertex*> >& pairs
+		);
+
+		/*!
 		 * \brief set somata mapping parameters
 		 */
 		void set_somata_mapping_parameters
