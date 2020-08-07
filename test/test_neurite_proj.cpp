@@ -4681,7 +4681,7 @@ void create_spline_data_for_neurites
 			}
 		}
 
-		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
+		///RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
 		UG_LOGN("After remove doubles...")
 		EraseEmptySubsets(sh);
 		UG_LOGN("after erase subsets...")
@@ -4955,7 +4955,7 @@ void create_spline_data_for_neurites
 		UG_LOGN("Now writing grid...")
 
 		/// export grid to swc
-		RemoveDoubles<3>(g2, g2.begin<Vertex>(), g2.end<Vertex>(), aPosition, SMALL);
+		///RemoveDoubles<3>(g2, g2.begin<Vertex>(), g2.end<Vertex>(), aPosition, SMALL);
 		sh2.subset_info(1).name = "soma";
 		SaveGridToFile(g2, sh2, "new_strategy_final.ugx");
 		export_to_swc(g2, sh2, "new_strategy.swc");
