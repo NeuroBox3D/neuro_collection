@@ -4669,9 +4669,13 @@ void create_spline_data_for_neurites
 		}
 		AssignSelectionToSubset(sel, sh, 0);
 
+		UG_COND_THROW(!somaVertex, "No soma vertex has been stored!");
 		/// if some included, assign to subset
 		if (somaIncluded) {
-			sh.assign_subset(somaVertex, 1);
+			if (somaVertex) {
+				UG_LOGN("somaVertex: " << somaVertex);
+				sh.assign_subset(somaVertex, 1);
+			}
 		}
 
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
@@ -4939,9 +4943,11 @@ void create_spline_data_for_neurites
 			}
 			sh2.assign_subset(somaVertex, 1);
 		} else {
+			UG_LOGN("Setting diameter of soma vertex")
 			/// kludge: assumes begin() iterator of vertex vector is always soma, safe to assume?
 			aaDiam[*g2.begin<Vertex>()] = vSomaPoints[0].radius;
 		}
+		UG_LOGN("Now writing grid...")
 
 		/// export grid to swc
 		RemoveDoubles<3>(g2, g2.begin<Vertex>(), g2.end<Vertex>(), aPosition, SMALL);
