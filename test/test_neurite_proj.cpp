@@ -4635,25 +4635,25 @@ void create_spline_data_for_neurites
 
 				ug::RegularVertex* vertex = *g.create<RegularVertex>();
 				/// very first soma vertex of first branch is soma, store new soma center
-				if (!somaVertex) { somaVertex = vertex; }
 				aaPos[vertex] = curPos;
 				aaDiam[vertex] = radius*2.0;
 				vertices.push_back(vertex);
-				sh.assign_subset(vertex, i);
+				sh.assign_subset(vertex, i+1);
+				if (!somaVertex) { somaVertex = vertex; if (somaIncluded) {sh.assign_subset(somaVertex, 0);} }
 			}
 			UG_LOGN("*******")
 
 			// create edges and assign to appropriate fragment subset
 			for (size_t j = 0; j < vertices.size()-1; j++) {
 				RegularEdge* edge = *g.create<RegularEdge>(EdgeDescriptor(vertices[j], vertices[j+1]));
-				sh.assign_subset(edge, i);
+				sh.assign_subset(edge, i+1);
 			}
 		}
 
 		// subset names
 		std::stringstream ss;
-		for (int i = 0; i < sh.num_subsets(); i++) {
-			ss << "Fragment #" << i+1;
+		for (int i = 1; i < sh.num_subsets(); i++) {
+			ss << "Fragment #" << i;
 			sh.subset_info(i).name = ss.str();
 			ss.str(""); ss.clear();
 		}
@@ -4665,10 +4665,10 @@ void create_spline_data_for_neurites
 		/// SWC export (All fragments go to one subset: dend! -> need to store
 		/// type of root neurite in vector, see note elsewhere)
 		Selector sel(g);
-		for (int i = 0; i < sh.num_subsets(); i++) {
+		for (int i = 1; i < sh.num_subsets(); i++) {
 			SelectSubset(sel, sh, i, true);
 		}
-		AssignSelectionToSubset(sel, sh, 0);
+		AssignSelectionToSubset(sel, sh, 1);
 
 		UG_COND_THROW(!somaVertex, "No soma vertex has been stored!");
 		/// if some included, assign to subset
@@ -4676,7 +4676,7 @@ void create_spline_data_for_neurites
 			if (somaVertex) {
 				UG_LOGN("somaVertex: " << somaVertex);
 				UG_LOGN("aaPos[somaVertex:" << aaPos[somaVertex])
-				sh.assign_subset(somaVertex, 1);
+				///sh.assign_subset(somaVertex, 0);
 				UG_LOGN("After some assigned...")
 			}
 		}
