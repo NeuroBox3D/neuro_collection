@@ -4306,7 +4306,8 @@ void create_spline_data_for_neurites
 			UG_LOGN(2*numQuads-1);
 	    	//connect_er_with_er(newSomaIndex+2*numQuads-1, g, aaPos, sh, outVertsInnerClean, 2*numQuads-1, false, false);
 			/// TODO: this method gives wrong result for merging at soma (last parameter: true not false)
-	    	connect_er_with_er(newSomaIndex, g, aaPos, sh, outVertsInnerClean, 2*numQuads+1, true, true);
+	    	///connect_er_with_er(newSomaIndex, g, aaPos, sh, outVertsInnerClean, 2*numQuads+1, true, true);
+	    	connect_polys(newSomaIndex, g, aaPos, sh, outVertsInnerClean, 2*numQuads+1, true, true);
 	    	SavePreparedGridToFile(g, sh, "after_connect_er_with_er.ugx");
 	    }
 		}
@@ -4678,8 +4679,11 @@ void create_spline_data_for_neurites
 			}
 		}
 
+		UG_LOGN("After some assigned...")
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
+		UG_LOGN("After remove doubles...")
 		EraseEmptySubsets(sh);
+		UG_LOGN("after erase subsets...")
 
 		/// assign to subsets
 		sh.subset_info(0).name = "dend";

@@ -3500,6 +3500,7 @@ namespace ug {
 					}
 				}
 
+				UG_LOGN("Found polyA and polyB... now connect them...")
 				/// connect polyA with polyB
 				vector<pair<Vertex*, Vertex*> > pairs;
 				connect_polygon_with_polygon_new(vertsPolyA, vertsPolyB, edgesPolyA, edgesPolyB, aaPos, g, pairs);
@@ -3703,8 +3704,8 @@ namespace ug {
 			VecSubtract(dir, centerB, centerA);
 
 			ug::vector3 p1, p2, v0, v1, v2, normal;
-			v1 = aaPos[*to.begin()];
-			v2 = aaPos[*to.end()];
+			v1 = aaPos[to[0]];
+			v2 = aaPos[to[1]];
 			VecSubtract(p1, v1, centerB);
 			VecSubtract(p2, v2, centerB);
 			VecCross(normal, p1, p2);
@@ -3715,7 +3716,7 @@ namespace ug {
 				///	calculates the intersection of the ray rayFrom+t*rayDir and the plane (x-p)*n=0.
 				ug::vector3 vOut;
 				number tOut;
-				bool found = RayPlaneIntersection(vOut, tOut, centerA, dir, centerB, normal);
+				bool found = RayPlaneIntersection(vOut, tOut, aaPos[from[i]], dir, centerB, normal);
 				UG_COND_THROW(!found, "No intersection point found!")
 				Vertex* v = *g.create<RegularVertex>();
 				aaPos[v] = vOut;
@@ -3740,42 +3741,46 @@ namespace ug {
 			/// polygon A (from)
 			std::vector<size_t> fromOrdered;
 			fromOrdered.push_back(minIndexA);
-			size_t i = 1;
+			size_t j = 1;
 			size_t numPoints = fromNew.size();
 			short int order = -1; // CCW
 
-			while (i < numPoints) {
+			while (j < numPoints) {
 				/// Find neighbors
 				std::vector<size_t> neighbors;
 				for (size_t i = 0; i < edgesFrom.size(); i++) {
 					for (size_t l = 0; l < 2; l++) {
 						if (edgesFrom[i]->vertex(l) == from[minIndexA]) {
-							size_t index = std::distance(from.begin(), std::find(from.begin(), from.end(), edgesFrom[i]->vertex(l)));
+							size_t index = std::distance(from.begin(),
+							std::find(from.begin(), from.end(), edgesFrom[i]->vertex(l == 0 ? 1 : 0)));
 							neighbors.push_back(index);
-
+							UG_LOGN("index: " << index)
 						}
 					}
 				}
 
 				for (size_t i = 0; i < neighbors.size(); i++) {
-					short int winding = sgn(check_winding(normal, aaPos[fromNew[minIndexA]], aaPos[fromNew[neighbors[i]]], centerB));
+					number winding = sgn(check_winding(normal, aaPos[fromNew[minIndexA]], aaPos[fromNew[neighbors[i]]], centerB));
+					UG_LOGN("winding ( " << i << "): " << winding)
 
-					if (winding < order) {
+					if (winding <= order) {
 						minIndexA = std::distance(from.begin(), std::find(from.begin(), from.end(), from[neighbors[i]]));
 						fromOrdered.push_back(minIndexA);
-						i++;
+						j++;
 						break;
 					}
 				}
 			}
 
 
+			return;
+
 			std::vector<size_t> toOrdered;
 			toOrdered.push_back(minIndexB);
 			/// polygon B (to)
-			i = 1;
+			j = 1;
 			numPoints = to.size();
-			while (i < numPoints) {
+			while (j < numPoints) {
 				/// Find neighbors
 				std::vector<size_t> neighbors;
 				for (size_t i = 0; i < edgesTo.size(); i++) {
@@ -3798,12 +3803,16 @@ namespace ug {
 				}
 			}
 
+			UG_LOGN("After ordering polyB CCW")
+
 			UG_COND_THROW(toOrdered.size() != to.size(), "Mismatch in found vertices!");
 			UG_COND_THROW(fromOrdered.size() != from.size(), "Mismatch in found vertices!");
 			/// Create pairs of polygon A and B which should be merged.
 			for (size_t i = 0; i < toOrdered.size(); i++) {
 				pairs.push_back(make_pair(to[toOrdered[i]], from[fromOrdered[i]]));
 			}
+
+			UG_LOGN("Before cleanup vertices")
 
 			/// Delete projected vertices to find conenction;
 			for (size_t i = 0; i < fromNew.size(); i++) {
