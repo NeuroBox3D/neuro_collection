@@ -4830,6 +4830,7 @@ void create_spline_data_for_neurites
 			}
 		} else {
 			/// project neurite start vertex to soma sphere and let this be the start of the neurites
+			/// Note: Might be problematic if projected vertices are identically...
 			for  (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
 				ug::vector3 q;
 				project_to_sphere(vSomaPoints[0].coords, vSomaPoints[0].radius, vPos[vRootNeuriteIndsOut[i]][0], q);
@@ -4942,7 +4943,7 @@ void create_spline_data_for_neurites
 		UG_LOGN("Now writing grid...")
 
 		/// export grid to swc
-		//RemoveDoubles<3>(g2, g2.begin<Vertex>(), g2.end<Vertex>(), aPosition, SMALL);
+		RemoveDoubles<3>(g2, g2.begin<Vertex>(), g2.end<Vertex>(), aPosition, SMALL);
 		sh2.subset_info(0).name = "soma";
 		sh2.subset_info(1).name = "dend";
 		SaveGridToFile(g2, sh2, "new_strategy_final.ugx");
