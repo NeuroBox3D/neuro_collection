@@ -4638,7 +4638,6 @@ void create_spline_data_for_neurites
 				aaPos[vertex] = curPos;
 				aaDiam[vertex] = radius*2.0;
 				vertices.push_back(vertex);
-				if (vertex != somaVertex) sh.assign_subset(vertex, i+1);
 				if (!somaVertex) { somaVertex = vertex; if (somaIncluded) {sh.assign_subset(somaVertex, 0);} }
 			}
 			UG_LOGN("*******")
@@ -4670,21 +4669,8 @@ void create_spline_data_for_neurites
 		}
 		AssignSelectionToSubset(sel, sh, 1);
 
-		UG_COND_THROW(!somaVertex, "No soma vertex has been stored!");
-		/// if some included, assign to subset
-		if (somaIncluded) {
-			if (somaVertex) {
-				UG_LOGN("somaVertex: " << somaVertex);
-				UG_LOGN("aaPos[somaVertex:" << aaPos[somaVertex])
-				///sh.assign_subset(somaVertex, 0);
-				UG_LOGN("After some assigned...")
-			}
-		}
-
-		///RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
-		UG_LOGN("After remove doubles...")
+		/// RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
 		EraseEmptySubsets(sh);
-		UG_LOGN("after erase subsets...")
 
 		/// assign to subsets
 		sh.subset_info(0).name = "dend";
@@ -4955,7 +4941,7 @@ void create_spline_data_for_neurites
 		UG_LOGN("Now writing grid...")
 
 		/// export grid to swc
-		///RemoveDoubles<3>(g2, g2.begin<Vertex>(), g2.end<Vertex>(), aPosition, SMALL);
+		/// RemoveDoubles<3>(g2, g2.begin<Vertex>(), g2.end<Vertex>(), aPosition, SMALL);
 		sh2.subset_info(1).name = "soma";
 		SaveGridToFile(g2, sh2, "new_strategy_final.ugx");
 		export_to_swc(g2, sh2, "new_strategy.swc");
