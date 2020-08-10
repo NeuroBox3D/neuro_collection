@@ -3522,10 +3522,7 @@ namespace ug {
 				vector<pair<Vertex*, Vertex*> >::iterator it = pairs.begin();
 				for (; it != pairs.end(); ++it) {
 					if (!mergeVertices) {
-						UG_DLOGN(NC_TNP, 0, "Creating edge between vertex: " << aaPos[it->first]
-						                     << " and vertex: " << aaPos[mapVertices[it->second]]);
 						Edge* e = *g.create<RegularEdge>(EdgeDescriptor(it->first, it->second));
-						/// TODO: remove this debug statement (subset index might not work always, e.g. too small)
 						sh.assign_subset(e, 101);
 					} else {
 						if (mergeAtFirstVertex) {
