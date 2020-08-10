@@ -4307,7 +4307,7 @@ void create_spline_data_for_neurites
 	    	//connect_er_with_er(newSomaIndex+2*numQuads-1, g, aaPos, sh, outVertsInnerClean, 2*numQuads-1, false, false);
 			/// TODO: this method gives wrong result for merging at soma (last parameter: true not false)
 	    	///connect_er_with_er(newSomaIndex, g, aaPos, sh, outVertsInnerClean, 2*numQuads+1, true, true);
-	    	connect_polys(newSomaIndex, g, aaPos, sh, outVertsInnerClean, 2*numQuads+1, true, true);
+	    	connect_polys(newSomaIndex, g, aaPos, sh, outVertsInnerClean, true, 2*numQuads+1, false);
 	    	SavePreparedGridToFile(g, sh, "after_connect_er_with_er.ugx");
 	    }
 		}
