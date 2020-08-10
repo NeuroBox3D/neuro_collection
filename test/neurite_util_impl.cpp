@@ -1141,7 +1141,7 @@ namespace ug {
 				CalculateVertexNormal(normal, g, bestVertices[i], aaPos);
 				number radius = outRads[i];
 				/// TODO: radius*2 is not good, should be radius*erScaleFactor
-				AdaptSurfaceGridToCylinder(sel, g, bestVertices[i], normal, radius*2, 1.0*rimSnapThresholdFactor, aPosition);
+				AdaptSurfaceGridToCylinder(sel, g, bestVertices[i], normal, radius*scale, 1.0*rimSnapThresholdFactor, aPosition);
 			}
 
 			AssignSubsetColors(sh);
@@ -3450,7 +3450,7 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<APosition>& aaPos,
 			SubsetHandler& sh,
 			std::vector<std::vector<ug::Vertex*> >& vPolygonVertices,
-			const bool mergeVertices, /// TODO: should be false only in debug mode
+			const bool mergeVertices, /// Note: should be set to false only in debug mode
 			const size_t offset,
 			const bool mergeAtFirstVertex
 		) {
@@ -3466,7 +3466,7 @@ namespace ug {
 			for (size_t i = 0; i < numNeurites; i++) {
 				sel.clear();
 				/// vertices from poly A
-				UG_LOGN("Selecting index " << somaIndex-numNeurites+offset+i
+				UG_DLOGN(NC_TNP, 0, "Selecting index " << somaIndex-numNeurites+offset+i
 										   << " as index for projection to plane");
 				SelectSubsetElements<Vertex>(sel, sh, somaIndex-numNeurites+offset+i, true);
 				vector<Vertex*> vertsPolyA;
@@ -3480,6 +3480,9 @@ namespace ug {
 				eit = sel.begin<Edge>(); eit_end = sel.end<Edge>();
 				for (; eit != eit_end; ++eit) { edgesPolyA.push_back(*eit); }
 
+				UG_ASSERT(edgesPolyA.size() == vertsPolyA.size(),
+						"Mismatch in number of vertices and edges for polygon B");
+
 				/// vertices from poly B
 				size_t numVerts = vPolygonVertices[i].size();
 				vector<Vertex*> vertsPolyB;
@@ -3490,17 +3493,29 @@ namespace ug {
 				sel.clear();
 				for (size_t l = 0; l < numVerts; l++) {
 					for (size_t m = 0; m < numVerts; m++) {
+						/// Try edge from l -> m
 						Edge* e = g.get_edge(vPolygonVertices[i][l], vPolygonVertices[i][m]);
-						if (!e) {
+						if (e) {
+							if(std::find(edgesPolyB.begin(), edgesPolyB.end(), e) == edgesPolyB.end()) {
+								edgesPolyB.push_back(e);
+							}
+						} else {
+							/// Try edge from m -> l
 							e =  g.get_edge(vPolygonVertices[i][m], vPolygonVertices[i][l]);
 							if (e) {
-								edgesPolyB.push_back(e);
+								if(std::find(edgesPolyB.begin(), edgesPolyB.end(), e) == edgesPolyB.end()) {
+									edgesPolyB.push_back(e);
+								}
 							}
 						}
 					}
 				}
 
-				UG_LOGN("Found polyA and polyB... now connect them...")
+				UG_ASSERT(edgesPolyB.size() == vertsPolyB.size(),
+						"Mismatch in number of vertices and edges for polygon B");
+
+				UG_DLOGN(NC_TNP, 0, "Found polygon A and polygon B. Now connecting them...");
+
 				/// connect polyA with polyB
 				vector<pair<Vertex*, Vertex*> > pairs;
 				connect_polygon_with_polygon_new(vertsPolyA, vertsPolyB, edgesPolyA, edgesPolyB, aaPos, g, pairs);
@@ -3514,10 +3529,10 @@ namespace ug {
 						sh.assign_subset(e, 101);
 					} else {
 						if (mergeAtFirstVertex) {
-							UG_LOGN("Merging vertex: " << it->first << "with vertex: " << it->second);
+							UG_DLOGN(NC_TNP, 0, "Merging vertex: " << it->first << "with vertex: " << it->second);
 							MergeVertices(g, it->first, it->second);
 						} else {
-							UG_LOGN("Merging vertex: " << it->second << "with vertex: " << it->first);
+							UG_DLOGN(NC_TNP, 0, "Merging vertex: " << it->second << "with vertex: " << it->first);
 							MergeVertices(g, it->second, it->first);
 						}
 					}
@@ -3686,7 +3701,6 @@ namespace ug {
 
 		////////////////////////////////////////////////////////////////////////
 		/// connect_polygon_with_polygon_new
-		/// TODO: Use in grid generation... and test
 		////////////////////////////////////////////////////////////////////////
 		void connect_polygon_with_polygon_new
 		(
@@ -3711,13 +3725,16 @@ namespace ug {
 			VecCross(normal, p1, p2);
 			VecNormalize(normal, normal);
 
+			UG_ASSERT(std::fabs(VecLength(normal)) > SMALL, "Normal of plane is the 0-vector."
+					" This should never happen for a simple polygon");
+
 			std::vector<ug::Vertex*> fromNew;
 			for (size_t i = 0; i < from.size(); i++) {
 				///	calculates the intersection of the ray rayFrom+t*rayDir and the plane (x-p)*n=0.
 				ug::vector3 vOut;
 				number tOut;
 				bool found = RayPlaneIntersection(vOut, tOut, aaPos[from[i]], dir, centerB, normal);
-				UG_COND_THROW(!found, "No intersection point found!")
+				UG_COND_THROW(!found, "No intersection point found for ray-plane intersection. Check geometry?!")
 				Vertex* v = *g.create<RegularVertex>();
 				aaPos[v] = vOut;
 				fromNew.push_back(v);
@@ -3754,26 +3771,25 @@ namespace ug {
 							size_t index = std::distance(from.begin(),
 							std::find(from.begin(), from.end(), edgesFrom[i]->vertex(l == 0 ? 1 : 0)));
 							neighbors.push_back(index);
-							UG_LOGN("index: " << index)
 						}
 					}
 				}
+				UG_ASSERT(neighbors.size() == 2, "A vertex in a simple polygon"
+						" must have always exactly two neighboring vertices.");
 
 				for (size_t i = 0; i < neighbors.size(); i++) {
-					number winding = sgn(check_winding(normal, aaPos[fromNew[minIndexA]], aaPos[fromNew[neighbors[i]]], centerB));
-					UG_LOGN("winding ( " << i << "): " << winding)
+					const number winding = sgn(check_winding(normal, aaPos[fromNew[minIndexA]],
+							aaPos[fromNew[neighbors[i]]], centerB));
 
 					if (winding <= order) {
-						minIndexA = std::distance(from.begin(), std::find(from.begin(), from.end(), from[neighbors[i]]));
+						minIndexA = std::distance(from.begin(),
+						std::find(from.begin(), from.end(), from[neighbors[i]]));
 						fromOrdered.push_back(minIndexA);
 						j++;
 						break;
 					}
 				}
 			}
-
-
-			return;
 
 			std::vector<size_t> toOrdered;
 			toOrdered.push_back(minIndexB);
@@ -3786,33 +3802,37 @@ namespace ug {
 				for (size_t i = 0; i < edgesTo.size(); i++) {
 					for (size_t l = 0; l < 2; l++) {
 						if (edgesTo[i]->vertex(l) == to[minIndexB]) {
-							size_t index = std::distance(to.begin(), std::find(to.begin(), to.end(), edgesTo[i]->vertex(l)));
+							size_t index = std::distance(to.begin(),
+							std::find(to.begin(), to.end(), edgesTo[i]->vertex(l == 0 ? 1 : 0)));
 							neighbors.push_back(index);
 						}
 					}
 				}
 
+				UG_ASSERT(neighbors.size() == 2, "A vertex in a simple polygon"
+						" must have always exactly two neighboring vertices.");
+
 				for (size_t i = 0; i < neighbors.size(); i++) {
-					short int winding = sgn(check_winding(normal, aaPos[to[minIndexB]], aaPos[to[neighbors[i]]], centerB));
-					if (winding < order) {
-						minIndexB = std::distance(to.begin(), std::find(to.begin(), to.end(), to[neighbors[i]]));
+					const number winding = sgn(check_winding(normal, aaPos[to[minIndexB]],
+							aaPos[to[neighbors[i]]], centerB));
+					if (winding <= order) {
+						minIndexB = std::distance(to.begin(),
+						std::find(to.begin(), to.end(), to[neighbors[i]]));
 						toOrdered.push_back(minIndexB);
-						i++;
+						j++;
 						break;
 					}
 				}
 			}
 
-			UG_LOGN("After ordering polyB CCW")
-
-			UG_COND_THROW(toOrdered.size() != to.size(), "Mismatch in found vertices!");
-			UG_COND_THROW(fromOrdered.size() != from.size(), "Mismatch in found vertices!");
+			UG_ASSERT(toOrdered.size() == to.size(), "Mismatch in found vertices: "
+					<< toOrdered.size() << "!=" << to.size());
+			UG_ASSERT(fromOrdered.size() == from.size(), "Mismatch in found vertices!"
+					<< fromOrdered.size() << "!=" << from.size());
 			/// Create pairs of polygon A and B which should be merged.
 			for (size_t i = 0; i < toOrdered.size(); i++) {
 				pairs.push_back(make_pair(to[toOrdered[i]], from[fromOrdered[i]]));
 			}
-
-			UG_LOGN("Before cleanup vertices")
 
 			/// Delete projected vertices to find conenction;
 			for (size_t i = 0; i < fromNew.size(); i++) {
