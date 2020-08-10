@@ -3523,6 +3523,7 @@ namespace ug {
 				for (; it != pairs.end(); ++it) {
 					if (!mergeVertices) {
 						Edge* e = *g.create<RegularEdge>(EdgeDescriptor(it->first, it->second));
+						/// TODO: remove this subset assignment
 						sh.assign_subset(e, 101);
 					} else {
 						if (mergeAtFirstVertex) {
