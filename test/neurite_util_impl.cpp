@@ -1141,7 +1141,7 @@ namespace ug {
 				CalculateVertexNormal(normal, g, bestVertices[i], aaPos);
 				number radius = outRads[i];
 				/// TODO: radius*2 is not good, should be radius*erScaleFactor
-				AdaptSurfaceGridToCylinder(sel, g, bestVertices[i], normal, radius*scale, 1.0*rimSnapThresholdFactor, aPosition);
+				AdaptSurfaceGridToCylinder(sel, g, bestVertices[i], normal, 2*radius*scale, 1.0*rimSnapThresholdFactor, aPosition);
 			}
 
 			AssignSubsetColors(sh);

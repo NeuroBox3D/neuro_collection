@@ -4001,6 +4001,8 @@ void create_spline_data_for_neurites
 	    create_soma(somaPoint, g, aaPos, sh, 1);
 	    UG_LOGN("Created soma")
 
+	    /// TODO: Should soma inner refinement depend on soma outer refinemnt (1 vs 3?)
+
 	    // Get closest _vertices_ on soma surface for each connecting neurite
 		vector<Vertex*> vPointSomaSurface2;
 		//get_closest_vertices_on_soma(vPosSomaClosest, vPointSomaSurface2, g, aaPos, sh, 1);
@@ -4674,8 +4676,8 @@ void create_spline_data_for_neurites
 		EraseEmptySubsets(sh);
 
 		/// assign to subsets
-		sh.subset_info(0).name = "dend";
-		sh.subset_info(1).name = "soma";
+		sh.subset_info(0).name = "soma";
+		sh.subset_info(1).name = "dend";
 		EraseEmptySubsets(sh);
 		SaveGridToFile(g, sh, "new_strategy_assigned.ugx");
 
@@ -4944,8 +4946,14 @@ void create_spline_data_for_neurites
 
 		/// export grid to swc
 		RemoveDoubles<3>(g2, g2.begin<Vertex>(), g2.end<Vertex>(), aPosition, SMALL);
-		sh2.subset_info(0).name = "soma";
-		sh2.subset_info(1).name = "dend";
+		sh2.subset_info(0).name = "dend";
+		sh2.subset_info(1).name = "soma";
+
+		if (somaIncluded) {
+			sh2.subset_info(0).name = "soma";
+			sh2.subset_info(1).name = "dend";
+		}
+
 		SaveGridToFile(g2, sh2, "new_strategy_final.ugx");
 		export_to_swc(g2, sh2, "new_strategy.swc");
 
