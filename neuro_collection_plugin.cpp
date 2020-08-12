@@ -989,6 +989,7 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("test_import_swc_and_regularize", static_cast<void (*)(const std::string&, number, const std::string&, const size_t, const bool, const bool)>(&test_import_swc_and_regularize), "", "file name # desired segment length", "");
 		reg.add_function("test_import_swc_and_regularize", static_cast<void (*)(const std::string&)>(&test_import_swc_and_regularize), "", "file name # desired segment length", "");
 		reg.add_function("test_import_swc_and_regularize", static_cast<void (*)(const std::string&, const bool, const bool)>(&test_import_swc_and_regularize), "", "file name # desired segment length # soma Included", "");
+		reg.add_function("test_import_swc_and_regularize_var", (&test_import_swc_and_regularize_var), "", "file name", "");
 		reg.add_function("GetNumberOfTriangleIntersections", &GetNumberOfTriangleIntersections, "", "gridName#snapThreshold", "");
 
 	}

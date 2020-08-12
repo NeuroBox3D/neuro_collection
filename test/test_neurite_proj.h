@@ -633,6 +633,19 @@ void test_import_swc_and_regularize
 );
 
 /*!
+ * \brief import swc and regularize seg length by GQ's angle-length criterion
+ * \param[in] fileName name of the input geometry
+ * \see test_import_swc_and_regularize
+ *
+ * Note that the segment length is chosen by the minimum admissible segment
+ * length as determined by GQ's angle-length criterion at branching points
+ */
+void test_import_swc_and_regularize_var
+(
+	const std::string& fileName
+);
+
+/*!
  * \brief check if all fragments are separated by minimum distance
  *
  * The methods returns true if all fragments agree with the minimum distance,

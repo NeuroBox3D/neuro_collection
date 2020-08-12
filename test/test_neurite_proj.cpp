@@ -4048,7 +4048,7 @@ void create_spline_data_for_neurites
 	    // Checking for cyclinder cylinder intersection, which is not a sensible input geometry
 	    UG_DLOG(NC_TNP, 0, "Checking for intersections...")
 	    /// TODO: Should all checks be throws in general?
-	    UG_COND_THROW(!CylinderCylinderSeparationTest(vPoints), "Cylinders intersect!")
+	    UG_COND_WARNING(!CylinderCylinderSeparationTest(vPoints), "Cylinders intersect!")
 	    UG_DLOGN(NC_TNP, 0, " passed!")
 
 	    // Regularize, smooth possibly again, then convert to neuritelist
@@ -4948,8 +4948,10 @@ void create_spline_data_for_neurites
 
 		/// export grid to swc
 		RemoveDoubles<3>(g2, g2.begin<Vertex>(), g2.end<Vertex>(), aPosition, SMALL);
-		sh2.subset_info(0).name = "soma";
-		sh2.subset_info(1).name = "dend";
+		if (!somaIncluded) {
+			sh2.subset_info(0).name = "dend";
+			sh2.subset_info(1).name = "soma";
+		}
 
 		SaveGridToFile(g2, sh2, "new_strategy_final.ugx");
 		export_to_swc(g2, sh2, "new_strategy.swc");
@@ -4982,6 +4984,17 @@ void create_spline_data_for_neurites
 	) {
 		// delegate to general implementation and choose min strategy
 		test_import_swc_and_regularize(fileName, -1, "min", 0, forceAdditionalPoint, includeSoma);
+	}
+
+	////////////////////////////////////////////////////////////////////////////
+	/// test_import_swc_and_regularize_var
+	////////////////////////////////////////////////////////////////////////////
+	void test_import_swc_and_regularize_var
+	(
+		const std::string& fileName
+	) {
+		const number maxDist = find_min_bp_dist(fileName); //!< maxDist: GQ's angle-length criterion
+		test_import_swc_and_regularize(fileName, maxDist, "user", 0, false, false);
 	}
 
 	////////////////////////////////////////////////////////////////////////////
