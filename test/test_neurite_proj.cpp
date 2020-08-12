@@ -5208,12 +5208,12 @@ void create_spline_data_for_neurites
 		for (int i = 0; i < counter-1; i++) {
 			sel.clear();
 			SelectSubset(sel, sh, sh.num_subsets()-i-1, true);
-			AssignSelectionToSubset(sel, sh, 0); // Neurite caps go to neurites
+			AssignSelectionToSubset(sel, sh, 0); // Neurite caps go to neurites subset
 			TriangleFill(g, sel.edges_begin(), sel.edges_end());
 		}
 
 		// soma
-		/// TODO: Use blowup factor also for soma radius?!
+		vSomaPoints[0].radius *= blowUpFactor;
 		create_soma(vSomaPoints, g, aaPos, sh, 1);
 		sh.subset_info(0).name = "Neurites";
 		sh.subset_info(1).name = "Soma";
