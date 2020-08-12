@@ -5059,6 +5059,7 @@ void create_spline_data_for_neurites
 	) {
 		using namespace std;
 
+		/// Never precondition here, because 1D geometry has been regularized already
 		// preconditioning
 		// test_smoothing(fileName, 5, 1.0, 1.0);
 
@@ -5075,20 +5076,12 @@ void create_spline_data_for_neurites
 
 		convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
-			/// TODO fix this. the soma point (first point) is ignored during grid generation,
-			/// duplicate the point in front of each root neurite starting at soma?
-			vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
-			//vRad[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].radius;
-			/*
-			std::vector<vector3>& temp = vPos[vRootNeuriteIndsOut[i]];
-			temp.insert(temp.begin(), vSomaPoints[0].coords);
-
-			std::vector<number>& temp2 = vRad[vRootNeuriteIndsOut[i]];
-			temp2.insert(temp2.begin(), vSomaPoints[0].radius);
-			 */
+			/// Note: This could be improved: The soma point (first point (centroid of sphere) is
+			/// ignored during grid generation How to fix this? Add soma point again in front of root neurites manually
+			vPos[vRootNeuriteIndsOut[i]].insert(vPos[vRootNeuriteIndsOut[i]].begin(), vSomaPoints[0].coords);
+			vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[vRootNeuriteIndsOut[i]][0]);
 		}
 
-		/// TODO: Remove debug output
 	    Grid gridOriginal;
 	    SubsetHandler shOriginal(gridOriginal);
 	    swc_points_to_grid(vPoints, gridOriginal, shOriginal, 1.0);
@@ -5158,7 +5151,7 @@ void create_spline_data_for_neurites
 		   			blowUpFactor, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1, option, segLength, true);
 		}
 
-		/// Debug output
+		/// TODO: Remove debug output
 		/*
 		Grid gridOutput;
 		SubsetHandler shOutput(gridOutput);
@@ -5183,11 +5176,10 @@ void create_spline_data_for_neurites
 			// neuriteProj->project(*vit);
 		}
 
-		// grid housekeeping
-		sel.clear();
 
-		/// TODO: This could be improved...
+		/// Capping of neurites: Note, that this could be improved obviously
 		// assign subsets
+		sel.clear();
 		std::vector<std::vector<ug::Edge*> >::const_iterator ite = subsets.edges.begin();
 		int counter = 0;
 		while (ite != subsets.edges.end()) {
@@ -5208,7 +5200,8 @@ void create_spline_data_for_neurites
 		for (int i = 0; i < counter-1; i++) {
 			sel.clear();
 			SelectSubset(sel, sh, sh.num_subsets()-i-1, true);
-			AssignSelectionToSubset(sel, sh, 0); // Neurite caps go to neurites subset
+			// Neurite caps go to neurites subset
+			AssignSelectionToSubset(sel, sh, 0);
 			TriangleFill(g, sel.edges_begin(), sel.edges_end());
 		}
 
