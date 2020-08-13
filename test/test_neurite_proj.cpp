@@ -666,6 +666,7 @@ void convert_pointlist_to_neuritelist
 			// branching point
 			if (nConn > 2)
 			{
+				UG_COND_THROW(nConn > 3, "Bifurcations with > 3 child branches are not supported!");
 				// branch with minimal angle will continue current branch
 				vector3 parentDir;
 				VecSubtract(parentDir, pt.coords, vPoints[pind].coords);
@@ -725,6 +726,7 @@ void convert_pointlist_to_neuritelist
 				// add BP to BP vector
 				vBPInfoOut[curNeuriteInd].push_back(bp);
 			}
+
 
 			// end point
 			else if (nConn == 1)
@@ -4098,6 +4100,8 @@ void create_spline_data_for_neurites
 		// Create spline data for neurites
 		vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
 		create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
+		UG_LOGN("Setting permissible render vector...");
+		/// set_permissible_render_vector(vPos, vNeurites);
 
 		// Helper vectors to store radii and verts for soma/neurite connection
 		vector<Vertex*> outVerts;
@@ -4691,6 +4695,32 @@ void create_spline_data_for_neurites
 	};
 
 	////////////////////////////////////////////////////////////////////////////
+	/// get_geom_diam
+	////////////////////////////////////////////////////////////////////////////
+	number get_geom_diam
+	(
+		const std::string& fileName
+	) {
+		std::vector<SWCPoint> vPoints;
+		import_swc(fileName, vPoints);
+
+		/// grid setup
+		Grid g;
+		SubsetHandler sh(g);
+		g.attach_to_vertices(aPosition);
+		Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+		/// swc to grid
+		swc_points_to_grid(vPoints, g, sh, 1.0);
+
+		/// calculate diameter of geometry
+		ug::vector3 vMin, vMax;
+		CalculateBoundingBox(vMin, vMax, g.begin<Vertex>(), g.end<Vertex>(), aaPos);
+		ug::vector3 temp;
+		VecSubtract(temp, vMax, vMin);
+		return VecLength(temp);
+	}
+
+	////////////////////////////////////////////////////////////////////////////
 	/// find_min_bp_dist
 	////////////////////////////////////////////////////////////////////////////
 	number find_min_bp_dist
@@ -4784,6 +4814,9 @@ void create_spline_data_for_neurites
 		return maxDist;
 	}
 
+	////////////////////////////////////////////////////////////////////////////
+	/// project_to_sphere
+	////////////////////////////////////////////////////////////////////////////
 	void project_to_sphere
 	(
 		const ug::vector3& center,
@@ -4994,6 +5027,9 @@ void create_spline_data_for_neurites
 		const std::string& fileName
 	) {
 		const number maxDist = find_min_bp_dist(fileName); //!< maxDist: GQ's angle-length criterion
+		UG_COND_THROW(maxDist > get_geom_diam(fileName),
+				"Calculated segment length larger than diameter of geometry!"
+				"Make sure input SWC geometry does not contain obvious artifacts.");
 		test_import_swc_and_regularize(fileName, maxDist, "user", 0, false, false);
 	}
 
@@ -5081,6 +5117,8 @@ void create_spline_data_for_neurites
 			vPos[vRootNeuriteIndsOut[i]].insert(vPos[vRootNeuriteIndsOut[i]].begin(), vSomaPoints[0].coords);
 			vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[vRootNeuriteIndsOut[i]][0]);
 		}
+
+	    UG_COND_THROW(ContainsCycle(vPoints), "1d grid contains at least one cycle. This is not permitted!");
 
 	    Grid gridOriginal;
 	    SubsetHandler shOriginal(gridOriginal);

@@ -234,12 +234,10 @@ namespace ug {
 		 * \param[in] vPoints list of SWC points
 		 * \return \c bool
 		 */
-		/*
 		bool ContainsCycle
 		(
 			const std::vector<SWCPoint>& vPoints
 		);
-		*/
 
 		/*!
 		 * \brief Check for undesired angles
