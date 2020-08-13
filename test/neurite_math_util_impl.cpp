@@ -541,6 +541,27 @@ namespace ug {
 		}
 
 		////////////////////////////////////////////////////////////////////////
+		/// CylinderCylinderSomaSeparationTest
+		////////////////////////////////////////////////////////////////////////
+		bool CylinderCylinderSomaSeparationTest
+		(
+			const vector<SWCPoint>& vSomaPoints
+		) {
+			for (size_t i = 0; i < vSomaPoints.size(); i++) {
+				for (size_t j = 0; j < vSomaPoints.size(); j++) {
+					if (i != j) {
+						const number dist = VecDistance( vSomaPoints[i].coords,  vSomaPoints[j].coords);
+						if (dist < vSomaPoints[i].radius || dist < vSomaPoints[j].radius) {
+							return false;
+						}
+					}
+				}
+			}
+			return true;
+		}
+
+
+		////////////////////////////////////////////////////////////////////////
 		/// CylinderCylinderSeparationTest
 		////////////////////////////////////////////////////////////////////////
 		bool CylinderCylinderSeparationTest

@@ -4051,7 +4051,10 @@ void create_spline_data_for_neurites
 	    // Checking for cyclinder cylinder intersection, which is not a sensible input geometry
 	    UG_DLOG(NC_TNP, 0, "Checking for intersections...")
 	    /// TODO: Should all checks be throws in general?
-	    UG_COND_WARNING(!CylinderCylinderSeparationTest(vPoints), "Cylinders intersect!")
+	    /// TODO: Check not finished, might not work correctly thus
+	    UG_COND_WARNING(!CylinderCylinderSeparationTest(vPoints), "Neurite cylinders intersect!")
+	    /// TODO: Simple soma check might already indicate intersecting cylinders...
+	    UG_COND_THROW(!CylinderCylinderSomaSeparationTest(vSomaPoints), "Soma connecting cylinders intersect!")
 	    UG_DLOGN(NC_TNP, 0, " passed!")
 
 	    // Regularize, smooth possibly again, then convert to neuritelist
@@ -4062,6 +4065,7 @@ void create_spline_data_for_neurites
 
 	    /// Fix root neurites. Could be improved by inserting additional point
 	    UG_DLOG(NC_TNP, 0, "Mitigating root branching neurites...")
+	    /// TODO: Does this actually work / is this the correct implementation? Check!
 	    MitigateRootBranchingNeurites(vPoints);
 
 	    UG_LOGN("After checks...")

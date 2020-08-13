@@ -161,6 +161,14 @@ namespace ug {
 			const Cylinder& b
 		);
 
+		/*!
+		 * \brief Simple Cylinder Cylinder soma separation test
+		 */
+		bool CylinderCylinderSomaSeparationTest
+		(
+			const std::vector<SWCPoint>& vSomaPoints
+		);
+
 		struct Cylinder {
 			vector3 c; //<! center (point)
 			vector3 w; //<! unit-length axis (vector)
