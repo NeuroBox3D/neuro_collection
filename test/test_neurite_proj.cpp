@@ -907,6 +907,7 @@ void convert_pointlist_to_neuritelist_variant
 			number tempRad;
 			if (nConn > 2)
 			{
+				UG_COND_THROW(nConn > 3, "Bifurcations with > 3 child branches are not supported!");
 				// branching point -> new neurite ID
 				size_t newSize = vPosOut.size() + nConn-1;
 				vPosOut.resize(newSize);
