@@ -4980,16 +4980,16 @@ void create_spline_data_for_neurites
 			UG_LOGN("Setting diameter of soma vertex")
 			/// kludge: assumes begin() iterator of vertex vector is always soma, safe to assume?
 			aaDiam[*g2.begin<Vertex>()] = vSomaPoints[0].radius;
-			sh2.assign_subset(*g2.begin<Vertex>(), 0);
+			sh2.assign_subset(*g2.begin<Vertex>(), 1);
 		}
 		UG_LOGN("Now writing grid...")
 
 		/// export grid to swc
 		RemoveDoubles<3>(g2, g2.begin<Vertex>(), g2.end<Vertex>(), aPosition, SMALL);
-		if (!somaIncluded) {
-			sh2.subset_info(0).name = "dend";
-			sh2.subset_info(1).name = "soma";
-		}
+    EraseEmptySubsets(sh2);
+		sh2.subset_info(0).name = "dend";
+    sh2.assign_subset(FindVertexByCoordiante(vSomaPoints[0].coords, g2.begin<Vertex>(), g2.end<Vertex>(), aaPos), 1);
+		sh2.subset_info(1).name = "soma";
 
 		SaveGridToFile(g2, sh2, "new_strategy_final.ugx");
 		export_to_swc(g2, sh2, "new_strategy.swc");
