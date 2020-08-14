@@ -403,7 +403,7 @@ namespace ug {
 		////////////////////////////////////////////////////////////////////////
 		bool is_cyclic
 		(
-			const vector<int> adj[],
+			const vector<vector<int> > adj,
 			const int s,
             const int V,
             vector<bool>& visited
@@ -436,7 +436,7 @@ namespace ug {
 		////////////////////////////////////////////////////////////////////////
 		bool is_cyclic
 		(
-			const vector<int> adj[],
+			const vector<vector<int> > adj,
 			const int V
 		)
 		{
@@ -501,7 +501,8 @@ namespace ug {
 		)
 		{
 			const size_t nPts = vPoints.size();
-			std::vector<int> adj[nPts];
+			std::vector<std::vector<int> > adj;
+      adj.resize(nPts);
 			for (size_t i = 0; i < nPts; i++) {
 				const vector<size_t>& conns = vPoints[i].conns;
 				for (size_t j = 0; j < conns.size(); j++) {
