@@ -4546,8 +4546,6 @@ void create_spline_data_for_neurites
 		Grid::VertexAttachmentAccessor<Attachment<number> > aaDiam;
 		aaDiam.access(g, aDiam);
 
-
-		ug::RegularVertex* somaVertex;
 		/// actual seglength might differ from desired due to non integer multiplicity
 		number segLength;
 		UG_LOGN("*** eval_spline ***")
@@ -4650,7 +4648,6 @@ void create_spline_data_for_neurites
 				aaDiam[vertex] = radius*2.0;
 				vertices.push_back(vertex);
 				sh.assign_subset(vertex, i+1);
-				if (!somaVertex) { somaVertex = vertex; if (somaIncluded) {sh.assign_subset(somaVertex, 0);} }
 			}
 			UG_LOGN("*******")
 
@@ -4976,23 +4973,26 @@ void create_spline_data_for_neurites
 			}
 			sh2.assign_subset(somaVertex, 1);
 		} else {
-			UG_LOGN("Setting diameter of soma vertex")
-			/// kludge: assumes begin() iterator of vertex vector is always soma, safe to assume?
-			aaDiam[*g2.begin<Vertex>()] = vSomaPoints[0].radius;
-			sh2.assign_subset(*g2.begin<Vertex>(), 1);
 		}
 		UG_LOGN("Now writing grid...")
 
+		SaveGridToFile(g2, sh2, "new_strategy_prefinal.ugx");
 		/// export grid to swc
 		RemoveDoubles<3>(g2, g2.begin<Vertex>(), g2.end<Vertex>(), aPosition, SMALL);
 		EraseEmptySubsets(sh2);
 		sh2.subset_info(0).name = "dend";
-		sh2.assign_subset(FindVertexByCoordiante(vSomaPoints[0].coords, g2.begin<Vertex>(), g2.end<Vertex>(), aaPos), 1);
+		if (somaIncluded) {
+			ug::Vertex* temp = NULL;
+			temp = FindVertexByCoordiante(vSomaPoints[0].coords, g2.begin<Vertex>(), g2.end<Vertex>(), aaPos);
+			UG_ASSERT(temp != NULL, "Designated soma vertex should never be NULL!");
+			aaDiam[temp] = vSomaPoints[0].radius;
+			sh2.assign_subset(temp, 1);
+		}
 		sh2.subset_info(1).name = "soma";
 
 		/// consistency checks
-		UG_ASSERT(sh2.num_subsets() == 2, "Two subsets are required: dend and soma");
-		UG_ASSERT(sh2.num<Vertex>(1) == 1, "Soma subset should contain only one vertex");
+		UG_ASSERT(sh2.num_subsets() == 2, "Precisely two subsets are required: dend and soma!");
+		UG_ASSERT(sh2.num<Vertex>(1) == 1, "Soma subset should contain exactly one vertex!");
 		UG_ASSERT(sh2.num<Vertex>(0) > 0, "Dend subset should contain at least one vertex!");
 
 		SaveGridToFile(g2, sh2, "new_strategy_final.ugx");
