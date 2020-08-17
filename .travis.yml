@@ -1,6 +1,5 @@
 compiler:
   - clang
-  - gcc
 
 before_script:
    - gem install travis
