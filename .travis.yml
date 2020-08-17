@@ -10,5 +10,4 @@ script:
 after_script:
    - curl -LO https://raw.github.com/stephanmg/travis-dependent-builds/master/trigger.sh
    - chmod +x trigger.sh
-   - echo $TRAVIS_ACCESS_TOKEN
    - ./trigger.sh stephanmg vr-grids development $TRAVIS_ACCESS_TOKEN ""
