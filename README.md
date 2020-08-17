@@ -4,4 +4,5 @@ UG4 plugin for unified neuro-related functionality
 This plugin aims at collecting and unifying any neuro-related functionality that is developed for UG4 and that the author thinks of as usable for others.
 
 ## CI
-Travis CI is being added currently.
+Travis CI is used to trigger the build of downstream projects (Which depend on neuro_collection). See `.travis.yml` for details.
+Currently one downstream project is triggered: stephanmg/vr-grids.
