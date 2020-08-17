@@ -4980,16 +4980,17 @@ void create_spline_data_for_neurites
 			UG_LOGN("Setting diameter of soma vertex")
 			/// kludge: assumes begin() iterator of vertex vector is always soma, safe to assume?
 			aaDiam[*g2.begin<Vertex>()] = vSomaPoints[0].radius;
-			sh2.assign_subset(*g2.begin<Vertex>(), 0);
+			sh2.assign_subset(*g2.begin<Vertex>(), 1);
 		}
 		UG_LOGN("Now writing grid...")
 
 		/// export grid to swc
 		RemoveDoubles<3>(g2, g2.begin<Vertex>(), g2.end<Vertex>(), aPosition, SMALL);
-		if (!somaIncluded) {
-			sh2.subset_info(0).name = "dend";
-			sh2.subset_info(1).name = "soma";
-		}
+		sh2.assign_subset(*g2.begin<Vertex>(), 1);
+		EraseEmptySubsets(sh2);
+		sh2.subset_info(0).name = "dend";
+		sh2.assign_subset(FindVertexByCoordiante(vSomaPoints[0].coords, g2.begin<Vertex>(), g2.end<Vertex>(), aaPos), 1);
+		sh2.subset_info(1).name = "soma";
 
 		SaveGridToFile(g2, sh2, "new_strategy_final.ugx");
 		export_to_swc(g2, sh2, "new_strategy.swc");
@@ -5081,6 +5082,30 @@ void create_spline_data_for_neurites
 			FindPermissibleRenderVector(directions, 10, 5, renderVec);
 			vNeurites[i].refDir = renderVec;
 		}
+	}
+
+	////////////////////////////////////////////////////////////////////////////
+	/// set_permissible_render_vector_global
+	////////////////////////////////////////////////////////////////////////////
+	void set_permissible_render_vector_global
+	(
+		const std::vector<std::vector<ug::vector3> >& vPos,
+		std::vector<NeuriteProjector::Neurite>& vNeurites
+	) {
+		std::vector<ug::vector3> directions;
+		for (size_t i = 0; i < vPos.size(); i++) {
+			for (size_t j = 0; j < vPos[i].size()-1; j++) {
+				ug::vector3 temp;
+				VecSubtract(temp, vPos[i][j+1], vPos[i][j]);
+				directions.push_back(temp);
+			}
+		}
+		ug::vector3 renderVec;
+		FindPermissibleRenderVector(directions, 10, 5, renderVec);
+		for (size_t i = 0; i < vPos[i].size(); i++) {
+			vNeurites[i].refDir = renderVec;
+		}
+
 	}
 
 	////////////////////////////////////////////////////////////////////////////
@@ -5340,7 +5365,7 @@ void create_spline_data_for_neurites
 		// adjust render vectors
 		// TODO: Add as an option
 		UG_LOGN("Find and set render vector")
-		set_permissible_render_vector(vPos, vNeurites);
+		set_permissible_render_vector_global(vPos, vNeurites);
 
 		/// mapping
 	    typedef NeuriteProjector::Mapping NPMapping;

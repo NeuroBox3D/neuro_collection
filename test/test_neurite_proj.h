@@ -713,6 +713,19 @@ void set_permissible_render_vector
 );
 
 /*!
+ * \brief finds and sets the permissible render vector for neurites globally
+ * \param[in] fileName input 1d structure
+ * \param[out] vNeurites neurites
+ *
+ */
+void set_permissible_render_vector_global
+(
+	const std::vector<std::vector<ug::vector3> >& vPos,
+	std::vector<NeuriteProjector::Neurite>& vNeurites
+);
+
+
+/*!
  * \brief finds the global minimum allowed segment length for branching points
  * Returns the minimum global allowed segment length
  * \param[in] fileName
