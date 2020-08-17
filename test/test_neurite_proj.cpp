@@ -4869,6 +4869,7 @@ void create_spline_data_for_neurites
 			/// project neurite start vertex to soma sphere and let this be the start of the neurites
 			/// Note: Might be problematic if projected vertices are identically...
 			for  (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
+				/// This will make the neurites start on the soma surface, which is not strictly necessary and might lead to intersections.
 				ug::vector3 q;
 				project_to_sphere(vSomaPoints[0].coords, vSomaPoints[0].radius, vPos[vRootNeuriteIndsOut[i]][0], q);
 				vPos[vRootNeuriteIndsOut[i]][0] = q;
@@ -5286,7 +5287,7 @@ void create_spline_data_for_neurites
 
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements.ugx");
 		Triangulate(g, g.begin<ug::Quadrilateral>(), g.end<ug::Quadrilateral>());
-		/// apply a hint of laplacian smoothin for soma region
+		/// apply a hint of laplacian smoothing for soma region
 		LaplacianSmooth(g, sh.begin<Vertex>(1), sh.end<Vertex>(1), aaPos, 0.1, 10);
 		FixFaceOrientation(g, g.faces_begin(), g.faces_end());
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements_tris.ugx");
