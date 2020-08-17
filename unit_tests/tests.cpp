@@ -65,7 +65,8 @@ BOOST_FIXTURE_TEST_CASE(CreatePyramid, FixtureOneGrid) {
 	vector3 top = aaPos[p->vertex(4)]; //!< last vertex is top vertex
 	BOOST_REQUIRE_SMALL(top.x() - 0.5, SMALL);
 	BOOST_REQUIRE_SMALL(top.y() - 0.5, SMALL);
-	BOOST_REQUIRE_SMALL(top.z()-(-0.25*0.1), SMALL);
+  std::cout << top.z() << std::endl;
+	BOOST_REQUIRE_SMALL(top.z(), SMALL);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

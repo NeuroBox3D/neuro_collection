@@ -95,7 +95,6 @@ namespace ug {
 	)
 	{
     vPointsOut.clear();
-
     std::string inFileName = FindFileInStandardPaths(fileName.c_str());
 
     std::ifstream inFile(inFileName.c_str());
@@ -4986,11 +4985,15 @@ void create_spline_data_for_neurites
 
 		/// export grid to swc
 		RemoveDoubles<3>(g2, g2.begin<Vertex>(), g2.end<Vertex>(), aPosition, SMALL);
-		sh2.assign_subset(*g2.begin<Vertex>(), 1);
 		EraseEmptySubsets(sh2);
 		sh2.subset_info(0).name = "dend";
 		sh2.assign_subset(FindVertexByCoordiante(vSomaPoints[0].coords, g2.begin<Vertex>(), g2.end<Vertex>(), aaPos), 1);
 		sh2.subset_info(1).name = "soma";
+
+		/// consistency checks
+		UG_ASSERT(sh2.num_subsets() == 2, "Two subsets are required: dend and soma");
+		UG_ASSERT(sh2.num<Vertex>(1) == 1, "Soma subset should contain only one vertex");
+		UG_ASSERT(sh2.num<Vertex>(0) > 0, "Dend subset should contain at least one vertex!");
 
 		SaveGridToFile(g2, sh2, "new_strategy_final.ugx");
 		export_to_swc(g2, sh2, "new_strategy.swc");
