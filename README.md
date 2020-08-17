@@ -5,4 +5,4 @@ This plugin aims at collecting and unifying any neuro-related functionality that
 
 ## CI
 Travis CI is used to trigger the build of downstream projects (Which depend on neuro_collection). See `.travis.yml` for details.
-Currently one downstream project is triggered: stephanmg/vr-grids.
+Currently one downstream project is triggered: https://github.com/stephanmg/vr-grids
