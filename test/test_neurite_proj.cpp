@@ -72,9 +72,10 @@
 #include "lib_algebra/vector_interface/vec_functions.h" // VecNorm2
 #include "common/util/string_util.h"  // TrimString
 #include "common/util/file_util.h"  // FindFileInStandardPaths
-#include <list>
+#include <lib_grid/algorithms/grid_generation/tetrahedralization.h> // Tetrahedralize
 
 /// other
+#include <list>
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string.hpp>
 
@@ -3795,6 +3796,7 @@ void create_spline_data_for_neurites
 	    	EraseEmptySubsets(sh);
 	    	AssignSubsetColors(sh);
 	    }
+	    SavePreparedGridToFile(g, sh, "after_extend_ER_and_after_connect_outer.ugx");
 
 	    /// Reassign elements for connecting parts ER and somata to erm subset
 	    sel.clear();
@@ -4296,7 +4298,7 @@ void create_spline_data_for_neurites
 		SavePreparedGridToFile(g, sh, "after_connect_pm_with_soma.ugx");
 
 
-		UG_LOGN("Failed connecting ER and PM to Soma");
+		UG_LOGN("Passed connecting ER and PM to Soma");
 
 		if (!forVR) {
 	    // This connects the inner quad with the soma surface (ER)
@@ -4318,10 +4320,31 @@ void create_spline_data_for_neurites
 	    	//connect_er_with_er(newSomaIndex+2*numQuads-1, g, aaPos, sh, outVertsInnerClean, 2*numQuads-1, false, false);
 			/// TODO: this method gives wrong result for merging at soma (last parameter: true not false)
 	    	///connect_er_with_er(newSomaIndex, g, aaPos, sh, outVertsInnerClean, 2*numQuads+1, true, true);
-	    	connect_polys(newSomaIndex, g, aaPos, sh, outVertsInnerClean, true, 2*numQuads+1, false);
+			SavePreparedGridToFile(g, sh, "before_connect_er_with_er.ugx");
+	    	connect_polys(newSomaIndex-4, g, aaPos, sh, outVertsInnerClean, true, 2*numQuads+1, false);
+	    	/// TODO: there are 4 less subsets because we assign now correctly to the correct subsets before...
 	    	SavePreparedGridToFile(g, sh, "after_connect_er_with_er.ugx");
 	    }
 		}
+
+		sel.clear();
+		for (size_t i = 0; i < 4; i++) {
+			SelectSubset(sel, sh, newSomaIndex-4+i, true); /// these go to PM subset!
+		}
+		AssignSelectionToSubset(sel, sh, 2); /// Connecting surface polygons need to belong to neurite start...
+		SavePreparedGridToFile(g, sh, "after_connect_er_with_er_before_reassignment.ugx");
+		/*
+		SelectSubset(sel, sh, newSomaIndex, true);
+		AssignSelectionToSubset(sel, sh, 3); /// inner soma surfaces goes to ERM
+		sel.clear();
+		SelectSubset(sel, sh, 4, true);
+		AssignSelectionToSubset(sel, sh, 2); // soma surface goes to PM
+		SavePreparedGridToFile(g, sh, "after_connect_er_with_er_before_reassignment.ugx");
+
+		Tetrahedralize(g, sh, 20, false, true, aPosition, 10);
+		SavePreparedGridToFile(g, sh, "after_new_tetrahedralize.ugx");
+		return;
+		*/
 
 
 		/// TODO: up to here indices okay: Need to erase debugging vertices, check if this interfers with grid generation above (subset indices)
@@ -4342,7 +4365,6 @@ void create_spline_data_for_neurites
 		/// assign correct axial parameters for "somata" regions (TODO: Verify to be correct!)
 		set_somata_mapping_parameters(g, sh, aaMapping, 4, 5, somaPoint.front());
 		set_somata_axial_parameters(g, sh, aaSurfParams, 4, 5);
-
 		FixFaceOrientation(g, g.faces_begin(), g.faces_end());
 
 		/// calculate vertex normals
@@ -4440,8 +4462,23 @@ void create_spline_data_for_neurites
 		/// TODO: refine around connecting regions (Retriangulate with high min angle value)
 		///RetriangulateConnectingRegions();
 
-	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 5, savedSomaPoint);
+		/*
+		sel.clear();
+		SelectElementsInSphere<Vertex>(g, sel, vSomaPoints.front().coords, vSomaPoints.front().radius*1.05, aaPos);
+		SelectElementsInSphere<Edge>(g, sel, vSomaPoints.front().coords, vSomaPoints.front().radius*1.05, aaPos);
+		SelectElementsInSphere<Face>(g, sel, vSomaPoints.front().coords, vSomaPoints.front().radius*1.05, aaPos);
+		SelectElementsInSphere<Quadrilateral>(g, sel, vSomaPoints.front().coords, vSomaPoints.front().radius*1.05, aaPos);
+		AssignSelectionToSubset(sel, sh, 100);
+		sh.subset_info(100).name = "To tetrahedralize";
+		SavePreparedGridToFile(g, sh, "to_tet.ugx");
+		UG_LOGN("Num pyramids:" << sh.num<Pyramid>());
+		*/
 
+		/// TODO Deselect all Bases of all pyramids before tetrahedralize (And only from soma subset: This is already done?!)
+		/// TODO: 1) Do not asign to one subset all elements from interior o soma
+		///       2) Call tetgen and preserve all boundaries and outer
+		///       3) Since ER volumina protrusing in soma sphere are also filled with tetrahedrons, remove these volumina
+	    tetrahedralize_soma(g, sh, aaPos, aaSurfParams, 4, 5, savedSomaPoint);
 	    SavePreparedGridToFile(g, sh, "after_tetrahedralize_and_before_reassign_volumes.ugx");
 
 	    /// reassign soma volumes to appropriate subsets

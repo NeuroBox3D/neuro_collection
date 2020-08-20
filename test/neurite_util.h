@@ -925,6 +925,19 @@ namespace ug {
 			}
 		}
 
+		/*!
+		 * \brief orientate a quadrilateral CCW
+		 */
+		void orientate_quadrilateral
+		(
+			const std::vector<Vertex*> vertices,
+			const ug::vector3& normal,
+			const ug::vector3& center,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid& g,
+			std::vector<Vertex*>& indices
+		);
+
 
 
 		/*!
