@@ -4005,6 +4005,7 @@ void create_spline_data_for_neurites
 	    create_soma(somaPoint, g, aaPos, sh, 1);
 	    UG_LOGN("Created soma")
 
+
 	    /// TODO: Should soma inner refinement depend on soma outer refinemnt (1 vs 3?)
 
 	    // Get closest _vertices_ on soma surface for each connecting neurite
@@ -4033,6 +4034,7 @@ void create_spline_data_for_neurites
 	    	UG_LOGN("Centers: " << centers[i]);
 	    }*/
 
+
 	    UG_DLOGN(NC_TNP, 0, "Found soma surface centers...");
 	   // ReplaceFirstRootNeuriteVertexInSWC(lines, fn_precond, fn_precond_with_soma, centers);
 
@@ -4054,8 +4056,6 @@ void create_spline_data_for_neurites
 	    /// TODO: Should all checks be throws in general?
 	    /// TODO: Check not finished, might not work correctly thus
 	    UG_COND_WARNING(!CylinderCylinderSeparationTest(vPoints), "Neurite cylinders intersect!")
-	    /// TODO: Simple soma check might already indicate intersecting cylinders...
-	    UG_COND_THROW(!CylinderCylinderSomaSeparationTest(vSomaPoints), "Soma connecting cylinders intersect!")
 	    UG_DLOGN(NC_TNP, 0, " passed!")
 
 	    // Regularize, smooth possibly again, then convert to neuritelist
@@ -4905,13 +4905,23 @@ void create_spline_data_for_neurites
 		} else {
 			/// project neurite start vertex to soma sphere and let this be the start of the neurites
 			/// Note: Might be problematic if projected vertices are identically...
+			/// Also: Will avoid problems if neurites would start within soma radius for some geometries...
+			std::vector<SWCPoint> temp;
 			for  (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
 				/// This will make the neurites start on the soma surface, which is not strictly necessary and might lead to intersections.
 				ug::vector3 q;
 				project_to_sphere(vSomaPoints[0].coords, vSomaPoints[0].radius, vPos[vRootNeuriteIndsOut[i]][0], q);
+
 				vPos[vRootNeuriteIndsOut[i]][0] = q;
 				vRad[vRootNeuriteIndsOut[i]][0] = vRad[vRootNeuriteIndsOut[i]][1];
+				SWCPoint p;
+				p.radius =  vRad[vRootNeuriteIndsOut[i]][1];
+				p.coords = q;
+				temp.push_back(p);
 			}
+
+			/// SImple soma intersection check
+			UG_COND_THROW(!CylinderCylinderSomaSeparationTest(temp), "Soma connecting cylinders intersect!")
 		}
 
 		// Write edge statistics for original grid

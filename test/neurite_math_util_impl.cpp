@@ -541,6 +541,7 @@ namespace ug {
 			return false;
 		}
 
+
 		////////////////////////////////////////////////////////////////////////
 		/// CylinderCylinderSomaSeparationTest
 		////////////////////////////////////////////////////////////////////////
@@ -548,11 +549,15 @@ namespace ug {
 		(
 			const vector<SWCPoint>& vSomaPoints
 		) {
+			UG_LOGN("vSomaPoints: " << vSomaPoints.size());
 			for (size_t i = 0; i < vSomaPoints.size(); i++) {
 				for (size_t j = 0; j < vSomaPoints.size(); j++) {
 					if (i != j) {
 						const number dist = VecDistance(vSomaPoints[i].coords,  vSomaPoints[j].coords);
-						if (dist < vSomaPoints[i].radius || dist < vSomaPoints[j].radius) {
+						if (dist < vSomaPoints[i].radius*0.5 || dist < vSomaPoints[j].radius*0.5) {
+							UG_LOGN("Offending neurite starts: " << i << ", " << j
+									<< " with dist: " << dist << " and radius: " <<
+									vSomaPoints[i].radius << ", and " << vSomaPoints[j].radius);
 							return false;
 						}
 					}
