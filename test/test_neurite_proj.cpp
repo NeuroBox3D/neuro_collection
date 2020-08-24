@@ -4763,7 +4763,8 @@ void create_spline_data_for_neurites
 	////////////////////////////////////////////////////////////////////////////
 	number find_min_bp_dist
 	(
-		const std::string& fileName
+		const std::string& fileName,
+		const number inflation
 	) {
 		/// import file
 		std::vector<SWCPoint> vPoints;
@@ -4807,7 +4808,7 @@ void create_spline_data_for_neurites
 
 				std::vector<number> diams;
 				for (size_t i = 0; i < vertices.size(); i++) {
-					diams.push_back(aaDiam[vertices[i]]);
+					diams.push_back(inflation * aaDiam[vertices[i]]);
 				}
 
 				/// determine parent branch index and direction
@@ -5081,10 +5082,11 @@ void create_spline_data_for_neurites
 	////////////////////////////////////////////////////////////////////////////
 	void test_import_swc_and_regularize_var
 	(
-		const std::string& fileName
+		const std::string& fileName,
+		const number inflation
 	) {
-		const number maxDist = find_min_bp_dist(fileName); //!< maxDist: GQ's angle-length criterion
-		UG_COND_THROW(maxDist > get_geom_diam(fileName),
+		const number maxDist = find_min_bp_dist(fileName, inflation); //!< maxDist: GQ's angle-length criterion
+		UG_COND_THROW(maxDist > get_geom_diam(fileName) * inflation,
 				"Calculated segment length larger than diameter of geometry!"
 				"Make sure input SWC geometry does not contain obvious artifacts.");
 		test_import_swc_and_regularize(fileName, maxDist, "user", 0, false, false);

@@ -635,6 +635,7 @@ void test_import_swc_and_regularize
 /*!
  * \brief import swc and regularize seg length by GQ's angle-length criterion
  * \param[in] fileName name of the input geometry
+ * \param[in] inflation
  * \see test_import_swc_and_regularize
  *
  * Note that the segment length is chosen by the minimum admissible segment
@@ -642,7 +643,8 @@ void test_import_swc_and_regularize
  */
 void test_import_swc_and_regularize_var
 (
-	const std::string& fileName
+	const std::string& fileName,
+	number inflation
 );
 
 /*!
@@ -729,12 +731,14 @@ void set_permissible_render_vector_global
  * \brief finds the global minimum allowed segment length for branching points
  * Returns the minimum global allowed segment length
  * \param[in] fileName
+ * \param[in] inflation
  *
- * \return \c nubmer
+ * \return \c number
  */
 number find_min_bp_dist
 (
-	const std::string& fileName
+	const std::string& fileName,
+	number inflation=1.0
 );
 
 
