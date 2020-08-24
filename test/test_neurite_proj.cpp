@@ -5333,6 +5333,7 @@ void create_spline_data_for_neurites
 		sh.subset_info(0).name = "Neurites";
 		sh.subset_info(1).name = "Soma";
 		AssignSubsetColors(sh);
+		EraseEmptySubsets(sh);
 		set_somata_mapping_parameters(g, sh, aaMapping, 1, 1, vSomaPoints.front());
 
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements.ugx");
