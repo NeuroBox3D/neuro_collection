@@ -49,7 +49,8 @@ script:
    - chmod +x trigger.sh
    - ./trigger.sh stephanmg vr-grids development $TRAVIS_ACCESS_TOKEN ""
    - ./trigger.sh stephanmg BranchGenerator master $TRAVIS_ACCESS_TOKEN ""
+   - ./trigger.sh stephanmg non-vr-grids master $TRAVIS_ACCESS_TOKEN ""
    
 after_script:
-   - echo "Triggered downstream projects: stephanmg/vr-grids and stephanmg/BranchGenerator."
+   - echo "Triggered downstream projects: stephanmg/vr-grids, stephanmg/non-vr-grids and stephanmg/BranchGenerator."
 
