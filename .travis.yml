@@ -1,8 +1,48 @@
+sudo: false
+
+addons:
+    apt:
+      packages:
+       - make
+       - cmake-data
+       - cmake
+    homebrew:
+      packages:
+      - ccache
+      
+git:
+  depth: false    
+  
+
+language: cpp
+
 compiler:
-  - clang
+    - gcc
+    - clang
+
+os:
+  - linux
+  - osx
+  
 
 before_script:
-   - gem install travis
+  - gem install travis
+  - mkdir -p travis_root
+  - cd travis_root
+  - rm -rf ughub
+  - git clone https://www.github.com/UG4/ughub
+  - mkdir ug4
+  - cd ug4
+  - pwd
+  - ../ughub/ughub init .
+  - ../ughub/ughub install ugcore 
+  - ../ughub/ughub add 
+  - ../ughub/ughub addsource neurobox https://github.com/NeuroBox3D/neurobox-packages
+  - ../ughub/ughub install neuro_collection
+  - mkdir build
+  - cd build
+  - cmake ../ -DDIM=3 -DCPU=1 -DLAPACK=OFF -DBLAS=OFF -DENABLE_ALL_PLUGINS=ON -DPARALLEL=OFF
+  - travis_wait 45 make -j2
 
 script:
    - curl -LO https://raw.github.com/stephanmg/travis-dependent-builds/master/trigger.sh
