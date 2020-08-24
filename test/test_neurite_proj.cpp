@@ -5046,6 +5046,7 @@ void create_spline_data_for_neurites
 
 		SaveGridToFile(g2, sh2, "new_strategy_final.ugx");
 		export_to_swc(g2, sh2, "new_strategy.swc");
+		SaveGridToFile(g2, sh2, "new_strategy.ugx");
 
 		/// Statistics
 		/// MarkOutliers(g, sh, aaPos, "new_strategy_outliers.ugx", segLength, desiredSegLength);
