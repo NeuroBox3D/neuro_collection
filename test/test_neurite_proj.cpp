@@ -4922,7 +4922,7 @@ void create_spline_data_for_neurites
 			}
 
 			/// Simple soma intersection check
-			UG_COND_THROW(!CylinderCylinderSomaSeparationTest(temp), "Soma connecting cylinders intersect!")
+			UG_COND_WARNING(!CylinderCylinderSomaSeparationTest(temp), "Soma connecting cylinders intersect!")
 		}
 
 		// Write edge statistics for original grid
