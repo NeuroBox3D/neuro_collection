@@ -4872,6 +4872,19 @@ void create_spline_data_for_neurites
 		VecAdd(q, v, center);  // q.x = v.x + c.x, q.y = v.y + c.y, q.z = v.z + c.z
 	}
 
+	////////////////////////////////////////////////////////////////////////////
+	/// test_import_swc_and_regularize
+	////////////////////////////////////////////////////////////////////////////
+	void test_import_swc_and_regularize(
+		const std::string& fileName,
+		const number segLength,
+		const std::string& choice,
+		const size_t ref,
+		const bool force,
+		const bool somaIncluded
+	) {
+		test_import_swc_and_regularize(fileName, segLength, choice, ref, force, somaIncluded, 1.0);
+	}
 
 	////////////////////////////////////////////////////////////////////////////
 	/// test_import_swc_and_regularize
@@ -4883,7 +4896,8 @@ void create_spline_data_for_neurites
 		const std::string& choice,
 		const size_t ref,
 		const bool force,
-		const bool somaIncluded
+		const bool somaIncluded,
+		const number maxInflation
 	) {
 		// read in file to intermediate structure
 		std::vector<SWCPoint> vPoints;
@@ -4993,6 +5007,15 @@ void create_spline_data_for_neurites
 			// grid and statistics for edges afterwards, see eval_spline(..., ...).
 			eval_spline(vFragments, segLength, ref, force, g2, sh2, somaIncluded);
 			UG_LOGN("min seg length: " << segLength)
+		}
+
+		//!< maxDist: GQ's angle-length criterion
+		if (boost::iequals(choice, std::string("angle"))) {
+			const number maxDist = find_min_bp_dist(fileName, maxInflation);
+			UG_COND_THROW(maxDist > get_geom_diam(fileName) * maxInflation,
+							"Calculated segment length larger than diameter of geometry!"
+							"Make sure input SWC geometry does not contain obvious artifacts.");
+					test_import_swc_and_regularize(fileName, maxDist, "user", 0, false, false);
 		}
 
 		/// if soma was not included in regularization (non-VR use-case), then

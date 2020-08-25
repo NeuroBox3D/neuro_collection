@@ -598,6 +598,21 @@ void to_ugx(
  * \param[in] ref desired refinement level
  * \param[in] forceAdditionalPoint forces insertion of an additional point
  * \param[in] includeSoma include soma in regularization - or not
+ * \param[in] maxInflation for angle length criterion
+ */
+void test_import_swc_and_regularize
+(
+	const std::string& fileName,
+	number segLength,
+	const std::string& choice,
+	size_t ref,
+	bool forceAdditionalPoint,
+	bool includeSoma,
+	number maxInflation
+);
+
+/*!
+ * \brief see test_import_swc_and_regularize
  */
 void test_import_swc_and_regularize
 (
