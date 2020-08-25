@@ -56,6 +56,7 @@
 #include <boost/generator_iterator.hpp>
 #include <ctime>
 
+
 extern ug::DebugID NC_TNP;
 
 namespace ug {
@@ -732,5 +733,10 @@ namespace ug {
 			SaveGridToFile(*grid, *sh, outFileName.c_str());
 			return sel.num<Triangle>();
 		}
+
+	template number PathLength1D<Domain1d>(const std::string&, const std::string&, const std::string&, Domain1d&);
+	template number PathLength1D<Domain2d>(const std::string&, const std::string&, const std::string&, Domain2d&);
+	template number PathLength1D<Domain3d>(const std::string&, const std::string&, const std::string&, Domain3d&);
 	}
 }
+

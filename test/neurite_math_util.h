@@ -45,6 +45,10 @@
 #include <lib_grid/grid/grid.h>
 #include <lib_grid/common_attachments.h>
 
+#include <lib_grid/algorithms/geom_obj_util/misc_util.h>
+#include "lib_disc/domain_util.h"
+#include "test_neurite_proj.h"
+
 namespace ug {
 	namespace neuro_collection {
 		/*!
@@ -309,6 +313,79 @@ namespace ug {
 			bool verbose
 		);
 
+		/*!
+		 * \brief Calculate the path length between two subsets
+		 */
+		template <typename TDomain>
+		number PathLength1D(
+			const std::string& fileName,
+			const std::string& fromSubset,
+			const std::string& toSubset,
+			TDomain& dom
+		) {
+			/// 1D grid
+			Domain3d dom1d;
+			try { LoadDomain(dom1d, fileName.c_str()); }
+			UG_CATCH_THROW("Failed loading domain from '" << fileName << "'.");
+
+			/// 3D grid
+			Grid& grid = *dom.grid();
+			const MGSubsetHandler& sh = *dom.subset_handler();
+			grid.attach_to_vertices(aPosition);
+			Grid::VertexAttachmentAccessor<APosition> aaPos(grid, aPosition);
+
+			/// Check for subset presence in 3D grid, then calculate center in 3D grids
+			const int siFrom = sh.get_subset_index(fromSubset.c_str());
+			UG_COND_THROW( (siFrom == -1), "Measuring subset index (#" << siFrom << ") not found for "
+					<< "measuring subset name (" << fromSubset << ") in domain");
+			const vector3 centerFrom = CalculateCenter(sh.begin<Edge>(siFrom, 0),
+					sh.end<Edge>(siFrom, 0), aaPos);
+
+			const int siTo = sh.get_subset_index(toSubset.c_str());
+			UG_COND_THROW( (siTo == -1), "Measuring subset index (#" << siTo << ") not found for "
+					<< "measuring subset name (" << toSubset << ") in domain");
+			const vector3 centerTo = CalculateCenter(sh.begin<Edge>(siTo, 0),
+					sh.end<Edge>(siTo, 0), aaPos);
+
+			/// Find the corresponding 1D vertices to the two 3D measurement subsets
+			typename TDomain::position_type v;
+			typename TDomain::grid_type& g = *dom1d.grid();
+			/// Start of 1D path
+			ug::Vertex* v1 = FindClosestByCoordinate<Vertex>(centerFrom, g.template begin<Vertex>(),
+					g.template end<Vertex>(), dom1d.position_accessor());
+			UG_COND_THROW(!v1, "Start vertex of 1D path not found!")
+
+			/// End of 1D path
+			ug::Vertex* v2 = FindClosestByCoordinate<Vertex>(centerTo, g.template begin<Vertex>(),
+					g.template end<Vertex>(), dom1d.position_accessor());
+			UG_COND_THROW(!v2, "End vertex of 1D path not found!")
+
+			UG_COND_WARNING(v1 == v2, "Start and end vertex of 1D path are identical. Intentional?")
+
+			/// Populate graph
+			AInt aInt;
+			g.attach_to_vertices(aInt);
+			g.attach_to_vertices(aPosition);
+			Grid::VertexAttachmentAccessor<AInt> aaInt(g, aInt);
+
+			VertexIterator vit = g.template begin<Vertex>();
+			size_t size = 0;
+			for (; vit != g.template end<Vertex>(); ++vit) {
+				aaInt[*vit] = ++size;
+			}
+
+			Graph graph(size+1);
+
+			ConstEdgeIterator eit = g.template begin<Edge>();
+			for (; eit != g.template end<Edge>(); ++eit) {
+				ug::Edge* edge = *eit;
+				number dist = VecDistance(dom1d.position_accessor()[edge->vertex(0)],
+						dom1d.position_accessor()[edge->vertex(1)]);
+				graph.addEdge(aaInt[edge->vertex(0)], aaInt[edge->vertex(1)], dist);
+			}
+
+			return graph.shortestPath(aaInt[v1])[aaInt[v2]];
+		}
 	}
 }
 

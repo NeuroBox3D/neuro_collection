@@ -473,5 +473,12 @@ BOOST_AUTO_TEST_CASE(GraphAcylic) {
     ///BOOST_REQUIRE_MESSAGE(is_cyclic(adj2, V), "Graph supposed to contain no cycle.");
 }
 
+BOOST_AUTO_TEST_CASE(FindPathLength1D) {
+	Domain3d dom;
+	LoadDomain(dom, "test.ugx");
+	number dist = PathLength1D("test_1d.ugx", "meas1", "meas2", dom)
+	BOOST_REQUIRE_CLOSE(dist, 27.490043661338, 0.01);
+}
+
 
 BOOST_AUTO_TEST_SUITE_END();

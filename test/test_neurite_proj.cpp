@@ -4921,7 +4921,7 @@ void create_spline_data_for_neurites
 				temp.push_back(p);
 			}
 
-			/// SImple soma intersection check
+			/// Simple soma intersection check
 			UG_COND_THROW(!CylinderCylinderSomaSeparationTest(temp), "Soma connecting cylinders intersect!")
 		}
 
@@ -5563,15 +5563,75 @@ void create_spline_data_for_neurites
 		correct_axial_offset(verts, aaSurfParams, aaPos, 0.5);
 	}
 
+
+// Prints shortest paths from src to all other vertices
+std::vector<double> Graph::shortestPath(int src)
+{
+	typedef std::pair<int, double> iPair;
+    // Create a priority queue to store vertices that
+    // are being preprocessed. This is weird syntax in C++.
+    // Refer below link for details of this syntax
+    // https://www.geeksforgeeks.org/implement-min-heap-using-stl/
+    std::priority_queue< iPair, std::vector <iPair> , std::greater<iPair> > pq;
+
+    // Create a vector for distances and initialize all
+    // distances as infinite (INF)
+    std::vector<double> dist(V, std::numeric_limits<double>::infinity());
+
+    // Insert source itself in priority queue and initialize
+    // its distance as 0.
+    pq.push(std::make_pair(0, src));
+    dist[src] = 0;
+
+    /* Looping till priority queue becomes empty (or all
+      distances are not finalized) */
+    while (!pq.empty())
+    {
+        // The first vertex in pair is the minimum distance
+        // vertex, extract it from priority queue.
+        // vertex label is stored in second of pair (it
+        // has to be done this way to keep the vertices
+        // sorted distance (distance must be first item
+        // in pair)
+        int u = pq.top().second;
+        pq.pop();
+
+        // 'i' is used to get all adjacent vertices of a vertex
+        std::list<iPair>::iterator i;
+        for (i = adj[u].begin(); i != adj[u].end(); ++i)
+        {
+            // Get vertex label and weight of current adjacent
+            // of u.
+            int v = (*i).first;
+            double weight = (*i).second;
+
+            //  If there is shorted path to v through u.
+            if (dist[v] > dist[u] + weight)
+            {
+                // Updating distance of v
+                dist[v] = dist[u] + weight;
+                pq.push(std::make_pair(dist[v], v));
+            }
+        }
+    }
+
+    return dist;
+}
+
 	Graph::Graph(int V)
 	{
 	    this->V = V;
-	    adj = new std::list<int>[V];
+	    adj = new std::list<std::pair<int, double> >[V];
 	}
 
 	void Graph::addEdge(int v, int w)
 	{
-	    adj[v].push_back(w); // Add w to v’s list.
+	    adj[v].push_back(std::make_pair(w, 0)); // Add w to v’s list.
+	}
+
+	void Graph::addEdge(int u, int v, double w) {
+	    adj[u].push_back(std::make_pair(v, w));
+	    adj[v].push_back(std::make_pair(u, w));
 	}
 
 	void Graph::BFS(int s, std::vector<int>& indices)
@@ -5590,7 +5650,7 @@ void create_spline_data_for_neurites
 
 	    // 'i' will be used to get all adjacent
 	    // vertices of a vertex
-	    std::list<int>::iterator i;
+	    std::list<std::pair<int, double> >::iterator i;
 
 	    while(!queue.empty())
 	    {
@@ -5603,11 +5663,11 @@ void create_spline_data_for_neurites
 	        // then mark it visited and enqueue it
 	        for (i = adj[s].begin(); i != adj[s].end(); ++i)
 	        {
-	            if (!visited[*i])
+	            if (!visited[i->first])
 	            {
-	                visited[*i] = true;
-	                queue.push_back(*i);
-	                indices.push_back(*i);
+	                visited[i->first] = true;
+	                queue.push_back(i->first);
+	                indices.push_back(i->first);
 	            }
 	        }
 	    }
@@ -5623,10 +5683,10 @@ void create_spline_data_for_neurites
 
 	    // Recur for all the vertices adjacent
 	    // to this vertex
-	    std::list<int>::iterator i;
+	    std::list<std::pair<int, double> >::iterator i;
 	    for (i = adj[v].begin(); i != adj[v].end(); ++i)
-	        if (!visited[*i]) {
-	            DFSUtil(*i, visited, indices);
+	        if (!visited[i->first]) {
+	            DFSUtil(i->first, visited, indices);
 	        }
 	}
 

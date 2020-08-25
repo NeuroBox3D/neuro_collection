@@ -443,7 +443,7 @@ class Graph
 
     // Pointer to an array containing
     // adjacency lists
-    std::list<int> *adj;
+    std::list<std::pair<int, double> >*adj;
 
     // A recursive function used by DFS
     void DFSUtil(int v, bool visited[], std::vector<int>& indices);
@@ -452,13 +452,16 @@ public:
 
     // function to add an edge to graph
     void addEdge(int v, int w);
+    void addEdge(int u, int v, double w);
 
     // DFS traversal of the vertices
     // reachable from v
     void DFS(int v, std::vector<int>& indices);
     void BFS(int v, std::vector<int>& indices);
-
+    std::vector<double> shortestPath(int s);
 };
+
+
 
 /*!
  * \brief naive refinement variant which will preserve HINES ordering

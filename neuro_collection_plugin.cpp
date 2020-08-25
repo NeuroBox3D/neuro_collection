@@ -292,6 +292,7 @@ static void Domain(Registry& reg, string grp)
 	string tag = GetDomainTag<TDomain>();
 
 
+
 	// implementation of buffering reaction disc
 	{
 		typedef BufferFV1<TDomain> T;
@@ -648,6 +649,8 @@ static void Domain(Registry& reg, string grp)
 
 	reg.add_function("RemoveAllNonDefaultRefinementProjectors", &RemoveAllNonDefaultRefinementProjectors<TDomain>);
 
+	reg.add_function("PathLength1D", static_cast<number (*)(const std::string&, const std::string&, const std::string&, TDomain&)>(&PathLength1D<TDomain>), "length", "1d domain#from subset#to subset#3d domain");
+
 }
 
 /**
@@ -993,6 +996,9 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("GetNumberOfTriangleIntersections", &GetNumberOfTriangleIntersections, "", "gridName#snapThreshold", "");
 
 	}
+
+
+
 
 	// grid generation
 	{
