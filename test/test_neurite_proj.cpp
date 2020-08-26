@@ -3915,9 +3915,9 @@ void create_spline_data_for_neurites
 			/// Regularize the 1D geometry
 			test_import_swc_and_regularize_var(fileName, 1.0);
 			/// Surface/volume grid generate the 2D/3D geometry
-			test_import_swc_general_var("new_strategy.swc", correct, erScaleFactor, withER,
-					anisotropy, numRefs, regularize, blowUpFactor, forVR, dryRun,
-					option, segLength);
+			test_import_swc_general_var("new_strategy.swc", correct, erScaleFactor,
+					withER, anisotropy, numRefs, regularize, blowUpFactor, forVR,
+					dryRun, option, segLength);
 		} catch (const ContainsCycles& err) {
 			return NEURITE_RUNTIME_ERROR_CODE_CONTAINS_CYCLES;
 		} catch (const RegularizationIncomplete& err) {
@@ -3942,6 +3942,37 @@ void create_spline_data_for_neurites
 		}
 		return NEURITE_RUNTIME_ERROR_CODE_SUCCESS;
 	}
+
+	////////////////////////////////////////////////////////////////////////////
+	/// test_import_swc_general_var_benchmark_var
+	////////////////////////////////////////////////////////////////////////////
+	int test_import_swc_general_var_benchmark_var(
+		const std::string& fileName,
+		number erScaleFactor,
+		size_t numRefs
+		) {
+			try {
+				/// Regularize the 1D geometry
+				test_import_swc_and_regularize_var(fileName, 1.0);
+				/// Surface/volume grid generate the 2D/3D geometry
+				create_branches_from_swc("new_strategy.swc", erScaleFactor, numRefs);
+			} catch (const ContainsCycles& err) {
+				return NEURITE_RUNTIME_ERROR_CODE_CONTAINS_CYCLES;
+			} catch (const RegularizationIncomplete& err) {
+				return NEURITE_RUNTIME_ERROR_CODE_REGULARIZATION_INCOMPLETE;
+			} catch (const InvalidBranches& err) {
+				return NEURITE_RUNTIME_ERROR_CODE_INVALID_BRANCHES;
+			} catch (const TetrahedralizeFailure& err) {
+				return NEURITE_RUNTIME_ERROR_CODE_TETRAHEDRALIZE_FAILURE;
+			} catch (const NeuriteRuntimeError& err) {
+				return NEURITE_RUNTIME_ERROR_CODE_OTHER;
+			} catch (const UGError& error) {
+				return NEURITE_RUNTIME_ERROR_CODE_BP_ITERATION_FAILURE;
+			}
+			return NEURITE_RUNTIME_ERROR_CODE_SUCCESS;
+		}
+
+
 
 	////////////////////////////////////////////////////////////////////////////
 	/// test_import_swc_general_var
@@ -5070,7 +5101,9 @@ void create_spline_data_for_neurites
 			UG_COND_THROW(maxDist > get_geom_diam(fileName) * maxInflation,
 							"Calculated segment length larger than diameter of geometry!"
 							"Make sure input SWC geometry does not contain obvious artifacts.");
-					test_import_swc_and_regularize(fileName, maxDist, "user", 0, false, false);
+
+			eval_spline(vFragments, maxDist, ref, force, g2, sh2, somaIncluded);
+			UG_LOGN("min seg length: " << maxDist);
 		}
 
 		/// if soma was not included in regularization (non-VR use-case), then
@@ -5462,11 +5495,15 @@ void create_spline_data_for_neurites
 		std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
 		std::vector<size_t> vRootNeuriteIndsOut;
 		convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+
+	    if (ContainsCycle(vPoints)) { throw ContainsCycles(); }
 		/*
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
 			vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
 		}
 		*/
+
+		if (!CylinderCylinderSomaSeparationTest(vSomaPoints)) { throw SomaConnectionOverlap(); }
 
 		// Prepare grid (selector and attachments)
 		Grid g;

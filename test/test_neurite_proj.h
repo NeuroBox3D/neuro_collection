@@ -427,6 +427,15 @@ int test_import_swc_general_var_benchmark(
 		number segLength
 );
 
+/*!
+ * \brief for internal use only
+ */
+int test_import_swc_general_var_benchmark_var(
+		const std::string& fileName,
+		number erScaleFactor,
+		size_t numRefs
+);
+
 
 /*!
  * \brief vr strategy (potentially deprecated!)
