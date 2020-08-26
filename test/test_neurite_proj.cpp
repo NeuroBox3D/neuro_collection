@@ -48,6 +48,7 @@
 #include "neurite_grid_generation.h"
 #include "../util/misc_util.h"
 #include "neurite_math_util.h"
+#include "neurite_runtime_error.h"
 
 /// ug
 #include "lib_grid/refinement/projectors/projection_handler.h" // ProjectionHandler
@@ -666,7 +667,10 @@ void convert_pointlist_to_neuritelist
 			// branching point
 			if (nConn > 2)
 			{
-				UG_COND_THROW(nConn > 3, "Bifurcations with > 3 child branches are not supported!");
+				if  (nConn > 3) {
+					throw InvalidBranches();
+				}
+
 				// branch with minimal angle will continue current branch
 				vector3 parentDir;
 				VecSubtract(parentDir, pt.coords, vPoints[pind].coords);
@@ -3889,6 +3893,43 @@ void create_spline_data_for_neurites
 	}
 	}
 
+
+	////////////////////////////////////////////////////////////////////////////
+	/// test_import_swc_general_var_benchmark: Internal function for benchmark
+	////////////////////////////////////////////////////////////////////////////
+	int test_import_swc_general_var_benchmark(
+			const std::string& fileName,
+			bool correct,
+			number erScaleFactor,
+			bool withER,
+			number anisotropy,
+			size_t numRefs,
+			bool regularize,
+			number blowUpFactor,
+			bool forVR,
+			bool dryRun,
+			const std::string& option,
+			number segLength
+	) {
+		try {
+			/// Regularize the 1D geometry
+			test_import_swc_and_regularize_var(fileName, 1.0);
+			/// Surface/volume grid generate the 2D/3D geometry
+			test_import_swc_general_var(fileName, correct, erScaleFactor, withER,
+					anisotropy, numRefs, regularize, blowUpFactor, forVR, dryRun,
+					option, segLength);
+		} catch (const ContainsCycles& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_CONTAINS_CYCLES;
+		} catch (const RegularizationIncomplete& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_REGULARIZATION_INCOMPLETE;
+		} catch (const InvalidBranches& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_INVALID_BRANCHES;
+		} catch (const NeuriteRuntimeError& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_OTHER;
+		}
+		return NEURITE_RUNTIME_ERROR_CODE_SUCCESS;
+	}
+
 	////////////////////////////////////////////////////////////////////////////
 	/// test_import_swc_general_var
 	////////////////////////////////////////////////////////////////////////////
@@ -4048,6 +4089,7 @@ void create_spline_data_for_neurites
 
 	    /// Checking for cycles in geometries, which is not a sensible input geometry
 	    UG_DLOG(NC_TNP, 0, "Checking for cycles...")
+	    if (ContainsCycle(vPoints)) { throw ContainsCycles(); }
 	    //UG_COND_THROW(ContainsCycle(vPoints), "Grid contains at least one cycle!");
 	    UG_DLOGN(NC_TNP, 0, " passed!");
 
@@ -5109,10 +5151,13 @@ void create_spline_data_for_neurites
 		const std::string& fileName,
 		const number inflation
 	) {
-		const number maxDist = find_min_bp_dist(fileName, inflation); //!< maxDist: GQ's angle-length criterion
-		UG_COND_THROW(maxDist > get_geom_diam(fileName) * inflation,
-				"Calculated segment length larger than diameter of geometry!"
-				"Make sure input SWC geometry does not contain obvious artifacts.");
+		// maxDist: GQ's angle-length criterion for branching points
+		const number maxDist = find_min_bp_dist(fileName, inflation);
+		if (maxDist > get_geom_diam(fileName) * inflation) {
+			throw RegularizationIncomplete("Calculated segment length larger than "
+					"diameter of geometry! Make sure input SWC geometry does not "
+					"contain obvious artifacts.");
+		}
 		test_import_swc_and_regularize(fileName, maxDist, "user", 0, false, false);
 	}
 

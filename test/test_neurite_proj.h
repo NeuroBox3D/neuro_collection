@@ -381,6 +381,7 @@ void test_convert_swc_to_ugx
 /*!
  * \brief new main strategy to generate computational meshs for 1d/3d simulations
  * TODO: refactor to eliminate not necessary VR grid generation parameters and options
+ * => OptionBuilder?!
  * \param[in] fileName
  * \param[in] correct
  * \param[in] erScaleFactor
@@ -407,6 +408,25 @@ void test_import_swc_general_var(
 	const std::string& option,
 	number segLength
 );
+
+/*!
+ * \brief for internal use only
+ */
+int test_import_swc_general_var_benchmark(
+		const std::string& fileName,
+		bool correct,
+		number erScaleFactor,
+		bool withER,
+		number anisotropy,
+		size_t numRefs,
+		bool regularize,
+		number blowUpFactor,
+		bool forVR,
+		bool dryRun,
+		const std::string& option,
+		number segLength
+);
+
 
 /*!
  * \brief vr strategy (potentially deprecated!)
