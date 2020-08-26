@@ -38,6 +38,7 @@
  */
 
 #include "neurite_util.h"
+#include "neurite_runtime_error.h"
 #include "tetrahedralize_util.h"
 #include "common/log.h"
 #include "common/error.h"
@@ -2621,7 +2622,8 @@ namespace ug {
 					"_soma_and_after_selecting_take5.ugx");
 
 
-			Tetrahedralize(sel, grid, &sh, 10, true, true, aPosition, 10); /// 10, false, false, aPosition, 10
+			const bool success = Tetrahedralize(sel, grid, &sh, 10, true, true, aPosition, 10); /// 10, false, false, aPosition, 10
+			if (!success) { throw TetrahedralizeFailure(); }
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "after_tetrahedralize_"
 					"soma_and_before_fix_axial_parameters.ugx");
 			SaveGridToFile(grid, sh, "after_tetrahedralize_"

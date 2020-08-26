@@ -3889,8 +3889,8 @@ void create_spline_data_for_neurites
 			curFileName = outFileName.substr(0, outFileName.size()-4) + oss.str();
 			try {SaveGridHierarchyTransformed(*dom.grid(), *dom.subset_handler(), curFileName.c_str(), offset);}
 			UG_CATCH_THROW("Grid could not be written to file '" << curFileName << "'.");
+			}
 		}
-	}
 	}
 
 
@@ -3915,7 +3915,7 @@ void create_spline_data_for_neurites
 			/// Regularize the 1D geometry
 			test_import_swc_and_regularize_var(fileName, 1.0);
 			/// Surface/volume grid generate the 2D/3D geometry
-			test_import_swc_general_var(fileName, correct, erScaleFactor, withER,
+			test_import_swc_general_var("new_strategy.swc", correct, erScaleFactor, withER,
 					anisotropy, numRefs, regularize, blowUpFactor, forVR, dryRun,
 					option, segLength);
 		} catch (const ContainsCycles& err) {
@@ -3924,8 +3924,21 @@ void create_spline_data_for_neurites
 			return NEURITE_RUNTIME_ERROR_CODE_REGULARIZATION_INCOMPLETE;
 		} catch (const InvalidBranches& err) {
 			return NEURITE_RUNTIME_ERROR_CODE_INVALID_BRANCHES;
+		} catch (const TetrahedralizeFailure& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_TETRAHEDRALIZE_FAILURE;
 		} catch (const NeuriteRuntimeError& err) {
 			return NEURITE_RUNTIME_ERROR_CODE_OTHER;
+		} catch (const UGError& error) {
+			/// This is not the only UGError which can happen, however this
+			/// error is thrown from ugcore, in particular from the neurite
+			/// projector, thus the neurite error codes should not go into
+			/// ugcore. Catching the error we assume that the last error in
+			/// the grid generation pipeline must be a BP projection failure!
+			/// The assertion can't be guaranteed but usually is safe to assume.
+			/// UGError does not allow to be extended in a non-intrusive way to
+			/// support custom exceptions or runtime exceptions - thus a custom
+			/// set of runtime exceptions for neurite grid generation is provided
+			return NEURITE_RUNTIME_ERROR_CODE_BP_ITERATION_FAILURE;
 		}
 		return NEURITE_RUNTIME_ERROR_CODE_SUCCESS;
 	}

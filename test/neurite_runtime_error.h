@@ -64,7 +64,9 @@ namespace ug {
 			NEURITE_RUNTIME_ERROR_CODE_INVALID_BRANCHES,
 			NEURITE_RUNTIME_ERROR_CODE_CONTAINS_CYCLES,
 			NEURITE_RUNTIME_ERROR_CODE_CYLINDER_CYLINDER_OVERLAP,
-			NEURITE_RUNTIME_ERROR_CODE_SOMA_CONNECTION_OVERLAP
+			NEURITE_RUNTIME_ERROR_CODE_SOMA_CONNECTION_OVERLAP,
+			NEURITE_RUNTIME_ERROR_CODE_TETRAHEDRALIZE_FAILURE,
+			NEURITE_RUNTIME_ERROR_CODE_BP_ITERATION_FAILURE
 		};
 
 		/*!
@@ -108,6 +110,13 @@ namespace ug {
 		struct SomaConnectionOverlap : public NeuriteRuntimeError {
 			virtual const char* what() const throw() {
 				return "Soma connections overlap in 3D geometry";
+			}
+		};
+
+		/// TetrahedralizeFailure
+		struct TetrahedralizeFailure : public NeuriteRuntimeError {
+			virtual const char* what() const throw() {
+				return "Tetrahedralize failed for 3D geometry";
 			}
 		};
 	}
