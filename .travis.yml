@@ -50,6 +50,7 @@ script:
    - ./trigger.sh stephanmg vr-grids development $TRAVIS_ACCESS_TOKEN ""
    - ./trigger.sh stephanmg Branch-Generator master $TRAVIS_ACCESS_TOKEN ""
    - ./trigger.sh stephanmg non-vr-grids master $TRAVIS_ACCESS_TOKEN ""
+   - ./trigger.sh NeuroBox3D ProMeshScripts master $TRAVIS_ACCESS_TOKEN ""
    
 after_script:
    - echo "Triggered downstream projects: stephanmg/vr-grids, stephanmg/non-vr-grids and stephanmg/BranchGenerator."
