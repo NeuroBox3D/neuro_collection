@@ -54,4 +54,6 @@ script:
    
 after_script:
    - echo "Triggered downstream projects: stephanmg/vr-grids, stephanmg/non-vr-grids and stephanmg/BranchGenerator."
+   - ln -s ${TRAVIS_BUILD_DIR}/data/test.swc test.swc
+   - ln -s ${TRAVIS_BUILD_DIR}/data/test_1d.ugx test_1d.ugx
    - ${TRAVIS_BUILD_DIR}/travis_root/ug4/bin/NCTestsuite
