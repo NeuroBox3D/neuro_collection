@@ -66,7 +66,8 @@ namespace ug {
 			NEURITE_RUNTIME_ERROR_CODE_CYLINDER_CYLINDER_OVERLAP, // 5
 			NEURITE_RUNTIME_ERROR_CODE_SOMA_CONNECTION_OVERLAP, // 6
 			NEURITE_RUNTIME_ERROR_CODE_TETRAHEDRALIZE_FAILURE, // 7
-			NEURITE_RUNTIME_ERROR_CODE_BP_ITERATION_FAILURE // 8
+			NEURITE_RUNTIME_ERROR_CODE_BP_ITERATION_FAILURE, // 8
+			NEURITE_RUNTIME_ERROR_CODE_NO_PERMISSIBLE_RENDER_VECTOR_FOUND // 9
 		};
 
 		/*!
@@ -118,6 +119,12 @@ namespace ug {
 			virtual const char* what() const throw() {
 				return "Tetrahedralize failed for 3D geometry";
 			}
+		};
+
+		/// NoPermissibleRenderVector
+		struct NoPermissibleRenderVector : public NeuriteRuntimeError {
+			NoPermissibleRenderVector(const std::string& msg)
+								: NeuriteRuntimeError(msg) {}
 		};
 	}
 }

@@ -3926,6 +3926,8 @@ void create_spline_data_for_neurites
 			return NEURITE_RUNTIME_ERROR_CODE_INVALID_BRANCHES;
 		} catch (const TetrahedralizeFailure& err) {
 			return NEURITE_RUNTIME_ERROR_CODE_TETRAHEDRALIZE_FAILURE;
+		} catch (const NoPermissibleRenderVector& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_NO_PERMISSIBLE_RENDER_VECTOR_FOUND;
 		} catch (const NeuriteRuntimeError& err) {
 			return NEURITE_RUNTIME_ERROR_CODE_OTHER;
 		} catch (const UGError& error) {
@@ -3964,6 +3966,8 @@ void create_spline_data_for_neurites
 				return NEURITE_RUNTIME_ERROR_CODE_INVALID_BRANCHES;
 			} catch (const TetrahedralizeFailure& err) {
 				return NEURITE_RUNTIME_ERROR_CODE_TETRAHEDRALIZE_FAILURE;
+			} catch (const NoPermissibleRenderVector& err) {
+				return NEURITE_RUNTIME_ERROR_CODE_NO_PERMISSIBLE_RENDER_VECTOR_FOUND;
 			} catch (const NeuriteRuntimeError& err) {
 				return NEURITE_RUNTIME_ERROR_CODE_OTHER;
 			} catch (const UGError& error) {

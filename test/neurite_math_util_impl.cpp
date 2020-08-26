@@ -55,6 +55,7 @@
 #include <boost/random/variate_generator.hpp>
 #include <boost/generator_iterator.hpp>
 #include <ctime>
+#include "neurite_runtime_error.h"
 
 
 extern ug::DebugID NC_TNP;
@@ -224,8 +225,13 @@ namespace ug {
 				}
 			}
 
-			UG_COND_THROW(!found, "No permissible render vector could be found with "
-					"parameters (minAngle/maxIter): " << minAngle << ", " << maxIter);
+			std::stringstream ss;
+			ss << "No permissible render vector could be found with " <<
+				"parameters (minAngle/maxIter): " << minAngle << ", " << maxIter;
+			if (!found) { throw NoPermissibleRenderVector(ss.str()); }
+			/*UG_COND_THROW(!found, "No permissible render vector could be found with "
+			"parameters (minAngle/maxIter): " << minAngle << ", " << maxIter);
+			*/
 		}
 
 		////////////////////////////////////////////////////////////////////////
@@ -734,9 +740,15 @@ namespace ug {
 			return sel.num<Triangle>();
 		}
 
-	template number PathLength1D<Domain1d>(const std::string&, const std::string&, const std::string&, Domain1d&);
-	template number PathLength1D<Domain2d>(const std::string&, const std::string&, const std::string&, Domain2d&);
-	template number PathLength1D<Domain3d>(const std::string&, const std::string&, const std::string&, Domain3d&);
+	////////////////////////////////////////////////////////////////////////
+	/// Explicit template instantiations for PathLength1D
+	////////////////////////////////////////////////////////////////////////
+	template number PathLength1D<Domain1d>(const std::string&, const std::string&,
+			const std::string&, Domain1d&);
+	template number PathLength1D<Domain2d>(const std::string&, const std::string&,
+			const std::string&, Domain2d&);
+	template number PathLength1D<Domain3d>(const std::string&, const std::string&,
+			const std::string&, Domain3d&);
 	}
 }
 
