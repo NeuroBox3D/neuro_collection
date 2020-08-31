@@ -170,8 +170,10 @@ namespace ug {
 		 */
 		bool CylinderCylinderSomaSeparationTest
 		(
-			const std::vector<SWCPoint>& vSomaPoints
+			const std::vector<SWCPoint>& vSomaPoints,
+			const SWCPoint& somaPoint
 		);
+
 
 		struct Cylinder {
 			vector3 c; //<! center (point)

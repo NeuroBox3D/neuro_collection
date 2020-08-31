@@ -3920,6 +3920,8 @@ void create_spline_data_for_neurites
 					dryRun, option, segLength);
 		} catch (const ContainsCycles& err) {
 			return NEURITE_RUNTIME_ERROR_CODE_CONTAINS_CYCLES;
+		} catch (const SomaConnectionOverlap& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_SOMA_CONNECTION_OVERLAP;
 		} catch (const RegularizationIncomplete& err) {
 			return NEURITE_RUNTIME_ERROR_CODE_REGULARIZATION_INCOMPLETE;
 		} catch (const InvalidBranches& err) {
@@ -5026,7 +5028,8 @@ void create_spline_data_for_neurites
 			}
 
 			/// Simple soma intersection check
-			UG_COND_WARNING(!CylinderCylinderSomaSeparationTest(temp), "Soma connecting cylinders intersect!")
+			if (!CylinderCylinderSomaSeparationTest(temp, vSomaPoints[0])) { throw SomaConnectionOverlap(); }
+			/// UG_COND_WARNING(!CylinderCylinderSomaSeparationTest(temp), "Soma connecting cylinders intersect!")
 		}
 
 		// Write edge statistics for original grid
@@ -5507,7 +5510,7 @@ void create_spline_data_for_neurites
 		}
 		*/
 
-		if (!CylinderCylinderSomaSeparationTest(vSomaPoints)) { throw SomaConnectionOverlap(); }
+		if (!CylinderCylinderSomaSeparationTest(vSomaPoints, vSomaPoints[0])) { throw SomaConnectionOverlap(); }
 
 		// Prepare grid (selector and attachments)
 		Grid g;

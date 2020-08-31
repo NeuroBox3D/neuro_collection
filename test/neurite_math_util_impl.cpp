@@ -56,6 +56,8 @@
 #include <boost/generator_iterator.hpp>
 #include <ctime>
 #include "neurite_runtime_error.h"
+#include <boost/geometry.hpp>
+#include <boost/geometry/algorithms/length.hpp>
 
 
 extern ug::DebugID NC_TNP;
@@ -548,20 +550,96 @@ namespace ug {
 			return false;
 		}
 
+		/// Haversine function
+		static double haversine(double lat1, double lon1,
+		                        double lat2, double lon2,
+		                        double radius)
+		    {
+		        // distance between latitudes
+		        // and longitudes
+		        double dLat = (lat2 - lat1) *
+		                      M_PI / 180.0;
+		        double dLon = (lon2 - lon1) *
+		                      M_PI / 180.0;
+
+		        // convert to radians
+		        lat1 = (lat1) * M_PI / 180.0;
+		        lat2 = (lat2) * M_PI / 180.0;
+
+		        // apply formulae
+		        double a = pow(sin(dLat / 2), 2) +
+		                   pow(sin(dLon / 2), 2) *
+		                   cos(lat1) * cos(lat2);
+		        double c = 2 * asin(sqrt(a));
+
+		        // return length (geodesic)
+		        return radius * c;
+		    }
+
+		////////////////////////////////////////////////////////////////////////
+		/// cart_to_sph
+		////////////////////////////////////////////////////////////////////////
+		void cart_to_sph(const ug::vector3& cart, number& azimuth, number& elevation, number& radius) {
+			azimuth = std::atan2(cart[1], cart[0]);
+			elevation = std::atan2(cart[2], VecLength(ug::vector2(cart[0], cart[1])));
+			radius = VecLength(cart);
+		}
+
 
 		////////////////////////////////////////////////////////////////////////
 		/// CylinderCylinderSomaSeparationTest
 		////////////////////////////////////////////////////////////////////////
 		bool CylinderCylinderSomaSeparationTest
 		(
-			const vector<SWCPoint>& vSomaPoints
+			const vector<SWCPoint>& vSomaPoints,
+			const SWCPoint& soma
 		) {
+
+			vector3 shiftDir;
+			VecSubtract(shiftDir, ug::vector3(0, 0, 0), soma.coords);
+		    for (size_t i = 0; i < vSomaPoints.size(); i++) {
+		    	for (size_t j = 0; j < vSomaPoints.size(); j++) {
+		    		if (i == j) { continue; }
+		    		/// 1: Shift points to sphere around origin in cartesian coords
+		    		vector3 pointA = vSomaPoints[i].coords;
+		    		VecAdd(pointA, pointA, shiftDir);
+		    		vector3 pointB = vSomaPoints[j].coords;
+		    		VecAdd(pointB, pointB, shiftDir);
+		    		VecNormalize(pointA, pointA);
+		    		VecNormalize(pointB, pointB);
+
+		    		/// 2. Calculate spherical coordinates for each point
+		    		number azimuth1, elevation1, radius1;
+		    		number azimuth2, elevation2, radius2;
+		    		cart_to_sph(pointA, azimuth1, elevation1, radius1);
+		    		cart_to_sph(pointB, azimuth2, elevation2, radius2);
+
+		    		/// 3. Measure distance with haversine function
+		    		number dist = haversine(rad_to_deg(azimuth1), rad_to_deg(elevation1),
+		    								rad_to_deg(azimuth2), rad_to_deg(elevation2),
+		    								soma.radius);
+
+		    		UG_LOGN("soma.radius: " << soma.radius);
+		    		UG_LOGN("dist: " << dist)
+		    		UG_LOGN("radius: " << vSomaPoints[i].radius);
+		    		UG_LOGN("radius2: " << vSomaPoints[j].radius);
+		    		if (dist < ((vSomaPoints[i].radius+vSomaPoints[j].radius)*1.5)) {
+						UG_LOGN("Offending neurite starts: " << i << ", " << j
+								<< " with dist: " << dist << " and radius: " <<
+								vSomaPoints[i].radius << ", and " << vSomaPoints[j].radius);
+						return false;
+					}
+		    	}
+		    }
+		    return true;
+
+		    /*
 			UG_LOGN("vSomaPoints: " << vSomaPoints.size());
 			for (size_t i = 0; i < vSomaPoints.size(); i++) {
 				for (size_t j = 0; j < vSomaPoints.size(); j++) {
 					if (i != j) {
 						const number dist = VecDistance(vSomaPoints[i].coords,  vSomaPoints[j].coords);
-						if (dist < vSomaPoints[i].radius*0.5 || dist < vSomaPoints[j].radius*0.5) {
+						if (dist < vSomaPoints[i].radius || dist < vSomaPoints[j].radius) {
 							UG_LOGN("Offending neurite starts: " << i << ", " << j
 									<< " with dist: " << dist << " and radius: " <<
 									vSomaPoints[i].radius << ", and " << vSomaPoints[j].radius);
@@ -571,6 +649,7 @@ namespace ug {
 				}
 			}
 			return true;
+			*/
 		}
 
 
