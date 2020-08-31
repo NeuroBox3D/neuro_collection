@@ -623,7 +623,7 @@ namespace ug {
 		    		UG_LOGN("dist: " << dist)
 		    		UG_LOGN("radius: " << vSomaPoints[i].radius);
 		    		UG_LOGN("radius2: " << vSomaPoints[j].radius);
-		    		if (dist < ((vSomaPoints[i].radius+vSomaPoints[j].radius)*1.5)) {
+		    		if (dist < ((vSomaPoints[i].radius+vSomaPoints[j].radius)*1.1)) {
 						UG_LOGN("Offending neurite starts: " << i << ", " << j
 								<< " with dist: " << dist << " and radius: " <<
 								vSomaPoints[i].radius << ", and " << vSomaPoints[j].radius);

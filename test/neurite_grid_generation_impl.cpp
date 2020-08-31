@@ -124,8 +124,8 @@ namespace ug {
 
 	/// TODO: Add warning when fac is small neurite.refDir * vel is close too zero: Check this is correct
 	///       Then add as as separate method, because it will be necessary to use also in refinements!
-	/// This corresponds to a deviation of 18° from the neurite direction
-	UG_COND_WARNING(fabs(1.0-fabs(fac)) < 0.05, "Neurite render vector coincides with "
+	/// This corresponds to a deviation of 18° from the neurite direction: Should this be a throw?
+	UG_COND_WARNING(fabs(1.0-fabs(fac)) < 0.05, "Neurite render vector coincides nearly with "
 	"tangential vector... Expect twisted segments. Offending neurite location: " << vPos[nid][0]);
 
 	VecScaleAdd(projRefDir, 1.0, neurite.refDir, -fac, vel);
