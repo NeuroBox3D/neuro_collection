@@ -452,8 +452,10 @@ BOOST_AUTO_TEST_CASE(FindMinimumBPDistanceInflation) {
 	GlobalAttachments::declare_attachment<ANumber>("diameter", true);
 	const number maxDist1 = find_min_bp_dist("test.swc", 1.0);
 	UG_LOGN("maxDist1: " << maxDist1);
+	BOOST_REQUIRE_CLOSE(maxDist1, 11.2106470681, 0.01); // check if values differ by at most 0.01%
 	const number maxDist2 = find_min_bp_dist("test.swc", 2.0);
 	UG_LOGN("maxDist2: " << maxDist2);
+	BOOST_REQUIRE_CLOSE(maxDist1, 22.4212941362, 0.01); // check if values differ by at most 0.01%
 }
 
 
