@@ -448,6 +448,16 @@ BOOST_AUTO_TEST_CASE(FindMinimumBPDistance) {
 	BOOST_REQUIRE_CLOSE(maxDist, 11.2106470681, 0.01); // check if values differ by at most 0.01%
 }
 
+BOOST_AUTO_TEST_CASE(FindMinimumBPDistanceInflation) {
+	GlobalAttachments::declare_attachment<ANumber>("diameter", true);
+	const number maxDist1 = find_min_bp_dist("test.swc", 1.0);
+	UG_LOGN("maxDist1: " << maxDist1);
+	const number maxDist2 = find_min_bp_dist("test.swc", 2.0);
+	UG_LOGN("maxDist2: " << maxDist2);
+}
+
+
+
 void addEdge(std::vector<int> adj[], int u, int v)
 {
     adj[u].push_back(v);

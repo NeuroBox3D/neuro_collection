@@ -4956,7 +4956,7 @@ void create_spline_data_for_neurites
 						VecSubtract(dir, aaPos[vertices[i]], aaPos[bpVertex]);
 						VecNormalize(dir, dir);
 						UG_LOGN("childDir: " << dir);
-						angles.push_back(Point(0.5*aaDiam[vertices[i]], acos(VecProd(dir, parentDir))));
+						angles.push_back(Point(0.5*inflation*aaDiam[vertices[i]], acos(VecProd(dir, parentDir))));
 						UG_LOGN("angle: " << rad_to_deg(acos(VecProd(dir, parentDir))));
 					}
 				}
