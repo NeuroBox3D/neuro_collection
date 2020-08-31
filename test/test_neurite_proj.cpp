@@ -53,6 +53,7 @@
 /// ug
 #include "lib_grid/refinement/projectors/projection_handler.h" // ProjectionHandler
 #include "lib_grid/refinement/projectors/neurite_projector.h" // NeuriteProjector
+#include "lib_grid/refinement/projectors/cylinder_projector.h" // CylinderProjector
 #include "lib_grid/file_io/file_io_ugx.h"  // GridWriterUGX
 #include "lib_grid/file_io/file_io.h"  // SaveGridHierarchyTransformed
 #include "lib_grid/grid/geometry.h" // MakeGeometry3d
@@ -5254,6 +5255,82 @@ void create_spline_data_for_neurites
 	}
 
 	////////////////////////////////////////////////////////////////////////////
+	/// create_piecewise_cylinder_projectors
+	////////////////////////////////////////////////////////////////////////////
+	void create_piecewise_cylinder_projectors
+	(
+		Grid& grid,
+		std::vector<SmartPtr<CylinderProjector> >& vProjectors,
+		Grid::VertexAttachmentAccessor<APosition>& aaPos
+	) {
+		ConstEdgeIterator eit = grid.begin<Edge>();
+		for (; eit != grid.end<Edge>(); ++eit)
+		{
+			Edge* e = *eit;
+			vector3 rotationAxis;
+			VecSubtract(rotationAxis, aaPos[e->vertex(1)], aaPos[e->vertex(0)]);
+			vector3 center;
+			VecScaleAdd(center, 0.5, aaPos[e->vertex(1)], 0.5, aaPos[e->vertex(0)]);
+			vProjectors.push_back(make_sp(new CylinderProjector(center, rotationAxis)));
+		}
+	}
+
+	////////////////////////////////////////////////////////////////////////////
+	/// write_piecewise_cylinder_projectors
+	////////////////////////////////////////////////////////////////////////////
+	void write_piecewise_cylinder_projectors
+	(
+		const std::string& fileName,
+		Grid& grid,
+		SubsetHandler& sh,
+		std::vector<SmartPtr<CylinderProjector> >& vProjectors
+
+	) {
+	    // Projection handling setup
+		SubsetHandler psh(grid);
+		ProjectionHandler projHandler(&psh);
+		SmartPtr<IGeometry<3> > geom3d = MakeGeometry3d(grid, aPosition);
+		projHandler.set_geometry(geom3d);
+		for (size_t i = 0; i < vProjectors.size(); i++) {
+			projHandler.set_projector(i, vProjectors[i]);
+		}
+		GridWriterUGX ugxWriter;
+		ugxWriter.add_grid(grid, "defGrid", aPosition);
+		ugxWriter.add_subset_handler(sh, "defSH", 0);
+		ugxWriter.add_projection_handler(projHandler, "defPH", 0);
+		if (!ugxWriter.write_to_file(fileName.c_str()))
+			UG_THROW("Grid could not be written to file '" << fileName << "'.");
+	}
+
+
+	////////////////////////////////////////////////////////////////////////////
+	/// refine_piecewise_cylindrical
+	////////////////////////////////////////////////////////////////////////////
+	void refine_piecewise_cylindrical
+	(
+		const std::string& fileName,
+		const uint numRefs
+	) {
+		Domain3d dom;
+		dom.create_additional_subset_handler("projSH");
+		try {LoadDomain(dom, fileName.c_str());}
+		UG_CATCH_THROW("Failed loading domain from '" << fileName << "'.");
+
+		// otherwise refine the domain and save each of the grid levels to file
+		GlobalMultiGridRefiner ref(*dom.grid(), dom.refinement_projector());
+		SaveGridLevelToFile(*dom.grid(), *dom.subset_handler(), 0, fileName.c_str());
+		for (uint i = 0; i < numRefs; ++i)
+		{
+			ref.refine();
+			std::ostringstream oss;
+			oss << "_refined_" << i+1 << ".ugx";
+			std::string curFileName = fileName.substr(0, fileName.size()-4) + oss.str();
+			SaveGridLevelToFile(*dom.grid(), *dom.subset_handler(), i+1, curFileName.c_str());
+		}
+	}
+
+
+	////////////////////////////////////////////////////////////////////////////
 	/// calculate_minimum_allowed_seg_length
 	////////////////////////////////////////////////////////////////////////////
 	number calculate_minimum_seg_length_between_fragments
@@ -5455,7 +5532,7 @@ void create_spline_data_for_neurites
 			/// TODO: BP projection needs to be done, but may fail in some cases..
 			/// Should we convert the throws to a warning or error message?! This
 			/// way we could also count the occurances of the failed BP projection!
-			// neuriteProj->project(*vit);
+			//neuriteProj->project(*vit);
 		}
 
 
