@@ -4650,7 +4650,7 @@ void create_spline_data_for_neurites
 
 
 	////////////////////////////////////////////////////////////////////////////
-	/// eval_spline
+	/// eval_spline_var
 	////////////////////////////////////////////////////////////////////////////
 	void eval_spline
 	(
@@ -4661,6 +4661,23 @@ void create_spline_data_for_neurites
 		Grid& g,
 		SubsetHandler& sh,
 		const bool somaIncluded
+	) {
+		eval_spline_var(vNeurites, desiredSegLength, ref, forceAdditionalPoint, g, sh, somaIncluded, -1);
+	}
+
+	////////////////////////////////////////////////////////////////////////////
+	/// eval_spline
+	////////////////////////////////////////////////////////////////////////////
+	void eval_spline_var
+	(
+		const std::vector<NeuriteProjector::Neurite>& vNeurites,
+		const number desiredSegLength,
+		const size_t ref,
+		const bool forceAdditionalPoint,
+		Grid& g,
+		SubsetHandler& sh,
+		const bool somaIncluded,
+		const number postProcessLength
 	) {
 		g.attach_to_vertices(aPosition);
 		Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
@@ -4780,10 +4797,32 @@ void create_spline_data_for_neurites
 			}
 			UG_LOGN("*******")
 
+			std::vector<RegularEdge*> tmp;
 			// create edges and assign to appropriate fragment subset
 			for (size_t j = 0; j < vertices.size()-1; j++) {
 				RegularEdge* edge = *g.create<RegularEdge>(EdgeDescriptor(vertices[j], vertices[j+1]));
+				tmp.push_back(edge);
 				sh.assign_subset(edge, i+1);
+			}
+
+			// post process before and after branches: This will ensure, that the
+			// segment length before and after branching point will be at least
+			// the size of postProcessLength, but no longer than twice the size
+			if (postProcessLength > 0) {
+				int indexFront = 0;
+				while (! (VecDistance(aaPos[tmp[indexFront]->vertex(0)], aaPos[tmp[indexFront]->vertex(1)]) > postProcessLength)) {
+					CollapseEdge(g, tmp[indexFront], tmp[indexFront]->vertex(0));
+					indexFront++;
+				}
+
+				int indexEnd = tmp.size();
+				while (! (VecDistance(aaPos[tmp[indexEnd]->vertex(0)], aaPos[tmp[indexEnd]->vertex(1)]) > postProcessLength)) {
+					CollapseEdge(g, tmp[indexEnd], tmp[indexEnd]->vertex(1));
+					indexEnd--;
+					if (indexEnd <= indexFront) {
+						continue;
+					}
+				}
 			}
 		}
 

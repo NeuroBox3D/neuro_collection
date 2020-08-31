@@ -728,7 +728,20 @@ void eval_spline
 	bool forceAdditionalPoint,
 	Grid& g,
 	SubsetHandler& sh,
-	bool somaIncluded
+	bool somaIncluded,
+	number postProcessLength
+);
+
+void eval_spline_var
+(
+	const std::vector<NeuriteProjector::Neurite>& vNeurites,
+	const number desiredSegLength,
+	const size_t ref,
+	const bool forceAdditionalPoint,
+	Grid& g,
+	SubsetHandler& sh,
+	const bool somaIncluded,
+	const number postProcessLength
 );
 
 /*!
