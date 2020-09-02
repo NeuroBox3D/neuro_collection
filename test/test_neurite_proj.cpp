@@ -4414,7 +4414,7 @@ void create_spline_data_for_neurites
 			/// TODO: this method gives wrong result for merging at soma (last parameter: true not false)
 	    	///connect_er_with_er(newSomaIndex, g, aaPos, sh, outVertsInnerClean, 2*numQuads+1, true, true);
 			SavePreparedGridToFile(g, sh, "before_connect_er_with_er.ugx");
-	    	connect_polys(newSomaIndex-4, g, aaPos, sh, outVertsInnerClean, true, 2*numQuads+1, false);
+	    	connect_polys(newSomaIndex-numQuads, g, aaPos, sh, outVertsInnerClean, true, 2*numQuads+1, false); // was 4 instead of numQuads
 	    	/// TODO: there are 4 less subsets because we assign now correctly to the correct subsets before...
 	    	SavePreparedGridToFile(g, sh, "after_connect_er_with_er.ugx");
 	    }
