@@ -592,7 +592,8 @@ namespace ug {
 		bool CylinderCylinderSomaSeparationTest
 		(
 			const vector<SWCPoint>& vSomaPoints,
-			const SWCPoint& soma
+			const SWCPoint& soma,
+			const number eps
 		) {
 
 			vector3 shiftDir;
@@ -617,14 +618,14 @@ namespace ug {
 		    		/// 3. Measure distance with haversine function
 		    		number dist = haversine(rad_to_deg(azimuth1), rad_to_deg(elevation1),
 		    								rad_to_deg(azimuth2), rad_to_deg(elevation2),
-		    								soma.radius/2.0);
+		    								soma.radius/2.0); /// radius is DIAMETER in .swc files
 
-		    		UG_LOGN("soma.radius: " << soma.radius);
-		    		UG_LOGN("dist: " << dist)
-		    		UG_LOGN("radius: " << vSomaPoints[i].radius);
-		    		UG_LOGN("radius2: " << vSomaPoints[j].radius);
-		    		if (dist < ((vSomaPoints[i].radius+vSomaPoints[j].radius)*1.25)) {
-						UG_LOGN("Offending neurite starts: " << i << ", " << j
+		    		UG_DLOGN(NC_TNP, 0, "soma.radius: " << soma.radius/2.0);
+		    		UG_DLOGN(NC_TNP, 0, "dist: " << dist)
+		    		UG_DLOGN(NC_TNP, 0, "radius: " << vSomaPoints[i].radius);
+		    		UG_DLOGN(NC_TNP, 0, "radius2: " << vSomaPoints[j].radius);
+		    		if (dist < ((vSomaPoints[i].radius+vSomaPoints[j].radius)*eps)) {
+						UG_DLOGN(NC_TNP, 0, "Offending neurite starts: " << i << ", " << j
 								<< " with dist: " << dist << " and radius: " <<
 								vSomaPoints[i].radius << ", and " << vSomaPoints[j].radius);
 						return false;
@@ -632,24 +633,6 @@ namespace ug {
 		    	}
 		    }
 		    return true;
-
-		    /*
-			UG_LOGN("vSomaPoints: " << vSomaPoints.size());
-			for (size_t i = 0; i < vSomaPoints.size(); i++) {
-				for (size_t j = 0; j < vSomaPoints.size(); j++) {
-					if (i != j) {
-						const number dist = VecDistance(vSomaPoints[i].coords,  vSomaPoints[j].coords);
-						if (dist < vSomaPoints[i].radius || dist < vSomaPoints[j].radius) {
-							UG_LOGN("Offending neurite starts: " << i << ", " << j
-									<< " with dist: " << dist << " and radius: " <<
-									vSomaPoints[i].radius << ", and " << vSomaPoints[j].radius);
-							return false;
-						}
-					}
-				}
-			}
-			return true;
-			*/
 		}
 
 

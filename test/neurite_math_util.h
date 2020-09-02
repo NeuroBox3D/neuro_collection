@@ -166,12 +166,27 @@ namespace ug {
 		);
 
 		/*!
-		 * \brief Simple Cylinder Cylinder soma separation test
+		 * \brief A simple cylinder-cylinder separation test for soma sphere
+		 *
+		 * The pairwise neurite start points on the soma surface are checked
+		 * for an overlap of their associated cylinders (resepctively radii)
+		 * To this end the method calculates the geodesic between any two points
+		 * on the soma surface (which is assumed to be a perfect sphere). The
+		 * the distance is compared with the sum of the radii under an epsilon
+		 * threshold criterion. The method returns true if at least one of
+		 * the cylinders intersect - otherwise the method returns false.
+		 *
+		 * \param[in] vSomaPoints - neurite start points on soma surface
+		 * \param[in] somaPoint - center of soma
+		 * \param[in] eps - epsilon
+		 *
+		 * \return \c bool
 		 */
 		bool CylinderCylinderSomaSeparationTest
 		(
 			const std::vector<SWCPoint>& vSomaPoints,
-			const SWCPoint& somaPoint
+			const SWCPoint& somaPoint,
+			number eps
 		);
 
 
