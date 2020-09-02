@@ -186,7 +186,7 @@ namespace ug {
 		(
 			const std::vector<SWCPoint>& vSomaPoints,
 			const SWCPoint& somaPoint,
-			number eps
+			number eps=0.25
 		);
 
 

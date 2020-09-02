@@ -624,7 +624,7 @@ namespace ug {
 		    		UG_DLOGN(NC_TNP, 0, "dist: " << dist)
 		    		UG_DLOGN(NC_TNP, 0, "radius: " << vSomaPoints[i].radius);
 		    		UG_DLOGN(NC_TNP, 0, "radius2: " << vSomaPoints[j].radius);
-		    		if (dist < ((vSomaPoints[i].radius+vSomaPoints[j].radius)*eps)) {
+		    		if (dist < ((vSomaPoints[i].radius+vSomaPoints[j].radius)*(1+eps))) {
 						UG_DLOGN(NC_TNP, 0, "Offending neurite starts: " << i << ", " << j
 								<< " with dist: " << dist << " and radius: " <<
 								vSomaPoints[i].radius << ", and " << vSomaPoints[j].radius);
