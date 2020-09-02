@@ -4393,6 +4393,7 @@ void create_spline_data_for_neurites
 
 		UG_LOGN("Passed connecting ER and PM to Soma");
 
+		int numQuads = -1;
 		if (!forVR) {
 	    // This connects the inner quad with the soma surface (ER)
 	    /// Extrude ER volume a little bit further into normal direction towards
@@ -4406,7 +4407,7 @@ void create_spline_data_for_neurites
 				outVertsInnerClean.push_back(std::vector<ug::Vertex*>(outVertsInner.begin() + (i*4), outVertsInner.begin() + (i+1)*4));
 			}
 	    	///connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4, true);
-			size_t numQuads = outVertsInnerClean.size();
+			numQuads = outVertsInnerClean.size();
 			UG_LOGN("newSomaIndex (er with er): " << newSomaIndex);
 			UG_LOGN(newSomaIndex+2*numQuads-1);
 			UG_LOGN(2*numQuads-1);
@@ -4420,9 +4421,12 @@ void create_spline_data_for_neurites
 	    }
 		}
 
+
+		UG_ASSERT(numQuads != -1, "Num quads can never be -1, instead can be 0 iff no soma present");
+
 		sel.clear();
-		for (size_t i = 0; i < 4; i++) {
-			SelectSubset(sel, sh, newSomaIndex-4+i, true); /// these go to PM subset!
+		for (int i = 0; i < numQuads; i++) {
+			SelectSubset(sel, sh, newSomaIndex-numQuads+i, true); /// these go to PM subset! (was 4 instead of numQuads)
 		}
 		AssignSelectionToSubset(sel, sh, 2); /// Connecting surface polygons need to belong to neurite start...
 		SavePreparedGridToFile(g, sh, "after_connect_er_with_er_before_reassignment.ugx");
@@ -5067,7 +5071,6 @@ void create_spline_data_for_neurites
 				temp.push_back(p);
 			}
 
-			/// Simple soma intersection check
 			if (!CylinderCylinderSomaSeparationTest(temp, vSomaPoints[0])) { throw SomaConnectionOverlap(); }
 			/// UG_COND_WARNING(!CylinderCylinderSomaSeparationTest(temp), "Soma connecting cylinders intersect!")
 		}

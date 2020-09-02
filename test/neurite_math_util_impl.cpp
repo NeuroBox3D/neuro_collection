@@ -617,13 +617,13 @@ namespace ug {
 		    		/// 3. Measure distance with haversine function
 		    		number dist = haversine(rad_to_deg(azimuth1), rad_to_deg(elevation1),
 		    								rad_to_deg(azimuth2), rad_to_deg(elevation2),
-		    								soma.radius);
+		    								soma.radius/2.0);
 
 		    		UG_LOGN("soma.radius: " << soma.radius);
 		    		UG_LOGN("dist: " << dist)
 		    		UG_LOGN("radius: " << vSomaPoints[i].radius);
 		    		UG_LOGN("radius2: " << vSomaPoints[j].radius);
-		    		if (dist < ((vSomaPoints[i].radius+vSomaPoints[j].radius)*1.1)) {
+		    		if (dist < ((vSomaPoints[i].radius+vSomaPoints[j].radius)*1.25)) {
 						UG_LOGN("Offending neurite starts: " << i << ", " << j
 								<< " with dist: " << dist << " and radius: " <<
 								vSomaPoints[i].radius << ", and " << vSomaPoints[j].radius);
@@ -698,6 +698,8 @@ namespace ug {
 		{
 			for (size_t i = 0; i < radii.size()/12; i++) {
 				UG_LOGN("Soma/Neurite ratio for neurite with index #" << i+1 << ": " << somaRadius/radii[i*12]);
+				UG_LOGN("Soma/neurite: SomaRadius: " << somaRadius);
+				UG_LOGN("Soma/Neurite: Radius: " << radii[i*12]);
 				UG_COND_WARNING(somaRadius/ radii[i*12] > 10, "Soma/Neurite ratio highly "
 						"anistropic for neurite with index " << i+1 << " thus one might "
 						"expect non-optimal meshes at connecting region. Refine "
