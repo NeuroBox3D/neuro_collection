@@ -15,7 +15,7 @@ install:
   - if not exist appveyor_root mkdir appveyor_root
   - cd appveyor_root
   - ps: Start-FileDownload "https://gist.githubusercontent.com/stephanmg/d5b97401f079aa58239f8f5d828efe52/raw/00b09ac5a2417fd9bf21d47a2dd4ce80405ba099/trigger_dependent_appveyor_build.ps1"
-  - ps: .\trigger_dependent_appveyor_build.ps1 -APPVEYOR_TOKEN "%APPVEYOR_TOKEN%" -PROJECT_SLUG non-vr-grids
+  - ps: .\trigger_dependent_appveyor_build.ps1 -APPVEYOR_TOKEN $env:APPVEYOR_TOKEN -PROJECT_SLUG non-vr-grids
   - if exist ughub rmdir /S /Q ughub
   - git clone https://www.github.com/UG4/ughub
   
