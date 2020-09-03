@@ -36,7 +36,7 @@ deploy_script:
   - ps: Start-FileDownload "https://gist.githubusercontent.com/stephanmg/d5b97401f079aa58239f8f5d828efe52/raw/00b09ac5a2417fd9bf21d47a2dd4ce80405ba099/trigger_dependent_appveyor_build.ps1"
   - ps: .\trigger_dependent_appveyor_build.ps1 -APPVEYOR_TOKEN $env:APPVEYOR_TOKEN -PROJECT_SLUG non-vr-grids
   - ps: .\trigger_dependent_appveyor_build.ps1 -APPVEYOR_TOKEN $env:APPVEYOR_TOKEN -PROJECT_SLUG vr-grids
-  - ps: .\trigger_dependent_appveyor_build.ps1 -APPVEYOR_TOKEN $env:APPVEYOR_TOKEN -PROJECT_SLUG BranchGenerator
-  - ps: .\trigger_dependent_appveyor_build.ps1 -APPVEYOR_TOKEN $env:APPVEYOR_TOKEN_ALL -PROJECT_SLUG ProMeshScripts -APPVEYOR_USER NeuroBox3D
+  - ps: .\trigger_dependent_appveyor_build.ps1 -APPVEYOR_TOKEN $env:APPVEYOR_TOKEN -PROJECT_SLUG Branch-Generator
+  - ps: .\trigger_dependent_appveyor_build.ps1 -APPVEYOR_TOKEN $env:APPVEYOR_TOKEN -PROJECT_SLUG ProMeshScripts
   
 
