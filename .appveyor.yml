@@ -14,6 +14,9 @@ configuration:
 install:
   - if not exist appveyor_root mkdir appveyor_root
   - cd appveyor_root
+  - ps: cd appveyor_root
+  - ps: Start-FileDownload "https://gist.githubusercontent.com/stephanmg/d5b97401f079aa58239f8f5d828efe52/raw/00b09ac5a2417fd9bf21d47a2dd4ce80405ba099/trigger_dependent_appveyor_build.ps1"
+  - ps: .\%APPVEYOR_BUILD_FOLDER%\appveyor_root\trigger_dependent_appveyor_build.ps1
   - if exist ughub rmdir /S /Q ughub
   - git clone https://www.github.com/UG4/ughub
   
@@ -31,3 +34,7 @@ build_script:
   - cd build
   - cmake ..\ -DDIM=3 -DCPU=1 -DLAPACK=OFF -DSTATIC_BUILD=ON -DBLAS=OFF -DENABLE_ALL_PLUGINS=ON -DPARALLEL=OFF -DEMBEDDED_PLUGINS=ON  -DCOMPILE_INFO=OFF -DCMAKE_VS_PLATFORM_TOOLSET_HOST_ARCHITECTURE=X64 -G "Visual Studio 15 2017 Win64"  -DCOMPILE_INFO=OFF 
   - MSBuild .\ug4.sln  /property:Configuration=Release /property:Platform=x64
+
+deploy_script:
+  - ps: Start-FileDownload "https://gist.githubusercontent.com/stephanmg/d5b97401f079aa58239f8f5d828efe52/raw/c473ceec296f7a4e1b0367b1de6845f763892c64/gistfile1.txt"
+  - ps: .\%APPVEYOR_BUILD_FOLDER%\appveyor_root\trigger.ps1
