@@ -2584,7 +2584,7 @@ void create_spline_data_for_neurites
 		const std::vector<SWCPoint>& vPts,
 		Grid& g,
 		SubsetHandler& sh,
-		number scale_length = 1.0
+		const number scale_length
 	)
 	{
 	if (!g.has_vertex_attachment(aPosition))
@@ -5286,20 +5286,23 @@ void create_spline_data_for_neurites
 		const std::string& fileName,
 		Grid& grid,
 		SubsetHandler& sh,
-		std::vector<SmartPtr<CylinderProjector> >& vProjectors
+		const std::vector<SmartPtr<CylinderProjector> >& vProjectors
 
 	) {
 	    // Projection handling setup
 		SubsetHandler psh(grid);
+		psh.set_default_subset_index(0);
 		ProjectionHandler projHandler(&psh);
 		SmartPtr<IGeometry<3> > geom3d = MakeGeometry3d(grid, aPosition);
 		projHandler.set_geometry(geom3d);
 		for (size_t i = 0; i < vProjectors.size(); i++) {
-			projHandler.set_projector(i, vProjectors[i]);
+			 projHandler.set_projector(i, vProjectors[i]);
 		}
+
 		GridWriterUGX ugxWriter;
 		ugxWriter.add_grid(grid, "defGrid", aPosition);
 		ugxWriter.add_subset_handler(sh, "defSH", 0);
+		ugxWriter.add_subset_handler(psh, "projSH", 0);
 		ugxWriter.add_projection_handler(projHandler, "defPH", 0);
 		if (!ugxWriter.write_to_file(fileName.c_str()))
 			UG_THROW("Grid could not be written to file '" << fileName << "'.");

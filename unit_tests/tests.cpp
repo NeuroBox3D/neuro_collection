@@ -49,6 +49,7 @@
 #include "../test/neurite_math_util.h"
 #include "../test/test_neurite_proj.h"
 #include "fixtures.cpp"
+#include "lib_grid/refinement/projectors/cylinder_projector.h" // CylinderProjector
 
 using namespace ug;
 using namespace ug::neuro_collection;
@@ -448,6 +449,7 @@ BOOST_AUTO_TEST_CASE(FindMinimumBPDistance) {
 	BOOST_REQUIRE_CLOSE(maxDist, 11.2106470681, 0.01); // check if values differ by at most 0.01%
 }
 
+////////////////////////////////////////////////////////////////////////////////
 BOOST_AUTO_TEST_CASE(FindMinimumBPDistanceInflation) {
 	GlobalAttachments::declare_attachment<ANumber>("diameter", true);
 	const number maxDist1 = find_min_bp_dist("test.swc", 1.0);
@@ -458,7 +460,34 @@ BOOST_AUTO_TEST_CASE(FindMinimumBPDistanceInflation) {
 	BOOST_REQUIRE_CLOSE(maxDist1, 22.4212941362, 0.01); // check if values differ by at most 0.01%
 }
 
+////////////////////////////////////////////////////////////////////////////////
+BOOST_AUTO_TEST_CASE(PiecewiseCylindricalRefinement)
+{
 
+	GlobalAttachments::declare_attachment<ANumber>("diameter", true);
+	std::string fileName = "test.swc";
+	// read in file to intermediate structure
+	std::vector<SWCPoint> vPoints;
+	std::vector<SWCPoint> vSomaPoints;
+	import_swc(fileName, vPoints, 1.0);
+	UG_LOGN("import swc")
+
+	Grid grid;
+	SubsetHandler sh(grid);
+	swc_points_to_grid(vPoints, grid, sh, 1.0);
+	UG_LOGN("Points to grid")
+
+	grid.attach_to_vertices(aPosition);
+	Grid::VertexAttachmentAccessor<APosition> aaPos(grid, aPosition);
+	std::vector<SmartPtr<CylinderProjector> > vProjectors;
+	create_piecewise_cylinder_projectors(grid, vProjectors, aaPos);
+	UG_LOGN("create piecewise cylinder projectors")
+	UG_LOGN("Number of projectors: " << vProjectors.size());
+	write_piecewise_cylinder_projectors("test_with_projectors.ugx", grid, sh, vProjectors);
+	UG_LOGN("write piecewise cylinder projectors")
+	refine_piecewise_cylindrical("test_with_projectors.ugx", 1);
+	/// Note: This needs to go into the 3d geometry and the 3d geometry needs to be refined
+}
 
 void addEdge(std::vector<int> adj[], int u, int v)
 {

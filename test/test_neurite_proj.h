@@ -44,6 +44,7 @@
 #include "common/util/smart_pointer.h"
 #include "lib_grid/multi_grid.h"
 #include "lib_grid/refinement/projectors/neurite_projector.h"
+#include "lib_grid/refinement/projectors/cylinder_projector.h" // CylinderProjector
 #include <vector>
 #include <string>
 #include <list>
@@ -586,6 +587,16 @@ void create_branches_from_swc(
 	size_t numRefs
 );
 
+/*!
+ * \brief converts SWCPoint vector to a grid
+ */
+void swc_points_to_grid
+(
+	const std::vector<SWCPoint>& vPts,
+	Grid& grid,
+	SubsetHandler& sh,
+	number scale_length = 1.0
+);
 
 /*!
  * \brief special method to respect reordering during UGX export
@@ -801,6 +812,26 @@ number find_min_bp_dist
 	number inflation=1.0
 );
 
+void create_piecewise_cylinder_projectors
+(
+	Grid& grid,
+	std::vector<SmartPtr<CylinderProjector> >& vProjectors,
+	Grid::VertexAttachmentAccessor<APosition>& aaPos
+);
+
+void write_piecewise_cylinder_projectors
+(
+	const std::string& fileName,
+	Grid& grid,
+	SubsetHandler& sh,
+	const std::vector<SmartPtr<CylinderProjector> >& vProjectors
+);
+
+void refine_piecewise_cylindrical
+(
+	const std::string& fileName,
+	const uint numRefs
+);
 
 
 } // namespace neuro_collection
