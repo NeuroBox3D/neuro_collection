@@ -216,6 +216,69 @@ void mark_anisotropic_onlyX
 	}
 }
 
+template <typename TDomain>
+void mark_anisotropic_in_local_neurite_direction
+(
+	SmartPtr<IRefiner> refiner,
+	SmartPtr<TDomain> domain,
+	number thresholdRatio
+)
+{
+	typedef typename domain_traits<TDomain::dim>::element_type elem_type;
+	typedef typename domain_traits<TDomain::dim>::side_type side_type;
+	typedef typename SurfaceView::traits<elem_type>::const_iterator const_iterator;
+
+	Grid& grid = *refiner->grid();
+	typename TDomain::position_accessor_type aaPos = domain->position_accessor();
+
+	// access to neurite projector params
+	typedef NeuriteProjector::SurfaceParams NPSP;
+	UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
+			"GlobalAttachment 'npSurfParams' not declared.");
+	Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
+	Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
+	aaSurfParams.access(grid, aSP);
+
+	// get surface view and prepare loop over all surface elements
+	SurfaceView sv(domain->subset_handler());
+	const_iterator iter = sv.begin<elem_type>(GridLevel(), SurfaceView::ALL_BUT_SHADOW_COPY);
+	const_iterator iterEnd = sv.end<elem_type>(GridLevel(), SurfaceView::ALL_BUT_SHADOW_COPY);
+
+	// loop elements for marking
+	std::vector<Edge*> longEdges;
+	for (; iter != iterEnd; ++iter)
+	{
+		longEdges.clear();
+		AnisotropyState state = long_edges_of_anisotropic_elem(*iter, grid, aaPos, thresholdRatio, longEdges);
+		if (state == ISOTROPIC)
+			continue;
+
+		UG_COND_THROW(!longEdges.size(), "Element is anisotropic, but no long edges present.");
+
+		// check whether edges point in local neurite direction
+		const Edge* const longEdge = longEdges[0];
+		const number axialDistance = fabs(aaSurfParams[longEdge->vertex(1)].axial-aaSurfParams[longEdge->vertex(0)].axial);
+		if (axialDistance > 1e-6)
+		{
+			// mark elem
+			refiner->mark(*iter, RM_CLOSURE);
+
+			// mark long edges
+			const size_t nEdges = longEdges.size();
+			for (size_t e = 0; e < nEdges; ++e)
+				refiner->mark(longEdges[e], RM_FULL);
+
+			// mark all sides
+			typename Grid::traits<side_type>::secure_container sl;
+			grid.associated_elements(sl, *iter);
+			const size_t slSz = sl.size();
+			for (size_t s = 0; s < slSz; ++s)
+				if (refiner->get_mark(sl[s]) != RM_FULL)
+					refiner->mark(sl[s], RM_CLOSURE);
+		}
+	}
+}
+
 
 void MarkNeuriteForAxialRefinement(SmartPtr<IRefiner> refiner, SmartPtr<Domain3d> domain)
 {
@@ -492,6 +555,7 @@ const vector3* GetCoordinatesFromVertexByIndex(Grid& grid, const int index)
 	template void MarkSubsets<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>, const std::vector<std::string>&);
 	template void mark_anisotropic<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>, number);
 	template void mark_anisotropic_onlyX<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>, number);
+	template void mark_anisotropic_in_local_neurite_direction<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>, number);
 	template void RemoveAllNonDefaultRefinementProjectors(SmartPtr<Domain1d>);
 #endif
 #ifdef UG_DIM_2
@@ -499,6 +563,7 @@ const vector3* GetCoordinatesFromVertexByIndex(Grid& grid, const int index)
 	template void MarkSubsets<Domain2d>(SmartPtr<IRefiner>, SmartPtr<Domain2d>, const std::vector<std::string>&);
 	template void mark_anisotropic<Domain2d>(SmartPtr<IRefiner>, SmartPtr<Domain2d>, number);
 	template void mark_anisotropic_onlyX<Domain2d>(SmartPtr<IRefiner>, SmartPtr<Domain2d>, number);
+	template void mark_anisotropic_in_local_neurite_direction<Domain2d>(SmartPtr<IRefiner>, SmartPtr<Domain2d>, number);
 	template void RemoveAllNonDefaultRefinementProjectors(SmartPtr<Domain2d>);
 #endif
 #ifdef UG_DIM_3
@@ -506,6 +571,7 @@ const vector3* GetCoordinatesFromVertexByIndex(Grid& grid, const int index)
 	template void MarkSubsets<Domain3d>(SmartPtr<IRefiner>, SmartPtr<Domain3d>, const std::vector<std::string>&);
 	template void mark_anisotropic<Domain3d>(SmartPtr<IRefiner>, SmartPtr<Domain3d>, number);
 	template void mark_anisotropic_onlyX<Domain3d>(SmartPtr<IRefiner>, SmartPtr<Domain3d>, number);
+	template void mark_anisotropic_in_local_neurite_direction<Domain3d>(SmartPtr<IRefiner>, SmartPtr<Domain3d>, number);
 	template void RemoveAllNonDefaultRefinementProjectors(SmartPtr<Domain3d>);
 #endif
 

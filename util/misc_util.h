@@ -112,6 +112,25 @@ void mark_anisotropic_onlyX
 
 
 /**
+ * @brief Mark all elements hat are anisotropic in direction of the local neurite direction for anisotropic refinement
+ *
+ * Whether an element is isotropic or not is decided using the is_anisotropic() functions
+ * from lib_grid's anisotropy_util and the given threshold ratio.
+ *
+ * "Anisotropic in direction of the local neurite direction " means that the long
+ *  edges (only the first one is checked) point more or less in local neurite direction.
+ * To be precise: If the axial distance is larger than 1e-6 the direction is to be assumed in local neurite direction.
+ */
+template <typename TDomain>
+void mark_anisotropic_in_local_neurite_direction
+(
+	SmartPtr<IRefiner> refiner,
+	SmartPtr<TDomain> domain,
+	number thresholdRatio
+);
+
+
+/**
  * @brief Mark a neurite for axial refinement
  *
  * This function is aimed at the refinement of coarse grids created using the neurites_from_swc
