@@ -5699,6 +5699,7 @@ void create_spline_data_for_neurites
 		AssignSubsetColors(sh);
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
 
+		/// TODO: ONLY faces go into measurement subsets -> otherwise refinement will be broken
 		if (assignMeasurementSubsets) {
 			// assign subsets
 			std::stringstream ss;
@@ -5706,6 +5707,7 @@ void create_spline_data_for_neurites
 			size_t measCounter = 0;
 			size_t subsetName = 1;
 
+			/*
 			/// vertices
 			UG_LOGN("Size of vertices: " << subsets.vertices.size());
 			std::vector<std::vector<ug::Vertex*> >::const_iterator itv = subsets.vertices.begin();
@@ -5736,6 +5738,7 @@ void create_spline_data_for_neurites
 				measCounter++;
 				ite++;
 			}
+			*/
 
 			/// faces
 			UG_LOGN("Size of faces " << subsets.faces.size());
