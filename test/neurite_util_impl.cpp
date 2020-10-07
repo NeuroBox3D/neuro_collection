@@ -4252,5 +4252,24 @@ namespace ug {
 			AssignSubsetColors(sh);
 			SaveGridToFile(grid, sh, "corrected_outliers.ugx");
 		}
+
+
+		////////////////////////////////////////////////////////////////////////
+		/// RescaleAttachment
+		////////////////////////////////////////////////////////////////////////
+		void RescaleAttachment(
+			const number scale,
+			Grid& grid
+		)
+		{
+			ANumber aDiam = GlobalAttachments::attachment<ANumber>("diameter");
+			UG_COND_THROW(grid.has_vertex_attachment(aDiam), "Grid has no vertex attachment of >>diameter<< type");
+			Grid::AttachmentAccessor<Vertex, ANumber> aaDiam(grid, aDiam);
+
+			ConstVertexIterator cit = grid.begin<Vertex>();
+			for (; cit != grid.end<Vertex>(); ++cit) {
+				aaDiam[*cit] *= scale;
+			}
+		}
 	}
 }

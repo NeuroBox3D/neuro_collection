@@ -633,6 +633,8 @@ namespace ug {
 						UG_DLOGN(NC_TNP, 0, "Offending neurite starts: " << i << ", " << j
 								<< " with dist: " << dist << " and radius: " <<
 								vSomaPoints[i].radius << ", and " << vSomaPoints[j].radius);
+						UG_LOGN("Offending neurites with " << "dist: " << dist << "and radius:"
+								<< vSomaPoints[i].radius << "and " << vSomaPoints[j].radius);
 						return false;
 					}
 		    	}

@@ -545,6 +545,19 @@ void test_import_swc_general_var_for_vr_var(
 	number segLength
 );
 
+int test_import_swc_general_var_for_vr_var_benchmark(
+	const std::string& fileName,
+	bool correct,
+	number erScaleFactor,
+	bool withER,
+	number anisotropy,
+	size_t numRefs,
+	bool regularize,
+	number blowUpFactor,
+	const std::string& option,
+	number segLength
+);
+
 ////////////////////////////////////////////////////////////////////////
 /// Helper methods to flip a pair and a map
 ////////////////////////////////////////////////////////////////////////
@@ -831,6 +844,18 @@ void refine_piecewise_cylindrical
 (
 	const std::string& fileName,
 	const uint numRefs
+);
+
+int test_statistics
+(
+	const std::string& fileName,
+	number erScaleFactor
+);
+
+int test_statistics_soma
+(
+	const std::string& fileName,
+	number erScaleFactor
 );
 
 

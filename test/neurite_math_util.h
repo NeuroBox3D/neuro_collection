@@ -189,7 +189,6 @@ namespace ug {
 			number eps=0.25
 		);
 
-
 		struct Cylinder {
 			vector3 c; //<! center (point)
 			vector3 w; //<! unit-length axis (vector)

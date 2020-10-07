@@ -3044,6 +3044,8 @@ void create_spline_data_for_neurites
 	for (; vit != vit_end; ++vit)
 		neuriteProj->project(*vit);
 
+	SaveGridToFile(g, sh, "vanilla_output_projected.ugx");
+
 	// output after projection (overwrites the outFileName if projection successful)
 	std::string outFileName = outFileNameBase + ".ugx";
 	GridWriterUGX ugxWriter;
@@ -3894,6 +3896,70 @@ void create_spline_data_for_neurites
 		}
 	}
 
+	int test_statistics_soma
+	(
+		const std::string& fileName,
+		number erScaleFactor
+	)
+	{
+		try {
+			test_import_swc_general_var("new_strategy.swc", false, 0.5, true,
+			8, 1, true, 1.0, false, false, "identity", -1);
+		} catch (const ContainsCycles& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_CONTAINS_CYCLES;
+		} catch (const SomaConnectionOverlap& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_SOMA_CONNECTION_OVERLAP;
+		} catch (const RegularizationIncomplete& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_REGULARIZATION_INCOMPLETE;
+		} catch (const InvalidBranches& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_INVALID_BRANCHES;
+		} catch (const TetrahedralizeFailure& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_TETRAHEDRALIZE_FAILURE;
+		} catch (const NoPermissibleRenderVector& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_NO_PERMISSIBLE_RENDER_VECTOR_FOUND;
+		} catch (const NeuriteRuntimeError& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_BP_ITERATION_FAILURE;
+		} catch (const UGError& error) {
+			return NEURITE_RUNTIME_ERROR_CODE_BP_ITERATION_FAILURE;
+		}
+		return NEURITE_RUNTIME_ERROR_CODE_SUCCESS;
+	}
+
+	int test_statistics(
+			const std::string& fileName,
+			number erScaleFactor
+	) {
+		try {
+			/// Surface/volume grid generate the 2D/3D geometry
+			create_branches_from_swc(fileName, erScaleFactor, 0, false);
+		} catch (const ContainsCycles& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_CONTAINS_CYCLES;
+		} catch (const SomaConnectionOverlap& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_SOMA_CONNECTION_OVERLAP;
+		} catch (const RegularizationIncomplete& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_REGULARIZATION_INCOMPLETE;
+		} catch (const InvalidBranches& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_INVALID_BRANCHES;
+		} catch (const TetrahedralizeFailure& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_TETRAHEDRALIZE_FAILURE;
+		} catch (const NoPermissibleRenderVector& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_NO_PERMISSIBLE_RENDER_VECTOR_FOUND;
+		} catch (const NeuriteRuntimeError& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_BP_ITERATION_FAILURE;
+		} catch (const UGError& error) {
+			/// This is not the only UGError which can happen, however this
+			/// error is thrown from ugcore, in particular from the neurite
+			/// projector, thus the neurite error codes should not go into
+			/// ugcore. Catching the error we assume that the last error in
+			/// the grid generation pipeline must be a BP projection failure!
+			/// The assertion can't be guaranteed but usually is safe to assume.
+			/// UGError does not allow to be extended in a non-intrusive way to
+			/// support custom exceptions or runtime exceptions - thus a custom
+			/// set of runtime exceptions for neurite grid generation is provided
+			return NEURITE_RUNTIME_ERROR_CODE_BP_ITERATION_FAILURE;
+		}
+		return NEURITE_RUNTIME_ERROR_CODE_SUCCESS;
+	}
 
 	////////////////////////////////////////////////////////////////////////////
 	/// test_import_swc_general_var_benchmark: Internal function for benchmark
@@ -5054,6 +5120,7 @@ void create_spline_data_for_neurites
 				vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
 			}
 		} else {
+			const number somaRadiusScaleFactor = 1.00;
 			/// project neurite start vertex to soma sphere and let this be the start of the neurites
 			/// Note: Might be problematic if projected vertices are identically...
 			/// Also: Will avoid problems if neurites would start within soma radius for some geometries...
@@ -5061,7 +5128,7 @@ void create_spline_data_for_neurites
 			for  (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
 				/// This will make the neurites start on the soma surface, which is not strictly necessary and might lead to intersections.
 				ug::vector3 q;
-				project_to_sphere(vSomaPoints[0].coords, vSomaPoints[0].radius, vPos[vRootNeuriteIndsOut[i]][0], q);
+				project_to_sphere(vSomaPoints[0].coords, vSomaPoints[0].radius*somaRadiusScaleFactor, vPos[vRootNeuriteIndsOut[i]][0], q);
 
 				vPos[vRootNeuriteIndsOut[i]][0] = q;
 				vRad[vRootNeuriteIndsOut[i]][0] = vRad[vRootNeuriteIndsOut[i]][1];
@@ -5071,8 +5138,9 @@ void create_spline_data_for_neurites
 				temp.push_back(p);
 			}
 
-			/// if (!CylinderCylinderSomaSeparationTest(temp, vSomaPoints[0])) { throw SomaConnectionOverlap(); }
-			/// UG_COND_WARNING(!CylinderCylinderSomaSeparationTest(temp), "Soma connecting cylinders intersect!")
+			vSomaPoints[0].radius *= somaRadiusScaleFactor;
+			if (!CylinderCylinderSomaSeparationTest(temp, vSomaPoints[0])) { throw SomaConnectionOverlap(); }
+			//UG_COND_WARNING(!CylinderCylinderSomaSeparationTest(temp), "Soma connecting cylinders intersect!")
 		}
 
 		// Write edge statistics for original grid
@@ -5408,6 +5476,43 @@ void create_spline_data_for_neurites
 	////////////////////////////////////////////////////////////////////////////
 	/// test_import_swc_general_var_for_vr_var
 	////////////////////////////////////////////////////////////////////////////
+	int test_import_swc_general_var_for_vr_var_benchmark(
+		const std::string& fileName,
+		bool correct,
+		number erScaleFactor,
+		bool withER,
+		number anisotropy,
+		size_t numRefs,
+		bool regularize,
+		number blowUpFactor,
+		const std::string& option,
+		number segLength
+	)
+	{
+		try {
+			test_import_swc_general_var_for_vr_var(fileName, correct, erScaleFactor,
+					withER, anisotropy, numRefs, regularize, blowUpFactor, option, segLength);
+		} catch (const ContainsCycles& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_CONTAINS_CYCLES;
+		} catch (const RegularizationIncomplete& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_REGULARIZATION_INCOMPLETE;
+		} catch (const InvalidBranches& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_INVALID_BRANCHES;
+		} catch (const TetrahedralizeFailure& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_TETRAHEDRALIZE_FAILURE;
+		} catch (const NoPermissibleRenderVector& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_NO_PERMISSIBLE_RENDER_VECTOR_FOUND;
+		} catch (const NeuriteRuntimeError& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_OTHER;
+		} catch (const UGError& error) {
+			return NEURITE_RUNTIME_ERROR_CODE_BP_ITERATION_FAILURE;
+		}
+		return NEURITE_RUNTIME_ERROR_CODE_SUCCESS;
+	}
+
+	////////////////////////////////////////////////////////////////////////////
+	/// test_import_swc_general_var_for_vr_var
+	////////////////////////////////////////////////////////////////////////////
 	void test_import_swc_general_var_for_vr_var(
 		const std::string& fileName,
 		bool correct,
@@ -5667,7 +5772,7 @@ void create_spline_data_for_neurites
 		// adjust render vectors
 		// TODO: Add as an option
 		UG_LOGN("Find and set render vector")
-		set_permissible_render_vector_global(vPos, vNeurites);
+		//set_permissible_render_vector_global(vPos, vNeurites);
 
 		/// mapping
 	    typedef NeuriteProjector::Mapping NPMapping;

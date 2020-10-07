@@ -1223,6 +1223,14 @@ namespace ug {
 			const number thresholdMin,
 			const number thresholdMax
 		);
+
+		/*!
+		 * \brief rescales an vertex attachment
+		 */
+		void RescaleAttachment(
+			number scale,
+			Grid& grid
+		);
 	}
 }
 
