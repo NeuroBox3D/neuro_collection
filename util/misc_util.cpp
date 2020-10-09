@@ -9,7 +9,7 @@
  * NeuroBox and UG4 are free software: You can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License version 3
  * (as published by the Free Software Foundation) with the following additional
- * attribution requirements (according to LGPL/GPL v3 ��7):
+ * attribution requirements (according to LGPL/GPL v3 §7):
  *
  * (1) The following notice must be displayed in the appropriate legal notices
  * of covered and combined works: "Based on UG4 (www.ug4.org/license)".
@@ -22,7 +22,7 @@
  * "Reiter, S., Vogel, A., Heppner, I., Rupp, M., and Wittum, G. A massively
  *   parallel geometric multigrid solver on hierarchically distributed grids.
  *   Computing and visualization in science 16, 4 (2013), 151-164"
- * "Vogel, A., Reiter, S., Rupp, M., N��gel, A., and Wittum, G. UG4 -- a novel
+ * "Vogel, A., Reiter, S., Rupp, M., Nägel, A., and Wittum, G. UG4 -- a novel
  *   flexible software system for simulating PDE based models on high performance
  *   computers. Computing and visualization in science 16, 4 (2013), 165-179"
  * "Stepniewski, M., Breit, M., Hoffer, M. and Queisser, G.
@@ -217,6 +217,84 @@ void mark_anisotropic_onlyX
 }
 
 template <typename TDomain>
+void adjust_attachments
+(
+	SmartPtr<TDomain> domain
+)
+{
+	typedef typename domain_traits<TDomain::dim>::element_type elem_type;
+	typedef typename domain_traits<TDomain::dim>::side_type side_type;
+	typedef typename SurfaceView::traits<elem_type>::const_iterator const_iterator;
+
+	SmartPtr<MultiGrid> grid = domain->grid();
+	typename TDomain::position_accessor_type aaPos = domain->position_accessor();
+
+	// access to neurite projector params
+	typedef NeuriteProjector::SurfaceParams NPSP;
+	UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
+			"GlobalAttachment 'npSurfParams' not declared.");
+	Attachment<NPSP> aSP = GlobalAttachments::attachment<Attachment<NPSP> >("npSurfParams");
+	Grid::VertexAttachmentAccessor<Attachment<NPSP> > aaSurfParams;
+	aaSurfParams.access(*grid.get(), aSP);
+
+	SurfaceView sv(domain->subset_handler());
+	const_iterator iter = sv.begin<elem_type>(GridLevel(), SurfaceView::ALL_BUT_SHADOW_COPY);
+	const_iterator iterEnd = sv.end<elem_type>(GridLevel(), SurfaceView::ALL_BUT_SHADOW_COPY);
+
+	for (; iter != iterEnd; ++iter)
+	{
+		elem_type* elem = *iter;
+
+		const size_t numVertices = elem->num_vertices();
+		for (size_t i = 0; i < numVertices; i++) {
+			GridObject* go = grid.get()->get_parent(elem->vertex(i));
+			if (go != NULL) {
+				/// VERTEX parent
+				if (go->base_object_id() == VERTEX) {
+					const Vertex* const v = dynamic_cast<Vertex*>(go);
+					aaSurfParams[elem->vertex(i)] = aaSurfParams[v];
+				}
+
+				/// EDGE parent
+				if (go->base_object_id() == EDGE) {
+					const Edge* const e = dynamic_cast<Edge*>(go);
+					const NPSP* const npsp1 = &aaSurfParams[e->vertex(0)];
+					const NPSP* const npsp2 = &aaSurfParams[e->vertex(1)];
+					aaSurfParams[elem->vertex(i)].axial =  (npsp1->axial+npsp2->axial)*0.5;
+					aaSurfParams[elem->vertex(i)].radial = (npsp1->radial+npsp2->radial)*0.5;
+				}
+
+				/// FACE parent
+				if (go->base_object_id() == FACE) {
+					const Face* const f = dynamic_cast<Face*>(go);
+					number axial = 0;
+					number radial = 0;
+					for (size_t i = 0; i < f->num_vertices(); i++) {
+						axial += aaSurfParams[f->vertex(i)].axial;
+						radial += aaSurfParams[f->vertex(i)].radial;
+					}
+					axial = axial / f->num_vertices();
+					radial = radial / f->num_vertices();
+				}
+
+				/// VOLUME parent
+				if (go->base_object_id() == VOLUME) {
+					const Volume* const v = dynamic_cast<Volume*>(go);
+					number axial = 0;
+					number radial = 0;
+					for (size_t i = 0; i < v->num_vertices(); i++) {
+						axial += aaSurfParams[v->vertex(i)].axial;
+						radial += aaSurfParams[v->vertex(i)].radial;
+					}
+					axial = axial / v->num_vertices();
+					radial = radial / v->num_vertices();
+				}
+			}
+		}
+	}
+}
+
+template <typename TDomain>
 void mark_anisotropic_in_local_neurite_direction
 (
 	SmartPtr<IRefiner> refiner,
@@ -257,9 +335,20 @@ void mark_anisotropic_in_local_neurite_direction
 
 		// check whether edges point in local neurite direction
 		const Edge* const longEdge = longEdges[0];
-		const number axialDistance = fabs(aaSurfParams[longEdge->vertex(1)].axial-aaSurfParams[longEdge->vertex(0)].axial);
+		number axialDistance = fabs(aaSurfParams[longEdge->vertex(1)].axial-aaSurfParams[longEdge->vertex(0)].axial);
+
 		if (axialDistance > 1e-6)
 		{
+			// check this is not a BP, ignore BPs
+			uint32_t nid = aaSurfParams[(*iter)->vertex(0)].neuriteID & ((1 << 20) - 1);
+			uint32_t thisNID = aaSurfParams[(*iter)->vertex(0)].neuriteID & ((1 << 20) - 1);
+			for (size_t i = 1; i < (*iter)->num_vertices(); ++i)
+				thisNID = std::max(thisNID, aaSurfParams[(*iter)->vertex(i)].neuriteID & ((1 << 20) - 1));
+			if (thisNID != nid)
+			{
+				continue;
+			}
+
 			// mark elem
 			refiner->mark(*iter, RM_CLOSURE);
 
@@ -556,7 +645,8 @@ const vector3* GetCoordinatesFromVertexByIndex(Grid& grid, const int index)
 	template void mark_anisotropic<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>, number);
 	template void mark_anisotropic_onlyX<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>, number);
 	template void mark_anisotropic_in_local_neurite_direction<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>, number);
-	template void RemoveAllNonDefaultRefinementProjectors(SmartPtr<Domain1d>);
+	template void RemoveAllNonDefakltRefinementProjectors(SmartPtr<Domain1d>);
+	template void adjust_attachments(SmartPtr<Domain1d>);
 #endif
 #ifdef UG_DIM_2
 	template void mark_global<Domain2d>(SmartPtr<IRefiner>, SmartPtr<Domain2d>);
@@ -565,6 +655,7 @@ const vector3* GetCoordinatesFromVertexByIndex(Grid& grid, const int index)
 	template void mark_anisotropic_onlyX<Domain2d>(SmartPtr<IRefiner>, SmartPtr<Domain2d>, number);
 	template void mark_anisotropic_in_local_neurite_direction<Domain2d>(SmartPtr<IRefiner>, SmartPtr<Domain2d>, number);
 	template void RemoveAllNonDefaultRefinementProjectors(SmartPtr<Domain2d>);
+	template void adjust_attachments(SmartPtr<Domain2d>);
 #endif
 #ifdef UG_DIM_3
 	template void mark_global<Domain3d>(SmartPtr<IRefiner>, SmartPtr<Domain3d>);
@@ -573,6 +664,7 @@ const vector3* GetCoordinatesFromVertexByIndex(Grid& grid, const int index)
 	template void mark_anisotropic_onlyX<Domain3d>(SmartPtr<IRefiner>, SmartPtr<Domain3d>, number);
 	template void mark_anisotropic_in_local_neurite_direction<Domain3d>(SmartPtr<IRefiner>, SmartPtr<Domain3d>, number);
 	template void RemoveAllNonDefaultRefinementProjectors(SmartPtr<Domain3d>);
+	template void adjust_attachments(SmartPtr<Domain3d>);
 #endif
 
 

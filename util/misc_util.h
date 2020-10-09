@@ -110,6 +110,11 @@ void mark_anisotropic_onlyX
 	number thresholdRatio
 );
 
+template <typename TDomain>
+void adjust_attachments
+(
+	SmartPtr<TDomain> domain
+);
 
 /**
  * @brief Mark all elements hat are anisotropic in direction of the local neurite direction for anisotropic refinement

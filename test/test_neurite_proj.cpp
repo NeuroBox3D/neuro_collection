@@ -5546,8 +5546,8 @@ void create_spline_data_for_neurites
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
 			/// Note: This could be improved: The soma point (first point (centroid of sphere) is
 			/// ignored during grid generation How to fix this? Add soma point again in front of root neurites manually
-			vPos[vRootNeuriteIndsOut[i]].insert(vPos[vRootNeuriteIndsOut[i]].begin(), vSomaPoints[0].coords);
-			vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[vRootNeuriteIndsOut[i]][0]);
+			//vPos[vRootNeuriteIndsOut[i]].insert(vPos[vRootNeuriteIndsOut[i]].begin(), vSomaPoints[0].coords);
+			//vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[vRootNeuriteIndsOut[i]][0]);
 		}
 
 	    UG_COND_THROW(ContainsCycle(vPoints), "1d grid contains at least one cycle. This is not permitted!");
