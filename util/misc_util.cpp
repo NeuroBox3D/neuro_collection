@@ -645,7 +645,7 @@ const vector3* GetCoordinatesFromVertexByIndex(Grid& grid, const int index)
 	template void mark_anisotropic<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>, number);
 	template void mark_anisotropic_onlyX<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>, number);
 	template void mark_anisotropic_in_local_neurite_direction<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>, number);
-	template void RemoveAllNonDefakltRefinementProjectors(SmartPtr<Domain1d>);
+	template void RemoveAllNonDefaultRefinementProjectors(SmartPtr<Domain1d>);
 	template void adjust_attachments(SmartPtr<Domain1d>);
 #endif
 #ifdef UG_DIM_2
