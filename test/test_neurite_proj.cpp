@@ -5694,7 +5694,7 @@ vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[v
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements_tris.ugx");
 		/// Use to warn if triangles intersect and correct triangle intersections
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
-		ResolveTriangleIntersections(g, g.begin<Triangle>(), g.end<Triangle>(), 0.1, aPosition);
+		//ResolveTriangleIntersections(g, g.begin<Triangle>(), g.end<Triangle>(), 0.1, aPosition);
 	}
 
 
