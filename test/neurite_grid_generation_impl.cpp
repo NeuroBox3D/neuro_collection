@@ -699,6 +699,8 @@ namespace ug {
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec];
+          std::cout << "pos: " << pos[curSec+1];
+          std::cout << "aaPos[v]: " << aaPos[v];
 					vector3 vOut;
 					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
 					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
@@ -726,6 +728,9 @@ namespace ug {
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec];
+          std::cout << "pos: " << pos[curSec+1];
+          std::cout << "aaPos[v]: " << aaPos[v];
+
 					vector3 vOut;
 					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
 					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
@@ -863,6 +868,8 @@ namespace ug {
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec];
+          std::cout << "pos: " << pos[curSec+1];
+          std::cout << "aaPos[v]: " << aaPos[v];
 					vector3 vOut;
 					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
 					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
@@ -887,6 +894,8 @@ namespace ug {
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec];
+          std::cout << "pos: " << pos[curSec+1];
+          std::cout << "aaPos[v]: " << aaPos[v];
 					vector3 vOut;
 					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
 					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
@@ -1022,6 +1031,8 @@ namespace ug {
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec];
+          std::cout << "pos: " << pos[curSec+1];
+          std::cout << "aaPos[v]: " << aaPos[v];
 					vector3 vOut;
 					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
 					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
@@ -1045,6 +1056,8 @@ namespace ug {
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec];
+          std::cout << "pos: " << pos[curSec+1];
+          std::cout << "aaPos[v]: " << aaPos[v];
 					vector3 vOut;
 					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
 					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
@@ -1176,6 +1189,10 @@ namespace ug {
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec];
+          std::cout << "pos: " << pos[curSec+1];
+          std::cout << "aaPos[v]: " << aaPos[v];
+
+
 					vector3 vOut;
 					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
 					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
@@ -1199,6 +1216,8 @@ namespace ug {
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec];
+          std::cout << "pos: " << pos[curSec+1];
+          std::cout << "aaPos[v]: " << aaPos[v];
 					vector3 vOut;
 					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
 					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);

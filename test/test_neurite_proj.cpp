@@ -5117,7 +5117,9 @@ void create_spline_data_for_neurites
 		if (somaIncluded) {
 			for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
 				/// Let the soma point (Sphere center) be the start point of each neurite fragment for vr use case
-				vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
+			//	vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
+vPos[vRootNeuriteIndsOut[i]].insert(vPos[vRootNeuriteIndsOut[i]].begin(), vSomaPoints[0].coords);
+vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[vRootNeuriteIndsOut[i]][0]);
 			}
 		} else {
 			const number somaRadiusScaleFactor = 1.00;
@@ -5139,7 +5141,7 @@ void create_spline_data_for_neurites
 			}
 
 			vSomaPoints[0].radius *= somaRadiusScaleFactor;
-			if (!CylinderCylinderSomaSeparationTest(temp, vSomaPoints[0])) { throw SomaConnectionOverlap(); }
+			//if (!CylinderCylinderSomaSeparationTest(temp, vSomaPoints[0])) { throw SomaConnectionOverlap(); }
 			//UG_COND_WARNING(!CylinderCylinderSomaSeparationTest(temp), "Soma connecting cylinders intersect!")
 		}
 
@@ -5546,8 +5548,8 @@ void create_spline_data_for_neurites
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
 			/// Note: This could be improved: The soma point (first point (centroid of sphere) is
 			/// ignored during grid generation How to fix this? Add soma point again in front of root neurites manually
-			//vPos[vRootNeuriteIndsOut[i]].insert(vPos[vRootNeuriteIndsOut[i]].begin(), vSomaPoints[0].coords);
-			//vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[vRootNeuriteIndsOut[i]][0]);
+	//		vPos[vRootNeuriteIndsOut[i]].insert(vPos[vRootNeuriteIndsOut[i]].begin(), vSomaPoints[0].coords);
+		//	vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[vRootNeuriteIndsOut[i]][0]);
 		}
 
 	    UG_COND_THROW(ContainsCycle(vPoints), "1d grid contains at least one cycle. This is not permitted!");
@@ -5676,7 +5678,7 @@ void create_spline_data_for_neurites
 		}
 
 		// soma
-		vSomaPoints[0].radius *= blowUpFactor;
+		vSomaPoints[0].radius *= 2.0;
 		create_soma(vSomaPoints, g, aaPos, sh, 1);
 		sh.subset_info(0).name = "Neurites";
 		sh.subset_info(1).name = "Soma";
