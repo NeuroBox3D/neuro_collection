@@ -51,6 +51,19 @@
 
 namespace ug {
 	namespace neuro_collection {
+      /*!
+       * \brief check if a value is within range [min, max]
+       * \param[in] value 
+       * \param[in] min
+       * \param[in] max
+       * \return \c bool true if in range otherwise false
+       */
+      template <typename T>
+      bool inline IsBetween(T value, T min, T max)
+      {
+        return (value < max) && (value > min);
+      }
+
 		/*!
 		 * \brief signum function {-1,0,1}
 		 * \tparam[T] type

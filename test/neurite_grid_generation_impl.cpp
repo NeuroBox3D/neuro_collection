@@ -192,10 +192,11 @@ namespace ug {
 							0.5 * PI * i + angleOffset - 2 * PI;
 			aaSurfParams[(*connectingVrts)[i]].radial = erScaleFactor;
 			aaMappingParams[(*connectingVrts)[i]].v1 = pos[0];
-			aaMappingParams[(*connectingVrts)[i]].v2 = pos[0];
+			aaMappingParams[(*connectingVrts)[i]].v2 = pos[1];
 			vector3 vOut;
 			ProjectPointToLine(vOut, aaPos[(*connectingVrts)[i]], pos[0], pos[1]);
-			aaMappingParams[(*connectingVrts)[i]].lambda = VecDistance(vOut, pos[0]);
+			aaMappingParams[(*connectingVrts)[i]].lambda = VecDistance(vOut, pos[0])/VecDistance(pos[0], pos[1]);
+      UG_ASSERT(IsBetween(aaMappingParams[(*connectingVrts)[i]].lambda), "Lambda needs to be in range [0,1].");
 			// std::vector<SWCPoint> vPoints;
 			// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 		}
@@ -225,10 +226,11 @@ namespace ug {
 			aaSurfParams[v].radial = erScaleFactor;
 			// 1d<->2d mapping params
 			aaMappingParams[v].v1 = pos[0];
-			aaMappingParams[v].v2 = pos[0];
+			aaMappingParams[v].v2 = pos[1];
 			vector3 vOut;
 			ProjectPointToLine(vOut, aaPos[v], pos[0], pos[1]);
-			aaMappingParams[v].lambda = VecDistance(vOut, pos[0]);
+			aaMappingParams[v].lambda = VecDistance(vOut, pos[0])/VecDistance(pos[0], pos[1]);
+      UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 			// std::vector<SWCPoint> vPoints;
 			// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 			sh.assign_subset(v, 3);
@@ -254,10 +256,11 @@ namespace ug {
 			aaSurfParams[v].radial = 1.0;
 			// 1d<->2d mapping params
 			aaMappingParams[v].v1 = pos[0];
-			aaMappingParams[v].v2 = pos[0];
+			aaMappingParams[v].v2 = pos[1];
 			vector3 vOut;
 			ProjectPointToLine(vOut, aaPos[v], pos[0], pos[1]);
-			aaMappingParams[v].lambda = VecDistance(vOut, pos[0]);
+			aaMappingParams[v].lambda = VecDistance(vOut, pos[0]) / VecDistance(pos[0], pos[1]);
+      UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 
 			sh.assign_subset(v, 2);
 			if (outVerts) {
@@ -698,12 +701,11 @@ namespace ug {
 
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
-					aaMappingParams[v].v2 = pos[curSec];
-          std::cout << "pos: " << pos[curSec+1];
-          std::cout << "aaPos[v]: " << aaPos[v];
+					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;
 					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]) / VecDistance(pos[curSec], pos[curSec+1]);
+      UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
@@ -727,13 +729,12 @@ namespace ug {
 
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
-					aaMappingParams[v].v2 = pos[curSec];
-          std::cout << "pos: " << pos[curSec+1];
-          std::cout << "aaPos[v]: " << aaPos[v];
+					aaMappingParams[v].v2 = pos[curSec+1];
 
 					vector3 vOut;
 					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]) / VecDistance(pos[curSec], pos[curSec+1]);
+          UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
@@ -867,12 +868,11 @@ namespace ug {
 
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
-					aaMappingParams[v].v2 = pos[curSec];
-          std::cout << "pos: " << pos[curSec+1];
-          std::cout << "aaPos[v]: " << aaPos[v];
+					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;
 					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]) / VecDistance(pos[curSec], pos[curSec+1]);
+          UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
@@ -893,16 +893,14 @@ namespace ug {
 
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
-					aaMappingParams[v].v2 = pos[curSec];
-          std::cout << "pos: " << pos[curSec+1];
-          std::cout << "aaPos[v]: " << aaPos[v];
+					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;
 					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]) / VecDistance(pos[curSec], pos[curSec+1]);
+          UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
-
 
 				// correct vertex offsets to reflect angle at which child branches
 				VecScaleAppend(aaPos[vVrt[(connFaceInd) % 4]],
@@ -1030,12 +1028,11 @@ namespace ug {
 
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec];
-					aaMappingParams[v].v2 = pos[curSec];
-          std::cout << "pos: " << pos[curSec+1];
-          std::cout << "aaPos[v]: " << aaPos[v];
+					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;
 					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]) / VecDistance(pos[curSec], pos[curSec+1]);
+          UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
@@ -1061,6 +1058,7 @@ namespace ug {
 					vector3 vOut;
 					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
 					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+          UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
@@ -1196,6 +1194,7 @@ namespace ug {
 					vector3 vOut;
 					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
 					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+          UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
@@ -1221,6 +1220,7 @@ namespace ug {
 					vector3 vOut;
 					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
 					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+          UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
