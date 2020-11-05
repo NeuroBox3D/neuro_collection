@@ -5141,7 +5141,7 @@ vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[v
 			}
 
 			vSomaPoints[0].radius *= somaRadiusScaleFactor;
-			//if (!CylinderCylinderSomaSeparationTest(temp, vSomaPoints[0])) { throw SomaConnectionOverlap(); }
+			if (!CylinderCylinderSomaSeparationTest(temp, vSomaPoints[0])) { throw SomaConnectionOverlap(); }
 			//UG_COND_WARNING(!CylinderCylinderSomaSeparationTest(temp), "Soma connecting cylinders intersect!")
 		}
 
