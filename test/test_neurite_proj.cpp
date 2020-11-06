@@ -5678,7 +5678,7 @@ vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[v
 		}
 
 		// soma
-		vSomaPoints[0].radius *= 2.0;
+		vSomaPoints[0].radius *= 2.0 *= blowUpFactor;
 		create_soma(vSomaPoints, g, aaPos, sh, 1);
 		sh.subset_info(0).name = "Neurites";
 		sh.subset_info(1).name = "Soma";
