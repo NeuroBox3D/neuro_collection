@@ -47,7 +47,7 @@
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
 
-//#define UG_ASSERT(expr, msg) {}
+#define UG_ASSERT(expr, msg) {}
 
 namespace ug {
 	namespace neuro_collection {
@@ -196,8 +196,7 @@ namespace ug {
 			aaMappingParams[(*connectingVrts)[i]].v1 = pos[0];
 			aaMappingParams[(*connectingVrts)[i]].v2 = pos[1];
 			vector3 vOut;
-			ProjectPointToLine(vOut, aaPos[(*connectingVrts)[i]], pos[0], pos[1]);
-			aaMappingParams[(*connectingVrts)[i]].lambda = VecDistance(vOut, pos[0])/VecDistance(pos[0], pos[1]);
+			aaMappingParams[(*connectingVrts)[i]].lambda = ProjectPointToLine(vOut, aaPos[(*connectingVrts)[i]], pos[0], pos[1]);
       UG_LOGN(aaMappingParams[(*connectingVrts)[i]].lambda);
       UG_ASSERT(IsBetween(aaMappingParams[(*connectingVrts)[i]].lambda), "Lambda needs to be in range [0,1].");
 			// std::vector<SWCPoint> vPoints;
@@ -231,8 +230,7 @@ namespace ug {
 			aaMappingParams[v].v1 = pos[0];
 			aaMappingParams[v].v2 = pos[1];
 			vector3 vOut;
-			ProjectPointToLine(vOut, aaPos[v], pos[0], pos[1]);
-			aaMappingParams[v].lambda = VecDistance(vOut, pos[0])/VecDistance(pos[0], pos[1]);
+			aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[0], pos[1]);
       UG_LOGN(aaMappingParams[v].lambda);
       UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 			// std::vector<SWCPoint> vPoints;
@@ -262,8 +260,7 @@ namespace ug {
 			aaMappingParams[v].v1 = pos[0];
 			aaMappingParams[v].v2 = pos[1];
 			vector3 vOut;
-			ProjectPointToLine(vOut, aaPos[v], pos[0], pos[1]);
-			aaMappingParams[v].lambda = VecDistance(vOut, pos[0]) / VecDistance(pos[0], pos[1]);
+    	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[0], pos[1]);
       UG_LOGN(aaMappingParams[v].lambda);
       UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 
@@ -708,8 +705,7 @@ namespace ug {
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;
-					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]) / VecDistance(pos[curSec], pos[curSec+1]);
+	      	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
           UG_LOGN(aaMappingParams[v].lambda);
           UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
@@ -738,8 +734,7 @@ namespace ug {
 					aaMappingParams[v].v2 = pos[curSec+1];
 
 					vector3 vOut;
-					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]) / VecDistance(pos[curSec], pos[curSec+1]);
+         	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
           UG_LOGN(aaMappingParams[v].lambda);
           UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
@@ -877,8 +872,7 @@ namespace ug {
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;
-					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]) / VecDistance(pos[curSec], pos[curSec+1]);
+         	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
           UG_LOGN(aaMappingParams[v].lambda);
           UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
@@ -903,8 +897,7 @@ namespace ug {
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;
-					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]) / VecDistance(pos[curSec], pos[curSec+1]);
+         	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
           UG_LOGN(aaMappingParams[v].lambda);
           UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
@@ -1039,8 +1032,7 @@ namespace ug {
 					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;
-					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]) / VecDistance(pos[curSec], pos[curSec+1]);
+         	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
           UG_LOGN(aaMappingParams[v].lambda);
           UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
@@ -1066,8 +1058,7 @@ namespace ug {
           std::cout << "pos: " << pos[curSec+1];
           std::cout << "aaPos[v]: " << aaPos[v];
 					vector3 vOut;
-					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]) / VecDistance(pos[curSec], pos[curSec+1]);
+         	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
           UG_LOGN(aaMappingParams[v].lambda);
           UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
@@ -1203,8 +1194,7 @@ namespace ug {
 
 
 					vector3 vOut;
-					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]) / VecDistance(pos[curSec], pos[curSec+1]);
+         	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
           UG_LOGN(aaMappingParams[v].lambda);
           UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
@@ -1230,8 +1220,7 @@ namespace ug {
           std::cout << "pos: " << pos[curSec+1];
           std::cout << "aaPos[v]: " << aaPos[v];
 					vector3 vOut;
-					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]) / VecDistance(pos[curSec], pos[curSec+1]);
+         	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
           UG_LOGN(aaMappingParams[v].lambda);
           UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;

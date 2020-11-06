@@ -61,7 +61,7 @@ namespace ug {
       template <typename T>
       bool inline IsBetween(T value)
       {
-        return (value < (1+0.2)) && (value > (0-SMALL));
+        return (value < (1+0.2)) && (value > (0-0.2));
       }
 
 		/*!
