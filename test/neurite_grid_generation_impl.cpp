@@ -702,7 +702,7 @@ namespace ug {
 					aaSurfParams[v].radial = erScaleFactor;
 
 					// 1d<->2d mapping params
-					aaMappingParams[v].v1 = pos[curSec+1];
+					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;
 	      	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
@@ -730,7 +730,7 @@ namespace ug {
 					aaSurfParams[v].radial = blowUpFactor;
 
 					// 1d<->2d mapping params
-					aaMappingParams[v].v1 = pos[curSec+1];
+					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec+1];
 
 					vector3 vOut;
@@ -869,7 +869,7 @@ namespace ug {
 					aaSurfParams[v].radial = erScaleFactor;
 
 					// 1d<->2d mapping params
-					aaMappingParams[v].v1 = pos[curSec+1];
+					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;
          	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
@@ -894,7 +894,7 @@ namespace ug {
 					aaSurfParams[v].radial = 1.0;
 
 					// 1d<->2d mapping params
-					aaMappingParams[v].v1 = pos[curSec+1];
+					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;
          	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
@@ -1053,7 +1053,7 @@ namespace ug {
 					aaSurfParams[v].angular = angle;
 					aaSurfParams[v].radial = 1.0;
 					// 1d<->2d mapping params
-					aaMappingParams[v].v1 = pos[curSec+1];
+					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec+1];
           std::cout << "pos: " << pos[curSec+1];
           std::cout << "aaPos[v]: " << aaPos[v];
@@ -1187,7 +1187,7 @@ namespace ug {
 					aaSurfParams[v].angular = angle;
 					aaSurfParams[v].radial = erScaleFactor;
 					// 1d<->2d mapping params
-					aaMappingParams[v].v1 = pos[curSec+1];
+					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec+1];
           std::cout << "pos: " << pos[curSec+1];
           std::cout << "aaPos[v]: " << aaPos[v];
@@ -1215,7 +1215,7 @@ namespace ug {
 					aaSurfParams[v].angular = angle;
 					aaSurfParams[v].radial = blowUpFactor;
 					// 1d<->2d mapping params
-					aaMappingParams[v].v1 = pos[curSec+1];
+					aaMappingParams[v].v1 = pos[curSec];
 					aaMappingParams[v].v2 = pos[curSec+1];
           std::cout << "pos: " << pos[curSec+1];
           std::cout << "aaPos[v]: " << aaPos[v];
