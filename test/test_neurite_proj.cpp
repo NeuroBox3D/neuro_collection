@@ -5117,11 +5117,12 @@ void create_spline_data_for_neurites
 		if (somaIncluded) {
 			for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
 				/// Let the soma point (Sphere center) be the start point of each neurite fragment for vr use case
-			//	vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
-vPos[vRootNeuriteIndsOut[i]].insert(vPos[vRootNeuriteIndsOut[i]].begin(), vSomaPoints[0].coords);
-vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[vRootNeuriteIndsOut[i]][0]);
+				//	vPos[vRootNeuriteIndsOut[i]][0] = vSomaPoints[0].coords;
+				vPos[vRootNeuriteIndsOut[i]].insert(vPos[vRootNeuriteIndsOut[i]].begin(), vSomaPoints[0].coords);
+				vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[vRootNeuriteIndsOut[i]][0]);
 			}
 		} else {
+			/// non-vr use-case
 			const number somaRadiusScaleFactor = 1.00;
 			/// project neurite start vertex to soma sphere and let this be the start of the neurites
 			/// Note: Might be problematic if projected vertices are identically...
@@ -5142,7 +5143,7 @@ vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[v
 
 			vSomaPoints[0].radius *= somaRadiusScaleFactor;
 			if (!CylinderCylinderSomaSeparationTest(temp, vSomaPoints[0])) { throw SomaConnectionOverlap(); }
-			//UG_COND_WARNING(!CylinderCylinderSomaSeparationTest(temp), "Soma connecting cylinders intersect!")
+			// UG_COND_WARNING(!CylinderCylinderSomaSeparationTest(temp), "Soma connecting cylinders intersect!")
 		}
 
 		// Write edge statistics for original grid
@@ -5543,13 +5544,18 @@ vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[v
 		std::vector<std::vector<number> > vRad;
 		std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
 		std::vector<size_t> vRootNeuriteIndsOut;
-
 		convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+
+		number maxNeuriteRadius = 0;
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
+			for (size_t j = 0; j < vSomaPoints.size(); j++) {
+				number radius = VecDistance(vSomaPoints[j].coords, vPos[vRootNeuriteIndsOut[i]][0]);
+				maxNeuriteRadius = std::max(maxNeuriteRadius, radius);
+			}
 			/// Note: This could be improved: The soma point (first point (centroid of sphere) is
 			/// ignored during grid generation How to fix this? Add soma point again in front of root neurites manually
-	//		vPos[vRootNeuriteIndsOut[i]].insert(vPos[vRootNeuriteIndsOut[i]].begin(), vSomaPoints[0].coords);
-		//	vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[vRootNeuriteIndsOut[i]][0]);
+			///	vPos[vRootNeuriteIndsOut[i]].insert(vPos[vRootNeuriteIndsOut[i]].begin(), vSomaPoints[0].coords);
+			///	vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[vRootNeuriteIndsOut[i]][0]);
 		}
 
 	    UG_COND_THROW(ContainsCycle(vPoints), "1d grid contains at least one cycle. This is not permitted!");
@@ -5591,7 +5597,7 @@ vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[v
 	    aaMapping.access(g, aNPMapping);
 
 	    /// normals
-	    UG_COND_THROW(!GlobalAttachments::is_declared("npNormals"), "GLobalAttachment 'npNormals' not declared.");
+	    UG_COND_THROW(!GlobalAttachments::is_declared("npNormals"), "GlobalAttachment 'npNormals' not declared.");
 	    ANormal3 aNormal = GlobalAttachments::attachment<ANormal3>("npNormals");
 
 	    if (!g.has_vertex_attachment(aNormal)) {
@@ -5677,9 +5683,14 @@ vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[v
 			TriangleFill(g, sel.edges_begin(), sel.edges_end());
 		}
 
-		// soma
-		vSomaPoints[0].radius *= 2.0;
-    vSomaPoints[0].radius *= blowUpFactor;
+		// Scale soma correctly and set mapping parameters
+		number maxSomaRadius = 0;
+        for (size_t i = 0; i < vSomaPoints.size(); i++) {
+			maxSomaRadius = std::max(maxSomaRadius, vSomaPoints[i].radius);
+		}
+		vSomaPoints[0].radius = std::max(maxSomaRadius, maxNeuriteRadius); // need diameter not radius in create_soma(...) below
+		vSomaPoints[0].radius *= 1.1; // 10 % safety margin
+    	vSomaPoints[0].radius *= blowUpFactor; // blowup factor
 		create_soma(vSomaPoints, g, aaPos, sh, 1);
 		sh.subset_info(0).name = "Neurites";
 		sh.subset_info(1).name = "Soma";
@@ -5687,6 +5698,7 @@ vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[v
 		EraseEmptySubsets(sh);
 		set_somata_mapping_parameters(g, sh, aaMapping, 1, 1, vSomaPoints.front());
 
+		/// save quadrilateral mesh
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements.ugx");
 		Triangulate(g, g.begin<ug::Quadrilateral>(), g.end<ug::Quadrilateral>());
 		/// apply a hint of laplacian smoothing for soma region
@@ -5695,7 +5707,7 @@ vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[v
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements_tris.ugx");
 		/// Use to warn if triangles intersect and correct triangle intersections
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
-		ResolveTriangleIntersections(g, g.begin<Triangle>(), g.end<Triangle>(), 0.1, aPosition);
+		///ResolveTriangleIntersections(g, g.begin<Triangle>(), g.end<Triangle>(), 0.1, aPosition);
 	}
 
 
