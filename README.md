@@ -11,4 +11,4 @@ This plugin aims at collecting and unifying any neuro-related functionality that
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 
 Travis CI is used to trigger the build of downstream projects (Which depend on neuro_collection). See `.travis.yml` for details.
-Currently two downstream projects are triggered (The latter project triggers another downstream project https://github.com/stephanmg/non-vr-grids): https://github.com/stephanmg/vr-grids and https://github.com/stephanmg/BranchGenerator
+Currently two downstream projects are triggered (The latter project triggers other downstream project [https://github.com/stephanmg/non-vr-grids](non-vr-grids), [https://github.com/stephanmg/vr-grids](vr-grids) and [https://github.com/stephanmg/BranchGenerator](BranchGenerator)).
