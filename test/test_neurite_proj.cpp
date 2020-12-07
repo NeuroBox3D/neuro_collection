@@ -37,9 +37,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Lesser General Public License for more details.
  */
-
 /// Run example via: ../bin/ugshell -call "test_import_swc_general_var(\"files/10-6vkd1m.CNG.swc\", false, 0.5, true, 16, 0, true, 1.0, false)"
-
 
 /// plugin and configuration
 #include "test_neurite_proj.h"
@@ -86,7 +84,6 @@ ug::DebugID NC_TNP("NC_DID.TNP");
 
 namespace ug {
 	namespace neuro_collection {
-
 	////////////////////////////////////////////////////////////////////////
 	/// import_swc
 	////////////////////////////////////////////////////////////////////////
@@ -98,7 +95,7 @@ namespace ug {
 	)
 	{
     vPointsOut.clear();
-    std::string inFileName = FindFileInStandardPaths(fileName.c_str());
+   	std::string inFileName = FindFileInStandardPaths(fileName.c_str());
 
     std::ifstream inFile(inFileName.c_str());
     UG_COND_THROW(!inFile, "SWC input file '" << fileName << "' could not be opened for reading.");
@@ -760,12 +757,6 @@ void convert_pointlist_to_neuritelist
 					else
 					{
 						vRootNeuriteIndsOut.push_back(curNeuriteInd);
-						// Identify soma/neurite BPs
-						/*
-						std::pair<size_t, std::vector<size_t> > bp;
-						bp.first = 0; // first point is at soma
-						vBPInfoOut[curNeuriteInd].push_back(bp);
-						*/
 					}
 				}
 			}
@@ -794,8 +785,9 @@ void convert_pointlist_to_neuritelist
 	#endif
 }
 
-
-
+////////////////////////////////////////////////////////////////////////
+/// convert_pointlist_to_neuritelist_variant
+////////////////////////////////////////////////////////////////////////
 void convert_pointlist_to_neuritelist_variant
 (
     const std::vector<SWCPoint>& vPoints,
@@ -856,8 +848,9 @@ void convert_pointlist_to_neuritelist_variant
 					}
 				}
 			}
-			else
+			else {
 				rootPts.push_back(std::make_pair(pind, ind));
+			}
 		}
 
 		vPosOut.resize(vPosOut.size() + rootPts.size());
@@ -868,15 +861,13 @@ void convert_pointlist_to_neuritelist_variant
 		std::stack<std::pair<size_t, size_t> > processing_stack;
 		for (size_t i = 0; i < rootPts.size(); ++i) {
 			processing_stack.push(rootPts[i]);
-			//vRootNeuriteIndsOut.push_back(i);
-			//bp_stack.push(vector3(-1337,-1337,-1337));
 		}
 
 		for (size_t i = 0; i < vSomaPoints.size(); ++i) {
 			bp_stack.push(std::make_pair(vSomaPoints[i].coords, vSomaPoints[i].radius));
 		}
 
-		UG_LOGN("rootPts.size(): " << rootPts.size())
+		UG_DLOGN(NC_TNP, 0, "rootPts.size(): " << rootPts.size())
 
 		vRootNeuriteIndsOut.push_back(curNeuriteInd);
 
@@ -912,7 +903,7 @@ void convert_pointlist_to_neuritelist_variant
 			number tempRad;
 			if (nConn > 2)
 			{
-				UG_COND_THROW(nConn > 3, "Bifurcations with > 3 child branches are not supported!");
+				UG_COND_THROW(nConn > 3, "Bifurcations with > 3 child branches are not supported.");
 				// branching point -> new neurite ID
 				size_t newSize = vPosOut.size() + nConn-1;
 				vPosOut.resize(newSize);
@@ -922,7 +913,7 @@ void convert_pointlist_to_neuritelist_variant
 				bool pushed = false;
 				for (size_t i = 0; i < nConn; ++i)
 				{
-					UG_LOGN("nConns:" << nConn);
+					UG_DLOGN(NC_TNP, 0, "nConns:" << nConn);
 					if (pt.conns[i] == pind) /// parent fragment already created
 					{
 						continue;
@@ -931,7 +922,7 @@ void convert_pointlist_to_neuritelist_variant
 					/// start a new branch for each connected vertex
 					temp = pt.coords;
 					tempRad = pt.radius;
-					UG_LOGN("temp: " << temp)
+					UG_DLOGN(NC_TNP, 0, "temp: " << temp)
 					processing_stack.push(std::make_pair(ind, pt.conns[i]));
 					curNeuriteInd++;
 					/// Note: This automatically picks the first available branch
@@ -945,10 +936,7 @@ void convert_pointlist_to_neuritelist_variant
 					bp_stack.push(std::make_pair(temp, tempRad));
 				}
 				curNeuriteInd--;
-				for (size_t i = 0; i < vPosOut.size()-1; i++) {
-					//UG_LOGN("vPosOut[" << i << "]: " << vPosOut[i].front());
-				}
-				UG_LOGN("DONE");
+				UG_DLOGN(NC_TNP, 0, "DONE");
 			}
 
 			// end point
@@ -969,7 +957,7 @@ void convert_pointlist_to_neuritelist_variant
 					}
 					// else: the next point is the root point of a root neurite
 				} else {
-					///vRootNeuriteIndsOut.push_back(curNeuriteInd);
+					/// vRootNeuriteIndsOut.push_back(curNeuriteInd);
 				}
 			}
 
@@ -981,7 +969,7 @@ void convert_pointlist_to_neuritelist_variant
 					if (pt.conns[i] != pind) {
 						processing_stack.push(std::make_pair(ind, pt.conns[i]));
 						bp_stack.push(std::make_pair(vector3(0, 0, 0), -1));
-						// dummy value, should never be used and refactored to be avoided completely
+						// TODO dummy value, should never be used and refactored to be avoided completely
 					}
 				}
 			}
@@ -1024,7 +1012,7 @@ void create_spline_data_for_neurites
 
         // parameterize to achieve constant velocity on piece-wise linear geom
         size_t nVrt = pos.size();
-        UG_LOGN("nVrt: " << nVrt);
+        UG_DLOGN(NC_TNP, 0, "nVrt: " << nVrt);
         std::vector<number> tSuppPos(nVrt);
         std::vector<number> dt(nVrt);
         number totalLength = 0.0;
@@ -1102,15 +1090,6 @@ void create_spline_data_for_neurites
 				neuriteOut.refDir = vector3(0,0,1);
 		}
 
-        UG_LOGN("Render vector (old): " << neuriteOut.refDir);
-
- //       neuriteOut.refDir = vector3(0.60922803,  0.97464146,  0.46921468);
-   //     neuriteOut.refDir = vector3(0.1530355,   0.81253284,  0.37140929);
-    //    VecNormalize(neuriteOut.refDir, neuriteOut.refDir);
-
-      //  UG_LOGN("Render vector (new): " << neuriteOut.refDir);
-
-        //neuriteOut.refDir = vector3(0,1/sqrt(2),1/sqrt(2));
 		neuriteOut.vSec.reserve(nVrt-1);
 
         // this will be 0 for root branches and 1 otherwise
@@ -2093,15 +2072,6 @@ void create_spline_data_for_neurites
 			VecScaleAdd(projRefDir, 1.0, neurite.refDir, -fac, vel);
 			VecNormalize(projRefDir, projRefDir);
 			VecCross(thirdDir, vel, projRefDir);
-
-			/*
-			vector2 relCoord;
-			VecScaleAppend(childDir, -VecProd(childDir, vel), vel);
-			relCoord[0] = VecProd(childDir, projRefDir);
-			VecScaleAppend(childDir, -relCoord[0], projRefDir);
-			relCoord[1] = VecProd(childDir, thirdDir);
-			VecNormalize(relCoord, relCoord);
-			*/
 			vector2 relCoord(VecProd(childDir, projRefDir), VecProd(childDir, thirdDir));
 			VecNormalize(relCoord, relCoord);
 
@@ -2291,23 +2261,6 @@ void create_spline_data_for_neurites
 				g.create<Hexahedron>(HexahedronDescriptor(vVrt[0], vVrt[1], vVrt[2], vVrt[3],
 					vNewVrt[0], vNewVrt[1], vNewVrt[2], vNewVrt[3]));
 
-				/*
-				Vertex* innerVrt = *g.create<RegularVertex>();
-
-				VecScaleAdd(aaPos[innerVrt], 0.5, curPos, 0.5, lastPos);
-				aaSurfParams[innerVrt].neuriteID = nid;
-				aaSurfParams[innerVrt].neuriteID += (brit - vBR.begin()) << 20;  // add branching region index
-				aaSurfParams[innerVrt].neuriteID += 1 << 28;  // add child ID (always 0, since there can only be one child here)
-				aaSurfParams[innerVrt].axial = 0.5*vSegAxPos[s] + 0.5*vSegAxPos[s-1];
-				aaSurfParams[innerVrt].angular = 0.0;
-				aaSurfParams[innerVrt].radial = 0.0;
-
-				g.create<Pyramid>(PyramidDescriptor(vVrt[0], vVrt[1], vVrt[2], vVrt[3], innerVrt));
-				g.create<Pyramid>(PyramidDescriptor(vNewVrt[3], vNewVrt[2], vNewVrt[1], vNewVrt[0], innerVrt));
-				for (size_t j = 0; j < 4; ++j)
-					g.create<Pyramid>(PyramidDescriptor(vVrt[j], vNewVrt[j], vNewVrt[(j+1)%4], vVrt[(j+1)%4], innerVrt));
-				*/
-
 				vVrt.swap(vNewVrt);
 			}
 
@@ -2331,25 +2284,7 @@ void create_spline_data_for_neurites
 		else
 			++brit;
 	}
-
-	/*
-	// close the tip of the neurite
-	const NeuriteProjector::Section& lastSec = neurite.vSec[nSec-1];
-	vel = vector3(-lastSec.splineParamsX[2], -lastSec.splineParamsY[2], -lastSec.splineParamsZ[2]);
-	number radius = lastSec.splineParamsR[3];
-	VecScale(vel, vel, radius/sqrt(VecProd(vel, vel)));
-	Vertex* tip = *g.create<RegularVertex>();
-	for (size_t i = 0; i < 4; ++i)
-		VecScaleAppend(aaPos[tip], 0.25, aaPos[vVrt[i]]);
-	VecAdd(aaPos[tip], aaPos[tip], vel);
-	g.create<Pyramid>(PyramidDescriptor(vVrt[0], vVrt[1], vVrt[2], vVrt[3], tip));
-
-	aaSurfParams[tip].neuriteID = nid;
-	aaSurfParams[tip].axial = 2.0;
-	aaSurfParams[tip].angular = 0.0;
-	aaSurfParams[tip].radial = 1.0;
-	*/
-}
+	}
 
 	////////////////////////////////////////////////////////////////////////
 	/// export_to_ugx
@@ -2543,7 +2478,7 @@ void create_spline_data_for_neurites
 	/// vertices
 	for ( it = dst.begin(); it != dst.end(); it++)
 	{
-		UG_LOGN("key:" << it->first << ", value: " << it->second);
+		UG_DLOGN(NC_TNP, 0, "key:" << it->first << ", value: " << it->second);
 		const SWCPoint& pt = vPts[it->second];
 		Vertex* v = vrts[it->first] = *g.create<RegularVertex>();
 		VecScale(aaPos[v], pt.coords, scale_length);
@@ -2573,8 +2508,6 @@ void create_spline_data_for_neurites
 	sh.set_subset_name("custom", 6);
 	EraseEmptySubsets(sh);
 	}
-
-
 
 	////////////////////////////////////////////////////////////////////////
 	/// swc_points_to_grid
@@ -2731,7 +2664,7 @@ void create_spline_data_for_neurites
     std::vector<ug::vector3> newVerts(vRootNeuriteIndsOut.size());
     std::fill(newVerts.begin(), newVerts.end(), vSomaPoints[0].coords);
     for (std::vector<ug::vector3>::const_iterator it = newVerts.begin(); it != newVerts.end(); ++it) {
-    	UG_LOGN("newVert: " << *it);
+    	UG_DLOGN(NC_TNP, 0, "newVert: " << *it);
     }
 	ReplaceFirstRootNeuriteVertexInSWC(lines, fileName, fn_precond, newVerts);
 
@@ -2777,8 +2710,8 @@ void create_spline_data_for_neurites
 
 	// add soma
 	sh.set_default_subset_index(1);
-	UG_LOGN("Soma: " << vSomaPoints.front().radius);
-	UG_LOGN("Coords: " << vSomaPoints.front().coords);
+	UG_DLOGN(NC_TNP, 0, "Soma: " << vSomaPoints.front().radius);
+	UG_DLOGN(NC_TNP, 0, "Coords: " << vSomaPoints.front().coords);
     create_soma(vSomaPoints, g, aaPos, sh, 1);
 	sh.set_default_subset_index(0);
 
@@ -2960,8 +2893,6 @@ void create_spline_data_for_neurites
 	//import_swc(fn_precond, vPoints);
 	import_swc(fileNameIn, vPoints);
 
-
-
 	// convert intermediate structure to neurite data
 	std::vector<std::vector<vector3> > vPos;
 	std::vector<std::vector<number> > vRad;
@@ -2970,16 +2901,12 @@ void create_spline_data_for_neurites
 
 	convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 
-
-
 	// prepare grid and projector
 	Grid g;
 	SubsetHandler sh(g);
 	sh.set_default_subset_index(0);
 	g.attach_to_vertices(aPosition);
 	Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
-
-
 
 	typedef NeuriteProjector::SurfaceParams NPSP;
 	UG_COND_THROW(!GlobalAttachments::is_declared("npSurfParams"),
@@ -3102,7 +3029,6 @@ void create_spline_data_for_neurites
 	std::string fn_noext = FilenameWithoutExtension(fileName);
 	std::string fn_precond = fn_noext + "_precond.swc";
 	import_swc(fn_precond, vPoints);
-	//import_swc(fileName, vPoints);
 
 	// convert intermediate structure to neurite data
 	std::vector<std::vector<vector3> > vPos;
@@ -3896,10 +3822,14 @@ void create_spline_data_for_neurites
 		}
 	}
 
+
+////////////////////////////////////////////////////////////////////////
+/// test_statistics_soma
+////////////////////////////////////////////////////////////////////////
 	int test_statistics_soma
 	(
 		const std::string& fileName,
-		number erScaleFactor
+		const number erScaleFactor
 	)
 	{
 		try {
@@ -3925,9 +3855,12 @@ void create_spline_data_for_neurites
 		return NEURITE_RUNTIME_ERROR_CODE_SUCCESS;
 	}
 
+////////////////////////////////////////////////////////////////////////
+/// test_statistics
+////////////////////////////////////////////////////////////////////////
 	int test_statistics(
 			const std::string& fileName,
-			number erScaleFactor
+			const number erScaleFactor
 	) {
 		try {
 			/// Surface/volume grid generate the 2D/3D geometry
@@ -4065,8 +3998,8 @@ void create_spline_data_for_neurites
 		number segLength
 	) {
 
-		UG_LOGN("option: " << option)
-		UG_LOGN("segLength: " << segLength)
+		UG_DLOGN(NC_TNP, 0, "option: " << option)
+		UG_DLOGN(NC_TNP, 0, "segLength: " << segLength)
 
 		using namespace std;
 		// Read in SWC file to intermediate structure (May contain multiple soma points)
@@ -4107,7 +4040,7 @@ void create_spline_data_for_neurites
 		convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 	    vector<SWCPoint> somaPoint = vSomaPoints;
 	    vector<SWCPoint> savedSomaPoint = vSomaPoints;
-	    UG_LOGN("Converted pointlist to neuritelist successfull")
+	    UG_DLOGN(NC_TNP, 0, "Converted pointlist to neuritelist successfull")
 
 		// Prepare grid (selector and attachments)
 		Grid g;
@@ -4161,11 +4094,9 @@ void create_spline_data_for_neurites
 	    somaPoint[0].radius *= 1.00;
 		UG_DLOGN(NC_TNP, 0, "Creating (outer sphere) soma in subset 1");
 	    create_soma(somaPoint, g, aaPos, sh, 1);
-	    UG_LOGN("Created soma")
-
+	    UG_DLOGN(NC_TNP, 0, "Created soma")
 
 	    /// TODO: Should soma inner refinement depend on soma outer refinemnt (1 vs 3?)
-
 	    // Get closest _vertices_ on soma surface for each connecting neurite
 		vector<Vertex*> vPointSomaSurface2;
 		//get_closest_vertices_on_soma(vPosSomaClosest, vPointSomaSurface2, g, aaPos, sh, 1);
@@ -4179,13 +4110,13 @@ void create_spline_data_for_neurites
 	    	CalculateVertexNormal(normal, g, vPointSomaSurface2[i], aaPos);
 	    	VecNormalize(normal, normal);
 	    	normals.push_back(normal);
-	    	UG_LOGN("Center: " << aaPos[vPointSomaSurface2[i]]);
+	    	UG_DLOGN(NC_TNP, 0, "Center: " << aaPos[vPointSomaSurface2[i]]);
 	    }
 
 	    UG_DLOGN(NC_TNP, 0, "Found " << "# " << vPointSomaSurface2.size()
 	    		<< " closest vertices on (outer sphere) soma in subset 1");
 
-	    UG_LOGN("Found closest vertices: " << vPointSomaSurface2.size());
+	    UG_DLOGN(NC_TNP, 0, "Found closest vertices: " << vPointSomaSurface2.size());
 	    // Replace first vertex of each root neurite (starting at soma) with the closest soma surface vertex
 	    //std::vector<ug::vector3> centers = FindSomaSurfaceCenters(g, aaPos, vPointSomaSurface2, vRad, 1, sh, 1.0, vRootNeuriteIndsOut.size());
 	    /*for (size_t i = 0; i  < centers.size(); i++) {
@@ -4228,7 +4159,7 @@ void create_spline_data_for_neurites
 	    /// TODO: Does this actually work / is this the correct implementation? Check!
 	    MitigateRootBranchingNeurites(vPoints);
 
-	    UG_LOGN("After checks...")
+	    UG_DLOGN(NC_TNP, 0, "After checks...")
 	    UG_DLOGN(NC_TNP, 0, " passed!");
     	Grid g2;
     	SubsetHandler sh2(g2);
@@ -4240,18 +4171,18 @@ void create_spline_data_for_neurites
 
 	    /// Add normal to first point and replace second point with it: TODO: how far to extrude in normal direction?
 	    for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
-	    	UG_LOGN("Setting i-th position... " << i)
+	    	UG_DLOGN(NC_TNP, 0, "Setting i-th position... " << i)
 	    	/// Replace first point with closest soma surface point (vertex)
 	    	vPos[vRootNeuriteIndsOut[i]][0] = aaPos[vPointSomaSurface2[i]];
 	    	VecAdd(vPos[vRootNeuriteIndsOut[i]][1], vPos[vRootNeuriteIndsOut[i]][0], normals[i]);
-	    	UG_LOGN("normal centers: " << vPos[vRootNeuriteIndsOut[i]][1]);
-	    	UG_LOGN("vPos[i][0]: " << vPos[vRootNeuriteIndsOut[i]][0]);
-	    	UG_LOGN("normals[i]: " << normals[i]);
+	    	UG_DLOGN(NC_TNP, 0, "normal centers: " << vPos[vRootNeuriteIndsOut[i]][1]);
+	    	UG_DLOGN(NC_TNP, 0, "vPos[i][0]: " << vPos[vRootNeuriteIndsOut[i]][0]);
+	    	UG_DLOGN(NC_TNP, 0, "normals[i]: " << normals[i]);
 	    }
 
 	    g.clear_geometry();
 
-	    UG_LOGN("Converted again")
+	    UG_DLOGN(NC_TNP, 0, "Converted again")
 
 	    // Projection handling setup
 		SubsetHandler psh(g);
@@ -4265,7 +4196,7 @@ void create_spline_data_for_neurites
 		// Create spline data for neurites
 		vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
 		create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
-		UG_LOGN("Setting permissible render vector...");
+		UG_DLOGN(NC_TNP, 0, "Setting permissible render vector...");
 		/// set_permissible_render_vector(vPos, vNeurites);
 
 		// Helper vectors to store radii and verts for soma/neurite connection
@@ -4281,17 +4212,15 @@ void create_spline_data_for_neurites
 		   		&outRadsInner, withER); /// TODO add blow up factor here too (not needed however)
 		}
 		UG_DLOGN(NC_TNP, 0, " done.");
-
-		UG_LOGN("Created neurites...")
-
-		UG_LOGN("Meshing successful")
+		UG_DLOGN(NC_TNP, 0, "Created neurites...")
+		UG_DLOGN(NC_TNP, 0, "Meshing successful")
 
 		/// Checking root neurite intersections
 		if (CheckRootNeuriteIntersections(vPos, vRad, blowUpFactor)) {
-			UG_LOGN("Root neurites intersect.")
+			UG_DLOGN(NC_TNP, 0, "Root neurites intersect.")
 		}
 
-	    UG_DLOG(NC_TNP, 0, "Checking diameters...")
+	    UG_DLOGN(NC_TNP, 0, "Checking diameters...")
 		/// TODO: Eventually handle very large ratios by a diameter tapering
 		/// Base Refinement of soma has to be chosen depending on diameter ratios,
 		/// otherwise we introduce unnecessary level of detail (DoFs) on the soma surface
@@ -4300,7 +4229,7 @@ void create_spline_data_for_neurites
 		IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
 
 		if (dryRun) {
-			UG_LOGN("Done with consistency checks.")
+			UG_DLOGN(NC_TNP, 0, "Done with consistency checks.")
 			return;
 		}
 
@@ -4336,7 +4265,7 @@ void create_spline_data_for_neurites
 
 		std::vector<SWCPoint> newPoints;
 	    sh.set_default_subset_index(0);
-	    UG_LOGN("Generating neurites...")
+	    UG_DLOGN(NC_TNP, 0, "Generating neurites...")
 	    UG_DLOGN(NC_TNP, 0, "Generating neurites...")
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 			std::stringstream ss;
@@ -4350,7 +4279,7 @@ void create_spline_data_for_neurites
 		   		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   				anisotropy, g, aaPos, aaSurfParams);
 		   	}
-		 	/// TODO: Why do the lines below now cause a segmentation fault in HEAD revision?
+		 	/// TODO: Why do the lines below now cause a segmentation fault in ug HEAD revision?
 		 	/*
 		 	ss << "testNeuriteProjector_after_generating_neurite_no="testNeuriteProjector_after_generating_neurite_no="" << i <<  ".ugx";
 		    SaveGridToFile(g, sh, ss.str());
@@ -4359,9 +4288,8 @@ void create_spline_data_for_neurites
 		}
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites.ugx");
 
-
 	    UG_DLOGN(NC_TNP, 0, " done.");
-	    UG_LOGN("Generating inner soma");
+	    UG_DLOGN(NC_TNP, 0, "Generating inner soma");
 	    SaveGridToFile(g, sh, "testNeuriteProjector_after_generating_neurites.ugx");
 
 	    /// (Inner sphere) ER
@@ -4418,7 +4346,7 @@ void create_spline_data_for_neurites
 		   	sh.set_subset_name(ss.str().c_str(), i);
 		 }
 		IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_renaming.ugx");
-		UG_LOGN("After inner connex");
+		UG_DLOGN(NC_TNP, 0, "After inner connex");
 		SaveGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_renaming.ugx");
 
 		/// Double Vertices might occur during Qhull gen faces -> remove these here
@@ -4434,14 +4362,13 @@ void create_spline_data_for_neurites
 		 }
 
 		SavePreparedGridToFile(g, sh, "testNeuriteProjector_after_adding_neurites_and_connecting_inner_soma_to_outer_ER.ugx");
-		UG_LOGN("After adding neurites and connecting inner soma to outer ER");
+		UG_DLOGN(NC_TNP, 0, "After adding neurites and connecting inner soma to outer ER");
 
-		UG_LOGN("somaIndex before connect pm with soma: " << newSomaIndex);
+		UG_DLOGN(NC_TNP, 0, "somaIndex before connect pm with soma: " << newSomaIndex);
 		std::vector<std::vector<ug::Vertex*> > outVertsClean;
 		for (size_t i = 0; i < outVerts.size() / 12; i++) {
 			outVertsClean.push_back(std::vector<ug::Vertex*>(outVerts.begin() + (i*12), outVerts.begin() + (i+1)*12));
 		}
-
 
 		bool connect=true;
 		// This connects the outer dodecagon with the soma surface (plasma membrane)
@@ -4455,9 +4382,7 @@ void create_spline_data_for_neurites
 			}
 		}
 		SavePreparedGridToFile(g, sh, "after_connect_pm_with_soma.ugx");
-
-
-		UG_LOGN("Passed connecting ER and PM to Soma");
+		UG_DLOGN(NC_TNP, 0, "Passed connecting ER and PM to Soma");
 
 		int numQuads = -1;
 		if (!forVR) {
@@ -4467,16 +4392,16 @@ void create_spline_data_for_neurites
 	    if (withER) {
 	    	extend_ER_within(g, sh, aaPos, aaSurfParams, aaMapping, newSomaIndex, vRootNeuriteIndsOut.size(), erScaleFactor, outVertsInner, somaPoint.front());
 	    	SavePreparedGridToFile(g, sh, "after_extend_ER_and_before_connect_outer.ugx");
-	    	UG_LOGN("Size of outvertsInner: " << outVertsInner.size());
+	    	UG_DLOGN(NC_TNP, 0, "Size of outvertsInner: " << outVertsInner.size());
 			std::vector<std::vector<ug::Vertex*> > outVertsInnerClean;
 			for (size_t i = 0; i < outVertsInner.size() / 4; i++) {
 				outVertsInnerClean.push_back(std::vector<ug::Vertex*>(outVertsInner.begin() + (i*4), outVertsInner.begin() + (i+1)*4));
 			}
 	    	///connect_outer_and_inner_root_neurites_to_outer_soma_variant(4, vRootNeuriteIndsOut.size(), g, aaPos, sh, outVertsInner, 4, true);
 			numQuads = outVertsInnerClean.size();
-			UG_LOGN("newSomaIndex (er with er): " << newSomaIndex);
-			UG_LOGN(newSomaIndex+2*numQuads-1);
-			UG_LOGN(2*numQuads-1);
+			UG_DLOGN(NC_TNP, 0, "newSomaIndex (er with er): " << newSomaIndex);
+			UG_DLOGN(NC_TNP, 0, newSomaIndex+2*numQuads-1);
+			UG_DLOGN(NC_TNP, 0, 2*numQuads-1);
 	    	//connect_er_with_er(newSomaIndex+2*numQuads-1, g, aaPos, sh, outVertsInnerClean, 2*numQuads-1, false, false);
 			/// TODO: this method gives wrong result for merging at soma (last parameter: true not false)
 	    	///connect_er_with_er(newSomaIndex, g, aaPos, sh, outVertsInnerClean, 2*numQuads+1, true, true);
@@ -4486,8 +4411,6 @@ void create_spline_data_for_neurites
 	    	SavePreparedGridToFile(g, sh, "after_connect_er_with_er.ugx");
 	    }
 		}
-
-
 		UG_ASSERT(numQuads != -1, "Num quads can never be -1, instead can be 0 iff no soma present");
 
 		sel.clear();
@@ -4509,17 +4432,16 @@ void create_spline_data_for_neurites
 		return;
 		*/
 
-
 		/// TODO: up to here indices okay: Need to erase debugging vertices, check if this interfers with grid generation above (subset indices)
 	    /// TODO: need to correct all hardcoded numQuads above... unconnected vertices are the debugging vertices
-	    UG_LOGN("Success for file with name: " << fileName);
+	    UG_DLOGN(NC_TNP, 0, "Success for file with name: " << fileName);
 
 	    /// Reassign elements for connecting parts ER and somata to erm subset
 	    sel.clear();
 	    SelectSubset(sel, sh, 3, true);
 	    CloseSelection(sel);
 	    AssignSelectionToSubset(sel, sh, 3);
-	    /// TODO Last two subsets are the debugging vertices.
+	    /// TODO: Last two subsets are the debugging vertices.
 	    /// Could be removed earlier since they are not responsible for -1 parent face normals
 	    g.erase(sh.begin<Vertex>(sh.num_subsets()-1), sh.end<Vertex>(sh.num_subsets()-1));
 	    g.erase(sh.begin<Vertex>(sh.num_subsets()-2), sh.end<Vertex>(sh.num_subsets()-2));
@@ -4650,7 +4572,7 @@ void create_spline_data_for_neurites
 	    /// assign SurfParams for all vertices from tetrahedralize call (now in subset 4 and 5)
 	    fix_axial_parameters(g, sh, aaSurfParams, aaPos, 4, 5, savedSomaPoint[0], erScaleFactor);
 
-	    UG_LOGN("After tetrahedralize");
+	    UG_DLOGN(NC_TNP, 0, "After tetrahedralize");
 
 		SavePreparedGridToFile(g, sh, "after_tetrahedralize_soma.ugx");
 		/// After merge doubles might occur, delete them. Boundary faces are retained,
@@ -4710,7 +4632,7 @@ void create_spline_data_for_neurites
 			// pointless to check for the other fragments' lengths since one
 			// violation of this criterion will be undesired for our use case
 			if (! (dist > desiredSegLength)) {
-				UG_LOGN("First fragment not satifying required length (" <<
+				UG_DLOGN(NC_TNP, 0, "First fragment not satifying required length (" <<
 						desiredSegLength << "): >> Fragment #" << i << " <<");
 				return false;
 			}
@@ -4765,7 +4687,7 @@ void create_spline_data_for_neurites
 
 		/// actual seglength might differ from desired due to non integer multiplicity
 		number segLength;
-		UG_LOGN("*** eval_spline ***")
+		UG_DLOGN(NC_TNP, 0, "*** eval_spline ***")
 		for (size_t i = 0; i < vNeurites.size(); i++) {
 			std::vector<number> vSegAxPos;
 			number lengthOverRadius = calculate_length_over_radius_variant(0, 1, vNeurites[i], 0);
@@ -4783,14 +4705,14 @@ void create_spline_data_for_neurites
 			}
 
 			segLength = lengthOverRadius / nSeg;
-			UG_LOGN("nSeg (calculated new): " << nSeg);
-			UG_LOGN("Desired edge length: " << desiredSegLength);
-			UG_LOGN("Adjusted edge legnth: " << segLength);
-			UG_LOGN("spline length: " << lengthOverRadius);
+			UG_DLOGN(NC_TNP, 0, "nSeg (calculated new): " << nSeg);
+			UG_DLOGN(NC_TNP, 0, "Desired edge length: " << desiredSegLength);
+			UG_DLOGN(NC_TNP, 0, "Adjusted edge legnth: " << segLength);
+			UG_DLOGN(NC_TNP, 0, "spline length: " << lengthOverRadius);
 			vSegAxPos.resize(nSeg);
 			size_t curSec = 0;
 			calculate_segment_axial_positions_constant_seg_length(vSegAxPos, 0, 1, vNeurites[i], 0, segLength);
-			UG_LOGN("vSegAxPos.size(): " << vSegAxPos.size())
+			UG_DLOGN(NC_TNP, 0, "vSegAxPos.size(): " << vSegAxPos.size())
 
 			size_t nSec = vNeurites[i].vSec.size();
 			vector3 vel;
@@ -4857,7 +4779,7 @@ void create_spline_data_for_neurites
 				radius = radius * monom + sp[2];
 				radius = radius * monom + sp[3];
 
-				UG_LOGN("v0: " << v0 << ", v1: " << v1 << ", v2: " << v2 << ", radius:" << radius)
+				UG_DLOGN(NC_TNP, 0, "v0: " << v0 << ", v1: " << v1 << ", v2: " << v2 << ", radius:" << radius)
 
 				ug::RegularVertex* vertex = *g.create<RegularVertex>();
 				/// very first soma vertex of first branch is soma, store new soma center
@@ -4866,7 +4788,7 @@ void create_spline_data_for_neurites
 				vertices.push_back(vertex);
 				sh.assign_subset(vertex, i+1);
 			}
-			UG_LOGN("*******")
+			UG_DLOGN(NC_TNP, 0, "*******")
 
 			std::vector<RegularEdge*> tmp;
 			// create edges and assign to appropriate fragment subset
@@ -4925,7 +4847,6 @@ void create_spline_data_for_neurites
 		sh.subset_info(1).name = "dend";
 		EraseEmptySubsets(sh);
 		SaveGridToFile(g, sh, "new_strategy_assigned.ugx");
-
 	}
 
 	struct Point {
@@ -5019,16 +4940,16 @@ void create_spline_data_for_neurites
 				vector3 parentDir;
 				VecSubtract(parentDir, aaPos[bpVertex], aaPos[vertices[maxElementIndex]]);
 				VecNormalize(parentDir, parentDir);
-				UG_LOGN("parentDir: " << parentDir);
+				UG_DLOGN(NC_TNP, 0, "parentDir: " << parentDir);
 				std::vector<Point> angles;
 				for (size_t i = 0; i < vertices.size(); i++) {
 					if (i != maxElementIndex) {
 						vector3 dir;
 						VecSubtract(dir, aaPos[vertices[i]], aaPos[bpVertex]);
 						VecNormalize(dir, dir);
-						UG_LOGN("childDir: " << dir);
+						UG_DLOGN(NC_TNP, 0, "childDir: " << dir);
 						angles.push_back(Point(0.5*inflation*aaDiam[vertices[i]], acos(VecProd(dir, parentDir))));
-						UG_LOGN("angle: " << rad_to_deg(acos(VecProd(dir, parentDir))));
+						UG_DLOGN(NC_TNP, 0, "angle: " << rad_to_deg(acos(VecProd(dir, parentDir))));
 					}
 				}
 				allAngles.push_back(angles);
@@ -5049,9 +4970,9 @@ void create_spline_data_for_neurites
 					maxDist = x;
 				}
 			}
-			UG_LOGN("Local max dist:" << maxDist);
+			UG_DLOGN(NC_TNP, 0, "Local max dist:" << maxDist);
 		}
-		UG_LOGN("Global max dist: " << std::setprecision(12) << maxDist);
+		UG_DLOGN(NC_TNP, 0, "Global max dist: " << std::setprecision(12) << maxDist);
 		return maxDist;
 	}
 
@@ -5202,7 +5123,7 @@ void create_spline_data_for_neurites
 		/// Find minimum distance between branching points / minimum fragments length and halve it
 		if (boost::iequals(choice, std::string("min"))) {
 			number newSegLength = calculate_minimum_seg_length_between_fragments(vPos) * 0.5;
-			UG_LOGN("min seg length: " << newSegLength);
+			UG_DLOGN(NC_TNP, 0, "min seg length: " << newSegLength);
 			// test splines evaluation with presribed desired edge length and save
 			// grid and statistics for edges afterwards, see eval_spline(..., ...).
 			eval_spline(vFragments, newSegLength, ref, force, g2, sh2, somaIncluded);
@@ -5213,7 +5134,7 @@ void create_spline_data_for_neurites
 			// test splines evaluation with presribed desired edge length and save
 			// grid and statistics for edges afterwards, see eval_spline(..., ...).
 			eval_spline(vFragments, segLength, ref, force, g2, sh2, somaIncluded);
-			UG_LOGN("min seg length: " << segLength)
+			UG_DLOGN(NC_TNP, 0, "min seg length: " << segLength)
 		}
 
 		//!< maxDist: GQ's angle-length criterion
@@ -5224,7 +5145,7 @@ void create_spline_data_for_neurites
 							"Make sure input SWC geometry does not contain obvious artifacts.");
 
 			eval_spline(vFragments, maxDist, ref, force, g2, sh2, somaIncluded);
-			UG_LOGN("min seg length: " << maxDist);
+			UG_DLOGN(NC_TNP, 0, "min seg length: " << maxDist);
 		}
 
 		/// if soma was not included in regularization (non-VR use-case), then
@@ -5253,9 +5174,9 @@ void create_spline_data_for_neurites
 				sh2.assign_subset(edge, 0);
 			}
 			sh2.assign_subset(somaVertex, 1);
-		} else {
-		}
-		UG_LOGN("Now writing grid...")
+		} 
+
+		UG_DLOGN(NC_TNP, 0, "Now writing grid...")
 
 		SaveGridToFile(g2, sh2, "new_strategy_prefinal.ugx");
 		/// export grid to swc
@@ -5438,7 +5359,7 @@ void create_spline_data_for_neurites
 		std::vector<NeuriteProjector::Neurite>& vNeurites
 	) {
 		// find render vector for each fragment
-		UG_LOGN("We have " << vPos.size() << " fragments which need a permissible render vector");
+		UG_DLOGN(NC_TNP, 0, "We have " << vPos.size() << " fragments which need a permissible render vector");
 		for (size_t i = 0; i < vPos.size(); i++) {
 			std::vector<ug::vector3> directions;
 			for (size_t j = 0; j < vPos[i].size()-1; j++) {
@@ -5469,7 +5390,7 @@ void create_spline_data_for_neurites
 			}
 		}
 		ug::vector3 renderVec;
-		FindPermissibleRenderVector(directions, 10, 5, renderVec);
+		FindPermissibleRenderVector(directions, 5, 10, renderVec);
 		for (size_t i = 0; i < vPos[i].size(); i++) {
 			vNeurites[i].refDir = renderVec;
 		}
@@ -5620,6 +5541,9 @@ void create_spline_data_for_neurites
 		vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
 		create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
 
+		/// TODO: Seems to fail sometimes still on some (obscure?) geometries, try local render vector
+		set_permissible_render_vector_global(vPos, vNeurites);
+
 		MeasuringSubsetCollection subsets;
 		// create the actual geometry
 		std::vector<SWCPoint> newPoints;
@@ -5707,7 +5631,8 @@ void create_spline_data_for_neurites
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements_tris.ugx");
 		/// Use to warn if triangles intersect and correct triangle intersections
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
-		///ResolveTriangleIntersections(g, g.begin<Triangle>(), g.end<Triangle>(), 0.1, aPosition);
+		/// TODO: fails in current ug head. why?!
+		/// ResolveTriangleIntersections(g, g.begin<Triangle>(), g.end<Triangle>(), 0.1, aPosition);
 	}
 
 
@@ -5786,7 +5711,7 @@ void create_spline_data_for_neurites
 
 		// adjust render vectors
 		// TODO: Add as an option
-		UG_LOGN("Find and set render vector")
+		UG_DLOGN(NC_TNP, 0, "Find and set render vector")
 		//set_permissible_render_vector_global(vPos, vNeurites);
 
 		/// mapping
@@ -5861,12 +5786,12 @@ void create_spline_data_for_neurites
 			*/
 
 			/// faces
-			UG_LOGN("Size of faces " << subsets.faces.size());
+			UG_DLOGN(NC_TNP, 0, "Size of faces " << subsets.faces.size());
 			measCounter = 0;
 			std::vector<std::vector<ug::Face*> >::const_iterator itf = subsets.faces.begin();
 			while (itf != subsets.faces.end()) {
 				std::vector<ug::Face*>::const_iterator it2 = itf->begin();
-				UG_LOGN("measCounter (faces): " << measCounter);
+				UG_DLOGN(NC_TNP, 0, "measCounter (faces): " << measCounter);
 				while (it2 != itf->end()) {
 					if (*it2) {
 						sh.assign_subset(*it2, measCounter+startSI);
@@ -5938,31 +5863,15 @@ void create_spline_data_for_neurites
 std::vector<double> Graph::shortestPath(int src)
 {
 	typedef std::pair<int, double> iPair;
-    // Create a priority queue to store vertices that
-    // are being preprocessed. This is weird syntax in C++.
-    // Refer below link for details of this syntax
-    // https://www.geeksforgeeks.org/implement-min-heap-using-stl/
     std::priority_queue< iPair, std::vector <iPair> , std::greater<iPair> > pq;
 
-    // Create a vector for distances and initialize all
-    // distances as infinite (INF)
     std::vector<double> dist(V, std::numeric_limits<double>::infinity());
 
-    // Insert source itself in priority queue and initialize
-    // its distance as 0.
     pq.push(std::make_pair(0, src));
     dist[src] = 0;
 
-    /* Looping till priority queue becomes empty (or all
-      distances are not finalized) */
     while (!pq.empty())
     {
-        // The first vertex in pair is the minimum distance
-        // vertex, extract it from priority queue.
-        // vertex label is stored in second of pair (it
-        // has to be done this way to keep the vertices
-        // sorted distance (distance must be first item
-        // in pair)
         int u = pq.top().second;
         pq.pop();
 
@@ -5984,9 +5893,9 @@ std::vector<double> Graph::shortestPath(int src)
             }
         }
     }
-
     return dist;
 }
+
 
 	Graph::Graph(int V)
 	{
@@ -6106,8 +6015,8 @@ std::vector<double> Graph::shortestPath(int src)
 		typedef Grid::traits<Edge>::secure_container edgeCont;
 		edgeCont es;
 
-		UG_LOGN("Num vertices: " << grid.num_vertices());
-		UG_LOGN("Num edges: " << grid.num_edges());
+		UG_DLOGN(NC_TNP, 0, "Num vertices: " << grid.num_vertices());
+		UG_DLOGN(NC_TNP, 0, "Num edges: " << grid.num_edges());
 
 		// get access to diameter attachment
 		ANumber aDiam = GlobalAttachments::attachment<ANumber>("diameter");
@@ -6166,7 +6075,7 @@ std::vector<double> Graph::shortestPath(int src)
 		//g.BFS(0, indices); /// produces narrow band matrix if starting from soma index
 		for (size_t i = 0; i< indices.size(); i++) {
 			mapping[indices[i]] = i;
-			UG_LOGN("Map from: " << indices[i] << " to: " << i);
+			UG_DLOGN(NC_TNP, 0, "Map from: " << indices[i] << " to: " << i);
 		}
 
 		/// now reorder vertices
@@ -6205,13 +6114,13 @@ std::vector<double> Graph::shortestPath(int src)
 
 		for (int i = 0; i < rows; i++) {
 			std::vector<size_t> neighbors = vPointsNew[i].conns;
-			UG_LOGN("i: " << i << ", has coords: " << vPointsNew[i].coords);
+			UG_DLOGN(NC_TNP, 0, "i: " << i << ", has coords: " << vPointsNew[i].coords);
 			for (size_t j = 0; j < neighbors.size(); j++) {
 				A[neighbors[j]][i] = 1;
 				A[i][neighbors[j]] = 1;
-				UG_LOGN("i connects to:" << neighbors[j]);
+				UG_DLOGN(NC_TNP, 0, "i connects to:" << neighbors[j]);
 			}
-			UG_LOGN("---")
+			UG_DLOGN(NC_TNP, 0, "---")
 		}
 
 		for (int i = 0; i < rows; i++) {
@@ -6251,8 +6160,8 @@ std::vector<double> Graph::shortestPath(int src)
 					ss << ";";
 				}
 			}
-			UG_LOG("Matrix: ");
-			UG_LOGN(ss.str());
+			UG_DLOGN(NC_TNP, 0, "Matrix: ");
+			UG_DLOGN(NC_TNP, 0, ss.str());
 		}
 
 		/// Up to here adjacency matrix looks correct -> serializing to ugx fails,
@@ -6295,8 +6204,8 @@ std::vector<double> Graph::shortestPath(int src)
 		typedef Grid::traits<Edge>::secure_container edgeCont;
 		edgeCont es;
 
-		UG_LOGN("Num vertices: " << dom.grid()->num_vertices());
-		UG_LOGN("Num edges: " << dom.grid()->num_edges());
+		UG_DLOGN(NC_TNP, 0, "Num vertices: " << dom.grid()->num_vertices());
+		UG_DLOGN(NC_TNP, 0, "Num edges: " << dom.grid()->num_edges());
 
 		// get access to diameter attachment
 		ANumber aDiam = GlobalAttachments::attachment<ANumber>("diameter");
@@ -6331,8 +6240,8 @@ std::vector<double> Graph::shortestPath(int src)
 			aaPos[vtx] = avg;
 		}
 
-		UG_LOGN("Num vertices: " << dom.grid()->num_vertices());
-		UG_LOGN("Num edges: " << dom.grid()->num_edges());
+		UG_DLOGN(NC_TNP, 0, "Num vertices: " << dom.grid()->num_vertices());
+		UG_DLOGN(NC_TNP, 0, "Num edges: " << dom.grid()->num_edges());
 
 		SaveGridToFile(*dom.grid(), *dom.subset_handler(), outName);
 
@@ -6506,4 +6415,3 @@ std::vector<double> Graph::shortestPath(int src)
 		}
 	} // namespace neuro_collection
 } // namespace ug
-
