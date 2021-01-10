@@ -198,11 +198,6 @@ static void DomainAlgebra(Registry& reg, string grp)
 		"from the given file to the given solution vector "
 		"(using the value of the nearest neighbor for each vertex)");
 
-	// MarkOutOfRangeElems
-	reg.add_function("MarkOutOfRangeElems", static_cast<void (*) (SmartPtr<IRefiner>, ConstSmartPtr<TGridFunction>, size_t, number, number)>(MarkOutOfRangeElems<TGridFunction>),
-		grp.c_str(), "", "refiner # grid function # component # lower bound # upper bound",
-		"Marks elements next to out-of-range DoFs for refinement");
-
 
 	// export all template realizations of RyRImplicit::calculate_steady_state()
 	{
@@ -634,10 +629,6 @@ static void Domain(Registry& reg, string grp)
 
 	// mark for refinement functions
 	{
-		reg.add_function("mark_global", &mark_global<TDomain>, grp.c_str(), "", "refiner#domain", "");
-		reg.add_function("MarkSubsets", &MarkSubsets<TDomain>, grp.c_str(), "", "refiner#domain#subset names (as vector of string)", "");
-		reg.add_function("mark_anisotropic", &mark_anisotropic<TDomain>, grp.c_str(), "", "refiner#domain#anisotropy threshold (<=1)", "");
-		reg.add_function("mark_anisotropic_x", &mark_anisotropic_onlyX<TDomain>, grp.c_str(), "", "refiner#domain#anisotropy threshold (<=1)", "");
 		reg.add_function("adjust_attachments", &adjust_attachments<TDomain>, grp.c_str(), "", "domain", "");
 		reg.add_function("mark_anisotropic_in_local_neurite_direction", &mark_anisotropic_in_local_neurite_direction<TDomain>, grp.c_str(), "", "refiner#domain#anisotropy threshold (<=1)", "");
 		reg.add_function("unmark_ranvier_areas", &unmark_ranvier_areas<TDomain>, grp.c_str(), "", "refiner#approx space#ranvier node subsets#unmark", "");

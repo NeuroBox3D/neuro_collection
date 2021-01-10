@@ -56,165 +56,6 @@ namespace ug {
 namespace neuro_collection {
 
 
-template <typename TDomain>
-void mark_global(SmartPtr<IRefiner> refiner, SmartPtr<TDomain> domain)
-{
-	typedef typename domain_traits<TDomain::dim>::element_type elem_type;
-	typedef typename SurfaceView::traits<elem_type>::const_iterator const_iterator;
-
-	// get surface view
-	SurfaceView sv(domain->subset_handler());
-
-	// loop elements for marking
-	const_iterator iter = sv.begin<elem_type>(GridLevel(), SurfaceView::ALL_BUT_SHADOW_COPY);
-	const_iterator iterEnd = sv.end<elem_type>(GridLevel(), SurfaceView::ALL_BUT_SHADOW_COPY);
-	for (; iter != iterEnd; ++iter)
-		refiner->mark(*iter, RM_FULL);
-}
-
-
-template <typename TDomain>
-void MarkSubsets
-(
-	SmartPtr<IRefiner> refiner,
-	SmartPtr<TDomain> domain,
-	const std::vector<std::string>& vSubset
-)
-{
-	typedef typename domain_traits<TDomain::dim>::element_type elem_type;
-	typedef typename SurfaceView::traits<elem_type>::const_iterator const_iterator;
-
-	// get subset handler
-	SmartPtr<MGSubsetHandler> sh = domain->subset_handler();
-
-	// transform subset names to indices
-	std::vector<bool> contained(sh->num_subsets(), false);
-	{
-		SubsetGroup ssg(sh);
-		try {ssg.add(vSubset);}
-		UG_CATCH_THROW("MarkSubsets failed to add subsets.");
-
-		const size_t nSs = ssg.size();
-		for (size_t i = 0; i < nSs; ++i)
-			contained[ssg[i]] = true;
-	}
-
-	// get surface view
-	SurfaceView sv(sh);
-
-	// loop elements for marking
-	const_iterator iter = sv.begin<elem_type>(GridLevel(), SurfaceView::ALL_BUT_SHADOW_COPY);
-	const_iterator iterEnd = sv.end<elem_type>(GridLevel(), SurfaceView::ALL_BUT_SHADOW_COPY);
-	for (; iter != iterEnd; ++iter)
-		if (contained[sh->get_subset_index(*iter)])
-			refiner->mark(*iter, RM_FULL);
-}
-
-
-template <typename TDomain>
-void mark_anisotropic
-(
-	SmartPtr<IRefiner> refiner,
-	SmartPtr<TDomain> domain,
-	number thresholdRatio
-)
-{
-	typedef typename domain_traits<TDomain::dim>::element_type elem_type;
-	typedef typename domain_traits<TDomain::dim>::side_type side_type;
-	typedef typename SurfaceView::traits<elem_type>::const_iterator const_iterator;
-
-	Grid& grid = *refiner->grid();
-	typename TDomain::position_accessor_type aaPos = domain->position_accessor();
-
-	// get surface view and prepare loop over all surface elements
-	SurfaceView sv(domain->subset_handler());
-	const_iterator iter = sv.begin<elem_type>(GridLevel(), SurfaceView::ALL_BUT_SHADOW_COPY);
-	const_iterator iterEnd = sv.end<elem_type>(GridLevel(), SurfaceView::ALL_BUT_SHADOW_COPY);
-
-	// loop elements for marking
-	std::vector<Edge*> longEdges;
-	for (; iter != iterEnd; ++iter)
-	{
-		longEdges.clear();
-		AnisotropyState state = long_edges_of_anisotropic_elem(*iter, grid, aaPos, thresholdRatio, longEdges);
-		if (state != ISOTROPIC)
-		{
-			// mark elem
-			refiner->mark(*iter, RM_CLOSURE);
-
-			// mark long edges
-			const size_t nEdges = longEdges.size();
-			for (size_t e = 0; e < nEdges; ++e)
-				refiner->mark(longEdges[e], RM_FULL);
-
-			// mark all sides
-			typename Grid::traits<side_type>::secure_container sl;
-			grid.associated_elements(sl, *iter);
-			const size_t slSz = sl.size();
-			for (size_t s = 0; s < slSz; ++s)
-				if (refiner->get_mark(sl[s]) != RM_FULL)
-					refiner->mark(sl[s], RM_CLOSURE);
-		}
-	}
-}
-
-
-template <typename TDomain>
-void mark_anisotropic_onlyX
-(
-	SmartPtr<IRefiner> refiner,
-	SmartPtr<TDomain> domain,
-	number thresholdRatio
-)
-{
-	typedef typename domain_traits<TDomain::dim>::element_type elem_type;
-	typedef typename domain_traits<TDomain::dim>::side_type side_type;
-	typedef typename SurfaceView::traits<elem_type>::const_iterator const_iterator;
-
-	Grid& grid = *refiner->grid();
-	typename TDomain::position_accessor_type aaPos = domain->position_accessor();
-
-	// get surface view and prepare loop over all surface elements
-	SurfaceView sv(domain->subset_handler());
-	const_iterator iter = sv.begin<elem_type>(GridLevel(), SurfaceView::ALL_BUT_SHADOW_COPY);
-	const_iterator iterEnd = sv.end<elem_type>(GridLevel(), SurfaceView::ALL_BUT_SHADOW_COPY);
-
-	// loop elements for marking
-	std::vector<Edge*> longEdges;
-	for (; iter != iterEnd; ++iter)
-	{
-		longEdges.clear();
-		AnisotropyState state = long_edges_of_anisotropic_elem(*iter, grid, aaPos, thresholdRatio, longEdges);
-		if (state == ISOTROPIC)
-			continue;
-
-		UG_COND_THROW(!longEdges.size(), "Element is anisotropic, but no long edges present.");
-
-		// check whether edges point in x direction
-		Edge* longEdge = longEdges[0];
-		MathVector<TDomain::dim> dir;
-		VecSubtract(dir, aaPos[longEdge->vertex(1)], aaPos[longEdge->vertex(0)]);
-		VecNormalize(dir, dir);
-		if (fabs(dir[0]) > 0.9)
-		{
-			// mark elem
-			refiner->mark(*iter, RM_CLOSURE);
-
-			// mark long edges
-			const size_t nEdges = longEdges.size();
-			for (size_t e = 0; e < nEdges; ++e)
-				refiner->mark(longEdges[e], RM_FULL);
-
-			// mark all sides
-			typename Grid::traits<side_type>::secure_container sl;
-			grid.associated_elements(sl, *iter);
-			const size_t slSz = sl.size();
-			for (size_t s = 0; s < slSz; ++s)
-				if (refiner->get_mark(sl[s]) != RM_FULL)
-					refiner->mark(sl[s], RM_CLOSURE);
-		}
-	}
-}
 
 template <typename TDomain>
 void adjust_attachments
@@ -640,28 +481,16 @@ const vector3* GetCoordinatesFromVertexByIndex(Grid& grid, const int index)
 
 // explicit template specializations
 #ifdef UG_DIM_1
-	template void mark_global<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>);
-	template void MarkSubsets<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>, const std::vector<std::string>&);
-	template void mark_anisotropic<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>, number);
-	template void mark_anisotropic_onlyX<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>, number);
 	template void mark_anisotropic_in_local_neurite_direction<Domain1d>(SmartPtr<IRefiner>, SmartPtr<Domain1d>, number);
 	template void RemoveAllNonDefaultRefinementProjectors(SmartPtr<Domain1d>);
 	template void adjust_attachments(SmartPtr<Domain1d>);
 #endif
 #ifdef UG_DIM_2
-	template void mark_global<Domain2d>(SmartPtr<IRefiner>, SmartPtr<Domain2d>);
-	template void MarkSubsets<Domain2d>(SmartPtr<IRefiner>, SmartPtr<Domain2d>, const std::vector<std::string>&);
-	template void mark_anisotropic<Domain2d>(SmartPtr<IRefiner>, SmartPtr<Domain2d>, number);
-	template void mark_anisotropic_onlyX<Domain2d>(SmartPtr<IRefiner>, SmartPtr<Domain2d>, number);
 	template void mark_anisotropic_in_local_neurite_direction<Domain2d>(SmartPtr<IRefiner>, SmartPtr<Domain2d>, number);
 	template void RemoveAllNonDefaultRefinementProjectors(SmartPtr<Domain2d>);
 	template void adjust_attachments(SmartPtr<Domain2d>);
 #endif
 #ifdef UG_DIM_3
-	template void mark_global<Domain3d>(SmartPtr<IRefiner>, SmartPtr<Domain3d>);
-	template void MarkSubsets<Domain3d>(SmartPtr<IRefiner>, SmartPtr<Domain3d>, const std::vector<std::string>&);
-	template void mark_anisotropic<Domain3d>(SmartPtr<IRefiner>, SmartPtr<Domain3d>, number);
-	template void mark_anisotropic_onlyX<Domain3d>(SmartPtr<IRefiner>, SmartPtr<Domain3d>, number);
 	template void mark_anisotropic_in_local_neurite_direction<Domain3d>(SmartPtr<IRefiner>, SmartPtr<Domain3d>, number);
 	template void RemoveAllNonDefaultRefinementProjectors(SmartPtr<Domain3d>);
 	template void adjust_attachments(SmartPtr<Domain3d>);
