@@ -109,6 +109,7 @@ if (NOT buildForVRL)
 				test/neurite_grid_generation_impl.cpp
 				test/neurite_math_util_impl.cpp
 				test/tetrahedralize_util.cpp
+				test/consistency_util_impl.cpp
       )
 endif (NOT buildForVRL)
 
