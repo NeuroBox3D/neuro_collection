@@ -4780,6 +4780,7 @@ void create_spline_data_for_neurites
 				radius = radius * monom + sp[3];
 
 				UG_DLOGN(NC_TNP, 0, "v0: " << v0 << ", v1: " << v1 << ", v2: " << v2 << ", radius:" << radius)
+        UG_LOGN("radius: " << radius)
 
 				ug::RegularVertex* vertex = *g.create<RegularVertex>();
 				/// very first soma vertex of first branch is soma, store new soma center
@@ -5368,7 +5369,7 @@ void create_spline_data_for_neurites
 				directions.push_back(temp);
 			}
 			ug::vector3 renderVec;
-			FindPermissibleRenderVector(directions, 10, 5, renderVec);
+			FindPermissibleRenderVector(directions, 10, 10, renderVec);
 			vNeurites[i].refDir = renderVec;
 		}
 	}
@@ -5390,7 +5391,7 @@ void create_spline_data_for_neurites
 			}
 		}
 		ug::vector3 renderVec;
-		FindPermissibleRenderVector(directions, 5, 10, renderVec);
+		FindPermissibleRenderVector(directions, 10, 10, renderVec);
 		for (size_t i = 0; i < vPos[i].size(); i++) {
 			vNeurites[i].refDir = renderVec;
 		}
@@ -5542,7 +5543,8 @@ void create_spline_data_for_neurites
 		create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
 
 		/// TODO: Seems to fail sometimes still on some (obscure?) geometries, try local render vector
-		set_permissible_render_vector_global(vPos, vNeurites);
+		//set_permissible_render_vector_global(vPos, vNeurites);
+		set_permissible_render_vector(vPos, vNeurites);
 
 		MeasuringSubsetCollection subsets;
 		// create the actual geometry
