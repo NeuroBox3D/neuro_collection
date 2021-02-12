@@ -51,23 +51,27 @@ namespace ug {
         /// FRAGMENTS: Pair<Position, Radius>
         typedef std::pair<std::vector<std::vector<vector3> >, std::vector<std::vector<number> > > FRAGMENTS;
         /*!
-         * \brief check if diameters of 1d fragments do vary significantly within a running window
-         * \param[in] fragments
-         * \param[in] eps
-         * \param[in] running_window
+         * \brief check if diameters of neurite fragments do vary significantly
+         * \param[in] fragments a list of neurite fragments
+         * \param[in] eps threshold
+         * \param[in] running_window number of section to calculate variance
          * \return \c bool
          */
         bool check_diameter_variability
         (
             const FRAGMENTS& fragments, 
             const number eps=0.20, 
-            const int running_window=4
+            const int running_window=4,
+            const bool ignore_first_vertex_after_bp=true
         );
 
         /*!
-         * \brief check if branching points are close with respect to their average radii (start and end vertex)
-         * \param[in] fragments
-         * \param[in] eps
+         * \brief check if branching points 
+         * Branching points are said to be close with respect 
+         * to their average radii of the start and end vertex
+         * and some added safety margin (eps) in percentage
+         * \param[in] fragments a list of neurite fragments
+         * \param[in] eps safety margin (default: 0.20)
          * \return \c bool
          */
         bool check_for_close_branching_points

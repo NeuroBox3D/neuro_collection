@@ -53,22 +53,34 @@ namespace ug
    		////////////////////////////////////////////////////////////////////////
 		/// CHECK_DIAMETER_VARIABILIY
 		////////////////////////////////////////////////////////////////////////
-        bool check_diameter_variability(
+        bool check_diameter_variability
+        (
             const FRAGMENTS &fragments, 
             const number eps, 
-            const int running_window
+            const int running_window,
+            const bool ignore_first_vertex_after_bp
         ) 
         {
             using namespace boost::accumulators;
             using namespace boost;
-            const int n = fragments.second.size();
-            for (int i = 0; i < n; i++) {
+            const int offset = ignore_first_vertex_after_bp ? 1 : 0;
+            const int n = fragments.second.size() - offset;
+            for (int i = 0+offset; i < n-running_window-offset; i++) {
                 const int m = fragments.second[i].size();
                 for (int j = 0; m / running_window; j++) {
-                    const std::vector<number>& temp = std::vector<number>(fragments.second[i].begin() + j * running_window, fragments.second[i].begin() + (j+1) * running_window - 1);
+                    const std::vector<number>& temp = 
+                        std::vector<number>(fragments.second[i].begin() 
+                                            + j * running_window, 
+                                            fragments.second[i].begin() 
+                                            + (j+1) * running_window - 1);
                     accumulator_set<number, stats<tag::mean, tag::variance> > acc;
                     for_each(temp.begin(), temp.end(), bind<void>(ref(acc), _1));
                     if (variance(acc) > eps) {
+                        UG_LOGN("Variance of the diameters is " << variance(acc) 
+                        << "µm along some neurite of the specified geometry "
+                        << " (with a running window of #" << running_window 
+                        << " sections) " << " exceeds allowed tolerance of " 
+                        << eps)
                         return false;
                     }
                 }
@@ -93,7 +105,13 @@ namespace ug
                 for (int j = 0; j < m-1; j++) {
                     dist += VecDistance(fragments.first[i][j], fragments.first[i][j+1]);
                 }
-                if (dist < (eps * 0.5 * (fragments.second[i].front() + fragments.second[i].back()))) {
+                const number threshold = 0.5 * (fragments.second[i].front() 
+                    + fragments.second[i].back());
+                if (dist < (eps*threshold)) {
+                    UG_LOGN("Close by branching points detected in specified" <<
+                    "geometry with distance " << dist << " µm below the allowed " <<
+                    " minimum distance threshold of " << threshold << " with added" <<
+                    " safety margin of " << 100*eps << " [%]")
                     return false;
                 }
             }
