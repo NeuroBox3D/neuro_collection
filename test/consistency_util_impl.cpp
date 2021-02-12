@@ -105,8 +105,7 @@ namespace ug
                 for (int j = 0; j < m-1; j++) {
                     dist += VecDistance(fragments.first[i][j], fragments.first[i][j+1]);
                 }
-                const number threshold = 0.5 * (fragments.second[i].front() 
-                    + fragments.second[i].back());
+                const number threshold = (fragments.second[i].front() + fragments.second[i].back());
                 if (dist < (eps*threshold)) {
                     UG_LOGN("Close by branching points detected in specified" <<
                     "geometry with distance " << dist << " µm below the allowed " <<
