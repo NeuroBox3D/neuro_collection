@@ -49,18 +49,18 @@
 namespace ug {
 	namespace neuro_collection {
         /// FRAGMENTS: Pair<Position, Radius>
-        typedef std::pair<std::vector<std::vector<vector3> >, std::vector<std::vector<number> > > FRAGMENTS;
+        typedef std::pair<std::vector<std::vector<vector3> >, 
+                std::vector<std::vector<number> > > FRAGMENTS;
         /*!
          * \brief check if diameters of neurite fragments do vary significantly
          * \param[in] fragments a list of neurite fragments
-         * \param[in] eps threshold
+         * \param[in] eps safety margin (default: 0.60 = 60%)
          * \param[in] running_window number of section to calculate variance
-         * \return \c bool
          */
-        bool check_diameter_variability
+        void check_diameter_variability
         (
             const FRAGMENTS& fragments, 
-            const number eps=0.20, 
+            const number eps=0.60, 
             const int running_window=4,
             const bool ignore_first_vertex_after_bp=true
         );
@@ -71,13 +71,23 @@ namespace ug {
          * to their average radii of the start and end vertex
          * and some added safety margin (eps) in percentage
          * \param[in] fragments a list of neurite fragments
-         * \param[in] eps safety margin (default: 0.20)
-         * \return \c bool
+         * \param[in] eps safety margin (default: 0.10 = 10%)
          */
-        bool check_for_close_branching_points
+        void check_for_close_branching_points
         (
            const FRAGMENTS& fragments, 
-           const number eps=0.20
+           const number eps=0.10
+        );
+
+        /**
+         * @brief check for small radii
+         * \param[in] fragments a list of neurite fragments
+         * \param[in] eps safety margin: default SMALL
+         */
+        void check_for_small_radii
+        (
+            const FRAGMENTS& fragments,
+            const number eps=SMALL
         );
     }
 }

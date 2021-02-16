@@ -67,7 +67,10 @@ namespace ug {
 			NEURITE_RUNTIME_ERROR_CODE_SOMA_CONNECTION_OVERLAP, // 6
 			NEURITE_RUNTIME_ERROR_CODE_TETRAHEDRALIZE_FAILURE, // 7
 			NEURITE_RUNTIME_ERROR_CODE_BP_ITERATION_FAILURE, // 8
-			NEURITE_RUNTIME_ERROR_CODE_NO_PERMISSIBLE_RENDER_VECTOR_FOUND // 9
+			NEURITE_RUNTIME_ERROR_CODE_NO_PERMISSIBLE_RENDER_VECTOR_FOUND, // 9
+			NEURITE_RUNTIME_ERROR_CODE_HIGH_DIAMETER_VARIABILITY, // 10
+			NEURITE_RUNTIME_ERROR_CODE_BRANCHING_POINT_CLUSTERING, // 11
+			NEURITE_RUNTIME_ERROR_CODE_SMALL_OR_NEGATIVE_RADIUS // 12
 		};
 
 		/*!
@@ -124,6 +127,24 @@ namespace ug {
 		/// NoPermissibleRenderVector
 		struct NoPermissibleRenderVector : public NeuriteRuntimeError {
 			NoPermissibleRenderVector(const std::string& msg)
+								: NeuriteRuntimeError(msg) {}
+		};
+
+		/// HighDiameterVariability
+		struct HighDiameterVariability : public NeuriteRuntimeError {
+			HighDiameterVariability(const std::string& msg)
+	 							 : NeuriteRuntimeError(msg) {}
+		};
+
+		/// BranchingPointClustering
+		struct BranchingPointClustering : public NeuriteRuntimeError {
+			BranchingPointClustering(const std::string& msg) 
+								 : NeuriteRuntimeError(msg) {}
+		}; 
+
+		/// SmallOrNegativeRadius
+		struct SmallOrNegativeRadius : public NeuriteRuntimeError {
+            SmallOrNegativeRadius(const std::string& msg) 
 								: NeuriteRuntimeError(msg) {}
 		};
 	}

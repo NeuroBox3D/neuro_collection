@@ -38,6 +38,7 @@
  */
 
 #include "consistency_util.h"
+#include "neurite_runtime_error.h"
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
 #include <boost/accumulators/statistics/mean.hpp>
@@ -45,6 +46,7 @@
 #include <boost/range/algorithm/for_each.hpp> 
 #include <boost/bind.hpp>
 #include <boost/ref.hpp>
+#include <sstream>
 
 namespace ug
 {
@@ -53,7 +55,7 @@ namespace ug
    		////////////////////////////////////////////////////////////////////////
 		/// CHECK_DIAMETER_VARIABILIY
 		////////////////////////////////////////////////////////////////////////
-        bool check_diameter_variability
+        void check_diameter_variability
         (
             const FRAGMENTS &fragments, 
             const number eps, 
@@ -75,24 +77,23 @@ namespace ug
                                             + (j+1) * running_window - 1);
                     accumulator_set<number, stats<tag::mean, tag::variance> > acc;
                     for_each(temp.begin(), temp.end(), bind<void>(ref(acc), _1));
-                    if (variance(acc) > eps) {
-                        UG_LOGN("Variance of the diameters is " << variance(acc) 
-                        << "µm along some neurite of the specified geometry "
-                        << " (with a running window of #" << running_window 
-                        << " sections) " << " exceeds allowed tolerance of " 
-                        << eps)
-                        return false;
+                    if (variance(acc) > (mean(acc) * eps)) {
+                       std::stringstream ss;
+                       ss << "Variance of the diameters is " << variance(acc) 
+                          << "µm along some neurite of the specified geometry "
+                          << " (with a running window of #" << running_window 
+                          << " sections) " << " exceeds allowed tolerance of " 
+                          << eps;
+                       throw HighDiameterVariability(ss.str());
                     }
                 }
             }
-            return true;
         }
-
 
    		////////////////////////////////////////////////////////////////////////
 		/// CHECK_FOR_CLOSE_BRANCHING_POINTS
 		////////////////////////////////////////////////////////////////////////
-        bool check_for_close_branching_points
+        void check_for_close_branching_points
         (
             const FRAGMENTS &fragments, 
             const number eps
@@ -107,14 +108,37 @@ namespace ug
                 }
                 const number threshold = (fragments.second[i].front() + fragments.second[i].back());
                 if (dist < (eps*threshold)) {
-                    UG_LOGN("Close by branching points detected in specified" <<
+                    std::stringstream ss;
+                    ss << "Close by branching points detected in specified" <<
                     "geometry with distance " << dist << " µm below the allowed " <<
                     " minimum distance threshold of " << threshold << " with added" <<
-                    " safety margin of " << 100*eps << " [%]")
-                    return false;
+                    " safety margin of " << 100*eps << " [%]";
+                    throw BranchingPointClustering(ss.str());
                 }
             }
-            return true;
+        }
+
+   		////////////////////////////////////////////////////////////////////////
+		/// CHECK_FOR_SMALL_RADII
+		////////////////////////////////////////////////////////////////////////
+        void check_for_small_radii
+        (
+            const FRAGMENTS &fragments, 
+            const number eps
+        )
+        {
+            const int n = fragments.first.size();
+            for (int i = 0; i < n; i++) {
+                const int m = fragments.second[i].size();
+                for (int j = 0; j < m; j++) {
+                    const number radius = fragments.second[i][j];
+                    if (radius < SMALL) {
+                       std::stringstream ss;
+                       ss << "Radius of section small or negative: r=" << radius;
+                       throw SmallOrNegativeRadius(ss.str());
+                    }
+                }
+            }
         }
     }
 }

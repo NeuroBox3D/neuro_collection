@@ -47,6 +47,7 @@
 #include "../util/misc_util.h"
 #include "neurite_math_util.h"
 #include "neurite_runtime_error.h"
+#include "consistency_util.h"
 
 /// ug
 #include "lib_grid/refinement/projectors/projection_handler.h" // ProjectionHandler
@@ -76,6 +77,7 @@
 
 /// other
 #include <list>
+#include <utility>
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string.hpp>
 
@@ -5369,7 +5371,8 @@ void create_spline_data_for_neurites
 				directions.push_back(temp);
 			}
 			ug::vector3 renderVec;
-			FindPermissibleRenderVector(directions, 10, 10, renderVec);
+			FindPermissibleRenderVector(directions, 20, 10, renderVec);
+			VecNormalize(renderVec, renderVec);
 			vNeurites[i].refDir = renderVec;
 		}
 	}
@@ -5391,8 +5394,9 @@ void create_spline_data_for_neurites
 			}
 		}
 		ug::vector3 renderVec;
-		FindPermissibleRenderVector(directions, 10, 10, renderVec);
+		FindPermissibleRenderVector(directions, 20, 10, renderVec);
 		for (size_t i = 0; i < vPos[i].size(); i++) {
+			VecNormalize(renderVec, renderVec);
 			vNeurites[i].refDir = renderVec;
 		}
 
@@ -5480,6 +5484,7 @@ void create_spline_data_for_neurites
 			///	vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[vRootNeuriteIndsOut[i]][0]);
 		}
 
+		/// Check for cycles
 	    UG_COND_THROW(ContainsCycle(vPoints), "1d grid contains at least one cycle. This is not permitted!");
 
 	    Grid gridOriginal;
@@ -5542,9 +5547,19 @@ void create_spline_data_for_neurites
 		vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
 		create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
 
-		/// TODO: Seems to fail sometimes still on some (obscure?) geometries, try local render vector
-		//set_permissible_render_vector_global(vPos, vNeurites);
+		/// A global render vector might be too hard to find for very large geometries
+		// set_permissible_render_vector_global(vPos, vNeurites);
+		/// A high-angle (20 deg) local render vector should effectively avoid twisting
 		set_permissible_render_vector(vPos, vNeurites);
+
+		/// Checks diameter variabilility
+		check_diameter_variability(make_pair(vPos, vRad));
+
+		/// Checks close by branching points
+		check_for_close_branching_points(make_pair(vPos, vRad));
+
+		/// Checks for small or negative radii
+		check_for_close_branching_points(make_pair(vPos, vRad));
 
 		MeasuringSubsetCollection subsets;
 		// create the actual geometry
@@ -5555,7 +5570,6 @@ void create_spline_data_for_neurites
 		   			blowUpFactor, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1, option, segLength, true);
 		}
 
-		/// TODO: Remove debug output
 		/*
 		Grid gridOutput;
 		SubsetHandler shOutput(gridOutput);
@@ -5577,9 +5591,8 @@ void create_spline_data_for_neurites
 			/// TODO: BP projection needs to be done, but may fail in some cases..
 			/// Should we convert the throws to a warning or error message?! This
 			/// way we could also count the occurances of the failed BP projection!
-			//neuriteProj->project(*vit);
+			/// neuriteProj->project(*vit);
 		}
-
 
 		/// Capping of neurites: Note, that this could be improved obviously
 		// assign subsets
@@ -5614,7 +5627,9 @@ void create_spline_data_for_neurites
         for (size_t i = 0; i < vSomaPoints.size(); i++) {
 			maxSomaRadius = std::max(maxSomaRadius, vSomaPoints[i].radius);
 		}
-		vSomaPoints[0].radius = std::max(maxSomaRadius, maxNeuriteRadius); // need diameter not radius in create_soma(...) below
+
+		// need diameter not radius in create_soma(...) below
+		vSomaPoints[0].radius = std::max(maxSomaRadius, maxNeuriteRadius); 
 		vSomaPoints[0].radius *= 1.1; // 10 % safety margin
     	vSomaPoints[0].radius *= blowUpFactor; // blowup factor
 		create_soma(vSomaPoints, g, aaPos, sh, 1);
@@ -5633,7 +5648,7 @@ void create_spline_data_for_neurites
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements_tris.ugx");
 		/// Use to warn if triangles intersect and correct triangle intersections
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
-		/// TODO: fails in current ug head. why?!
+		/// TODO: Uncomment since fails in current ug head revision: Is this fixed now?!
 		/// ResolveTriangleIntersections(g, g.begin<Triangle>(), g.end<Triangle>(), 0.1, aPosition);
 	}
 
