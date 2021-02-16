@@ -66,27 +66,28 @@ namespace ug
             using namespace boost::accumulators;
             using namespace boost;
             const int offset = ignore_first_vertex_after_bp ? 1 : 0;
-            const int n = fragments.second.size() - offset;
-            for (int i = 0+offset; i < n-running_window-offset; i++) {
+            const int n = fragments.second.size(); 
+            /// for each fragment
+            for (int i = 0; i < n; i++) {
                 const int m = fragments.second[i].size();
-                for (int j = 0; m / running_window; j++) {
-                    const std::vector<number>& temp = 
-                        std::vector<number>(fragments.second[i].begin() 
-                                            + j * running_window, 
-                                            fragments.second[i].begin() 
-                                            + (j+1) * running_window - 1);
+                /// for all fragment's sections
+                for (int j = offset; j < m-offset-running_window; j+=running_window) {
+                    std::vector<number> temp;
+                    for (int k = 0; k < running_window; k++) {
+                       temp.push_back(fragments.second[i][j+k]);
+                    }
                     accumulator_set<number, stats<tag::mean, tag::variance> > acc;
                     for_each(temp.begin(), temp.end(), bind<void>(ref(acc), _1));
                     if (variance(acc) > (mean(acc) * eps)) {
-                       std::stringstream ss;
-                       ss << "Variance of the diameters is " << variance(acc) 
-                          << "µm along some neurite of the specified geometry "
-                          << " (with a running window of #" << running_window 
-                          << " sections) " << " exceeds allowed tolerance of " 
-                          << eps;
-                       throw HighDiameterVariability(ss.str());
+                        std::stringstream ss;
+                        ss << "Variance of the diameters is " << variance(acc) 
+                            << "µm along some neurite of the specified geometry "
+                            << " (with a running window of #" << running_window 
+                            << " sections) " << " exceeds allowed tolerance of " 
+                            << eps;
+                        throw HighDiameterVariability(ss.str());
                     }
-                }
+                 }
             }
         }
 
