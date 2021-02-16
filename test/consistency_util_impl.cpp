@@ -108,7 +108,7 @@ namespace ug
                     dist += VecDistance(fragments.first[i][j], fragments.first[i][j+1]);
                 }
                 const number threshold = (fragments.second[i].front() + fragments.second[i].back());
-                if (dist < (eps*threshold)) {
+                if ((1-eps) * dist < threshold) {
                     std::stringstream ss;
                     ss << "Close by branching points detected in specified" <<
                     "geometry with distance " << dist << " µm below the allowed " <<
