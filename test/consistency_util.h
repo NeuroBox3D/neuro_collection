@@ -52,10 +52,13 @@ namespace ug {
         typedef std::pair<std::vector<std::vector<vector3> >, 
                 std::vector<std::vector<number> > > FRAGMENTS;
         /*!
-         * \brief check if diameters of neurite fragments do vary significantly
+         * \brief check if diameters of any neurite fragments do vary significantly
+         * Each fragment, i.e. a neurite section between any two branching points
+         * is considered and checked over the running window size for not passing
+         * the considered variance threshold specified by the default values below
          * \param[in] fragments a list of neurite fragments
-         * \param[in] eps safety margin (default: 0.60 = 60%)
-         * \param[in] running_window number of section to calculate variance
+         * \param[in] threhsold variance threshold (default: 0.60 = 60% of the mean)
+         * \param[in] running_window number of edges used to calculate the variance (default: 4)
          */
         void check_diameter_variability
         (
@@ -66,10 +69,10 @@ namespace ug {
         );
 
         /*!
-         * \brief check if branching points 
-         * Branching points are said to be close with respect 
-         * to their average radii of the start and end vertex
-         * and some added safety margin (eps) in percentage
+         * \brief check if branching points cluster too closely
+         * Branching points are said to be too close with respect 
+         * to their sum of largest radii of the start and end vertex
+         * and some added safety margin with default value of 10%
          * \param[in] fragments a list of neurite fragments
          * \param[in] eps safety margin (default: 0.10 = 10%)
          */
@@ -81,6 +84,9 @@ namespace ug {
 
         /**
          * @brief check for small radii
+         * Check if any radius of the neurite fragments
+         * contain a small or negative radius information.
+         * The default eps is the SMALL constant provided by ug4
          * \param[in] fragments a list of neurite fragments
          * \param[in] eps safety margin: default SMALL
          */
