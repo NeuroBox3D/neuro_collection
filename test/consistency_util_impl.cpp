@@ -82,9 +82,9 @@ namespace ug
                         std::stringstream ss;
                         ss << "Variance of the diameters is " << variance(acc) 
                             << "µm along some neurite of the specified geometry "
-                            << " (with a running window of #" << running_window 
+                            << "(with a running window of #" << running_window 
                             << " sections) " << " exceeds allowed tolerance of " 
-                            << eps;
+                            << eps*100 << " [%].";
                         throw HighDiameterVariability(ss.str());
                     }
                  }
@@ -107,13 +107,13 @@ namespace ug
                 for (int j = 0; j < m-1; j++) {
                     dist += VecDistance(fragments.first[i][j], fragments.first[i][j+1]);
                 }
-                const number threshold = (fragments.second[i].front() + fragments.second[i].back());
-                if ((1-eps) * dist < threshold) {
+                const number threshold = 2 * (fragments.second[i].front() + fragments.second[i].back());
+                if (threshold > dist * (1-eps)) {
                     std::stringstream ss;
-                    ss << "Close by branching points detected in specified" <<
-                    "geometry with distance " << dist << " µm below the allowed " <<
-                    " minimum distance threshold of " << threshold << " with added" <<
-                    " safety margin of " << 100*eps << " [%]";
+                    ss << "Close by branching points detected in specified " <<
+                    "geometry with distance " << dist << " µm which is below the allowed " <<
+                    "minimum distance threshold of " << threshold << " [µm] including an " <<
+                    "added safety margin of " << 100*eps << " [%].";
                     throw BranchingPointClustering(ss.str());
                 }
             }
@@ -135,7 +135,8 @@ namespace ug
                     const number radius = fragments.second[i][j];
                     if (radius < SMALL) {
                        std::stringstream ss;
-                       ss << "Radius of section small or negative: r=" << radius;
+                       ss << "Radius of section small or negative: r=" 
+                          << radius << " for point p=" << fragments.first[i][j] << ".";
                        throw SmallOrNegativeRadius(ss.str());
                     }
                 }

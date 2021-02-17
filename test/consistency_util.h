@@ -72,14 +72,14 @@ namespace ug {
          * \brief check if branching points cluster too closely
          * Branching points are said to be too close with respect 
          * to their sum of largest radii of the start and end vertex
-         * and some added safety margin with default value of 10%
+         * and some added safety margin with default value of 20%
          * \param[in] fragments a list of neurite fragments
-         * \param[in] eps safety margin (default: 0.10 = 10%)
+         * \param[in] eps safety margin (default: 0.20 = 20%)
          */
         void check_for_close_branching_points
         (
            const FRAGMENTS& fragments, 
-           const number eps=0.10
+           const number eps=0.20
         );
 
         /**
