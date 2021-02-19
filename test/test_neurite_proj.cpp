@@ -5431,6 +5431,12 @@ void create_spline_data_for_neurites
 			return NEURITE_RUNTIME_ERROR_CODE_TETRAHEDRALIZE_FAILURE;
 		} catch (const NoPermissibleRenderVector& err) {
 			return NEURITE_RUNTIME_ERROR_CODE_NO_PERMISSIBLE_RENDER_VECTOR_FOUND;
+		} catch (const BranchingPointClustering& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_BRANCHING_POINT_CLUSTERING;
+		} catch (const HighDiameterVariability& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_HIGH_DIAMETER_VARIABILITY;
+		} catch (const SmallOrNegativeRadius& err) {
+			return NEURITE_RUNTIME_ERROR_CODE_SMALL_OR_NEGATIVE_RADIUS;
 		} catch (const NeuriteRuntimeError& err) {
 			return NEURITE_RUNTIME_ERROR_CODE_OTHER;
 		} catch (const UGError& error) {
