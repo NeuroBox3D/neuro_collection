@@ -196,8 +196,16 @@ namespace ug {
 			aaMappingParams[(*connectingVrts)[i]].v2 = pos[1];
 			vector3 vOut;
 			aaMappingParams[(*connectingVrts)[i]].lambda = ProjectPointToLine(vOut, aaPos[(*connectingVrts)[i]], pos[0], pos[1]);
-      UG_LOGN(aaMappingParams[(*connectingVrts)[i]].lambda);
-      UG_ASSERT(IsBetween(aaMappingParams[(*connectingVrts)[i]].lambda), "Lambda needs to be in range [0,1].");
+			if (aaMappingParams[(*connectingVrts)[i]].lambda > 1) {
+				aaMappingParams[(*connectingVrts)[i]].lambda = 1;
+			}
+
+			if (aaMappingParams[(*connectingVrts)[i]].lambda < 0) {
+				aaMappingParams[(*connectingVrts)[i]].lambda = 0;
+			}
+
+ 		    UG_LOGN(aaMappingParams[(*connectingVrts)[i]].lambda);
+	        UG_ASSERT(IsBetween(aaMappingParams[(*connectingVrts)[i]].lambda), "Lambda needs to be in range [0,1].");
 			// std::vector<SWCPoint> vPoints;
 			// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 		}
