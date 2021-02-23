@@ -5480,7 +5480,7 @@ void create_spline_data_for_neurites
 		try {
 			convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 		} catch (InvalidBranches) {
-			error_code |= NEURITE_RUNTIME_ERROR_CODE_INVALID_BRANCHES;
+			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_INVALID_BRANCHES;
 		}
 
 		number maxNeuriteRadius = 0;
@@ -5499,7 +5499,7 @@ void create_spline_data_for_neurites
 		try {
 		    UG_COND_THROW(ContainsCycle(vPoints), "1d grid contains at least one cycle. This is not permitted!");
 		} catch (ContainsCycles) {
-			error_code |= NEURITE_RUNTIME_ERROR_CODE_CONTAINS_CYCLES;
+			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_CONTAINS_CYCLES;
 		}
 
 	    Grid gridOriginal;
@@ -5563,7 +5563,7 @@ void create_spline_data_for_neurites
 		try {
 			create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
 		} catch (RegularizationIncomplete) {
-			error_code |= NEURITE_RUNTIME_ERROR_CODE_REGULARIZATION_INCOMPLETE;
+			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_REGULARIZATION_INCOMPLETE;
 		}
 
 		/// A global render vector might be too hard to find for very large geometries
@@ -5572,28 +5572,28 @@ void create_spline_data_for_neurites
 		try {
 			set_permissible_render_vector(vPos, vNeurites);
 		} catch (NoPermissibleRenderVector) {
-			error_code |= NEURITE_RUNTIME_ERROR_CODE_NO_PERMISSIBLE_RENDER_VECTOR_FOUND;
+			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_NO_PERMISSIBLE_RENDER_VECTOR_FOUND;
 		}
 
 		/// Checks diameter variabilility
 		try {
 			check_diameter_variability(make_pair(vPos, vRad));
 		} catch (HighDiameterVariability) {
-			error_code |= NEURITE_RUNTIME_ERROR_CODE_HIGH_DIAMETER_VARIABILITY;
+			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_HIGH_DIAMETER_VARIABILITY;
 		}
 
 		/// Checks close by branching points
 		try {
 			check_for_close_branching_points(make_pair(vPos, vRad));
 		} catch (BranchingPointClustering) {
-			error_code |= NEURITE_RUNTIME_ERROR_CODE_BRANCHING_POINT_CLUSTERING;
+			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_BRANCHING_POINT_CLUSTERING;
 		}
 
 		/// Checks for small or negative radii
 		try {
 			check_for_small_radii(make_pair(vPos, vRad));
 		} catch (SmallOrNegativeRadius) {
-			error_code |= NEURITE_RUNTIME_ERROR_CODE_SMALL_OR_NEGATIVE_RADIUS;
+			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_SMALL_OR_NEGATIVE_RADIUS;
 		}
 
 		MeasuringSubsetCollection subsets;
@@ -5630,7 +5630,7 @@ void create_spline_data_for_neurites
 				neuriteProj->project(*vit);
 			}
 		} catch (NeuriteRuntimeError) {
-			error_code |= NEURITE_RUNTIME_ERROR_CODE_BP_ITERATION_FAILURE;
+			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_BP_ITERATION_FAILURE;
 		}
 
 		/// Capping of neurites: Note, that this could be improved obviously
@@ -5691,7 +5691,7 @@ void create_spline_data_for_neurites
 		/// try {
 		/// ResolveTriangleIntersections(g, g.begin<Triangle>(), g.end<Triangle>(), 0.1, aPosition);
 		/// } catch (CylinderCylinderOverlap) {
-        ///  error_code |= NEURITE_RUNTIME_ERROR_CODE_CYLINDER_CYLINDER_OVERLAP
+        ///  error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_CYLINDER_CYLINDER_OVERLAP
 		/// }
 		return error_code;
 	}
@@ -5773,6 +5773,7 @@ void create_spline_data_for_neurites
 		// adjust render vectors
 		// TODO: Add as an option
 		UG_DLOGN(NC_TNP, 0, "Find and set render vector")
+		//set_permissible_render_vector_global(vPos, vNeurites);
 		//set_permissible_render_vector_global(vPos, vNeurites);
 
 		/// mapping
