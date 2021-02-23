@@ -5448,7 +5448,7 @@ void create_spline_data_for_neurites
 	////////////////////////////////////////////////////////////////////////////
 	/// test_import_swc_general_var_for_vr_var
 	////////////////////////////////////////////////////////////////////////////
-	void test_import_swc_general_var_for_vr_var(
+	int test_import_swc_general_var_for_vr_var(
 		const std::string& fileName,
 		bool correct,
 		number erScaleFactor,
@@ -5461,6 +5461,7 @@ void create_spline_data_for_neurites
 		number segLength
 	) {
 		using namespace std;
+		int error_code = NEURITE_RUNTIME_ERROR_CODE_SUCCESS;
 
 		/// Never precondition here, because 1D geometry has been regularized already
 		// preconditioning
@@ -5476,7 +5477,11 @@ void create_spline_data_for_neurites
 		std::vector<std::vector<number> > vRad;
 		std::vector<std::vector<std::pair<size_t, std::vector<size_t> > > > vBPInfo;
 		std::vector<size_t> vRootNeuriteIndsOut;
-		convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+		try {
+			convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
+		} catch (InvalidBranches) {
+			error_code |= NEURITE_RUNTIME_ERROR_CODE_INVALID_BRANCHES;
+		}
 
 		number maxNeuriteRadius = 0;
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
@@ -5490,8 +5495,12 @@ void create_spline_data_for_neurites
 			///	vRad[vRootNeuriteIndsOut[i]].insert(vRad[vRootNeuriteIndsOut[i]].begin(), vRad[vRootNeuriteIndsOut[i]][0]);
 		}
 
-		/// Check for cycles
-	    UG_COND_THROW(ContainsCycle(vPoints), "1d grid contains at least one cycle. This is not permitted!");
+		/// Check for cycle
+		try {
+		    UG_COND_THROW(ContainsCycle(vPoints), "1d grid contains at least one cycle. This is not permitted!");
+		} catch (ContainsCycles) {
+			error_code |= NEURITE_RUNTIME_ERROR_CODE_CONTAINS_CYCLES;
+		}
 
 	    Grid gridOriginal;
 	    SubsetHandler shOriginal(gridOriginal);
@@ -5551,21 +5560,41 @@ void create_spline_data_for_neurites
 
 		// Create spline data for neurites
 		vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
-		create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
+		try {
+			create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
+		} catch (RegularizationIncomplete) {
+			error_code |= NEURITE_RUNTIME_ERROR_CODE_REGULARIZATION_INCOMPLETE;
+		}
 
 		/// A global render vector might be too hard to find for very large geometries
 		// set_permissible_render_vector_global(vPos, vNeurites);
 		/// A high-angle (20 deg) local render vector should effectively avoid twisting
-		set_permissible_render_vector(vPos, vNeurites);
+		try {
+			set_permissible_render_vector(vPos, vNeurites);
+		} catch (NoPermissibleRenderVector) {
+			error_code |= NEURITE_RUNTIME_ERROR_CODE_NO_PERMISSIBLE_RENDER_VECTOR_FOUND;
+		}
 
 		/// Checks diameter variabilility
-		check_diameter_variability(make_pair(vPos, vRad));
+		try {
+			check_diameter_variability(make_pair(vPos, vRad));
+		} catch (HighDiameterVariability) {
+			error_code |= NEURITE_RUNTIME_ERROR_CODE_HIGH_DIAMETER_VARIABILITY;
+		}
 
 		/// Checks close by branching points
-		check_for_close_branching_points(make_pair(vPos, vRad));
+		try {
+			check_for_close_branching_points(make_pair(vPos, vRad));
+		} catch (BranchingPointClustering) {
+			error_code |= NEURITE_RUNTIME_ERROR_CODE_BRANCHING_POINT_CLUSTERING;
+		}
 
 		/// Checks for small or negative radii
-		check_for_close_branching_points(make_pair(vPos, vRad));
+		try {
+			check_for_small_radii(make_pair(vPos, vRad));
+		} catch (SmallOrNegativeRadius) {
+			error_code |= NEURITE_RUNTIME_ERROR_CODE_SMALL_OR_NEGATIVE_RADIUS;
+		}
 
 		MeasuringSubsetCollection subsets;
 		// create the actual geometry
@@ -5590,14 +5619,18 @@ void create_spline_data_for_neurites
 		FixFaceOrientation(g, g.faces_begin(), g.faces_end());
 		VertexIterator vit = g.begin<Vertex>();
 		VertexIterator vit_end = g.end<Vertex>();
-		for (; vit != vit_end; ++vit) {
-			ug::vector3 normal;
-			CalculateVertexNormal(normal, g, *vit, aaPos);
-			aaNorm[*vit] = normal;
-			/// TODO: BP projection needs to be done, but may fail in some cases..
-			/// Should we convert the throws to a warning or error message?! This
-			/// way we could also count the occurances of the failed BP projection!
-			/// neuriteProj->project(*vit);
+		try {
+			for (; vit != vit_end; ++vit) {
+				ug::vector3 normal;
+				CalculateVertexNormal(normal, g, *vit, aaPos);
+				aaNorm[*vit] = normal;
+				/// TODO: BP projection needs to be done, but may fail in some cases..
+				/// Should we convert the throws to a warning or error message?! This
+				/// way we could also count the occurances of the failed BP projection!
+				neuriteProj->project(*vit);
+			}
+		} catch (NeuriteRuntimeError) {
+			error_code |= NEURITE_RUNTIME_ERROR_CODE_BP_ITERATION_FAILURE;
 		}
 
 		/// Capping of neurites: Note, that this could be improved obviously
@@ -5654,8 +5687,13 @@ void create_spline_data_for_neurites
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements_tris.ugx");
 		/// Use to warn if triangles intersect and correct triangle intersections
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
-		/// TODO: Uncomment since fails in current ug head revision: Is this fixed now?!
+		/// TODO: Uncomment since fails in current ug head revision: Is this fixed now in ugcore?!
+		/// try {
 		/// ResolveTriangleIntersections(g, g.begin<Triangle>(), g.end<Triangle>(), 0.1, aPosition);
+		/// } catch (CylinderCylinderOverlap) {
+        ///  error_code |= NEURITE_RUNTIME_ERROR_CODE_CYLINDER_CYLINDER_OVERLAP
+		/// }
+		return error_code;
 	}
 
 

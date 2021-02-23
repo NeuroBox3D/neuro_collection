@@ -532,7 +532,7 @@ void test_import_swc_vr
 /*!
  * \brief main routine to generate grids for VR
  */
-void test_import_swc_general_var_for_vr_var(
+int test_import_swc_general_var_for_vr_var(
 	const std::string& fileName,
 	bool correct,
 	number erScaleFactor,
