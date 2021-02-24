@@ -3030,7 +3030,7 @@ void test_import_swc_with_er
 
 	// output before projection
 	std::string outFileNameBase = FilenameAndPathWithoutExtension(fileNameOut);
-	IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, fileNameOut);
+	IF_DEBUG(NC_TNP, 0) SaveGridToFile(g, sh, fileNameOut.c_str());
 
 	std::string fn = "vanilla_input.ugx";
 	swc_points_to_grid(vPoints, g, sh);
@@ -6280,7 +6280,7 @@ void refine_swc_grid_variant(const std::string& fileName, const std::string& out
 	Grid grid3;
 	SubsetHandler sh3(grid3);
 	swc_points_to_grid(vPoints3, grid3, sh3, 1.0);
-	SaveGridToFile(grid3, sh3, fn_noext + "_reordered_NEW.ugx");
+	SaveGridToFile(grid3, sh3, (fn_noext + "_reordered_NEW.ugx").c_str());
 
 }
 
@@ -6334,7 +6334,7 @@ void refine_swc_grid(const std::string& fileName, const std::string& outName) {
 	UG_LOGN("Num vertices: " << dom.grid()->num_vertices());
 	UG_LOGN("Num edges: " << dom.grid()->num_edges());
 
-	SaveGridToFile(*dom.grid(), *dom.subset_handler(), outName);
+	SaveGridToFile(*dom.grid(), *dom.subset_handler(), outName.c_str());
 
 }
 

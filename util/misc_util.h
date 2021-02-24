@@ -108,18 +108,6 @@ void MarkNeuriteForAxialRefinement(SmartPtr<IRefiner> refiner, SmartPtr<Domain3d
 template <typename TDomain>
 void RemoveAllNonDefaultRefinementProjectors(SmartPtr<TDomain> dom);
 
-/*!
- * \brief Save grid to file with filename as standard string
- * \param[in] grid
- * \param[in] sh
- * \param[in] fileName
- */
-bool SaveGridToFile
-(
-	const Grid& grid,
-	const ISubsetHandler& sh,
-	const std::string& fileName
-);
 
 /*!
  * \brief Get the coordinates of a grid vertex by its index
