@@ -822,8 +822,13 @@ void convert_pointlist_to_neuritelist_variant
 			if (vPoints[i].type == SWC_SOMA && !ptProcessed[i])
 				break;
 		}
-		UG_COND_THROW(i == nPts, "No soma contained in (non-empty) list of unprocessed SWC points, \n"
+		try {
+			UG_COND_THROW(i == nPts, "No soma contained in (non-empty) list of unprocessed SWC points, \n"
 				"i.e., there is at least one SWC point not connected to any soma.");
+		} catch (UGError) {
+			throw NoSomaContainedInSWCFile("No soma contained in (non-empty) list of unprocessed SWC points, \n"
+				"i.e., there is at least one SWC point not connected to any soma.");
+		}
 		vSomaPoints.push_back(vPoints[i]);
 
 		// collect neurite root points
@@ -5481,6 +5486,8 @@ void create_spline_data_for_neurites
 			convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
 		} catch (InvalidBranches) {
 			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_INVALID_BRANCHES;
+		} catch (NoSomaContainedInSWCFile) {
+			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_NO_SOMA_CONTAINED_IN_SWC;
 		}
 
 		number maxNeuriteRadius = 0;
@@ -5627,7 +5634,7 @@ void create_spline_data_for_neurites
 				/// TODO: BP projection needs to be done, but may fail in some cases..
 				/// Should we convert the throws to a warning or error message?! This
 				/// way we could also count the occurances of the failed BP projection!
-				neuriteProj->project(*vit);
+				//neuriteProj->project(*vit);
 			}
 		} catch (NeuriteRuntimeError) {
 			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_BP_ITERATION_FAILURE;
@@ -5687,7 +5694,7 @@ void create_spline_data_for_neurites
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements_tris.ugx");
 		/// Use to warn if triangles intersect and correct triangle intersections
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
-		/// TODO: Uncomment since fails in current ug head revision: Is this fixed now in ugcore?!
+		/// TODO: Commented since fails in current ug head revision: Is this fixed now in ugcore?!
 		/// try {
 		/// ResolveTriangleIntersections(g, g.begin<Triangle>(), g.end<Triangle>(), 0.1, aPosition);
 		/// } catch (CylinderCylinderOverlap) {
@@ -5801,7 +5808,7 @@ void create_spline_data_for_neurites
 		FixFaceOrientation(g, g.faces_begin(), g.faces_end());
 		VertexIterator vit = g.begin<Vertex>();
 		VertexIterator vit_end = g.end<Vertex>();
-		for (; vit != vit_end; ++vit) { neuriteProj->project(*vit); }
+		//for (; vit != vit_end; ++vit) { neuriteProj->project(*vit); }
 		EraseEmptySubsets(sh);
 		AssignSubsetColors(sh);
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);

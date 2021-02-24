@@ -70,7 +70,8 @@ namespace ug {
 			NEURITE_RUNTIME_ERROR_CODE_NO_PERMISSIBLE_RENDER_VECTOR_FOUND, // 9
 			NEURITE_RUNTIME_ERROR_CODE_HIGH_DIAMETER_VARIABILITY, // 10
 			NEURITE_RUNTIME_ERROR_CODE_BRANCHING_POINT_CLUSTERING, // 11
-			NEURITE_RUNTIME_ERROR_CODE_SMALL_OR_NEGATIVE_RADIUS // 12
+			NEURITE_RUNTIME_ERROR_CODE_SMALL_OR_NEGATIVE_RADIUS, // 12
+			NEURITE_RUNTIME_ERROR_CODE_NO_SOMA_CONTAINED_IN_SWC // 13
 		};
 
 		/*!
@@ -145,6 +146,12 @@ namespace ug {
 		/// SmallOrNegativeRadius
 		struct SmallOrNegativeRadius : public NeuriteRuntimeError {
             SmallOrNegativeRadius(const std::string& msg) 
+								: NeuriteRuntimeError(msg) {}
+		};
+
+		/// NoSomaContainedInSWCFile
+		struct NoSomaContainedInSWCFile : public NeuriteRuntimeError {
+			NoSomaContainedInSWCFile(const std::string& msg)
 								: NeuriteRuntimeError(msg) {}
 		};
 	}
