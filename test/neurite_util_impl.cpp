@@ -2458,7 +2458,7 @@ namespace ug {
 			CalculateNormal(vNormOut, quad, aaPos);
 			ug::vector3 center = CalculateCenter(quad, aaPos);
 			aaPos[top] = center;
-			number scaleFactor;
+			number scaleFactor = 0.0;
 			if (somaPoint) {
 				/// Pyramid height is 1.25% of soma inner's radius
 				/// TODO: To achieve optimal AR should depend on quad diameter!

@@ -5174,7 +5174,7 @@ void test_import_swc_and_regularize
 			<< " 2) Chose smaller segLength 3) Ignore this warning";
 
 		size_t option;
-		if (!std::cin >> option) {
+		if (!(std::cin >> option)) {
 			UG_LOG("Invalid input given. Options can only be numeric and of value 1, 2 or 3.")
 		}
 
@@ -5825,9 +5825,9 @@ void create_branches_from_swc(
 		std::stringstream ss;
 		const size_t startSI = sh.num_subsets();
 		size_t measCounter = 0;
-		size_t subsetName = 1;
 
 		/*
+			size_t subsetName = 1;
 			/// vertices
 			UG_LOGN("Size of vertices: " << subsets.vertices.size());
 			std::vector<std::vector<ug::Vertex*> >::const_iterator itv = subsets.vertices.begin();
