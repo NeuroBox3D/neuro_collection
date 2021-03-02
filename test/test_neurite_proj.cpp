@@ -425,7 +425,7 @@ void collapse_short_edges(Grid& g, SubsetHandler& sh)
 {
 	// get access to positions
 	UG_COND_THROW(!g.has_vertex_attachment(aPosition), "Position attachment not attached to grid.")
-		Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
+	Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
 
 	// get access to diameter attachment
 	ANumber aDiam = GlobalAttachments::attachment<ANumber>("diameter");
