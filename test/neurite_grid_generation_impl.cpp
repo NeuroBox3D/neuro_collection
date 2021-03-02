@@ -47,6 +47,7 @@
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
 
+#undef UG_ASSERT
 #define UG_ASSERT(expr, msg) {}
 
 namespace ug {
