@@ -511,7 +511,7 @@ namespace ug {
 		{
 			const size_t nPts = vPoints.size();
 			std::vector<std::vector<int> > adj;
-      adj.resize(nPts);
+      		adj.resize(nPts);
 			for (size_t i = 0; i < nPts; i++) {
 				const vector<size_t>& conns = vPoints[i].conns;
 				for (size_t j = 0; j < conns.size(); j++) {

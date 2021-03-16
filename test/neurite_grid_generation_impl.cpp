@@ -701,7 +701,7 @@ namespace ug {
 					aaSurfParams[v].angular = angle;
 					aaSurfParams[v].radial = erScaleFactor;
 
-					// 1d<->2d mapping params
+					// 1d<->2d mapping params (Is this mapping correct?)
 					aaMappingParams[v].v1 = pos[curSec+1];
 					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;

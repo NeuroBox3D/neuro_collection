@@ -4662,7 +4662,7 @@ void create_spline_data_for_neurites
 		SubsetHandler& sh,
 		const bool somaIncluded
 	) {
-		eval_spline_var(vNeurites, desiredSegLength, ref, forceAdditionalPoint, g, sh, somaIncluded, -1);
+		eval_spline_var(vNeurites, desiredSegLength, ref, forceAdditionalPoint, g, sh, somaIncluded, 8);
 	}
 
 	////////////////////////////////////////////////////////////////////////////
@@ -4741,7 +4741,28 @@ void create_spline_data_for_neurites
 			nSeg=nSeg+1;
 			vSegAxPos.insert(vSegAxPos.begin(), 0);
 
+			const size_t offset = std::ceil(postProcessLength/segLength) == 1 ? 0 : std::ceil(postProcessLength/segLength)-1;
+			UG_LOGN("Offset: " << offset)
+			UG_LOGN("nseg: " << nSeg)
+			std::cout << "nseg: " << nSeg << std::endl;
+			std::cout << "offset: " << offset << std::endl;
+			UG_ASSERT(nSeg >= 2, "nSeg has to be larger or equal than 2.")
 			for (size_t s = 0; s < nSeg; ++s) {
+				/// Skip the first #offset segments but keep the very first element 
+				std::cout << "foo" << std::endl;
+				if ( (s != 0 && s < std::min(offset, nSeg)-2) ) {
+					continue;
+				}
+
+				if (s >= nSeg-offset+1 && s != nSeg-1) {
+					continue;
+				}
+
+				/// Skip the last #offset segments but keep the very last element
+				if (s >= nSeg-offset+1 && s != nSeg-1 && nSeg != 1) {
+				//	continue; 
+				}
+
 				// get exact position, velocity and radius of segment end
 				number segAxPos = vSegAxPos[s];
 				for (; curSec < nSec; ++curSec) {
@@ -4806,6 +4827,7 @@ void create_spline_data_for_neurites
 				sh.assign_subset(edge, i+1);
 			}
 
+			/*
 			// post process before and after branches: This will ensure, that the
 			// segment length before and after branching point will be at least
 			// the size of postProcessLength, but no longer than twice the size
@@ -4821,10 +4843,11 @@ void create_spline_data_for_neurites
 					CollapseEdge(g, tmp[indexEnd], tmp[indexEnd]->vertex(1));
 					indexEnd--;
 					if (indexEnd <= indexFront) {
-						continue;
+						contiAnue;
 					}
 				}
 			}
+			*/
 		}
 
 		// subset names
@@ -5577,7 +5600,7 @@ void create_spline_data_for_neurites
 		// set_permissible_render_vector_global(vPos, vNeurites);
 		/// A high-angle (20 deg) local render vector should effectively avoid twisting
 		try {
-			set_permissible_render_vector(vPos, vNeurites);
+			//set_permissible_render_vector(vPos, vNeurites);
 		} catch (NoPermissibleRenderVector) {
 			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_NO_PERMISSIBLE_RENDER_VECTOR_FOUND;
 		}
@@ -5622,6 +5645,7 @@ void create_spline_data_for_neurites
 	    WriteEdgeStatistics(gridOutput, aaPos2, "statistics_edges_corrected.csv");
 	    */
 
+	   /*
 	    // face orientation correction and projection (and set normals)
 		FixFaceOrientation(g, g.faces_begin(), g.faces_end());
 		VertexIterator vit = g.begin<Vertex>();
@@ -5634,7 +5658,7 @@ void create_spline_data_for_neurites
 				/// TODO: BP projection needs to be done, but may fail in some cases..
 				/// Should we convert the throws to a warning or error message?! This
 				/// way we could also count the occurances of the failed BP projection!
-				//neuriteProj->project(*vit);
+				// neuriteProj->project(*vit);
 			}
 		} catch (NeuriteRuntimeError) {
 			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_BP_ITERATION_FAILURE;
@@ -5684,12 +5708,13 @@ void create_spline_data_for_neurites
 		AssignSubsetColors(sh);
 		EraseEmptySubsets(sh);
 		set_somata_mapping_parameters(g, sh, aaMapping, 1, 1, vSomaPoints.front());
+		*/
 
 		/// save quadrilateral mesh
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements.ugx");
 		Triangulate(g, g.begin<ug::Quadrilateral>(), g.end<ug::Quadrilateral>());
 		/// apply a hint of laplacian smoothing for soma region
-		LaplacianSmooth(g, sh.begin<Vertex>(1), sh.end<Vertex>(1), aaPos, 0.1, 10);
+		//LaplacianSmooth(g, sh.begin<Vertex>(1), sh.end<Vertex>(1), aaPos, 0.1, 10);
 		FixFaceOrientation(g, g.faces_begin(), g.faces_end());
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements_tris.ugx");
 		/// Use to warn if triangles intersect and correct triangle intersections
