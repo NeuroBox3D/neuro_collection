@@ -5833,10 +5833,12 @@ void create_spline_data_for_neurites
 		FixFaceOrientation(g, g.faces_begin(), g.faces_end());
 		VertexIterator vit = g.begin<Vertex>();
 		VertexIterator vit_end = g.end<Vertex>();
-		//for (; vit != vit_end; ++vit) { neuriteProj->project(*vit); }
+		for (; vit != vit_end; ++vit) { neuriteProj->project(*vit); }
 		EraseEmptySubsets(sh);
 		AssignSubsetColors(sh);
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
+
+		SaveGridToFile(g, sh, "after_and_before_assignment.ugx");
 
 		/// TODO: ONLY faces go into measurement subsets -> otherwise refinement will be broken
 		if (assignMeasurementSubsets) {
@@ -5896,6 +5898,9 @@ void create_spline_data_for_neurites
 				itf++;
 			}
 		}
+
+		SaveGridToFile(g, sh, "after_meas_assigned.ugx");
+
 		// color measuring subsets and assign subset names
 		AssignSubsetColors(sh);
 		sh.subset_info(0).name = "cyt";
