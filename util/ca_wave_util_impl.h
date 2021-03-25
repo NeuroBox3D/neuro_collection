@@ -105,23 +105,26 @@ number maxRyRFluxDensity
 			std::vector<DoFIndex> ind;
 			UG_COND_THROW(!dd->is_def_in_subset(fi_cc, si),
 				"Function " << fi_cc << " is not defined on subset " << si << ".");
-			//size_t numInd = dd->dof_indices(vrt, fi_cc, ind, true, true);
-			UG_ASSERT(dd->dof_indices(vrt, fi_cc, ind, true, true) == 1, "More (or less) than one function index found on a vertex!");
+			size_t numInd = dd->dof_indices(vrt, fi_cc, ind, true, true);
+			UG_ASSERT(numInd == 1, "More (or less) than one function index found on a vertex!");
 			values[TRyRImpl::_CCYT_] = ryr->scale_input(TRyRImpl::_CCYT_) * DoFRef(*u, ind[0]);
 
 			UG_COND_THROW(!dd->is_def_in_subset(fi_ce, si),
 				"Function " << fi_ce << " is not defined on subset " << si << ".");
-			UG_ASSERT(dd->dof_indices(vrt, fi_ce, ind, true, true) == 1, "More (or less) than one function index found on a vertex!");
+			numInd = dd->dof_indices(vrt, fi_ce, ind, true, true);
+			UG_ASSERT(numInd == 1, "More (or less) than one function index found on a vertex!");
 			values[TRyRImpl::_CER_] = ryr->scale_input(TRyRImpl::_CER_) * DoFRef(*u, ind[0]);
 
 			UG_COND_THROW(!dd->is_def_in_subset(fi_c1, si),
 				"Function " << fi_c1 << " is not defined on subset " << si << ".");
-			UG_ASSERT(dd->dof_indices(vrt, fi_c1, ind, true, true) == 1, "More (or less) than one function index found on a vertex!");
+			numInd = dd->dof_indices(vrt, fi_c1, ind, true, true);
+			UG_ASSERT(numInd == 1, "More (or less) than one function index found on a vertex!");
 			values[TRyRImpl::_C1_] = ryr->scale_input(TRyRImpl::_C1_) * DoFRef(*u, ind[0]);
 
 			UG_COND_THROW(!dd->is_def_in_subset(fi_c2, si),
 				"Function " << fi_c2 << " is not defined on subset " << si << ".");
-			UG_ASSERT(dd->dof_indices(vrt, fi_c2, ind, true, true) == 1, "More (or less) than one function index found on a vertex!");
+			numInd = dd->dof_indices(vrt, fi_c2, ind, true, true);
+			UG_ASSERT(numInd == 1, "More (or less) than one function index found on a vertex!");
 			values[TRyRImpl::_C2_] = ryr->scale_input(TRyRImpl::_C2_) * DoFRef(*u, ind[0]);
 
 			// calculate flux density
@@ -217,12 +220,14 @@ number waveFrontX
 
 				UG_COND_THROW(!dd->is_def_in_subset(fi_c1, si),
 					"Function " << fi_c1 << " is not defined on subset " << si << ".");
-				UG_ASSERT(dd->dof_indices(vrt, fi_c1, ind, true, true) == 1, "More (or less) than one function index found on a vertex!");
+				size_t numInd = dd->dof_indices(vrt, fi_c1, ind, true, true);
+				UG_ASSERT(numInd == 1, "More (or less) than one function index found on a vertex!");
 				number c1 = DoFRef(*u, ind[0]);
 
 				UG_COND_THROW(!dd->is_def_in_subset(fi_c2, si),
 					"Function " << fi_c2 << " is not defined on subset " << si << ".");
-				UG_ASSERT(dd->dof_indices(vrt, fi_c2, ind, true, true) == 1, "More (or less) than one function index found on a vertex!");
+				numInd = dd->dof_indices(vrt, fi_c2, ind, true, true);
+				UG_ASSERT(numInd == 1, "More (or less) than one function index found on a vertex!");
 				number c2 = DoFRef(*u, ind[0]);
 
 				// calculate open probability
