@@ -311,9 +311,31 @@ namespace ug {
 		}
 
 		if (subsets && ! onlyCaps) {
-			subsets->vertices.push_back(vVrt);
-			subsets->edges.push_back(vEdge);
-			subsets->faces.push_back(vFace);
+			/// Only cytosol vertices
+			std::vector<Vertex*> tempVertices;
+			for (size_t i = 0; i < 12; ++i) {
+				tempVertices.push_back(vVrt[i + 4]);
+			}
+			subsets->vertices.push_back(tempVertices);
+
+			/// Only cytosol edges
+			std::vector<Edge*> tempEdges;
+			for (size_t i = 0; i < 4; ++i) {
+				tempEdges.push_back(vEdge[i+4]);
+				tempEdges.push_back(vEdge[i+8]);
+			}
+
+			subsets->edges.push_back(tempEdges);
+
+			/// Only cytosol faces
+			std::vector<Face*> tempFaces;
+			for (size_t i = 0; i < 4; ++i) {
+				tempFaces.push_back(vFace[i+1]);
+				tempFaces.push_back(vFace[i+5]);
+			}
+			subsets->faces.push_back(tempFaces);
+
+			/// axial location of the measurement zone on the neurite
 			subsets->ts.push_back(t_start);
 		}
 	}
@@ -1440,8 +1462,6 @@ namespace ug {
 			lastPos = curPos;
 		}
 
-
-
 		// update t_end and curSec
 		if (brit != brit_end)
 			t_end = bp_end;
@@ -1450,9 +1470,30 @@ namespace ug {
 			const NeuriteProjector::Section& sec = neurite.vSec[curSec];
 			if (sec.endParam >= t_end) {
 				if (subsets && ! onlyCaps) {
-					subsets->vertices.push_back(vVrt);
-					subsets->edges.push_back(vEdge);
-					subsets->faces.push_back(vFace);
+					/// Only cytosol vertices
+					std::vector<Vertex*> tempVertices;
+					for (size_t i = 0; i < 12; ++i) {
+						tempVertices.push_back(vVrt[i + 4]);
+					}
+					subsets->vertices.push_back(tempVertices);
+
+					/// Only cytosol edges
+					std::vector<Edge*> tempEdges;
+					for (size_t i = 0; i < 4; ++i) {
+						tempEdges.push_back(vEdge[i+4]);
+						tempEdges.push_back(vEdge[i+8]);
+					}
+					subsets->edges.push_back(tempEdges);
+
+					/// Only cytosol faces
+					std::vector<Face*> tempFaces;
+					for (size_t i = 0; i < 4; ++i) {
+						tempFaces.push_back(vFace[i+1]);
+						tempFaces.push_back(vFace[i+5]);
+					}
+					subsets->faces.push_back(tempFaces);
+
+					/// axial location of the measurement zone on the neurite
 					subsets->ts.push_back(t_end);
 				}
 				break;
@@ -1462,9 +1503,30 @@ namespace ug {
 		// check whether tip has been reached
 		if (brit == brit_end) {
 			if (subsets && onlyCaps) {
-				subsets->vertices.push_back(vVrt);
-				subsets->edges.push_back(vEdge);
-				subsets->faces.push_back(vFace);
+				/// Only cytosol vertices
+				std::vector<Vertex*> tempVertices;
+				for (size_t i = 0; i < 12; ++i) {
+					tempVertices.push_back(vVrt[i + 4]);
+				}
+				subsets->vertices.push_back(tempVertices);
+
+				/// Only cytosol edges
+				std::vector<Edge*> tempEdges;
+				for (size_t i = 0; i < 4; ++i) {
+					tempEdges.push_back(vEdge[i+4]);
+					tempEdges.push_back(vEdge[i+8]);
+				}
+				subsets->edges.push_back(tempEdges);
+
+				/// Only cytosol faces
+				std::vector<Face*> tempFaces;
+				for (size_t i = 0; i < 4; ++i) {
+					tempFaces.push_back(vFace[i+1]);
+					tempFaces.push_back(vFace[i+5]);
+				}
+				subsets->faces.push_back(tempFaces);
+
+				/// axial location of the measurement zone on the neurite
 				subsets->ts.push_back(t_end);
 			}
 			break;

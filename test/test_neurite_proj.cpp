@@ -5840,7 +5840,7 @@ void create_spline_data_for_neurites
 
 		SaveGridToFile(g, sh, "after_and_before_assignment.ugx");
 
-		/// TODO: ONLY faces go into measurement subsets -> otherwise refinement will be broken
+		/// Faces, Vertices and Edges go into measurement subset, otherwise refinement will be broken
 		if (assignMeasurementSubsets) {
 			// assign subsets
 			std::stringstream ss;
@@ -5848,13 +5848,12 @@ void create_spline_data_for_neurites
 			size_t measCounter = 0;
 			size_t subsetName = 1;
 
-			/*
 			/// vertices
 			UG_LOGN("Size of vertices: " << subsets.vertices.size());
 			std::vector<std::vector<ug::Vertex*> >::const_iterator itv = subsets.vertices.begin();
 			while (itv != subsets.vertices.end()) {
 				UG_LOGN("measCounter (verts): " << measCounter);
-				sh.assign_subset(itv->begin(), itv->end(), measCounter+startSI);
+				//sh.assign_subset(itv->begin(), itv->end(), measCounter+startSI);
 				ss << "meas#" << subsetName;
 				sh.subset_info(measCounter+startSI).name = ss.str();
 				ss.str(""); ss.clear();
@@ -5862,6 +5861,7 @@ void create_spline_data_for_neurites
 				subsetName++;
 				itv++;
 			}
+
 
 			/// edges
 			UG_LOGN("Size of edges: " << subsets.edges.size());
@@ -5879,7 +5879,6 @@ void create_spline_data_for_neurites
 				measCounter++;
 				ite++;
 			}
-			*/
 
 			/// faces
 			UG_DLOGN(NC_TNP, 0, "Size of faces " << subsets.faces.size());
