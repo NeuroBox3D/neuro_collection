@@ -39,16 +39,19 @@
 
 #include "neurite_axial_refinement_marker.h"
 
-#include "common/error.h"  // for UG_THROW
-#include "lib_grid/global_attachments.h"  // for GlobalAttachments
+#include "common/error.h"	// for UG_THROW
+#include "lib_grid/global_attachments.h"	// for GlobalAttachments
 #include "lib_grid/grid/grid_util.h"  // for CompareVertices
-#include "lib_grid/tools/surface_view.h"  // for SurfaceView
+#include "lib_grid/tools/surface_view.h"	// for SurfaceView
 #ifdef NC_WITH_PARMETIS
 #include "lib_grid/grid/grid_base_object_traits.h"  // for geometry_traits
 #include "lib_grid/grid/neighborhood_util.h"  // for GetConnectedNeighbor
 #endif
 
+
 #include <set>
+
+extern ug::DebugID NC_TNP;
 
 namespace ug {
 namespace neuro_collection {
@@ -126,8 +129,20 @@ void NeuriteAxialRefinementMarker::mark(SmartPtr<IRefiner> refiner)
 
 		// find the axial edges
 		Hexahedron* hex = dynamic_cast<Hexahedron*>(vol);
-		UG_COND_THROW(!hex, "Found volume that is not a hexahedron.\n"
-			"This implementation can only handle hexahedron grids.");
+		if (!hex) {
+			UG_DEBUG_BEGIN(NC_TNP, 0);
+			if (vol->num_vertices() > 0) {
+				if (!m_spDom->grid()->has_vertex_attachment(aPosition)) {
+					m_spDom->grid()->attach_to_vertices(aPosition);
+				}
+				Grid::VertexAttachmentAccessor<APosition> aaPos(*m_spDom->grid(), aPosition);
+				UG_LOG("Coordinates for the 0-th vertex of non-hexaeder element: " << aaPos[vol->vertex(0)]);
+			}
+			UG_DEBUG_END(NC_TNP, 0);
+
+			UG_THROW("Found volume that is not a hexahedron.\n"
+					"This implementation can only handle hexahedron grids.");
+		}
 
 		uint32_t nid = 0;
 		for (size_t i = 0; i < 8; ++i)
@@ -493,8 +508,20 @@ bool NeuriteAxialRefinementMarker::is_bp_volume(Volume* vol) const
 bool NeuriteAxialRefinementMarker::is_central_bp_vol(Volume* vol) const
 {
 	const size_t nVrt = vol->num_vertices();
-	UG_COND_THROW(nVrt != 8, "Found volume with " << nVrt << " vertices.\n"
-		"This implementation can only handle hexahedron grids.");
+	 if (nVrt != 8) {
+		 UG_DEBUG_BEGIN(NC_TNP, 0);
+		 if (nVrt > 0) {
+			if (!m_spDom->grid()->has_vertex_attachment(aPosition)) {
+				 m_spDom->grid()->attach_to_vertices(aPosition);
+			}
+			  Grid::VertexAttachmentAccessor<APosition> aaPos(*m_spDom->grid(), aPosition);
+			  UG_LOG("Coordinates for the 0-th vertex of non-hexaeder element: " << aaPos[vol->vertex(0)]);
+		 }
+		 UG_DEBUG_END(NC_TNP, 0);
+
+		 UG_THROW("Found volume with " << nVrt << " vertices.\n"
+					 "This implementation can only handle hexahedron grids.");
+	}
 
 	// Is this a central BP volume?
 	// This is the case if and only if four vertices belong to one neurite (the parent)
@@ -535,5 +562,5 @@ bool NeuriteAxialRefinementMarker::is_central_bp_vol(Volume* vol) const
 }
 
 
-}  // namespace neuro_collection
-}  // namespace ug
+}	// namespace neuro_collection
+}	// namespace ug
