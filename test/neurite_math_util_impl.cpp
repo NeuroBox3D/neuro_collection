@@ -55,6 +55,10 @@
 #include <boost/random/variate_generator.hpp>
 #include <boost/generator_iterator.hpp>
 #include <ctime>
+#include "neurite_runtime_error.h"
+#include <boost/geometry.hpp>
+#include <boost/geometry/algorithms/length.hpp>
+
 
 extern ug::DebugID NC_TNP;
 
@@ -223,8 +227,13 @@ namespace ug {
 				}
 			}
 
-			UG_COND_THROW(!found, "No permissible render vector could be found with "
-					"parameters (minAngle/maxIter): " << minAngle << ", " << maxIter);
+			std::stringstream ss;
+			ss << "No permissible render vector could be found with " <<
+				"parameters (minAngle/maxIter): " << minAngle << ", " << maxIter;
+			if (!found) { throw NoPermissibleRenderVector(ss.str()); }
+			/*UG_COND_THROW(!found, "No permissible render vector could be found with "
+			"parameters (minAngle/maxIter): " << minAngle << ", " << maxIter);
+			*/
 		}
 
 		////////////////////////////////////////////////////////////////////////
@@ -541,24 +550,96 @@ namespace ug {
 			return false;
 		}
 
+		/// Haversine function
+		static double haversine(double lat1, double lon1,
+		                        double lat2, double lon2,
+		                        double radius)
+		    {
+		        // distance between latitudes
+		        // and longitudes
+		        double dLat = (lat2 - lat1) *
+		                      PI / 180.0;
+		        double dLon = (lon2 - lon1) *
+		                      PI / 180.0;
+
+		        // convert to radians
+		        lat1 = (lat1) * PI / 180.0;
+		        lat2 = (lat2) * PI / 180.0;
+
+		        // apply formulae
+		        double a = pow(sin(dLat / 2), 2) +
+		                   pow(sin(dLon / 2), 2) *
+		                   cos(lat1) * cos(lat2);
+		        double c = 2 * asin(sqrt(a));
+
+		        // return length (geodesic)
+		        return radius * c;
+		    }
+
+		////////////////////////////////////////////////////////////////////////
+		/// cart_to_sph
+		////////////////////////////////////////////////////////////////////////
+		void cart_to_sph(const ug::vector3& cart, number& azimuth, number& elevation, number& radius) {
+			azimuth = std::atan2(cart[1], cart[0]);
+			elevation = std::atan2(cart[2], VecLength(ug::vector2(cart[0], cart[1])));
+			radius = VecLength(cart);
+		}
+
+
 		////////////////////////////////////////////////////////////////////////
 		/// CylinderCylinderSomaSeparationTest
 		////////////////////////////////////////////////////////////////////////
 		bool CylinderCylinderSomaSeparationTest
 		(
-			const vector<SWCPoint>& vSomaPoints
+			const vector<SWCPoint>& vSomaPoints,
+			const SWCPoint& soma,
+			const number eps
 		) {
-			for (size_t i = 0; i < vSomaPoints.size(); i++) {
-				for (size_t j = 0; j < vSomaPoints.size(); j++) {
-					if (i != j) {
-						const number dist = VecDistance( vSomaPoints[i].coords,  vSomaPoints[j].coords);
-						if (dist < vSomaPoints[i].radius || dist < vSomaPoints[j].radius) {
-							return false;
-						}
+
+			vector3 shiftDir;
+			VecSubtract(shiftDir, ug::vector3(0, 0, 0), soma.coords);
+		    for (size_t i = 0; i < vSomaPoints.size(); i++) {
+		    	for (size_t j = 0; j < vSomaPoints.size(); j++) {
+		    		if (i == j) { continue; }
+		    		/// 1: Shift points to sphere around origin in cartesian coords
+		    		vector3 pointA = vSomaPoints[i].coords;
+		    		VecAdd(pointA, pointA, shiftDir);
+		    		vector3 pointB = vSomaPoints[j].coords;
+		    		VecAdd(pointB, pointB, shiftDir);
+		    		VecNormalize(pointA, pointA);
+		    		VecNormalize(pointB, pointB);
+
+		    		/// 2. Calculate spherical coordinates for each point
+		    		number azimuth1, elevation1, radius1;
+		    		number azimuth2, elevation2, radius2;
+		    		cart_to_sph(pointA, azimuth1, elevation1, radius1);
+		    		cart_to_sph(pointB, azimuth2, elevation2, radius2);
+
+		    		/// 3. Measure distance with haversine function
+		    		number dist = haversine(rad_to_deg(azimuth1), rad_to_deg(elevation1),
+		    								rad_to_deg(azimuth2), rad_to_deg(elevation2),
+		    								soma.radius/2.0); /// radius is DIAMETER in .swc files
+
+		    		UG_DLOGN(NC_TNP, 0, "soma.radius: " << soma.radius/2.0);
+		    		UG_DLOGN(NC_TNP, 0, "dist: " << dist)
+		    		UG_DLOGN(NC_TNP, 0, "radius: " << vSomaPoints[i].radius);
+		    		UG_DLOGN(NC_TNP, 0, "radius2: " << vSomaPoints[j].radius);
+
+		    		UG_LOGN("soma.radius: " << soma.radius/2.0);
+		    		UG_LOGN("dist: " << dist)
+		    		UG_LOGN("radius: " << vSomaPoints[i].radius);
+		    		UG_LOGN("radius2: " << vSomaPoints[j].radius);
+		    		if (dist < ((vSomaPoints[i].radius+vSomaPoints[j].radius)*(1+eps))) {
+						UG_DLOGN(NC_TNP, 0, "Offending neurite starts: " << i << ", " << j
+								<< " with dist: " << dist << " and radius: " <<
+								vSomaPoints[i].radius << ", and " << vSomaPoints[j].radius);
+						UG_LOGN("Offending neurites with " << "dist: " << dist << "and radius:"
+								<< vSomaPoints[i].radius << "and " << vSomaPoints[j].radius);
+						return false;
 					}
-				}
-			}
-			return true;
+		    	}
+		    }
+		    return true;
 		}
 
 
@@ -607,6 +688,8 @@ namespace ug {
 		{
 			for (size_t i = 0; i < radii.size()/12; i++) {
 				UG_LOGN("Soma/Neurite ratio for neurite with index #" << i+1 << ": " << somaRadius/radii[i*12]);
+				UG_LOGN("Soma/neurite: SomaRadius: " << somaRadius);
+				UG_LOGN("Soma/Neurite: Radius: " << radii[i*12]);
 				UG_COND_WARNING(somaRadius/ radii[i*12] > 10, "Soma/Neurite ratio highly "
 						"anistropic for neurite with index " << i+1 << " thus one might "
 						"expect non-optimal meshes at connecting region. Refine "
@@ -727,5 +810,16 @@ namespace ug {
 			SaveGridToFile(*grid, *sh, outFileName.c_str());
 			return sel.num<Triangle>();
 		}
+
+	////////////////////////////////////////////////////////////////////////
+	/// Explicit template instantiations for PathLength1D
+	////////////////////////////////////////////////////////////////////////
+	template number PathLength1D<Domain1d>(const std::string&, const std::string&,
+			const std::string&, Domain1d&);
+	template number PathLength1D<Domain2d>(const std::string&, const std::string&,
+			const std::string&, Domain2d&);
+	template number PathLength1D<Domain3d>(const std::string&, const std::string&,
+			const std::string&, Domain3d&);
 	}
 }
+

@@ -47,6 +47,9 @@
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
 
+#undef UG_ASSERT
+#define UG_ASSERT(expr, msg) {}
+
 namespace ug {
 	namespace neuro_collection {
 	////////////////////////////////////////////////////////////////////////
@@ -124,8 +127,8 @@ namespace ug {
 
 	/// TODO: Add warning when fac is small neurite.refDir * vel is close too zero: Check this is correct
 	///       Then add as as separate method, because it will be necessary to use also in refinements!
-	/// This corresponds to a deviation of 18° from the neurite direction
-	UG_COND_WARNING(fabs(1.0-fabs(fac)) < 0.05, "Neurite render vector coincides with "
+	/// This corresponds to a deviation of 18° from the neurite direction: Should this be a throw?
+	UG_COND_WARNING(fabs(1.0-fabs(fac)) < 0.05, "Neurite render vector coincides nearly with "
 	"tangential vector... Expect twisted segments. Offending neurite location: " << vPos[nid][0]);
 
 	VecScaleAdd(projRefDir, 1.0, neurite.refDir, -fac, vel);
@@ -192,10 +195,11 @@ namespace ug {
 							0.5 * PI * i + angleOffset - 2 * PI;
 			aaSurfParams[(*connectingVrts)[i]].radial = erScaleFactor;
 			aaMappingParams[(*connectingVrts)[i]].v1 = pos[0];
-			aaMappingParams[(*connectingVrts)[i]].v2 = pos[0];
+			aaMappingParams[(*connectingVrts)[i]].v2 = pos[1];
 			vector3 vOut;
-			ProjectPointToLine(vOut, aaPos[(*connectingVrts)[i]], pos[0], pos[1]);
-			aaMappingParams[(*connectingVrts)[i]].lambda = VecDistance(vOut, pos[0]);
+			aaMappingParams[(*connectingVrts)[i]].lambda = ProjectPointToLine(vOut, aaPos[(*connectingVrts)[i]], pos[0], pos[1]);
+      UG_LOGN(aaMappingParams[(*connectingVrts)[i]].lambda);
+      UG_ASSERT(IsBetween(aaMappingParams[(*connectingVrts)[i]].lambda), "Lambda needs to be in range [0,1].");
 			// std::vector<SWCPoint> vPoints;
 			// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 		}
@@ -225,10 +229,11 @@ namespace ug {
 			aaSurfParams[v].radial = erScaleFactor;
 			// 1d<->2d mapping params
 			aaMappingParams[v].v1 = pos[0];
-			aaMappingParams[v].v2 = pos[0];
+			aaMappingParams[v].v2 = pos[1];
 			vector3 vOut;
-			ProjectPointToLine(vOut, aaPos[v], pos[0], pos[1]);
-			aaMappingParams[v].lambda = VecDistance(vOut, pos[0]);
+			aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[0], pos[1]);
+      UG_LOGN(aaMappingParams[v].lambda);
+      UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 			// std::vector<SWCPoint> vPoints;
 			// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 			sh.assign_subset(v, 3);
@@ -254,10 +259,11 @@ namespace ug {
 			aaSurfParams[v].radial = 1.0;
 			// 1d<->2d mapping params
 			aaMappingParams[v].v1 = pos[0];
-			aaMappingParams[v].v2 = pos[0];
+			aaMappingParams[v].v2 = pos[1];
 			vector3 vOut;
-			ProjectPointToLine(vOut, aaPos[v], pos[0], pos[1]);
-			aaMappingParams[v].lambda = VecDistance(vOut, pos[0]);
+    	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[0], pos[1]);
+      UG_LOGN(aaMappingParams[v].lambda);
+      UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 
 			sh.assign_subset(v, 2);
 			if (outVerts) {
@@ -697,11 +703,12 @@ namespace ug {
 					aaSurfParams[v].radial = erScaleFactor;
 
 					// 1d<->2d mapping params
-					aaMappingParams[v].v1 = pos[curSec];
-					aaMappingParams[v].v2 = pos[curSec];
+					aaMappingParams[v].v1 = pos[curSec+1];
+					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;
-					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+	      	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
+          UG_LOGN(aaMappingParams[v].lambda);
+          UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
@@ -724,11 +731,13 @@ namespace ug {
 					aaSurfParams[v].radial = blowUpFactor;
 
 					// 1d<->2d mapping params
-					aaMappingParams[v].v1 = pos[curSec];
-					aaMappingParams[v].v2 = pos[curSec];
+					aaMappingParams[v].v1 = pos[curSec+1];
+					aaMappingParams[v].v2 = pos[curSec+1];
+
 					vector3 vOut;
-					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+         	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
+          UG_LOGN(aaMappingParams[v].lambda);
+          UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
@@ -861,11 +870,12 @@ namespace ug {
 					aaSurfParams[v].radial = erScaleFactor;
 
 					// 1d<->2d mapping params
-					aaMappingParams[v].v1 = pos[curSec];
-					aaMappingParams[v].v2 = pos[curSec];
+					aaMappingParams[v].v1 = pos[curSec+1];
+					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;
-					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+         	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
+          UG_LOGN(aaMappingParams[v].lambda);
+          UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
@@ -885,15 +895,15 @@ namespace ug {
 					aaSurfParams[v].radial = 1.0;
 
 					// 1d<->2d mapping params
-					aaMappingParams[v].v1 = pos[curSec];
-					aaMappingParams[v].v2 = pos[curSec];
+					aaMappingParams[v].v1 = pos[curSec+1];
+					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;
-					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+         	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
+          UG_LOGN(aaMappingParams[v].lambda);
+          UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
-
 
 				// correct vertex offsets to reflect angle at which child branches
 				VecScaleAppend(aaPos[vVrt[(connFaceInd) % 4]],
@@ -1020,11 +1030,12 @@ namespace ug {
 					aaSurfParams[v].radial = erScaleFactor;
 
 					// 1d<->2d mapping params
-					aaMappingParams[v].v1 = pos[curSec];
-					aaMappingParams[v].v2 = pos[curSec];
+					aaMappingParams[v].v1 = pos[curSec+1];
+					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;
-					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+         	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
+          UG_LOGN(aaMappingParams[v].lambda);
+          UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
@@ -1043,11 +1054,14 @@ namespace ug {
 					aaSurfParams[v].angular = angle;
 					aaSurfParams[v].radial = 1.0;
 					// 1d<->2d mapping params
-					aaMappingParams[v].v1 = pos[curSec];
-					aaMappingParams[v].v2 = pos[curSec];
+					aaMappingParams[v].v1 = pos[curSec+1];
+					aaMappingParams[v].v2 = pos[curSec+1];
+          std::cout << "pos: " << pos[curSec+1];
+          std::cout << "aaPos[v]: " << aaPos[v];
 					vector3 vOut;
-					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+         	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
+          UG_LOGN(aaMappingParams[v].lambda);
+          UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
@@ -1174,11 +1188,16 @@ namespace ug {
 					aaSurfParams[v].angular = angle;
 					aaSurfParams[v].radial = erScaleFactor;
 					// 1d<->2d mapping params
-					aaMappingParams[v].v1 = pos[curSec];
-					aaMappingParams[v].v2 = pos[curSec];
+					aaMappingParams[v].v1 = pos[curSec+1];
+					aaMappingParams[v].v2 = pos[curSec+1];
+          std::cout << "pos: " << pos[curSec+1];
+          std::cout << "aaPos[v]: " << aaPos[v];
+
+
 					vector3 vOut;
-					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+         	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
+          UG_LOGN(aaMappingParams[v].lambda);
+          UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
@@ -1197,11 +1216,14 @@ namespace ug {
 					aaSurfParams[v].angular = angle;
 					aaSurfParams[v].radial = blowUpFactor;
 					// 1d<->2d mapping params
-					aaMappingParams[v].v1 = pos[curSec];
-					aaMappingParams[v].v2 = pos[curSec];
+					aaMappingParams[v].v1 = pos[curSec+1];
+					aaMappingParams[v].v2 = pos[curSec+1];
+          std::cout << "pos: " << pos[curSec+1];
+          std::cout << "aaPos[v]: " << aaPos[v];
 					vector3 vOut;
-					ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
-					aaMappingParams[v].lambda = VecDistance(vOut, pos[curSec]);
+         	aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[curSec], pos[curSec+1]);
+          UG_LOGN(aaMappingParams[v].lambda);
+          UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
 					// std::vector<SWCPoint> vPoints;
 					// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 				}
@@ -2526,8 +2548,6 @@ number calculate_length_over_radius_variant
                                                number segLength
                                        )
                                        {
-                                       const size_t nSeg = segAxPosOut.size();
-
                                        GaussLegendre gl(50);
                                        size_t nPts = gl.size();
 
@@ -2596,7 +2616,7 @@ number calculate_length_over_radius_variant
                                            ++seg;
                                         }
 
-                                       UG_ASSERT(seg == nSeg, "seg = " << seg << " != " << nSeg << " = nSeg");
+                                       UG_ASSERT(seg == segAxPosOut.size(), "seg = " << seg << " != " << segAxPosOut.size() << " = nSeg");
                                        }
 
 

@@ -41,14 +41,19 @@ before_script:
   - ../ughub/ughub install neuro_collection
   - mkdir build
   - cd build
-  - cmake ../ -DDIM=3 -DCPU=1 -DLAPACK=OFF -DBLAS=OFF -DENABLE_ALL_PLUGINS=ON -DPARALLEL=OFF
+  - cmake ../ -DDIM=3 -DCPU=1 -DLAPACK=OFF -DBLAS=OFF -DENABLE_ALL_PLUGINS=ON -DPARALLEL=OFF -DNCTestsuite=ON
   - travis_wait 45 make -j2
 
 script:
    - curl -LO https://raw.github.com/stephanmg/travis-dependent-builds/master/trigger.sh
    - chmod +x trigger.sh
    - ./trigger.sh stephanmg vr-grids development $TRAVIS_ACCESS_TOKEN ""
-   - ./trigger.sh stephanmg BranchGenerator master $TRAVIS_ACCESS_TOKEN ""
+   - ./trigger.sh stephanmg Branch-Generator master $TRAVIS_ACCESS_TOKEN ""
+   - ./trigger.sh stephanmg non-vr-grids master $TRAVIS_ACCESS_TOKEN ""
+   - ./trigger.sh NeuroBox3D ProMeshScripts master $TRAVIS_ACCESS_TOKEN ""
    
 after_script:
-   - echo "Triggered downstream projects: stephanmg/vr-grids and stephanmg/BranchGenerator."
+   - echo "Triggered downstream projects: stephanmg/vr-grids, stephanmg/non-vr-grids and stephanmg/BranchGenerator."
+   - ln -s ${TRAVIS_BUILD_DIR}/data/test.swc test.swc
+   - ln -s ${TRAVIS_BUILD_DIR}/data/test_1d.ugx test_1d.ugx
+   - ${TRAVIS_BUILD_DIR}/travis_root/ug4/bin/NCTestsuite

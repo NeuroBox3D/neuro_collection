@@ -44,6 +44,7 @@
 #include "common/util/smart_pointer.h"
 #include "lib_grid/multi_grid.h"
 #include "lib_grid/refinement/projectors/neurite_projector.h"
+#include "lib_grid/refinement/projectors/cylinder_projector.h" // CylinderProjector
 #include <vector>
 #include <string>
 #include <list>
@@ -381,6 +382,7 @@ void test_convert_swc_to_ugx
 /*!
  * \brief new main strategy to generate computational meshs for 1d/3d simulations
  * TODO: refactor to eliminate not necessary VR grid generation parameters and options
+ * => OptionBuilder?!
  * \param[in] fileName
  * \param[in] correct
  * \param[in] erScaleFactor
@@ -407,6 +409,34 @@ void test_import_swc_general_var(
 	const std::string& option,
 	number segLength
 );
+
+/*!
+ * \brief for internal use only
+ */
+int test_import_swc_general_var_benchmark(
+		const std::string& fileName,
+		bool correct,
+		number erScaleFactor,
+		bool withER,
+		number anisotropy,
+		size_t numRefs,
+		bool regularize,
+		number blowUpFactor,
+		bool forVR,
+		bool dryRun,
+		const std::string& option,
+		number segLength
+);
+
+/*!
+ * \brief for internal use only
+ */
+int test_import_swc_general_var_benchmark_var(
+		const std::string& fileName,
+		number erScaleFactor,
+		size_t numRefs
+);
+
 
 /*!
  * \brief vr strategy (potentially deprecated!)
@@ -443,7 +473,7 @@ class Graph
 
     // Pointer to an array containing
     // adjacency lists
-    std::list<int> *adj;
+    std::list<std::pair<int, double> >*adj;
 
     // A recursive function used by DFS
     void DFSUtil(int v, bool visited[], std::vector<int>& indices);
@@ -452,13 +482,16 @@ public:
 
     // function to add an edge to graph
     void addEdge(int v, int w);
+    void addEdge(int u, int v, double w);
 
     // DFS traversal of the vertices
     // reachable from v
     void DFS(int v, std::vector<int>& indices);
     void BFS(int v, std::vector<int>& indices);
-
+    std::vector<double> shortestPath(int s);
 };
+
+
 
 /*!
  * \brief naive refinement variant which will preserve HINES ordering
@@ -500,6 +533,19 @@ void test_import_swc_vr
  * \brief main routine to generate grids for VR
  */
 void test_import_swc_general_var_for_vr_var(
+	const std::string& fileName,
+	bool correct,
+	number erScaleFactor,
+	bool withER,
+	number anisotropy,
+	size_t numRefs,
+	bool regularize,
+	number blowUpFactor,
+	const std::string& option,
+	number segLength
+);
+
+int test_import_swc_general_var_for_vr_var_benchmark(
 	const std::string& fileName,
 	bool correct,
 	number erScaleFactor,
@@ -554,6 +600,16 @@ void create_branches_from_swc(
 	size_t numRefs
 );
 
+/*!
+ * \brief converts SWCPoint vector to a grid
+ */
+void swc_points_to_grid
+(
+	const std::vector<SWCPoint>& vPts,
+	Grid& grid,
+	SubsetHandler& sh,
+	number scale_length = 1.0
+);
 
 /*!
  * \brief special method to respect reordering during UGX export
@@ -595,6 +651,21 @@ void to_ugx(
  * \param[in] ref desired refinement level
  * \param[in] forceAdditionalPoint forces insertion of an additional point
  * \param[in] includeSoma include soma in regularization - or not
+ * \param[in] maxInflation for angle length criterion
+ */
+void test_import_swc_and_regularize
+(
+	const std::string& fileName,
+	number segLength,
+	const std::string& choice,
+	size_t ref,
+	bool forceAdditionalPoint,
+	bool includeSoma,
+	number maxInflation
+);
+
+/*!
+ * \brief see test_import_swc_and_regularize
  */
 void test_import_swc_and_regularize
 (
@@ -635,6 +706,7 @@ void test_import_swc_and_regularize
 /*!
  * \brief import swc and regularize seg length by GQ's angle-length criterion
  * \param[in] fileName name of the input geometry
+ * \param[in] inflation
  * \see test_import_swc_and_regularize
  *
  * Note that the segment length is chosen by the minimum admissible segment
@@ -642,7 +714,8 @@ void test_import_swc_and_regularize
  */
 void test_import_swc_and_regularize_var
 (
-	const std::string& fileName
+	const std::string& fileName,
+	number inflation
 );
 
 /*!
@@ -679,7 +752,20 @@ void eval_spline
 	bool forceAdditionalPoint,
 	Grid& g,
 	SubsetHandler& sh,
-	bool somaIncluded
+	bool somaIncluded,
+	number postProcessLength
+);
+
+void eval_spline_var
+(
+	const std::vector<NeuriteProjector::Neurite>& vNeurites,
+	const number desiredSegLength,
+	const size_t ref,
+	const bool forceAdditionalPoint,
+	Grid& g,
+	SubsetHandler& sh,
+	const bool somaIncluded,
+	const number postProcessLength
 );
 
 /*!
@@ -729,14 +815,48 @@ void set_permissible_render_vector_global
  * \brief finds the global minimum allowed segment length for branching points
  * Returns the minimum global allowed segment length
  * \param[in] fileName
+ * \param[in] inflation
  *
- * \return \c nubmer
+ * \return \c number
  */
 number find_min_bp_dist
 (
-	const std::string& fileName
+	const std::string& fileName,
+	number inflation=1.0
 );
 
+void create_piecewise_cylinder_projectors
+(
+	Grid& grid,
+	std::vector<SmartPtr<CylinderProjector> >& vProjectors,
+	Grid::VertexAttachmentAccessor<APosition>& aaPos
+);
+
+void write_piecewise_cylinder_projectors
+(
+	const std::string& fileName,
+	Grid& grid,
+	SubsetHandler& sh,
+	const std::vector<SmartPtr<CylinderProjector> >& vProjectors
+);
+
+void refine_piecewise_cylindrical
+(
+	const std::string& fileName,
+	const uint numRefs
+);
+
+int test_statistics
+(
+	const std::string& fileName,
+	number erScaleFactor
+);
+
+int test_statistics_soma
+(
+	const std::string& fileName,
+	number erScaleFactor
+);
 
 
 } // namespace neuro_collection

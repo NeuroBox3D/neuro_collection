@@ -220,7 +220,14 @@ void MembraneTransport1d<TDomain>::approximation_space_changed()
 
 	// handle diameter attachment
 	if (!grid->has_attachment<Vertex>(m_aDiameter))
-		grid->attach_to_vertices_dv(m_aDiameter, 2.0*m_constRadius);
+	{
+		if (!m_bConstRadiusSet)
+			UG_LOG("HINT: The geometry you are using does not contain diameter information\n"
+				"and you did not provide radius information either. Using default radius of "
+				<< m_constRadius << "m.");
+
+		grid->attach_to_vertices_dv(m_aDiameter, 2.0 * m_constRadius);
+	}
 	else
 	{
 		if (m_bConstRadiusSet)

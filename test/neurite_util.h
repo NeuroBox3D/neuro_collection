@@ -925,6 +925,19 @@ namespace ug {
 			}
 		}
 
+		/*!
+		 * \brief orientate a quadrilateral CCW
+		 */
+		void orientate_quadrilateral
+		(
+			const std::vector<Vertex*> vertices,
+			const ug::vector3& normal,
+			const ug::vector3& center,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid& g,
+			std::vector<Vertex*>& indices
+		);
+
 
 
 		/*!
@@ -1209,6 +1222,14 @@ namespace ug {
 			const char* fileName,
 			const number thresholdMin,
 			const number thresholdMax
+		);
+
+		/*!
+		 * \brief rescales an vertex attachment
+		 */
+		void RescaleAttachment(
+			number scale,
+			Grid& grid
 		);
 	}
 }

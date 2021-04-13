@@ -1,0 +1,47 @@
+image: Visual Studio 2017
+
+init:
+  - git config --global core.autocrlf input
+
+clone_depth: 50
+
+platform:
+  - x64
+
+configuration:
+  - Release
+  
+environment:
+  matrix:
+  - PYTHON: "C:\\Python37"
+    
+install:
+  - SET PATH=%PYTHON%;%PATH%
+  - if not exist appveyor_root mkdir appveyor_root
+  - cd appveyor_root
+  - if exist ughub rmdir /S /Q ughub
+  - git clone https://www.github.com/UG4/ughub
+  
+  - if not exist ug4 mkdir ug4 
+  - if not exist ug4\.ughub ughub\ughub init ug4
+  - cd ug4 
+  - if not exist ugcore ..\ughub\ughub install ugcore
+  - ..\ughub\ughub addsource neurobox https://github.com/NeuroBox3D/neurobox-packages
+  - ..\ughub\ughub install neuro_collection
+  - mkdir build
+  - cd build
+
+build_script:
+  - cd %APPVEYOR_BUILD_FOLDER%\appveyor_root\ug4
+  - cd build
+  - cmake ..\ -DDIM=3 -DCPU=1 -DLAPACK=OFF -DSTATIC_BUILD=ON -DBLAS=OFF -DENABLE_ALL_PLUGINS=ON -DPARALLEL=OFF -DEMBEDDED_PLUGINS=ON  -DCOMPILE_INFO=OFF -DCMAKE_VS_PLATFORM_TOOLSET_HOST_ARCHITECTURE=X64 -G "Visual Studio 15 2017 Win64"  -DCOMPILE_INFO=OFF 
+  - MSBuild .\ug4.sln  /property:Configuration=Release /property:Platform=x64
+
+deploy_script:
+  - ps: Start-FileDownload "https://gist.githubusercontent.com/stephanmg/d5b97401f079aa58239f8f5d828efe52/raw/00b09ac5a2417fd9bf21d47a2dd4ce80405ba099/trigger_dependent_appveyor_build.ps1"
+  - ps: .\trigger_dependent_appveyor_build.ps1 -APPVEYOR_TOKEN $env:APPVEYOR_TOKEN -PROJECT_SLUG non-vr-grids
+  - ps: .\trigger_dependent_appveyor_build.ps1 -APPVEYOR_TOKEN $env:APPVEYOR_TOKEN -PROJECT_SLUG vr-grids
+  - ps: .\trigger_dependent_appveyor_build.ps1 -APPVEYOR_TOKEN $env:APPVEYOR_TOKEN -PROJECT_SLUG Branch-Generator
+  - ps: .\trigger_dependent_appveyor_build.ps1 -APPVEYOR_TOKEN $env:APPVEYOR_TOKEN -PROJECT_SLUG ProMeshScripts
+  
+

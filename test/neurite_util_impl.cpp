@@ -38,6 +38,7 @@
  */
 
 #include "neurite_util.h"
+#include "neurite_runtime_error.h"
 #include "tetrahedralize_util.h"
 #include "common/log.h"
 #include "common/error.h"
@@ -2457,7 +2458,7 @@ namespace ug {
 			CalculateNormal(vNormOut, quad, aaPos);
 			ug::vector3 center = CalculateCenter(quad, aaPos);
 			aaPos[top] = center;
-			number scaleFactor;
+			number scaleFactor = 0.0;
 			if (somaPoint) {
 				/// Pyramid height is 1.25% of soma inner's radius
 				/// TODO: To achieve optimal AR should depend on quad diameter!
@@ -2557,6 +2558,18 @@ namespace ug {
 								"_soma_and_after_selecting.ugx");
 
 			sel.clear();
+
+
+			/*
+			SelectElementsInSphere<Vertex>(grid, sel, somaPoint[0].coords, somaPoint[0].radius, aaPos);
+			SelectElementsInSphere<Face>(grid, sel, somaPoint[0].coords, somaPoint[0].radius, aaPos);
+			SelectElementsInSphere<Edge>(grid, sel, somaPoint[0].coords, somaPoint[0].radius, aaPos);
+			SelectElementsInSphere<Triangle>(grid, sel, somaPoint[0].coords, somaPoint[0].radius, aaPos);
+			AssignSelectionToSubset(sel, sh, 300);
+			SaveGridToFile(grid, sh, "my_test_sphere_selection.ugx");
+			*/
+
+
 			/// TODO This removes the surface connecting faces from selection for triangulation which is correct, but leads to bad PCLs in Tetgen somehow
 			SelectElementsByAxialPositionInSubset<Face>(grid, sel, 0.0, aaPos, aaSurfParams, sh, 3, scale);
 			///CloseSelection(sel);
@@ -2586,6 +2599,7 @@ namespace ug {
 			grid.disable_options(VOLOPT_STORE_ASSOCIATED_FACES);
 			grid.disable_options(VOLOPT_AUTOGENERATE_FACES);
 			for (size_t i = 0; i < quadCont2.size(); i++) {
+				/// Do not erase quadconts by uncommenting below: Does this help?
 				grid.erase(quadCont2[i]);
 			}
 
@@ -2597,19 +2611,23 @@ namespace ug {
 			*/
 
 			grid.enable_options(VOLOPT_STORE_ASSOCIATED_FACES);
+			/// Enable option below -> does this help?
 			///grid.enable_options(VOLOPT_AUTOGENERATE_FACES);
 
-			/// Reassign volumes
-
+			/// Reassign volumes (TODO: Should not assign all, otherwise susbet boundaries vanish which separate ovlume subsets!)
 			AssignSelectionToSubset(sel, sh, 100);
 
+			/// TODO: center  base face of pyramid is missing in selection => this makes teh tetgen call fail?!
 			SavePreparedGridToFile(grid, sh, "before_tetrahedralize"
 					"_soma_and_after_selecting_take5.ugx");
 
 
-			Tetrahedralize(sel, grid, &sh, 20, false, false, aPosition, 10); /// 10, false, false
+			const bool success = Tetrahedralize(sel, grid, &sh, 10, true, true, aPosition, 10); /// 10, false, false, aPosition, 10
+			if (!success) { throw TetrahedralizeFailure(); }
 			IF_DEBUG(NC_TNP, 0) SaveGridToFile(grid, sh, "after_tetrahedralize_"
 					"soma_and_before_fix_axial_parameters.ugx");
+			SaveGridToFile(grid, sh, "after_tetrahedralize_"
+								"soma_and_before_fix_axial_parameters.ugx");
 			UG_DLOGN(NC_TNP, 0, "num vertices after tet call: " << grid.num<Vertex>());
 
 			// restore old quadrilaterals
@@ -2662,11 +2680,20 @@ namespace ug {
 				number scaleFactor = (1.0-scale) * somaPoint.radius * 0.0125;
 				VecScale(vNormOut, vNormOut, scaleFactor);
 
+				vector<Face*> vFace;
 				for (size_t j = 0; j < quadCont[i]->size(); j++) vertices.push_back(quadCont[i]->vertex(j));
 				for (size_t j = 0; j < edges.size(); j++) vEdges.push_back(edges[j]);
+				vFace.push_back(quadCont[i]);
+				grid.flip_orientation(quadCont[i]);
 
 				/// extrude in normal direction with amount of "scale" of ER
-				Extrude(grid, &vertices, &vEdges, NULL, -vNormOut, aaPos, EO_CREATE_FACES | EO_CREATE_VOLUMES);
+				vector<Volume*> vVol;
+				Extrude(grid, &vertices, &vEdges, &vFace, -vNormOut, aaPos,
+								EO_CREATE_FACES | EO_CREATE_VOLUMES, &vVol);
+				UG_ASSERT(vVol.size() == 1, "Size of volume must be exactly 1.");
+				sh.assign_subset(vVol.front(), 1);
+
+
 				SavePreparedGridToFile(grid, sh, "after_extend_ER_within.ugx");
 				for (size_t j = 0; j < vertices.size(); j++) {
 					aaSurfParams[vertices[j]].axial = -scale/2.0;
@@ -3348,79 +3375,99 @@ namespace ug {
 			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
 			SmartPtr<NeuriteProjector> neuriteProj
 		) {
-		for (size_t i = 0; i < numDodecagons; i++) {
-			size_t siOuter = newSomaIndex-numDodecagons+i;
-			size_t siInner = newSomaIndex+1+i;
-			UG_LOGN("Calculating center of subset: " << siOuter);
-			UG_LOGN("Calculating center of subset: " << siInner);
-			vector3 c1 = CalculateCenter(sh.begin<Vertex>(siOuter), sh.end<Vertex>(siOuter), aaPos);
-			vector3 c2 = CalculateCenter(sh.begin<Vertex>(siInner), sh.end<Vertex>(siInner), aaPos);
-			vector3 dir;
-			VecSubtract(dir, c1, c2); // vec pointing towards outer soma sphere's dodecagon
-			neuriteProj->neurites()[i].vSBR.push_back(NeuriteProjector::SomaBranchingRegion(c2, -1, -1)); /// inner sphere
-			neuriteProj->neurites()[i].vSBR.push_back(NeuriteProjector::SomaBranchingRegion(c1, -1, -0.5)); /// outer sphere
+			for (size_t i = 0; i < numDodecagons; i++) {
+				size_t siOuter = newSomaIndex-numDodecagons+i;
+				size_t siInner = newSomaIndex+1+i;
+				UG_LOGN("Calculating center of subset: " << siOuter);
+				UG_LOGN("Calculating center of subset: " << siInner);
+				/// TODO: This is in direction of polygon on outer surface towards polygon center on inner surface: Should we extrude normal a bit?
+				vector3 c1 = CalculateCenter(sh.begin<Vertex>(siOuter), sh.end<Vertex>(siOuter), aaPos);
+				vector3 c2 = CalculateCenter(sh.begin<Vertex>(siInner), sh.end<Vertex>(siInner), aaPos);
+				vector3 dir;
+				VecSubtract(dir, c1, c2); // vec pointing towards outer soma sphere's dodecagon
+				neuriteProj->neurites()[i].vSBR.push_back(
+					NeuriteProjector::SomaBranchingRegion(c2, -1, -1)); /// inner sphere
+				neuriteProj->neurites()[i].vSBR.push_back(
+					NeuriteProjector::SomaBranchingRegion(c1, -1, -0.5)); /// outer sphere
 
-			Grid::traits<Vertex>::iterator vit = sh.begin<Vertex>(siInner);
-			Grid::traits<Vertex>::iterator vit_end = sh.end<Vertex>(siInner);
-			/// Store mapping of vertices
-			std::map<Vertex*, RegularVertex*> vertices;
+				Grid::traits<Vertex>::iterator vit = sh.begin<Vertex>(siInner);
+				Grid::traits<Vertex>::iterator vit_end = sh.end<Vertex>(siInner);
 
-			/// TODO: Should we extend this far from inner er to soma surface?
-			VecScale(dir, dir, 0.5);
-			for (; vit != vit_end; ++vit) {
-				Vertex* e = *vit;
-				ug::RegularVertex* v = *g.create<RegularVertex>();
-				sh.assign_subset(v, siOuter);
-				VecAdd(aaPos[v], aaPos[e], dir);
-				vertices[e] = v;
+				UG_LOGN("num edges: " << sh.num<Edge>(siInner));
+
+				Grid::traits<Edge>::iterator eit = sh.begin<Edge>(siInner);
+				Grid::traits<Edge>::iterator eit_end = sh.end<Edge>(siInner);
+				std::vector<Edge*> vEdges;
+				for (; eit != eit_end; ++eit) {
+					UG_LOGN("Edge...")
+					vEdges.push_back(*eit);
+				}
+
+				for (size_t j = 0; j < vEdges.size(); j++) {
+					UG_LOGN("Assign edge...")
+					sh.assign_subset(vEdges[j], 3); /// ERM
+				}
+
+				UG_LOGN("Num edges: " << vEdges.size());
+
+
+
+				/// TODO: Should we extend this far from inner er to soma surface (And this is not normal to face!)
+				std::vector<Vertex*> verticesNew;
+				VecScale(dir, dir, 0.5);
+				for (; vit != vit_end; ++vit) {
+					Vertex* e = *vit;
+					//ug::RegularVertex* v = *g.create<RegularVertex>();
+	//				sh.assign_subset(v, siOuter);
+					//VecAdd(aaPos[v], aaPos[e], dir);
+					verticesNew.push_back(e);
+					aaSurfParams[e].axial = -0.5; /// on inner sphere (ER) surface
+				}
+
+				UG_LOG("Orientating quad....")
+				std::vector<Vertex*> indices;
+				for (size_t k = 0; k < verticesNew.size(); k++) {
+					UG_LOGN("indices (old): " << aaPos[verticesNew[k]]);
+				}
+				orientate_quadrilateral(verticesNew, dir, c1, aaPos, g, indices);
+				for (size_t k = 0; k < verticesNew.size(); k++) {
+					UG_LOGN("indices (new): " << aaPos[indices[k]]);
+				}
+
+				Quadrilateral* q;
+				q = *g.create<Quadrilateral>(QuadrilateralDescriptor(indices[0], indices[1], indices[2], indices[3]));
+				sh.assign_subset(q, 3); /// ERM
+				for (size_t j = 0; j < verticesNew.size(); j++) {
+					sh.assign_subset(verticesNew[j], 3); /// ERM
+				}
+
+				UG_ASSERT(q, "Quadrilateral needs to be created.")
+
+				std::vector<Face*> vFace;
+				vFace.push_back(q);
+
+				vector<Volume*> vVol;
+				Extrude(g, &verticesNew, &vEdges, &vFace, dir, aaPos,
+							EO_CREATE_FACES | EO_CREATE_VOLUMES, &vVol);
+				UG_ASSERT(vVol.size() == 1, "Size of volume must be exactly 1.");
+				sh.assign_subset(vVol.front(), 1); // ER
+				for (size_t j = 0; j < vFace.size(); j++) {
+					sh.assign_subset(vFace[j], 3); // ERM
+				}
+
+				for (size_t j = 0; j < verticesNew.size(); j++) {
+					/// close to outer sphere (PM) surface (center of inner and outer surface)
+					aaSurfParams[verticesNew[j]].axial = -0.25;
+				}
+
+				size_t siOuterSphereInnerQuad = sh.num_subsets();
+				UG_LOGN("num subsets: " << sh.num_subsets());
+				for (size_t j = 0; j < verticesNew.size(); j++) {
+					sh.assign_subset(verticesNew[j], siOuterSphereInnerQuad+1+i);
+					//sh.assign_subset(verticesNew[j], siOuter);
+				}
 			}
-
-			Grid::traits<Edge>::iterator eit = sh.begin<Edge>(siInner);
-			Grid::traits<Edge>::iterator eit_end = sh.end<Edge>(siInner);
-			size_t siOuterSphereInnerQuad = sh.num_subsets();
-			for (; eit != eit_end; ++eit) {
-				Edge* e = *eit;
-				Vertex* v1 = e->vertex(0);
-				Vertex* v2 = e->vertex(1);
-				RegularEdge* v = *g.create<RegularEdge>(EdgeDescriptor(vertices[v1], vertices[v2]));
-				sh.assign_subset(v, siOuter);
-				UG_LOGN(aaPos[e->vertex(0)]);
-				UG_LOGN(aaPos[e->vertex(1)]);
-				UG_LOGN(aaPos[vertices[e->vertex(0)]]);
-				UG_LOGN(aaPos[vertices[e->vertex(1)]]);
-				Quadrilateral* q = *g.create<Quadrilateral>(QuadrilateralDescriptor(
-						e->vertex(0), e->vertex(1), vertices[e->vertex(1)], vertices[e->vertex(0)]));
-				Selector sel(g);
-				sel.select(q);
-				sel.select(g.get_edge(e->vertex(0), vertices[e->vertex(0)]));
-				sel.select(g.get_edge(e->vertex(1), vertices[e->vertex(1)]));
-
-				AssignSelectionToSubset(sel, sh, 3); /// erm
-				sel.clear();
-				sel.select(vertices[e->vertex(1)]);
-				sel.select(vertices[e->vertex(0)]);
-				sel.select(g.get_edge(vertices[e->vertex(0)], vertices[e->vertex(1)]));
-				AssignSelectionToSubset(sel, sh, siOuterSphereInnerQuad);
-				/// TODO: Dummy values to pretend to be inside soma for tetrahedralize
-				aaSurfParams[e->vertex(0)].axial = -0.5; /// on inner sphere (ER) surface
-				aaSurfParams[e->vertex(1)].axial = -0.5; /// on inner sphere (ER) surface
-				aaSurfParams[vertices[e->vertex(0)]].axial = -0.25; /// close to outer sphere (PM) surface
-				aaSurfParams[vertices[e->vertex(1)]].axial = -0.25; /// close to outer sphere (PM) surface
-				SaveGridToFile(g, sh, "after_first_connect.ugx");
-			}
-
-
-			/*
-			pair<Vertex*, Vertex*> me;
-			BOOST_FOREACH(me, vertices) {
-			  v.push_back(me.first);
-			  v.push_back(me.second);
-			}
-			*/
-
-			//Hexahedron* h = *g.create<Hexahedron>(HexahedronDescriptor(v[0], v[2], v[4], v[6], v[1], v[3], v[5], v[7]));
-			//sh.assign_subset(h, siOuter);
-			}
+			SaveGridToFile(g, sh, "after_first_connect.ugx");
 		}
 
 		////////////////////////////////////////////////////////////////////////
@@ -3469,22 +3516,52 @@ namespace ug {
 				UG_DLOGN(NC_TNP, 0, "Selecting index " << somaIndex-numNeurites+offset+i
 										   << " as index for projection to plane");
 				SelectSubsetElements<Vertex>(sel, sh, somaIndex-numNeurites+offset+i, true);
+				UG_LOGN("selecting subset: " << somaIndex-numNeurites+offset+i);
 				vector<Vertex*> vertsPolyA;
 				vit = sel.begin<Vertex>(); vit_end = sel.end<Vertex>();
 				for (; vit != vit_end; ++vit) { vertsPolyA.push_back(*vit); }
 
 				/// edges from poly A
-				std::vector<Edge*> edgesPolyA;
+				/*
 				sel.clear();
 				SelectSubsetElements<Edge>(sel, sh, somaIndex-numNeurites+offset+i, true);
+				UG_LOGN("selecting subset: " << somaIndex-numNeurites+offset+i);
+				/// TODO: get edges by double for loop...
 				eit = sel.begin<Edge>(); eit_end = sel.end<Edge>();
 				for (; eit != eit_end; ++eit) { edgesPolyA.push_back(*eit); }
+				*
+				*/
+
+				std::vector<Edge*> edgesPolyA;
+				size_t numVerts = vPolygonVertices[i].size();
+				sel.clear();
+				for (size_t l = 0; l < numVerts; l++) {
+					for (size_t m = 0; m < numVerts; m++) {
+						/// Try edge from l -> m
+						Edge* e = g.get_edge(vertsPolyA[l], vertsPolyA[m]);
+						if (e) {
+							if(std::find(edgesPolyA.begin(), edgesPolyA.end(), e) == edgesPolyA.end()) {
+								edgesPolyA.push_back(e);
+							}
+						} else {
+							/// Try edge from m -> l
+							e = g.get_edge(vertsPolyA[m], vertsPolyA[l]);
+							if (e) {
+								if(std::find(edgesPolyA.begin(), edgesPolyA.end(), e) == edgesPolyA.end()) {
+									edgesPolyA.push_back(e);
+								}
+							}
+						}
+					}
+				}
+
+				UG_LOG("edgesPolyA.size(): " << edgesPolyA.size());
+				UG_LOG("vertsPolyA.size(): " << vertsPolyA.size());
 
 				UG_ASSERT(edgesPolyA.size() == vertsPolyA.size(),
-						"Mismatch in number of vertices and edges for polygon B");
+						"Mismatch in number of vertices and edges for polygon A");
 
 				/// vertices from poly B
-				size_t numVerts = vPolygonVertices[i].size();
 				vector<Vertex*> vertsPolyB;
 				for (size_t l = 0; l < numVerts; l++) { vertsPolyB.push_back(vPolygonVertices[i][l]); }
 
@@ -3695,6 +3772,71 @@ namespace ug {
 			ug::vector3 cross;
 			VecCross(cross, CA, CB);
 			return VecDot(N, cross);
+		}
+
+		////////////////////////////////////////////////////////////////////////
+		/// orientate_quadrilateral
+		////////////////////////////////////////////////////////////////////////
+		void orientate_quadrilateral
+		(
+			const std::vector<Vertex*> vertices,
+			const ug::vector3& normal,
+			const ug::vector3& center,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos,
+			Grid& g,
+			std::vector<Vertex*>& indices
+		)
+		{
+			std::vector<Edge*> edgesPolyA;
+			size_t numVerts = vertices.size();
+			for (size_t l = 0; l < numVerts; l++) {
+				for (size_t m = 0; m < numVerts; m++) {
+					/// Try edge from l -> m
+					Edge* e = g.get_edge(vertices[l], vertices[m]);
+					if (e) {
+						if(std::find(edgesPolyA.begin(), edgesPolyA.end(), e) == edgesPolyA.end()) {
+							edgesPolyA.push_back(e);
+						}
+					} else {
+						/// Try edge from m -> l
+						e = g.get_edge(vertices[m], vertices[l]);
+						if (e) {
+							if(std::find(edgesPolyA.begin(), edgesPolyA.end(), e) == edgesPolyA.end()) {
+								edgesPolyA.push_back(e);
+							}
+						}
+					}
+				}
+			}
+
+			size_t i = 1;
+			ug::Vertex* currentVtx;
+			currentVtx = edgesPolyA[i]->vertex(0);
+			indices.push_back(currentVtx);
+			while (i < vertices.size()) {
+				for (size_t j = 0; j < edgesPolyA.size(); j++) {
+					if (edgesPolyA[j]->vertex(0) == currentVtx) {
+						const number winding = sgn(check_winding(normal,
+								aaPos[currentVtx], aaPos[edgesPolyA[j]->vertex(1)], center));
+						if (winding <= -1) {
+							currentVtx = edgesPolyA[j]->vertex(1);
+							indices.push_back(currentVtx);
+							i++;
+							continue;
+						}
+					}
+					if (edgesPolyA[j]->vertex(1) == currentVtx) {
+						const number winding = sgn(check_winding(normal,
+								aaPos[currentVtx], aaPos[edgesPolyA[j]->vertex(0)], center));
+						if (winding <= -1) {
+							currentVtx = edgesPolyA[j]->vertex(0);
+							indices.push_back(currentVtx);
+							i++;
+							continue;
+						}
+					}
+				}
+			}
 		}
 
 		////////////////////////////////////////////////////////////////////////
@@ -4109,6 +4251,25 @@ namespace ug {
 			EraseEmptySubsets(sh);
 			AssignSubsetColors(sh);
 			SaveGridToFile(grid, sh, "corrected_outliers.ugx");
+		}
+
+
+		////////////////////////////////////////////////////////////////////////
+		/// RescaleAttachment
+		////////////////////////////////////////////////////////////////////////
+		void RescaleAttachment(
+			const number scale,
+			Grid& grid
+		)
+		{
+			ANumber aDiam = GlobalAttachments::attachment<ANumber>("diameter");
+			UG_COND_THROW(grid.has_vertex_attachment(aDiam), "Grid has no vertex attachment of >>diameter<< type");
+			Grid::AttachmentAccessor<Vertex, ANumber> aaDiam(grid, aDiam);
+
+			ConstVertexIterator cit = grid.begin<Vertex>();
+			for (; cit != grid.end<Vertex>(); ++cit) {
+				aaDiam[*cit] *= scale;
+			}
 		}
 	}
 }
