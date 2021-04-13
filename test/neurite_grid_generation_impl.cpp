@@ -203,13 +203,14 @@ namespace ug {
 			// std::find_if(vPoints.begin(), vPoints.end(), FindSWCPoint(pos[0])) != vPoints.end();
 		}
 
-
+		/*
 		if (subsets && ! onlyCaps) {
 			subsets->vertices.push_back(*connectingVrts);
 			subsets->edges.push_back(*connectingEdges);
 			subsets->faces.push_back(*connectingFaces);
 			subsets->ts.push_back(0);
 		}
+		*/
 	} else {
 		// create first layer of vertices/edges //
 

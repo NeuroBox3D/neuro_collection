@@ -126,7 +126,7 @@ class NeuriteAxialRefinementMarker
 		typedef NeuriteProjector::SurfaceParams NPSP;
 		Grid::VertexAttachmentAccessor<Attachment<NPSP> > m_aaSurfParams;
 
-		SmartPtr<Domain3d> m_spDom;
+		mutable SmartPtr<Domain3d> m_spDom;
 
 };
 
