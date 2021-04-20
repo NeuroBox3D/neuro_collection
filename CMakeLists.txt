@@ -94,6 +94,8 @@ set(SOURCES neuro_collection_plugin.cpp
             util/hh_util.cpp
             util/misc_util.cpp
             util/neurite_axial_refinement_marker.cpp
+			util/mapping_attachment_copy_handler.cpp
+			util/vr_util_impl.cpp
    )
    
 set(SOURCES_TEST unit_tests/tests.cpp)

@@ -42,7 +42,7 @@
 
 namespace ug
 {
-        namespace cable_neuron
+        namespace neuro_collection
         {
                 ///////////////////////////////////////////////////////////////
                 /// copy_from_other_elem_type                               
@@ -71,7 +71,7 @@ namespace ug
                 ///////////////////////////////////////////////////////////////
                 void AddMappingAttachmentHandlerToGrid(SmartPtr<MultiGrid> grid)
                 {
-                        Attachment<NeuriteProjector::Mapping> aMapping = GlobalAttachments::attachment<Attachment<NeuriteProjector::Mapping>>("npMapping");
+                        Attachment<NeuriteProjector::Mapping> aMapping = GlobalAttachments::attachment<Attachment<NeuriteProjector::Mapping> >("npMapping");
                         UG_COND_THROW(!grid->has_attachment<Vertex>(aMapping),
                                       "Grid does not have a 'npMapping' attachment.");
 

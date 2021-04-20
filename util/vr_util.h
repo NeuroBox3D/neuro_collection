@@ -37,40 +37,17 @@
  * GNU Lesser General Public License for more details.
  */
 
-#ifndef UG__PLUGINS__NEURO_COLLECTION__UTIL__MAPPING_ATTACHMENT_COPY_HANDLER_H
-#define UG__PLUGINS__NEURO_COLLECTION__UTIL__MAPPING_ATTACHMENT_COPY_HANDLER_H
+#ifndef UG__PLUGINS__NEURO_COLLECTION__UTIL__VR_UTIL_H
+#define UG__PLUGINS__NEURO_COLLECTION__UTIL__VR_UTIL_H
 
-#include "lib_grid/grid/grid_base_objects.h"
-#include "lib_grid/tools/copy_attachment_handler.h"
-#include "lib_grid/refinement/projectors/neurite_projector.h"
-
-namespace ug
-{
-    namespace neuro_collection
-    {
-        /**
-         * @brief copy attachment handler for the mapping attachment
-         *
-         * The mapping vertex attachment needs to be propagated not only by copying from
-         * base vertices to their child vertices and grand-child vertices (and so on);
-         * it is also required on vertices that appear as children of refined edges.
-         * 
-         * Note that it is assumed, the mapping attachment handler is used only in
-         * conjunction with the NeuriteAxialRefinement marker and may fail otherwise!
+namespace ug {
+    namespace neuro_collection {
+        /*!
+         * \brief Write a 1d mesh from the 3d input mesh
+         * \param[in] filename name of 3d input mesh
          */
-        class MappingAttachmentHandler
-            : public CopyAttachmentHandler<Vertex, Attachment<NeuriteProjector::Mapping> >
-        {
-        public:
-            MappingAttachmentHandler(){};
-            virtual ~MappingAttachmentHandler(){};
+        void Write3dMeshTo1D(const std::string& filename);
+    }
+}
 
-        protected:
-            virtual void copy_from_other_elem_type(GridObject *parent, Vertex *child);
-        };
-
-        void AddMappingAttachmentHandlerToGrid(SmartPtr<MultiGrid> grid);
-    } // end namespace neuro_collection
-} // end namespace ug
-
-#endif // UG__PLUGINS__NEURO_COLLECTION__UTIL__MAPPING_ATTACHMENT_COPY_HANDLER_H
+#endif // UG__PLUGINS__NEURO_COLLECTION__UTIL__VR_UTIL_H
