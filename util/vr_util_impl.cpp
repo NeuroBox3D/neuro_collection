@@ -75,28 +75,27 @@ namespace ug {
             /// Some room for optimization below
             MGSubsetHandler* sh = dom.subset_handler().get();
             std::map<vector3, std::vector<vector3> > edgePairs;
-            std::map<vector3, std::vector<int> > fromSI;
-            std::map<vector3, std::vector<int> > toSI;
             std::map<vector3, std::vector<number> > fromDiam;
             std::map<vector3, std::vector<number> > toDiam;
+            std::map<vector3, std::vector<int> > fromSI;
+            std::map<vector3, std::vector<int> > toSI;
 	    	for (; eit != eit_end; ++eit) {
                 const Edge* e = *eit;
                 const NeuriteProjector::Mapping& m1 = aaMapping[e->vertex(0)];
                 const NeuriteProjector::Mapping& m2 = aaMapping[e->vertex(1)];
 
-                /// At branching regions, we generate still one wrong edge
+                /// At branching regions do not create edges between child neurites
                 if (aaSurfaceParams[e->vertex(0)].neuriteID != aaSurfaceParams[e->vertex(1)].neuriteID) {
-                    /// TODO: FIXME
                     continue;
                 }
 
-                /// If v1 and v2 are not on an edge of a polygon (radial)
+                /// Only if v1 and v2 are not an edge of a (radial) polygon we create an axial edge along the neurite
                 if (! ((m1.v1 == m2.v1) || (m1.v2 == m2.v2)) || (m1.v1 == m2.v2) || (m1.v2 == m2.v1) ) {
                     edgePairs[m1.v1].push_back(m2.v1);
-                    fromSI[m1.v1].push_back(sh->get_subset_index(e->vertex(0)));
-                    toSI[m1.v1].push_back(sh->get_subset_index(e->vertex(1)));
                     fromDiam[m1.v1].push_back(aaSurfaceParams[e->vertex(0)].radial);
                     toDiam[m1.v1].push_back(aaSurfaceParams[e->vertex(1)].radial);
+                    toSI[m1.v1].push_back(sh->get_subset_index(e->vertex(1)));
+                    fromSI[m1.v1].push_back(sh->get_subset_index(e->vertex(0)));
                 }
 	    	}
 
@@ -119,15 +118,17 @@ namespace ug {
                     aaPos[v2] = edges.second[i];
                     aaDiam[v1] = fromDiam[edges.first][i];
                     aaDiam[v2] = toDiam[edges.first][i];
-                    /*
-                    sh2.assign_subset(v1, fromSI[edges.first]);
-                    sh2.assign_subset(v2, toSI[edges.second][i]);
-                    sh2.assign_subset(e, toSI[edges.second][i]);
-                    */
+                    sh2.assign_subset(v1, fromSI[edges.first][i]);
+                    sh2.assign_subset(v2, toSI[edges.first][i]);
+                    sh2.assign_subset(e, toSI[edges.first][i]);
                 }
             }
 
             /// Save the mesh
+            RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
+            AssignSubsetColors(sh2);
+            sh2.subset_info(0).name = "Neurites";
+            sh2.subset_info(1).name = "Soma";
             SaveGridToFile(g, sh2, "1dmesh.ugx");
         }
     }
