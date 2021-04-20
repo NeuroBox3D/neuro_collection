@@ -59,44 +59,44 @@ namespace ug {
             Attachment<NeuriteProjector::Mapping> aMapping = GlobalAttachments::attachment<Attachment<NeuriteProjector::Mapping> >("npMapping");
             UG_COND_THROW(!dom.grid().get()->has_attachment<Vertex>(aMapping), "Grid does not have a 'npMapping' attachment.");
             Attachment<NeuriteProjector::SurfaceParams> aSurfaceParams = GlobalAttachments::attachment<Attachment<NeuriteProjector::SurfaceParams> > ("npSurfParams");
-            UG_COND_THROW(!dom.grid().get()->has_attachment<Vertex>(aSurfaceParams), "Grid does not have a 'npSurfParams' attachmetn.");
+            UG_COND_THROW(!dom.grid().get()->has_attachment<Vertex>(aSurfaceParams), "Grid does not have a 'npSurfParams' attachment.");
 	    	Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::Mapping> > aaMapping(*dom.grid(), aMapping);
 	    	Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::SurfaceParams> > aaSurfaceParams(*dom.grid(), aSurfaceParams);
             /// Set 1d mesh's diameter attachment
-            ANumber aDiam = GlobalAttachments::attachment<ANumber>("diameter");
+            ANumber aDiam = GlobalAttachments::attachment<ANumber>("diameter"); 
 
             /// Iterate over 3d mesh's edges to generate a 1d mesh
             ConstEdgeIterator eit = dom.grid().get()->begin<Edge>();
 		    ConstEdgeIterator eit_end = dom.grid().get()->end<Edge>();
 
+            dom.grid().get()->attach_to_vertices(aPosition);
+            Grid::VertexAttachmentAccessor<APosition> aaPos2(*dom.grid().get(), aPosition);
+
             /// Some room for optimization below
             MGSubsetHandler* sh = dom.subset_handler().get();
-            std::map<vector3, vector3> edgePairs;
-            std::map<vector3, int> fromSI;
-            std::map<vector3, int> toSI;
-            std::map<vector3, number> fromDiam;
-            std::map<vector3, number> toDiam;
+            std::map<vector3, std::vector<vector3> > edgePairs;
+            std::map<vector3, std::vector<int> > fromSI;
+            std::map<vector3, std::vector<int> > toSI;
+            std::map<vector3, std::vector<number> > fromDiam;
+            std::map<vector3, std::vector<number> > toDiam;
 	    	for (; eit != eit_end; ++eit) {
                 const Edge* e = *eit;
                 const NeuriteProjector::Mapping& m1 = aaMapping[e->vertex(0)];
                 const NeuriteProjector::Mapping& m2 = aaMapping[e->vertex(1)];
-                /// If v1 and v2 are not on an edge of a polygon (radial)
-                if (! ((m1.v1 == m2.v1) || (m1.v2 == m2.v2)) ) {
-                   if ( edgePairs.find(m1.v1) == edgePairs.end() ) { 
-                        edgePairs[m1.v1] = m2.v1;
-                        fromSI[m1.v1] = sh->get_subset_index(e->vertex(0));
-                        fromSI[m1.v2] = sh->get_subset_index(e->vertex(1));
-                        fromDiam[m1.v1] = aaSurfaceParams[e->vertex(0)].radial;
-                        toDiam[m1.v2] = aaSurfaceParams[e->vertex(1)].radial;
-                   } 
 
-                   if ( edgePairs.find(m2.v1) == edgePairs.end() ) {
-                        edgePairs[m1.v1] = m2.v1;
-                        fromSI[m1.v1] = sh->get_subset_index(e->vertex(0));
-                        fromSI[m1.v2] = sh->get_subset_index(e->vertex(1));
-                        fromDiam[m1.v1] = aaSurfaceParams[e->vertex(0)].radial;
-                        toDiam[m1.v2] = aaSurfaceParams[e->vertex(1)].radial;
-                   }
+                /// At branching regions, we generate still one wrong edge
+                if (aaSurfaceParams[e->vertex(0)].neuriteID != aaSurfaceParams[e->vertex(1)].neuriteID) {
+                    /// TODO: FIXME
+                    continue;
+                }
+
+                /// If v1 and v2 are not on an edge of a polygon (radial)
+                if (! ((m1.v1 == m2.v1) || (m1.v2 == m2.v2)) || (m1.v1 == m2.v2) || (m1.v2 == m2.v1) ) {
+                    edgePairs[m1.v1].push_back(m2.v1);
+                    fromSI[m1.v1].push_back(sh->get_subset_index(e->vertex(0)));
+                    toSI[m1.v1].push_back(sh->get_subset_index(e->vertex(1)));
+                    fromDiam[m1.v1].push_back(aaSurfaceParams[e->vertex(0)].radial);
+                    toDiam[m1.v1].push_back(aaSurfaceParams[e->vertex(1)].radial);
                 }
 	    	}
 
@@ -108,19 +108,23 @@ namespace ug {
             Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
             Grid::VertexAttachmentAccessor<ANumber> aaDiam(g, aDiam);
 
-            for (auto const& edge : edgePairs)
+            for (auto const& edges : edgePairs)
             {
-                RegularVertex* v1 = *g.create<RegularVertex>();
-                RegularVertex* v2 = *g.create<RegularVertex>();
-                RegularEdge* e = *g.create<RegularEdge>(EdgeDescriptor(v1, v2));
+                for (size_t i = 0; i < edges.second.size()-1; i++) {
+                    RegularVertex* v1 = *g.create<RegularVertex>();
+                    RegularVertex* v2 = *g.create<RegularVertex>();
+                    RegularEdge* e = *g.create<RegularEdge>(EdgeDescriptor(v1, v2));
 
-                aaPos[v1] = edge.first;
-                aaPos[v2] = edge.second;
-                aaDiam[v1] = fromDiam[edge.first];
-                aaDiam[v2] = toDiam[edge.second];
-                sh2.assign_subset(v1, fromSI[edge.first]);
-                sh2.assign_subset(v2, toSI[edge.second]);
-                sh2.assign_subset(e, toSI[edge.second]);
+                    aaPos[v1] = edges.first;
+                    aaPos[v2] = edges.second[i];
+                    aaDiam[v1] = fromDiam[edges.first][i];
+                    aaDiam[v2] = toDiam[edges.first][i];
+                    /*
+                    sh2.assign_subset(v1, fromSI[edges.first]);
+                    sh2.assign_subset(v2, toSI[edges.second][i]);
+                    sh2.assign_subset(e, toSI[edges.second][i]);
+                    */
+                }
             }
 
             /// Save the mesh
