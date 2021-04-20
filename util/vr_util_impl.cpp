@@ -110,7 +110,7 @@ namespace ug {
 
             for (auto const& edges : edgePairs)
             {
-                for (size_t i = 0; i < edges.second.size()-1; i++) {
+                for (size_t i = 0; i < edges.second.size(); i++) {
                     RegularVertex* v1 = *g.create<RegularVertex>();
                     RegularVertex* v2 = *g.create<RegularVertex>();
                     RegularEdge* e = *g.create<RegularEdge>(EdgeDescriptor(v1, v2));
