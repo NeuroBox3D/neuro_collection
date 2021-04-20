@@ -113,7 +113,8 @@
 #include "lib_disc/function_spaces/grid_function.h"
 
 #include "test/neurite_math_util.h"
-
+#include "util/vr_util.h"
+#include "util/mapping_attachment_copy_handler.h"
 
 using namespace std;
 using namespace ug::bridge;
@@ -1050,6 +1051,12 @@ static void Common(Registry& reg, string grp)
 	// misc util
 	{
 		reg.add_function("GetCoordinatesFromVertexByIndex", &GetCoordinatesFromVertexByIndex, grp.c_str(), "coordinates", "grid#index", "");
+	}
+
+	// vr util and copy attachment handlers
+	{
+		reg.add_function("Write3dMeshTo1d", &Write3dMeshTo1d, grp.c_str(), "filename", "");
+		reg.add_function("AddMappingAttachmentHandlerToGrid", &AddMappingAttachmentHandlerToGrid, grp.c_str(), "", "grid", "When added, the MappingAttachmentHandler will propagate global mapping attachments");
 	}
 }
 

@@ -63,14 +63,14 @@ namespace ug {
 	    	Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::Mapping> > aaMapping(*dom.grid(), aMapping);
 	    	Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::SurfaceParams> > aaSurfaceParams(*dom.grid(), aSurfaceParams);
             /// Set 1d mesh's diameter attachment
-            ANumber aDiam = GlobalAttachments::attachment<ANumber>("diam");
+            ANumber aDiam = GlobalAttachments::attachment<ANumber>("diameter");
 
             /// Iterate over 3d mesh's edges to generate a 1d mesh
             ConstEdgeIterator eit = dom.grid().get()->begin<Edge>();
 		    ConstEdgeIterator eit_end = dom.grid().get()->end<Edge>();
 
             /// Some room for optimization below
-            SubsetHandler sh(*dom.grid().get());
+            MGSubsetHandler* sh = dom.subset_handler().get();
             std::map<vector3, vector3> edgePairs;
             std::map<vector3, int> fromSI;
             std::map<vector3, int> toSI;
@@ -80,41 +80,51 @@ namespace ug {
                 const Edge* e = *eit;
                 const NeuriteProjector::Mapping& m1 = aaMapping[e->vertex(0)];
                 const NeuriteProjector::Mapping& m2 = aaMapping[e->vertex(1)];
-                if (! (m1.v1 == m2.v1 || m2.v2 == m2.v2)) {
-                    if (edgePairs.find(m1.v1) != edgePairs.end()) {
+                /// If v1 and v2 are not on an edge of a polygon (radial)
+                if (! ((m1.v1 == m2.v1) || (m1.v2 == m2.v2)) ) {
+                   if ( edgePairs.find(m1.v1) == edgePairs.end() ) { 
                         edgePairs[m1.v1] = m2.v1;
-                        fromSI[m1.v1] = sh.get_subset_index(e->vertex(0));
-                        fromSI[m1.v2] = sh.get_subset_index(e->vertex(1));
+                        fromSI[m1.v1] = sh->get_subset_index(e->vertex(0));
+                        fromSI[m1.v2] = sh->get_subset_index(e->vertex(1));
                         fromDiam[m1.v1] = aaSurfaceParams[e->vertex(0)].radial;
                         toDiam[m1.v2] = aaSurfaceParams[e->vertex(1)].radial;
-                    }
+                   } 
+
+                   if ( edgePairs.find(m2.v1) == edgePairs.end() ) {
+                        edgePairs[m1.v1] = m2.v1;
+                        fromSI[m1.v1] = sh->get_subset_index(e->vertex(0));
+                        fromSI[m1.v2] = sh->get_subset_index(e->vertex(1));
+                        fromDiam[m1.v1] = aaSurfaceParams[e->vertex(0)].radial;
+                        toDiam[m1.v2] = aaSurfaceParams[e->vertex(1)].radial;
+                   }
                 }
 	    	}
 
             /// Produce 1d mesh from 3d mesh
             Grid g;
+            SubsetHandler sh2(g);
             g.attach_to_vertices(aPosition);
             g.attach_to_vertices(aDiam);
             Grid::VertexAttachmentAccessor<APosition> aaPos(g, aPosition);
             Grid::VertexAttachmentAccessor<ANumber> aaDiam(g, aDiam);
 
-            for (auto const& x : edgePairs)
+            for (auto const& edge : edgePairs)
             {
                 RegularVertex* v1 = *g.create<RegularVertex>();
                 RegularVertex* v2 = *g.create<RegularVertex>();
                 RegularEdge* e = *g.create<RegularEdge>(EdgeDescriptor(v1, v2));
 
-                aaPos[v1] = x.first;
-                aaPos[v2] = x.second;
-                aaDiam[v1] = fromDiam[x.first];
-                aaDiam[v2] = toDiam[x.second];
-                sh.assign_subset(v1, fromSI[x.first]);
-                sh.assign_subset(v2, toSI[x.second]);
-                sh.assign_subset(e, toSI[x.second]);
+                aaPos[v1] = edge.first;
+                aaPos[v2] = edge.second;
+                aaDiam[v1] = fromDiam[edge.first];
+                aaDiam[v2] = toDiam[edge.second];
+                sh2.assign_subset(v1, fromSI[edge.first]);
+                sh2.assign_subset(v2, toSI[edge.second]);
+                sh2.assign_subset(e, toSI[edge.second]);
             }
-            
+
             /// Save the mesh
-            SaveGridToFile(g, sh, "1dmesh.ugx");
+            SaveGridToFile(g, sh2, "1dmesh.ugx");
         }
     }
 }

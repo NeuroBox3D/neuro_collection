@@ -62,13 +62,24 @@ namespace ug
             : public CopyAttachmentHandler<Vertex, Attachment<NeuriteProjector::Mapping> >
         {
         public:
+            /// Ctor
             MappingAttachmentHandler(){};
+            /// Dtor
             virtual ~MappingAttachmentHandler(){};
 
         protected:
+            /*!
+             * \brief Copy from other elem type to child 
+             * \param[in] parent 
+             * \param[out] child
+             */ 
             virtual void copy_from_other_elem_type(GridObject *parent, Vertex *child);
         };
 
+        /**
+         * \brief Add the mapping attachment handler to the grid
+         * \param[in] grid
+         */
         void AddMappingAttachmentHandlerToGrid(SmartPtr<MultiGrid> grid);
     } // end namespace neuro_collection
 } // end namespace ug

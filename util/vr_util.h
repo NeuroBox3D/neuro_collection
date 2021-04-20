@@ -46,7 +46,7 @@ namespace ug {
          * \brief Write a 1d mesh from the 3d input mesh
          * \param[in] filename name of 3d input mesh
          */
-        void Write3dMeshTo1D(const std::string& filename);
+        void Write3dMeshTo1d(const std::string& filename);
     }
 }
 
