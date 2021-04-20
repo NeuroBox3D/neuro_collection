@@ -5683,7 +5683,7 @@ void create_spline_data_for_neurites
 		sh.subset_info(1).name = "Soma";
 		AssignSubsetColors(sh);
 		EraseEmptySubsets(sh);
-		set_somata_mapping_parameters(g, sh, aaMapping, 1, 1, vSomaPoints.front());
+		set_somata_mapping_parameters(g, sh, aaMapping, 1, 1, vSomaPoints.front(), vPos, vRootNeuriteIndsOut, aaPos);
 
 		/// save quadrilateral mesh
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements.ugx");

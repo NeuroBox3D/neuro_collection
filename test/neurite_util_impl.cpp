@@ -1750,6 +1750,69 @@ namespace ug {
 		}
 
 		////////////////////////////////////////////////////////////////////////
+		/// set_somata_mapping_parameters
+		////////////////////////////////////////////////////////////////////////
+		void set_somata_mapping_parameters
+		(
+			Grid& g,
+			SubsetHandler& sh,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::Mapping> >& aaMapping,
+			size_t somaIndex,
+			size_t erIndex,
+			const SWCPoint& somaPoint,
+			const std::vector<std::vector<vector3> >& vPos,
+			const std::vector<size_t>& vRootNeuriteIndsOut,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos
+		) {
+			Selector sel(g);
+			/// Populate root points
+			std::vector<vector3> rootPoints;
+			for (size_t i = 0; i < vRootNeuriteIndsOut.size(); i++) {
+				rootPoints.push_back(vPos[vRootNeuriteIndsOut[i]][0]);
+			}
+			/// Find closest soma triangle vertex for each root neurite point for soma surface
+			SelectSubset(sel, sh, somaIndex, true);
+			CloseSelection(sel);
+			Selector::traits<Vertex>::iterator vit = sel.vertices_begin();
+			Selector::traits<Vertex>::iterator vit_end = sel.vertices_end();
+			for (; vit != vit_end; ++vit) {
+				ug::Vertex* v = *vit;
+				number dist = std::numeric_limits<number>::infinity();
+				int closest = -1;
+				for (size_t i = 0; i < rootPoints.size(); i++) {
+					if (VecDistance(aaPos[v], rootPoints[i]) < dist) {
+						closest = i;
+					}
+				}
+				UG_ASSERT(closest != -1, "No closest vertex found.")
+				aaMapping[*vit].lambda = 0;
+				aaMapping[*vit].v1 = somaPoint.coords;
+				aaMapping[*vit].v2 = rootPoints[closest];
+			}
+			sel.clear();
+
+			/// Find closest soma triangle vertex for each root neurite point for ER surface
+			SelectSubset(sel, sh, erIndex, true);
+			CloseSelection(sel);
+			vit = sel.vertices_begin();
+			vit_end = sel.vertices_end();
+			for (; vit != vit_end; ++vit) {
+				ug::Vertex* v = *vit;
+				number dist = std::numeric_limits<number>::infinity();
+				int closest = -1;
+				for (size_t i = 0; i < rootPoints.size(); i++) {
+					if (VecDistance(aaPos[v], rootPoints[i]) < dist) {
+						closest = i;
+					}
+				}
+				UG_ASSERT(closest != -1, "No closest vertex found.")
+				aaMapping[*vit].lambda = 0;
+				aaMapping[*vit].v1 = somaPoint.coords;
+				aaMapping[*vit].v2 = rootPoints[closest];
+			}
+		}
+
+		////////////////////////////////////////////////////////////////////////
 		/// set_somata_axial_parameters
 		////////////////////////////////////////////////////////////////////////
 		void set_somata_axial_parameters

@@ -1165,6 +1165,22 @@ namespace ug {
 		);
 
 		/*!
+		 * \brief set somata mapping parameters
+		 */
+		void set_somata_mapping_parameters
+		(
+			Grid& g,
+			SubsetHandler& sh,
+			Grid::VertexAttachmentAccessor<Attachment<NeuriteProjector::Mapping> >& aaMapping,
+			size_t somaIndex,
+			size_t erIndex,
+			const SWCPoint& somaPoint,
+			const std::vector<std::vector<vector3> >& vPos,
+			const std::vector<size_t>& vRootNeuriteIndsOut,
+			Grid::VertexAttachmentAccessor<APosition>& aaPos
+		);
+
+		/*!
 		 * \brief check if an edge is a root edge
 		 * \param[in] edge
 		 * \param[in] vPoints
