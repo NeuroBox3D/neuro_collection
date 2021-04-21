@@ -46,7 +46,24 @@ namespace ug {
          * \brief Write a 1d mesh from the 3d input mesh
          * \param[in] filename name of 3d input mesh
          */
-        void Write3dMeshTo1d(const std::string& filename);
+        void Write3dMeshTo1d
+        (
+            const std::string& filename
+        );
+
+        /*!
+         * \brief Get the radius information from a 3d vertex
+         * \param[in] vertex a 3d vertex from a mesh
+         * \param[in] aaSurfParams surface parameters
+         * \param[in] vNeurites neurites with sections
+         * \return \c number for the radius 
+         */
+        number GetRadius
+        (
+            const Vertex* const vertex, 
+            const Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+            const std::vector<NeuriteProjector::Neurite>& vNeurites
+        );
     }
 }
 

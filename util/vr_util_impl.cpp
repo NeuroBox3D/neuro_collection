@@ -47,9 +47,13 @@
 namespace ug {
     namespace neuro_collection {
         ///////////////////////////////////////////////////////////////////////
-        /// Write3dMeshTo1D
+        /// Write3dMeshTo1d
         ///////////////////////////////////////////////////////////////////////
-        void Write3dMeshTo1d(const std::string& filename) {
+        void Write3dMeshTo1d
+        (
+            const std::string& filename
+        ) 
+        {
             /// Load 3d mesh
 	        Domain3d dom;
         	try {LoadDomain(dom, filename.c_str());}
@@ -91,15 +95,25 @@ namespace ug {
 
                 /// Only if v1 and v2 are not an edge of a (radial) polygon we create an axial edge along the neurite
                 if (! ((m1.v1 == m2.v1) || (m1.v2 == m2.v2)) || (m1.v1 == m2.v2) || (m1.v2 == m2.v1) ) {
-                    edgePairs[m1.v1].push_back(m2.v1);
-                    fromDiam[m1.v1].push_back(aaSurfaceParams[e->vertex(0)].radial);
-                    toDiam[m1.v1].push_back(aaSurfaceParams[e->vertex(1)].radial);
-                    toSI[m1.v1].push_back(sh->get_subset_index(e->vertex(1)));
-                    fromSI[m1.v1].push_back(sh->get_subset_index(e->vertex(0)));
+                    std::vector<vector3>::iterator itFrom, itFrom2;
+                    std::vector<vector3>::iterator itTo, itTo2;
+                    itFrom = std::find (edgePairs[m1.v1].begin(), edgePairs[m1.v1].end(), m1.v1);
+                    itTo = std::find (edgePairs[m2.v1].begin(), edgePairs[m2.v1].end(), m2.v1);
+                    itFrom2 = std::find (edgePairs[m1.v1].begin(), edgePairs[m1.v1].end(), m2.v1);
+                    itTo2 = std::find (edgePairs[m2.v1].begin(), edgePairs[m2.v1].end(), m1.v1);
+                    /// Only if v1 and v2 have not yet been created yet 
+                    if ((itFrom  == edgePairs[m1.v1].end() && itTo  == edgePairs[m2.v1].end()) &&
+                        (itFrom2 == edgePairs[m1.v1].end() && itTo2 == edgePairs[m2.v1].end())) {
+                       edgePairs[m1.v1].push_back(m2.v1);
+                       fromDiam[m1.v1].push_back(aaSurfaceParams[e->vertex(0)].radial);
+                       toDiam[m1.v1].push_back(aaSurfaceParams[e->vertex(1)].radial);
+                       toSI[m1.v1].push_back(sh->get_subset_index(e->vertex(1)));
+                       fromSI[m1.v1].push_back(sh->get_subset_index(e->vertex(0)));
+                    }
                 }
 	    	}
 
-            /// Produce 1d mesh from 3d mesh
+            /// Generate 1d mesh from 3d mesh
             Grid g;
             SubsetHandler sh2(g);
             g.attach_to_vertices(aPosition);
@@ -110,26 +124,90 @@ namespace ug {
             for (auto const& edges : edgePairs)
             {
                 for (size_t i = 0; i < edges.second.size(); i++) {
-                    RegularVertex* v1 = *g.create<RegularVertex>();
-                    RegularVertex* v2 = *g.create<RegularVertex>();
-                    RegularEdge* e = *g.create<RegularEdge>(EdgeDescriptor(v1, v2));
 
-                    aaPos[v1] = edges.first;
-                    aaPos[v2] = edges.second[i];
-                    aaDiam[v1] = fromDiam[edges.first][i];
-                    aaDiam[v2] = toDiam[edges.first][i];
-                    sh2.assign_subset(v1, fromSI[edges.first][i]);
-                    sh2.assign_subset(v2, toSI[edges.first][i]);
-                    sh2.assign_subset(e, toSI[edges.first][i]);
+                    Vertex* v1;
+                    Vertex* v2;
+                    bool create;
+
+                    Vertex* vv = FindClosestByCoordinate<Vertex>(edges.first, g.vertices_begin(), g.vertices_end(), aaPos);
+                    if (!vv) {
+                        v1 = *g.create<RegularVertex>();
+                        create = true;
+                    } else {
+                        if (VecDistance(aaPos[vv], edges.first) > SMALL) {
+                            v1 = *g.create<RegularVertex>();
+                            create = true;
+                        } else {
+                            v1 = vv;
+                        }
+                    }
+
+                    Vertex* vv2 = FindClosestByCoordinate<Vertex>(edges.second[i], g.vertices_begin(), g.vertices_end(), aaPos);
+                    if (!vv2) {
+                        v2 = *g.create<RegularVertex>();
+                        create = true;
+                    } else {
+                        if (VecDistance(aaPos[vv2], edges.second[i]) > SMALL) {
+                            v2 = *g.create<RegularVertex>();
+                            create = true;
+                        } else {
+                            v2 = vv2;
+                        }
+                    }
+
+                    if (create) {
+                        RegularEdge* e = *g.create<RegularEdge>(EdgeDescriptor(v1, v2));
+                        aaPos[v1] = edges.first;
+                        aaPos[v2] = edges.second[i];
+                        aaDiam[v1] = fromDiam[edges.first][i];
+                        aaDiam[v2] = toDiam[edges.first][i];
+                        sh2.assign_subset(v1, fromSI[edges.first][i]);
+                        sh2.assign_subset(v2, toSI[edges.first][i]);
+                        sh2.assign_subset(e, toSI[edges.first][i]);
+                    }
                 }
             }
 
-            /// Save the mesh
-            RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
+            /// Save the mesh 
+            EraseEmptySubsets(sh2);
             AssignSubsetColors(sh2);
-            sh2.subset_info(0).name = "Neurites";
-            sh2.subset_info(1).name = "Soma";
+            sh2.subset_info(0).name = "Soma";
+            sh2.subset_info(1).name = "Neurite";
             SaveGridToFile(g, sh2, "1dmesh.ugx");
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+        /// GetRadius
+        ///////////////////////////////////////////////////////////////////////
+        number GetRadius
+        (
+            const Vertex* const vertex, 
+            const Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
+            const std::vector<NeuriteProjector::Neurite>& vNeurites
+        ) {
+            /// Parameters for vertex
+            uint32_t neuriteID = aaSurfParams[vertex].neuriteID;
+            float t = aaSurfParams[vertex].axial;
+            float angle = aaSurfParams[vertex].angular;
+            float rad = aaSurfParams[vertex].radial;
+
+            const uint32_t plainNID = (neuriteID << 12) >> 12;
+            NeuriteProjector::Section cmpSec(t);
+            const NeuriteProjector::Neurite& neurite = vNeurites[plainNID];
+            std::vector<NeuriteProjector::Section>::const_iterator secIt =
+            std::lower_bound(neurite.vSec.begin(), neurite.vSec.end(), cmpSec, NeuriteProjector::CompareSections());
+            UG_COND_THROW(secIt == neurite.vSec.end(), "Could not find section for parameter t = " << t << " in neurite " << neuriteID << ".");
+
+            /// Get correct radius for the associated 3d vertex
+            vector3 posAx, vel;
+            number radius;
+            number te = secIt->endParam;
+            const number* s = &secIt->splineParamsX[0];
+            s = &secIt->splineParamsR[0];
+            radius = s[0]*(te-t) + s[1];
+            radius = radius*(te-t) + s[2];
+            radius = radius*(te-t) + s[3];
+            return radius;
         }
     }
 }
