@@ -171,8 +171,8 @@ namespace ug {
             /// Save the mesh 
             EraseEmptySubsets(sh2);
             AssignSubsetColors(sh2);
-            sh2.subset_info(0).name = "Soma";
-            sh2.subset_info(1).name = "Neurite";
+            sh2.subset_info(0).name = "Neurite";
+            sh2.subset_info(1).name = "Soma";
             SaveGridToFile(g, sh2, "1dmesh.ugx");
         }
 
