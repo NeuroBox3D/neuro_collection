@@ -71,7 +71,7 @@ namespace ug {
         number GetRadius
         (
             const Vertex* const vertex, 
-            const Domain3d* const dom
+            SmartPtr<Domain3d> dom
         );
     }
 }

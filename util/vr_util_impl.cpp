@@ -102,10 +102,10 @@ namespace ug {
                     if ((itFrom  == edgePairs[m1.v1].end() && itTo  == edgePairs[m2.v1].end()) &&
                         (itFrom2 == edgePairs[m1.v1].end() && itTo2 == edgePairs[m2.v1].end())) {
                        edgePairs[m1.v1].push_back(m2.v1);
-                       fromDiam[m1.v1].push_back(aaSurfaceParams[e->vertex(0)].radial);
-                       toDiam[m1.v1].push_back(aaSurfaceParams[e->vertex(1)].radial);
-                       //fromDiam[m1.v1].push_back(GetRadius(e->vertex(0), dom.get()));
-                       //toDiam[m1.v1].push_back(GetRadius(e->vertex(1), dom.get()));
+                       //fromDiam[m1.v1].push_back(aaSurfaceParams[e->vertex(0)].radial);
+                       //toDiam[m1.v1].push_back(aaSurfaceParams[e->vertex(1)].radial);
+                       fromDiam[m1.v1].push_back(GetRadius(e->vertex(0), dom));
+                       toDiam[m1.v1].push_back(GetRadius(e->vertex(1), dom));
                        toSI[m1.v1].push_back(sh->get_subset_index(e->vertex(1)));
                        fromSI[m1.v1].push_back(sh->get_subset_index(e->vertex(0)));
                     }
@@ -195,21 +195,35 @@ namespace ug {
         number GetRadius
         (
             const Vertex* const vertex, 
-            const Domain3d* const dom
+            SmartPtr<Domain3d> dom
         ) {
-            /// Get the Neuriteprojector from the domain
+            /// Get the NeuriteProjector from the domain
             auto GetNeuriteProjector = [&]() -> NeuriteProjector* 
             {
                 auto ph = dynamic_cast<ProjectionHandler*>(dom->refinement_projector().get());
                 UG_COND_THROW(!ph, "No projection handler available in the provided domain.")
-                auto np = dynamic_cast<NeuriteProjector*>(ph->default_projector().get());
+                /// Assume neurite projector is the default projector in the domain
+                auto np = (NeuriteProjector*) dynamic_cast<NeuriteProjector*>(ph->default_projector().get());
+                if (!np) {
+                   /// If neurite projector not the default projector, try all other projectors in domain
+                   for (size_t i = 0; i < ph->num_projectors(); i++) {
+                       np = dynamic_cast<NeuriteProjector*>(ph->projector(i).get());
+                       if (np) {
+                           return np;
+                       }
+                   }
+                }
+                /// Not any neurite projector found in the list of possible projectors
                 UG_COND_THROW(!np, "Neurite projector not available in the provided domain.");
-                return np;
             };
 
             /// Get the NeuriteProjector from the domain and the surface parameters
             auto np = GetNeuriteProjector();
-            const Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams = np->surface_params_accessor();
+
+            /// Surface parameters
+            Attachment<NeuriteProjector::SurfaceParams> aSurfParams = GlobalAttachments::attachment<Attachment<NeuriteProjector::SurfaceParams> > ("npSurfParams");
+          	Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::SurfaceParams> > aaSurfParams = np->surface_params_accessor();
+            aaSurfParams.access(*dom->grid().get(), aSurfParams);
 
             /// Parameters for vertex
             uint32_t neuriteID = aaSurfParams[vertex].neuriteID;
