@@ -5688,7 +5688,6 @@ void create_spline_data_for_neurites
 
 		/// save quadrilateral mesh
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements.ugx");
-		Write3dMeshTo1d("after_selecting_boundary_elements.ugx");
 		
 		Triangulate(g, g.begin<ug::Quadrilateral>(), g.end<ug::Quadrilateral>());
 		/// apply a hint of laplacian smoothing for soma region

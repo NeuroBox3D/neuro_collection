@@ -40,29 +40,38 @@
 #ifndef UG__PLUGINS__NEURO_COLLECTION__UTIL__VR_UTIL_H
 #define UG__PLUGINS__NEURO_COLLECTION__UTIL__VR_UTIL_H
 
+#include <lib_disc/domain_util.h>
+#include <lib_grid/refinement/projectors/neurite_projector.h>
+
 namespace ug {
     namespace neuro_collection {
         /*!
-         * \brief Write a 1d mesh from the 3d input mesh
-         * \param[in] filename name of 3d input mesh
+         * \brief Write a 1d mesh from the corresponding 3d mesh in the domain
+         * \param[in] dom domain
          */
         void Write3dMeshTo1d
+        (
+            SmartPtr<Domain3d> dom
+        );
+
+        /*!
+         * \brief Write a 1d mesh loaded from a 3d input mesh from storage
+         * \param[in] filename name of file on storage
+         */
+        void LoadAndWrite3dMeshTo1d
         (
             const std::string& filename
         );
 
         /*!
          * \brief Get the radius information from a 3d vertex
-         * \param[in] vertex a 3d vertex from a mesh
-         * \param[in] aaSurfParams surface parameters
-         * \param[in] vNeurites neurites with sections
-         * \return \c number for the radius 
-         */
+         * \param[in] vertex
+         * \param[in] dom
+         */ 
         number GetRadius
         (
             const Vertex* const vertex, 
-            const Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
-            const std::vector<NeuriteProjector::Neurite>& vNeurites
+            const Domain3d* const dom
         );
     }
 }

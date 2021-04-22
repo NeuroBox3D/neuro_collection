@@ -42,7 +42,9 @@
 #include <lib_grid/global_attachments.h>
 #include <lib_grid/refinement/projectors/neurite_projector.h>
 #include <lib_grid/file_io/file_io.h>
+#include <lib_grid/refinement/projectors/projection_handler.h>
 #include <map>
+#include "vr_util.h"
 
 namespace ug {
     namespace neuro_collection {
@@ -51,33 +53,28 @@ namespace ug {
         ///////////////////////////////////////////////////////////////////////
         void Write3dMeshTo1d
         (
-            const std::string& filename
+            SmartPtr<Domain3d> dom
         ) 
         {
-            /// Load 3d mesh
-	        Domain3d dom;
-        	try {LoadDomain(dom, filename.c_str());}
-        	UG_CATCH_THROW("Failed loading domain from '" << filename << "'.");
-
             /// Get 3d mesh's mapping and surface parameters attachments
             Attachment<NeuriteProjector::Mapping> aMapping = GlobalAttachments::attachment<Attachment<NeuriteProjector::Mapping> >("npMapping");
-            UG_COND_THROW(!dom.grid().get()->has_attachment<Vertex>(aMapping), "Grid does not have a 'npMapping' attachment.");
+            UG_COND_THROW(!dom->grid()->has_attachment<Vertex>(aMapping), "Grid does not have a 'npMapping' attachment.");
             Attachment<NeuriteProjector::SurfaceParams> aSurfaceParams = GlobalAttachments::attachment<Attachment<NeuriteProjector::SurfaceParams> > ("npSurfParams");
-            UG_COND_THROW(!dom.grid().get()->has_attachment<Vertex>(aSurfaceParams), "Grid does not have a 'npSurfParams' attachment.");
-	    	Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::Mapping> > aaMapping(*dom.grid(), aMapping);
-	    	Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::SurfaceParams> > aaSurfaceParams(*dom.grid(), aSurfaceParams);
+            UG_COND_THROW(!dom->grid()->has_attachment<Vertex>(aSurfaceParams), "Grid does not have a 'npSurfParams' attachment.");
+	    	Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::Mapping> > aaMapping(*dom->grid().get(), aMapping);
+	    	Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::SurfaceParams> > aaSurfaceParams(*dom->grid().get(), aSurfaceParams);
             /// Set 1d mesh's diameter attachment
             ANumber aDiam = GlobalAttachments::attachment<ANumber>("diameter"); 
 
             /// Iterate over 3d mesh's edges to generate a 1d mesh
-            ConstEdgeIterator eit = dom.grid().get()->begin<Edge>();
-		    ConstEdgeIterator eit_end = dom.grid().get()->end<Edge>();
+            ConstEdgeIterator eit = dom->grid()->begin<Edge>();
+		    ConstEdgeIterator eit_end = dom->grid()->end<Edge>();
 
-            dom.grid().get()->attach_to_vertices(aPosition);
-            Grid::VertexAttachmentAccessor<APosition> aaPos2(*dom.grid().get(), aPosition);
+            dom->grid()->attach_to_vertices(aPosition);
+            Grid::VertexAttachmentAccessor<APosition> aaPos2(*dom->grid().get(), aPosition);
 
             /// Some room for optimization below
-            MGSubsetHandler* sh = dom.subset_handler().get();
+            SmartPtr<MGSubsetHandler> sh = dom->subset_handler();
             std::map<vector3, std::vector<vector3> > edgePairs;
             std::map<vector3, std::vector<number> > fromDiam;
             std::map<vector3, std::vector<number> > toDiam;
@@ -107,6 +104,8 @@ namespace ug {
                        edgePairs[m1.v1].push_back(m2.v1);
                        fromDiam[m1.v1].push_back(aaSurfaceParams[e->vertex(0)].radial);
                        toDiam[m1.v1].push_back(aaSurfaceParams[e->vertex(1)].radial);
+                       //fromDiam[m1.v1].push_back(GetRadius(e->vertex(0), dom.get()));
+                       //toDiam[m1.v1].push_back(GetRadius(e->vertex(1), dom.get()));
                        toSI[m1.v1].push_back(sh->get_subset_index(e->vertex(1)));
                        fromSI[m1.v1].push_back(sh->get_subset_index(e->vertex(0)));
                     }
@@ -177,23 +176,48 @@ namespace ug {
         }
 
         ///////////////////////////////////////////////////////////////////////
+        /// Write3dMeshTo1d
+        ///////////////////////////////////////////////////////////////////////
+        void LoadAndWrite3dMeshTo1d
+        (
+            const std::string& fileName
+        ) {
+		    Domain3d dom;
+	    	dom.create_additional_subset_handler("projSH");
+    		try {LoadDomain(dom, fileName.c_str());}
+    		UG_CATCH_THROW("Failed loading domain from '" << fileName << "'.");
+            Write3dMeshTo1d(make_sp(&dom));
+        }
+
+        ///////////////////////////////////////////////////////////////////////
         /// GetRadius
         ///////////////////////////////////////////////////////////////////////
         number GetRadius
         (
             const Vertex* const vertex, 
-            const Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams,
-            const std::vector<NeuriteProjector::Neurite>& vNeurites
+            const Domain3d* const dom
         ) {
+            /// Get the Neuriteprojector from the domain
+            auto GetNeuriteProjector = [&]() -> NeuriteProjector* 
+            {
+                auto ph = dynamic_cast<ProjectionHandler*>(dom->refinement_projector().get());
+                UG_COND_THROW(!ph, "No projection handler available in the provided domain.")
+                auto np = dynamic_cast<NeuriteProjector*>(ph->default_projector().get());
+                UG_COND_THROW(!np, "Neurite projector not available in the provided domain.");
+                return np;
+            };
+
+            /// Get the NeuriteProjector from the domain and the surface parameters
+            auto np = GetNeuriteProjector();
+            const Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::SurfaceParams> >& aaSurfParams = np->surface_params_accessor();
+
             /// Parameters for vertex
             uint32_t neuriteID = aaSurfParams[vertex].neuriteID;
             float t = aaSurfParams[vertex].axial;
-            float angle = aaSurfParams[vertex].angular;
-            float rad = aaSurfParams[vertex].radial;
 
             const uint32_t plainNID = (neuriteID << 12) >> 12;
             NeuriteProjector::Section cmpSec(t);
-            const NeuriteProjector::Neurite& neurite = vNeurites[plainNID];
+            const NeuriteProjector::Neurite& neurite = np->neurites()[plainNID];
             std::vector<NeuriteProjector::Section>::const_iterator secIt =
             std::lower_bound(neurite.vSec.begin(), neurite.vSec.end(), cmpSec, NeuriteProjector::CompareSections());
             UG_COND_THROW(secIt == neurite.vSec.end(), "Could not find section for parameter t = " << t << " in neurite " << neuriteID << ".");
