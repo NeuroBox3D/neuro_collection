@@ -51,16 +51,16 @@ namespace ug
                 void MappingAttachmentHandler::copy_from_other_elem_type(GridObject *parent, Vertex *child)
                 {
                         // ensure that parent is an edge
-                        Edge *parentEdge = dynamic_cast<Edge *>(parent);
+                        auto* parentEdge = dynamic_cast<Edge*>(parent);
                         if (!parentEdge) {
                             return;
                         }
 
-                        NeuriteProjector::Mapping& mFrom = m_aa[(*parentEdge)[0]];
-                        NeuriteProjector::Mapping& mTo = m_aa[(*parentEdge)[1]];
+                        auto& mFrom = m_aa[(*parentEdge)[0]];
+                        auto& mTo = m_aa[(*parentEdge)[1]];
 
                         /// Refine edge in axial direction: New vertex must be in the center
-                        vector3 center = GetCenter(child, spDom);
+                        auto center = GetCenter(child, spDom);
                         NeuriteProjector::Mapping mCenter;
                         mFrom.v2 = center;
                         mTo.v1 = center;

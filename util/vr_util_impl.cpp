@@ -58,24 +58,21 @@ namespace ug {
         ) 
         {
             /// Get 3d mesh's mapping and surface parameters attachments
-            Attachment<NeuriteProjector::Mapping> aMapping = GlobalAttachments::attachment<Attachment<NeuriteProjector::Mapping> >("npMapping");
+            auto aMapping = GlobalAttachments::attachment<Attachment<NeuriteProjector::Mapping> >("npMapping");
             UG_COND_THROW(!dom->grid()->has_attachment<Vertex>(aMapping), "Grid does not have a 'npMapping' attachment.");
-            Attachment<NeuriteProjector::SurfaceParams> aSurfaceParams = GlobalAttachments::attachment<Attachment<NeuriteProjector::SurfaceParams> > ("npSurfParams");
+            auto aSurfaceParams = GlobalAttachments::attachment<Attachment<NeuriteProjector::SurfaceParams> > ("npSurfParams");
             UG_COND_THROW(!dom->grid()->has_attachment<Vertex>(aSurfaceParams), "Grid does not have a 'npSurfParams' attachment.");
 	    	Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::Mapping> > aaMapping(*dom->grid().get(), aMapping);
 	    	Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::SurfaceParams> > aaSurfaceParams(*dom->grid().get(), aSurfaceParams);
             /// Set 1d mesh's diameter attachment
-            ANumber aDiam = GlobalAttachments::attachment<ANumber>("diameter"); 
+            auto aDiam = GlobalAttachments::attachment<ANumber>("diameter"); 
 
             /// Iterate over 3d mesh's edges to generate a 1d mesh
             ConstEdgeIterator eit = dom->grid()->begin<Edge>(gridLevel);
 		    ConstEdgeIterator eit_end = dom->grid()->end<Edge>(gridLevel);
 
-            dom->grid()->attach_to_vertices(aPosition);
-            Grid::VertexAttachmentAccessor<APosition> aaPos2(*dom->grid().get(), aPosition);
-
             /// Some room for optimization below
-            SmartPtr<MGSubsetHandler> sh = dom->subset_handler();
+            auto sh = dom->subset_handler();
             std::map<vector3, std::vector<vector3> > edgePairs;
             std::map<vector3, std::vector<number> > fromDiam;
             std::map<vector3, std::vector<number> > toDiam;
@@ -83,8 +80,8 @@ namespace ug {
             std::map<vector3, std::vector<int> > toSI;
 	    	for (; eit != eit_end; ++eit) {
                 const Edge* e = *eit;
-                const NeuriteProjector::Mapping& m1 = aaMapping[e->vertex(0)];
-                const NeuriteProjector::Mapping& m2 = aaMapping[e->vertex(1)];
+                const auto& m1 = aaMapping[e->vertex(0)];
+                const auto& m2 = aaMapping[e->vertex(1)];
 
                 /// At branching regions do not create edges between child neurites
                 if (aaSurfaceParams[e->vertex(0)].neuriteID != aaSurfaceParams[e->vertex(1)].neuriteID) {
@@ -93,18 +90,16 @@ namespace ug {
 
                 /// Only if v1 and v2 are not an edge of a (radial) polygon we create an axial edge along the neurite
                 if (! ((m1.v1 == m2.v1) || (m1.v2 == m2.v2)) || (m1.v1 == m2.v2) || (m1.v2 == m2.v1) ) {
-                    std::vector<vector3>::iterator itFrom, itFrom2;
-                    std::vector<vector3>::iterator itTo, itTo2;
-                    itFrom = std::find (edgePairs[m1.v1].begin(), edgePairs[m1.v1].end(), m1.v1);
-                    itTo = std::find (edgePairs[m2.v1].begin(), edgePairs[m2.v1].end(), m2.v1);
-                    itFrom2 = std::find (edgePairs[m1.v1].begin(), edgePairs[m1.v1].end(), m2.v1);
-                    itTo2 = std::find (edgePairs[m2.v1].begin(), edgePairs[m2.v1].end(), m1.v1);
+                    auto itFrom = std::find (edgePairs[m1.v1].begin(), edgePairs[m1.v1].end(), m1.v1);
+                    auto itTo = std::find (edgePairs[m2.v1].begin(), edgePairs[m2.v1].end(), m2.v1);
+                    auto itFrom2 = std::find (edgePairs[m1.v1].begin(), edgePairs[m1.v1].end(), m2.v1);
+                    auto itTo2 = std::find (edgePairs[m2.v1].begin(), edgePairs[m2.v1].end(), m1.v1);
                     /// Only if v1 and v2 have not yet been created yet 
                     if ((itFrom  == edgePairs[m1.v1].end() && itTo  == edgePairs[m2.v1].end()) &&
                         (itFrom2 == edgePairs[m1.v1].end() && itTo2 == edgePairs[m2.v1].end())) {
                        edgePairs[m1.v1].push_back(m2.v1);
-                       //fromDiam[m1.v1].push_back(aaSurfaceParams[e->vertex(0)].radial);
-                       //toDiam[m1.v1].push_back(aaSurfaceParams[e->vertex(1)].radial);
+                       // fromDiam[m1.v1].push_back(aaSurfaceParams[e->vertex(0)].radial);
+                       // toDiam[m1.v1].push_back(aaSurfaceParams[e->vertex(1)].radial);
                        fromDiam[m1.v1].push_back(GetRadius(e->vertex(0), dom));
                        toDiam[m1.v1].push_back(GetRadius(e->vertex(1), dom));
                        toSI[m1.v1].push_back(sh->get_subset_index(e->vertex(1)));
@@ -156,7 +151,7 @@ namespace ug {
                     }
 
                     if (create) {
-                        RegularEdge* e = *g.create<RegularEdge>(EdgeDescriptor(v1, v2));
+                        auto* e = *g.create<RegularEdge>(EdgeDescriptor(v1, v2));
                         aaPos[v1] = edges.first;
                         aaPos[v2] = edges.second[i];
                         aaDiam[v1] = fromDiam[edges.first][i];
@@ -200,7 +195,7 @@ namespace ug {
             SmartPtr<Domain3d> dom
         ) {
             /// Get the NeuriteProjector from the domain
-            auto GetNeuriteProjector = [&]() -> NeuriteProjector* 
+            auto GetNeuriteProjector = [&]
             {
                 auto ph = dynamic_cast<ProjectionHandler*>(dom->refinement_projector().get());
                 UG_COND_THROW(!ph, "No projection handler available in the provided domain.")
@@ -224,25 +219,24 @@ namespace ug {
             auto np = GetNeuriteProjector();
 
             /// Surface parameters
-            Attachment<NeuriteProjector::SurfaceParams> aSurfParams = GlobalAttachments::attachment<Attachment<NeuriteProjector::SurfaceParams> > ("npSurfParams");
-          	Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::SurfaceParams> > aaSurfParams = np->surface_params_accessor();
+            auto aSurfParams = GlobalAttachments::attachment<Attachment<NeuriteProjector::SurfaceParams> > ("npSurfParams");
+          	auto aaSurfParams = np->surface_params_accessor();
             aaSurfParams.access(*dom->grid().get(), aSurfParams);
 
             /// Parameters for vertex
-            uint32_t neuriteID = aaSurfParams[vertex].neuriteID;
-            float t = aaSurfParams[vertex].axial;
+            auto neuriteID = aaSurfParams[vertex].neuriteID;
+            auto t = aaSurfParams[vertex].axial;
 
-            const uint32_t plainNID = (neuriteID << 12) >> 12;
+            const auto plainNID = (neuriteID << 12) >> 12;
             NeuriteProjector::Section cmpSec(t);
-            const NeuriteProjector::Neurite& neurite = np->neurites()[plainNID];
-            std::vector<NeuriteProjector::Section>::const_iterator secIt =
-            std::lower_bound(neurite.vSec.begin(), neurite.vSec.end(), cmpSec, NeuriteProjector::CompareSections());
+            const auto& neurite = np->neurites()[plainNID];
+            auto secIt = std::lower_bound(neurite.vSec.begin(), neurite.vSec.end(), cmpSec, NeuriteProjector::CompareSections());
             UG_COND_THROW(secIt == neurite.vSec.end(), "Could not find section for parameter t = " << t << " in neurite " << neuriteID << ".");
 
             /// Get correct radius for the associated 3d vertex
-            number radius;
-            number te = secIt->endParam;
-            const number* s = &secIt->splineParamsX[0];
+            auto radius = 0;
+            auto te = secIt->endParam;
+            const auto* s = &secIt->splineParamsX[0];
             s = &secIt->splineParamsR[0];
             radius = s[0]*(te-t) + s[1];
             radius = radius*(te-t) + s[2];
@@ -284,24 +278,23 @@ namespace ug {
             auto np = GetNeuriteProjector();
 
             /// Surface parameters
-            Attachment<NeuriteProjector::SurfaceParams> aSurfParams = GlobalAttachments::attachment<Attachment<NeuriteProjector::SurfaceParams> > ("npSurfParams");
-          	Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::SurfaceParams> > aaSurfParams = np->surface_params_accessor();
+            auto aSurfParams = GlobalAttachments::attachment<Attachment<NeuriteProjector::SurfaceParams> > ("npSurfParams");
+            auto aaSurfParams = np->surface_params_accessor();
             aaSurfParams.access(*dom->grid().get(), aSurfParams);
 
             /// Parameters for vertex
-            uint32_t neuriteID = aaSurfParams[vertex].neuriteID;
-            float t = aaSurfParams[vertex].axial;
+            auto neuriteID = aaSurfParams[vertex].neuriteID;
+            auto t = aaSurfParams[vertex].axial;
 
-            const uint32_t plainNID = (neuriteID << 12) >> 12;
+            const auto plainNID = (neuriteID << 12) >> 12;
             NeuriteProjector::Section cmpSec(t);
-            const NeuriteProjector::Neurite& neurite = np->neurites()[plainNID];
-            std::vector<NeuriteProjector::Section>::const_iterator secIt =
-            std::lower_bound(neurite.vSec.begin(), neurite.vSec.end(), cmpSec, NeuriteProjector::CompareSections());
+            const auto& neurite = np->neurites()[plainNID];
+            auto secIt = std::lower_bound(neurite.vSec.begin(), neurite.vSec.end(), cmpSec, NeuriteProjector::CompareSections());
             UG_COND_THROW(secIt == neurite.vSec.end(), "Could not find section for parameter t = " << t << " in neurite " << neuriteID << ".");
 
             /// Get velocity of vertex
          	vector3 vel;
-			const number h = secIt->endParam;
+			const auto h = secIt->endParam;
 			vel[0] = -3.0 * secIt->splineParamsX[0] * h * h
 					- 2.0 * secIt->splineParamsX[1] * h - secIt->splineParamsX[2];
 			vel[1] = -3.0 * secIt->splineParamsY[0] * h * h
@@ -312,10 +305,10 @@ namespace ug {
 
             /// Get center of vertex
             vector3 center;
-            const number monom = secIt->endParam;
-            const number* sp = &secIt->splineParamsX[0];
-            number& p0 = center[0];
-            number& v0 = vel[0];
+            const auto monom = secIt->endParam;
+            const auto* sp = &secIt->splineParamsX[0];
+            auto& p0 = center[0];
+            auto& v0 = vel[0];
             p0 = sp[0] * monom + sp[1];
             p0 = p0 * monom + sp[2];
             p0 = p0 * monom + sp[3];
@@ -323,8 +316,8 @@ namespace ug {
             v0 = v0 * monom - sp[2];
 
             sp = &secIt->splineParamsY[0];
-            number& p1 = center[1];
-            number& v1 = vel[1];
+            auto& p1 = center[1];
+            auto& v1 = vel[1];
             p1 = sp[0] * monom + sp[1];
             p1 = p1 * monom + sp[2];
             p1 = p1 * monom + sp[3];
@@ -332,8 +325,8 @@ namespace ug {
             v1 = v1 * monom - sp[2];
 
             sp = &secIt->splineParamsZ[0];
-            number& p2 = center[2];
-            number& v2 = vel[2];
+            auto& p2 = center[2];
+            auto& v2 = vel[2];
             p2 = sp[0] * monom + sp[1];
             p2 = p2 * monom + sp[2];
             p2 = p2 * monom + sp[3];
