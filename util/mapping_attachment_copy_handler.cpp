@@ -83,5 +83,5 @@ namespace ug
                         spMah->set_grid(dom->grid());
                         spMah->set_domain(dom);
                 }
-        } // end namespace cable_neuron
+        } // end namespace neuro_collection
 } // end namespace ug
