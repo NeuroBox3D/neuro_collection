@@ -40,9 +40,10 @@
 #ifndef UG__PLUGINS__NEURO_COLLECTION__UTIL__MAPPING_ATTACHMENT_COPY_HANDLER_H
 #define UG__PLUGINS__NEURO_COLLECTION__UTIL__MAPPING_ATTACHMENT_COPY_HANDLER_H
 
-#include "lib_grid/grid/grid_base_objects.h"
-#include "lib_grid/tools/copy_attachment_handler.h"
-#include "lib_grid/refinement/projectors/neurite_projector.h"
+#include <lib_grid/grid/grid_base_objects.h>
+#include <lib_grid/tools/copy_attachment_handler.h>
+#include <lib_grid/refinement/projectors/neurite_projector.h>
+#include <lib_disc/domain.h>
 
 namespace ug
 {
@@ -66,6 +67,8 @@ namespace ug
             MappingAttachmentHandler(){};
             /// Dtor
             virtual ~MappingAttachmentHandler(){};
+            /// set_domain
+            inline void set_domain(SmartPtr<Domain3d> dom) { spDom = dom; }
 
         protected:
             /*!
@@ -74,13 +77,17 @@ namespace ug
              * \param[out] child
              */ 
             virtual void copy_from_other_elem_type(GridObject *parent, Vertex *child);
+
+        private:
+            SmartPtr<Domain3d> spDom;
         };
 
         /**
          * \brief Add the mapping attachment handler to the grid
          * \param[in] grid
          */
-        void AddMappingAttachmentHandlerToGrid(SmartPtr<MultiGrid> grid);
+        void AddMappingAttachmentHandlerToGrid(SmartPtr<Domain3d> grid);
+
     } // end namespace neuro_collection
 } // end namespace ug
 

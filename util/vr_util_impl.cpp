@@ -215,6 +215,7 @@ namespace ug {
                 }
                 /// Not any neurite projector found in the list of possible projectors
                 UG_COND_THROW(!np, "Neurite projector not available in the provided domain.");
+                return np;
             };
 
             /// Get the NeuriteProjector from the domain and the surface parameters
@@ -237,7 +238,6 @@ namespace ug {
             UG_COND_THROW(secIt == neurite.vSec.end(), "Could not find section for parameter t = " << t << " in neurite " << neuriteID << ".");
 
             /// Get correct radius for the associated 3d vertex
-            vector3 posAx, vel;
             number radius;
             number te = secIt->endParam;
             const number* s = &secIt->splineParamsX[0];
@@ -247,5 +247,98 @@ namespace ug {
             radius = radius*(te-t) + s[3];
             return radius;
         }
-    }
-}
+
+        ///////////////////////////////////////////////////////////////////////
+        /// GetCenter
+        ///////////////////////////////////////////////////////////////////////
+        vector3 GetCenter
+        (
+            const Vertex* const vertex,
+            SmartPtr<Domain3d> dom
+        ) 
+        {
+            /// Get the NeuriteProjector from the domain
+            auto GetNeuriteProjector = [&]() -> NeuriteProjector* 
+            {
+                auto ph = dynamic_cast<ProjectionHandler*>(dom->refinement_projector().get());
+                UG_COND_THROW(!ph, "No projection handler available in the provided domain.")
+                /// Assume neurite projector is the default projector in the domain
+                auto np = (NeuriteProjector*) dynamic_cast<NeuriteProjector*>(ph->default_projector().get());
+                if (!np) {
+                   /// If neurite projector not the default projector, try all other projectors in domain
+                   for (size_t i = 0; i < ph->num_projectors(); i++) {
+                       np = dynamic_cast<NeuriteProjector*>(ph->projector(i).get());
+                       if (np) {
+                           return np;
+                       }
+                   }
+                }
+                /// Not any neurite projector found in the list of possible projectors
+                UG_COND_THROW(!np, "Neurite projector not available in the provided domain.");
+                return np;
+            };
+
+            /// Get the NeuriteProjector from the domain and the surface parameters
+            auto np = GetNeuriteProjector();
+
+            /// Surface parameters
+            Attachment<NeuriteProjector::SurfaceParams> aSurfParams = GlobalAttachments::attachment<Attachment<NeuriteProjector::SurfaceParams> > ("npSurfParams");
+          	Grid::AttachmentAccessor<Vertex, Attachment<NeuriteProjector::SurfaceParams> > aaSurfParams = np->surface_params_accessor();
+            aaSurfParams.access(*dom->grid().get(), aSurfParams);
+
+            /// Parameters for vertex
+            uint32_t neuriteID = aaSurfParams[vertex].neuriteID;
+            float t = aaSurfParams[vertex].axial;
+
+            const uint32_t plainNID = (neuriteID << 12) >> 12;
+            NeuriteProjector::Section cmpSec(t);
+            const NeuriteProjector::Neurite& neurite = np->neurites()[plainNID];
+            std::vector<NeuriteProjector::Section>::const_iterator secIt =
+            std::lower_bound(neurite.vSec.begin(), neurite.vSec.end(), cmpSec, NeuriteProjector::CompareSections());
+            UG_COND_THROW(secIt == neurite.vSec.end(), "Could not find section for parameter t = " << t << " in neurite " << neuriteID << ".");
+
+            /// Get velocity of vertex
+         	vector3 vel;
+			const number h = secIt->endParam;
+			vel[0] = -3.0 * secIt->splineParamsX[0] * h * h
+					- 2.0 * secIt->splineParamsX[1] * h - secIt->splineParamsX[2];
+			vel[1] = -3.0 * secIt->splineParamsY[0] * h * h
+					- 2.0 * secIt->splineParamsY[1] * h - secIt->splineParamsY[2];
+			vel[2] = -3.0 * secIt->splineParamsZ[0] * h * h
+					- 2.0 * secIt->splineParamsZ[1] * h - secIt->splineParamsZ[2];
+			VecNormalize(vel, vel);
+
+            /// Get center of vertex
+            vector3 center;
+            const number monom = secIt->endParam;
+            const number* sp = &secIt->splineParamsX[0];
+            number& p0 = center[0];
+            number& v0 = vel[0];
+            p0 = sp[0] * monom + sp[1];
+            p0 = p0 * monom + sp[2];
+            p0 = p0 * monom + sp[3];
+            v0 = -3.0 * sp[0] * monom - 2.0 * sp[1];
+            v0 = v0 * monom - sp[2];
+
+            sp = &secIt->splineParamsY[0];
+            number& p1 = center[1];
+            number& v1 = vel[1];
+            p1 = sp[0] * monom + sp[1];
+            p1 = p1 * monom + sp[2];
+            p1 = p1 * monom + sp[3];
+            v1 = -3.0 * sp[0] * monom - 2.0 * sp[1];
+            v1 = v1 * monom - sp[2];
+
+            sp = &secIt->splineParamsZ[0];
+            number& p2 = center[2];
+            number& v2 = vel[2];
+            p2 = sp[0] * monom + sp[1];
+            p2 = p2 * monom + sp[2];
+            p2 = p2 * monom + sp[3];
+            v2 = -3.0 * sp[0] * monom - 2.0 * sp[1];
+            v2 = v2 * monom - sp[2];
+            
+            return center;
+        }
+    } // end namespace neuro_collection
+} // end namespace ug

@@ -40,7 +40,7 @@
 #ifndef UG__PLUGINS__NEURO_COLLECTION__UTIL__VR_UTIL_H
 #define UG__PLUGINS__NEURO_COLLECTION__UTIL__VR_UTIL_H
 
-#include <lib_disc/domain_util.h>
+#include <lib_disc/domain.h>
 #include <lib_grid/refinement/projectors/neurite_projector.h>
 
 namespace ug {
@@ -73,7 +73,16 @@ namespace ug {
             const Vertex* const vertex, 
             SmartPtr<Domain3d> dom
         );
-    }
-}
+
+        /*!
+         * \brief Get the center information from a 3d vertex
+         */
+        vector3 GetCenter
+        (
+            const Vertex* const vertex,
+            SmartPtr<Domain3d> dom
+        );
+    } // end namespace neuro_collection
+} // end namespace ug
 
 #endif // UG__PLUGINS__NEURO_COLLECTION__UTIL__VR_UTIL_H

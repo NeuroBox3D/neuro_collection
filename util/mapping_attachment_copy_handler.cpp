@@ -39,6 +39,7 @@
 
 #include "mapping_attachment_copy_handler.h"
 #include "lib_grid/global_attachments.h" 
+#include "vr_util.h"
 
 namespace ug
 {
@@ -55,29 +56,32 @@ namespace ug
                             return;
                         }
 
-                        const NeuriteProjector::Mapping &m1 = m_aa[(*parentEdge)[0]];
-                        const NeuriteProjector::Mapping &m2 = m_aa[(*parentEdge)[1]];
+                        NeuriteProjector::Mapping& mFrom = m_aa[(*parentEdge)[0]];
+                        NeuriteProjector::Mapping& mTo = m_aa[(*parentEdge)[1]];
 
                         /// Refine edge in axial direction: New vertex must be in the center
-                        NeuriteProjector::Mapping m3;
-                        m3.v1 = m2.v1;
-                        m3.v2 = m1.v2;
-                        m3.lambda = 0.5;
-                        m_aa[child] = m3;
+                        vector3 center = GetCenter(child, spDom);
+                        NeuriteProjector::Mapping mCenter;
+                        mFrom.v2 = center;
+                        mTo.v1 = center;
+                        mCenter.v1 = mTo.v1;
+                        mCenter.v2 = mFrom.v2;
+                        mCenter.lambda = 0.5;
+                        m_aa[child] = mCenter;
                 }
 
                 ///////////////////////////////////////////////////////////////
                 /// AddMappingAttachmentHandlerToGrid                      
                 ///////////////////////////////////////////////////////////////
-                void AddMappingAttachmentHandlerToGrid(SmartPtr<MultiGrid> grid)
+                void AddMappingAttachmentHandlerToGrid(SmartPtr<Domain3d> dom)
                 {
                         Attachment<NeuriteProjector::Mapping> aMapping = GlobalAttachments::attachment<Attachment<NeuriteProjector::Mapping> >("npMapping");
-                        UG_COND_THROW(!grid->has_attachment<Vertex>(aMapping),
+                        UG_COND_THROW(!dom->grid()->has_attachment<Vertex>(aMapping),
                                       "Grid does not have a 'npMapping' attachment.");
-
                         SmartPtr<MappingAttachmentHandler> spMah(new MappingAttachmentHandler());
                         spMah->set_attachment(aMapping);
-                        spMah->set_grid(grid);
+                        spMah->set_grid(dom->grid());
+                        spMah->set_domain(dom);
                 }
         } // end namespace cable_neuron
 } // end namespace ug
