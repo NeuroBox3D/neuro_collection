@@ -48,19 +48,23 @@ namespace ug {
         /*!
          * \brief Write a 1d mesh from the corresponding 3d mesh in the domain
          * \param[in] dom domain
+         * \param[in] gridLevel grid level to save
          */
         void Write3dMeshTo1d
         (
-            SmartPtr<Domain3d> dom
+            SmartPtr<Domain3d> dom,
+            size_t gridLevel
         );
 
         /*!
          * \brief Write a 1d mesh loaded from a 3d input mesh from storage
          * \param[in] filename name of file on storage
+         * \param[in] gridLevel level of grid
          */
         void LoadAndWrite3dMeshTo1d
         (
-            const std::string& filename
+            const std::string& filename,
+            size_t gridLevel
         );
 
         /*!

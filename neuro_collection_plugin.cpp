@@ -1055,8 +1055,8 @@ static void Common(Registry& reg, string grp)
 
 	// vr util and copy attachment handlers
 	{
-		reg.add_function("Write3dMeshTo1d", &Write3dMeshTo1d, grp.c_str(), "domain", "");
-		reg.add_function("LoadAndWrite3dMeshTo1d", &LoadAndWrite3dMeshTo1d, grp.c_str(), "filename", "");
+		reg.add_function("Write3dMeshTo1d", &Write3dMeshTo1d, grp.c_str(), "domain#gridLevel", "");
+		reg.add_function("LoadAndWrite3dMeshTo1d", &LoadAndWrite3dMeshTo1d, grp.c_str(), "filename#gridLevel", "");
 		reg.add_function("AddMappingAttachmentHandlerToGrid", &AddMappingAttachmentHandlerToGrid, grp.c_str(), "", "domain", "When added, the MappingAttachmentHandler will propagate global mapping attachments");
 	}
 }

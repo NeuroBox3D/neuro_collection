@@ -53,7 +53,8 @@ namespace ug {
         ///////////////////////////////////////////////////////////////////////
         void Write3dMeshTo1d
         (
-            SmartPtr<Domain3d> dom
+            SmartPtr<Domain3d> dom,
+            const size_t gridLevel
         ) 
         {
             /// Get 3d mesh's mapping and surface parameters attachments
@@ -67,8 +68,8 @@ namespace ug {
             ANumber aDiam = GlobalAttachments::attachment<ANumber>("diameter"); 
 
             /// Iterate over 3d mesh's edges to generate a 1d mesh
-            ConstEdgeIterator eit = dom->grid()->begin<Edge>();
-		    ConstEdgeIterator eit_end = dom->grid()->end<Edge>();
+            ConstEdgeIterator eit = dom->grid()->begin<Edge>(gridLevel);
+		    ConstEdgeIterator eit_end = dom->grid()->end<Edge>(gridLevel);
 
             dom->grid()->attach_to_vertices(aPosition);
             Grid::VertexAttachmentAccessor<APosition> aaPos2(*dom->grid().get(), aPosition);
@@ -180,13 +181,14 @@ namespace ug {
         ///////////////////////////////////////////////////////////////////////
         void LoadAndWrite3dMeshTo1d
         (
-            const std::string& fileName
+            const std::string& fileName,
+            const size_t gridLevel
         ) {
 		    Domain3d dom;
 	    	dom.create_additional_subset_handler("projSH");
     		try {LoadDomain(dom, fileName.c_str());}
     		UG_CATCH_THROW("Failed loading domain from '" << fileName << "'.");
-            Write3dMeshTo1d(make_sp(&dom));
+            Write3dMeshTo1d(make_sp(&dom), gridLevel);
         }
 
         ///////////////////////////////////////////////////////////////////////
