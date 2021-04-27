@@ -73,6 +73,7 @@ namespace ug {
 
             /// Some room for optimization below
             auto sh = dom->subset_handler();
+            
             std::map<vector3, std::vector<vector3> > edgePairs;
             std::map<vector3, std::vector<number> > fromDiam;
             std::map<vector3, std::vector<number> > toDiam;
@@ -254,7 +255,7 @@ namespace ug {
         ) 
         {
             /// Get the NeuriteProjector from the domain
-            auto GetNeuriteProjector = [&]() -> NeuriteProjector* 
+            auto GetNeuriteProjector = [&] 
             {
                 auto ph = dynamic_cast<ProjectionHandler*>(dom->refinement_projector().get());
                 UG_COND_THROW(!ph, "No projection handler available in the provided domain.")

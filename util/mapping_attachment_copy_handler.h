@@ -63,30 +63,35 @@ namespace ug
             : public CopyAttachmentHandler<Vertex, Attachment<NeuriteProjector::Mapping> >
         {
         public:
-            /// Ctor
+            /// Ctors
             MappingAttachmentHandler(){};
+            MappingAttachmentHandler(SmartPtr<Domain3d> dom) : spDom(dom) { }
             /// Dtor
             virtual ~MappingAttachmentHandler(){};
-            /// set_domain
-            inline void set_domain(SmartPtr<Domain3d> dom) { spDom = dom; }
 
         protected:
             /*!
-             * \brief Copy from other elem type to child 
+             * \brief Copy from parent (other elem type) to child elem
              * \param[in] parent 
              * \param[out] child
              */ 
-            virtual void copy_from_other_elem_type(GridObject *parent, Vertex *child);
+            virtual void copy_from_other_elem_type(GridObject* parent, Vertex* child);
+            /*!
+             * \brief Copy from parent (same elem type) to child elem
+             * \param[in] parent
+             * \param[in] child
+             */
+            virtual void copy(Vertex* parent, Vertex* child);
 
         private:
-            SmartPtr<Domain3d> spDom;
+             SmartPtr<Domain3d> spDom;
         };
 
         /**
          * \brief Add the mapping attachment handler to the grid
-         * \param[in] grid
+         * \param[in] dom
          */
-        void AddMappingAttachmentHandlerToGrid(SmartPtr<Domain3d> grid);
+        void AddMappingAttachmentHandlerToGrid(SmartPtr<Domain3d> dom);
 
     } // end namespace neuro_collection
 } // end namespace ug

@@ -48,27 +48,56 @@ namespace ug
                 ///////////////////////////////////////////////////////////////
                 /// copy_from_other_elem_type                               
                 ///////////////////////////////////////////////////////////////
-                void MappingAttachmentHandler::copy_from_other_elem_type(GridObject *parent, Vertex *child)
+                void MappingAttachmentHandler::copy_from_other_elem_type(GridObject* parent, Vertex* child)
                 {
                         // ensure that parent is an edge
-                        auto* parentEdge = dynamic_cast<Edge*>(parent);
+                        Edge* parentEdge = dynamic_cast<Edge*>(parent);
                         if (!parentEdge) {
                             return;
                         }
 
+                        // v_1^' ..... v_1 (parentEdge(0)) ------------------ v_2^' (parentEdge(1)) ..... v_2
                         auto& mFrom = m_aa[(*parentEdge)[0]];
                         auto& mTo = m_aa[(*parentEdge)[1]];
 
                         /// Refine edge in axial direction: New vertex must be in the center
-                        auto center = GetCenter(child, spDom);
+                        UG_COND_THROW(!spDom.valid(), "Domain not set up for MappingAttachmentHandler.");
+
+                        /// Calculate center
+                        vector3 center;
+                        VecScaleAdd(center, 0.5, mTo.v1, 0.5, mFrom.v1);
+
+                        /// parentEdge(0) attachment (first new smaller edge)
+                        auto v_1_p = mFrom.v1; // vertex of ring polygon where the edge starts from 
+                        auto center_0 = center; // new vertex in the middle (creating 2 new edges / split edge)
+
+                        /// child attachment (second new smaller edge)
+                        auto v_1 = center; // a new edge (smaller edge) from center to mTo.v1 in 1d geometry
+                        auto v_2_p = mTo.v1; // the old vertex
+
+                        /// populate attachments
                         NeuriteProjector::Mapping mCenter;
-                        mFrom.v2 = center;
-                        mTo.v1 = center;
-                        mCenter.v1 = mTo.v1;
-                        mCenter.v2 = mFrom.v2;
+                        mCenter.v1 = v_1;
+                        mCenter.v2 = v_2_p;
+                        UG_LOGN("v1: " << mCenter.v1);
+                        UG_LOGN("v2: " << mCenter.v2);
+                        UG_LOGN("center: " << center);
                         mCenter.lambda = 0.5;
                         m_aa[child] = mCenter;
                 }
+
+                ///////////////////////////////////////////////////////////////
+                /// copy
+                ///////////////////////////////////////////////////////////////
+                void MappingAttachmentHandler::copy(Vertex* parent, Vertex* child)
+		{
+                        auto& mappingParent = m_aa[parent];
+                        auto& mappingChild = m_aa[child];
+                        vector3 center;
+                        VecScaleAdd(center, 0.5, mappingParent.v1, 0.5, mappingParent.v2);
+                        mappingChild.v1 = mappingParent.v1;
+                        mappingChild.v2 = center;
+		}
 
                 ///////////////////////////////////////////////////////////////
                 /// AddMappingAttachmentHandlerToGrid                      
@@ -78,10 +107,9 @@ namespace ug
                         Attachment<NeuriteProjector::Mapping> aMapping = GlobalAttachments::attachment<Attachment<NeuriteProjector::Mapping> >("npMapping");
                         UG_COND_THROW(!dom->grid()->has_attachment<Vertex>(aMapping),
                                       "Grid does not have a 'npMapping' attachment.");
-                        SmartPtr<MappingAttachmentHandler> spMah(new MappingAttachmentHandler());
+                        SmartPtr<MappingAttachmentHandler> spMah(new MappingAttachmentHandler(dom));
                         spMah->set_attachment(aMapping);
                         spMah->set_grid(dom->grid());
-                        spMah->set_domain(dom);
                 }
         } // end namespace neuro_collection
 } // end namespace ug
