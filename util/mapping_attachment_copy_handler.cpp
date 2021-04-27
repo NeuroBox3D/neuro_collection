@@ -64,6 +64,8 @@ namespace ug
                         UG_COND_THROW(!spDom.valid(), "Domain not set up for MappingAttachmentHandler.");
 
                         /// Calculate center
+                        /// TODO: Add correct position by using
+                        /// center = GetCenter(vertex, spDom)
                         vector3 center;
                         VecScaleAdd(center, 0.5, mTo.v1, 0.5, mFrom.v1);
 
@@ -79,6 +81,12 @@ namespace ug
                         NeuriteProjector::Mapping mCenter;
                         mCenter.v1 = v_1;
                         mCenter.v2 = v_2_p;
+
+                        /// Orientation of edge not known a-priori, override best guess if not correct
+                        if (std::fabs(VecDistance(mCenter.v1, mCenter.v2)) < SMALL) {
+                                mCenter.v2 = mTo.v2;
+                        }
+
                         UG_LOGN("v1: " << mCenter.v1);
                         UG_LOGN("v2: " << mCenter.v2);
                         UG_LOGN("center: " << center);
@@ -95,6 +103,7 @@ namespace ug
                         auto& mappingChild = m_aa[child];
                         vector3 center;
                         VecScaleAdd(center, 0.5, mappingParent.v1, 0.5, mappingParent.v2);
+                        /// Orientation of edge not known a-priori, best guess here, might be overriden later
                         mappingChild.v1 = mappingParent.v1;
                         mappingChild.v2 = center;
 		}
