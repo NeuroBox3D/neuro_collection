@@ -72,14 +72,14 @@ namespace ug
         protected:
             /*!
              * \brief Copy from parent (other elem type) to child elem
-             * \param[in] parent 
-             * \param[out] child
+             * \param[in] parent the parent vertex
+             * \param[out] child the child vertex
              */ 
             virtual void copy_from_other_elem_type(GridObject* parent, Vertex* child);
             /*!
              * \brief Copy from parent (same elem type) to child elem
-             * \param[in] parent
-             * \param[in] child
+             * \param[in] parent the parent vertex 
+             * \param[in] child the child vertex
              */
             virtual void copy(Vertex* parent, Vertex* child);
 
@@ -89,7 +89,7 @@ namespace ug
 
         /**
          * \brief Add the mapping attachment handler to the grid
-         * \param[in] dom
+         * \param[in] dom domain
          */
         void AddMappingAttachmentHandlerToGrid(SmartPtr<Domain3d> dom);
 

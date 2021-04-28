@@ -48,7 +48,7 @@ namespace ug {
         /*!
          * \brief Write a 1d mesh from the corresponding 3d mesh in the domain
          * \param[in] dom domain
-         * \param[in] gridLevel grid level to save
+         * \param[in] gridLevel level of (refined) grid hierarchy
          */
         void Write3dMeshTo1d
         (
@@ -59,7 +59,7 @@ namespace ug {
         /*!
          * \brief Write a 1d mesh loaded from a 3d input mesh from storage
          * \param[in] filename name of file on storage
-         * \param[in] gridLevel level of grid
+         * \param[in] gridLevel level of (refined) grid hierarchy
          */
         void LoadAndWrite3dMeshTo1d
         (
@@ -69,8 +69,8 @@ namespace ug {
 
         /*!
          * \brief Get the radius information from a 3d vertex
-         * \param[in] vertex
-         * \param[in] dom
+         * \param[in] vertex desired vertex in domain
+         * \param[in] dom domain
          */ 
         number GetRadius
         (
@@ -79,7 +79,9 @@ namespace ug {
         );
 
         /*!
-         * \brief Get the center information from a 3d vertex
+         * \brief Get the center information from a 3d vertex in domain
+         * \param[in] vertex desired vertex in domain
+         * \param[in] dom domain
          */
         vector3 GetCenter
         (
