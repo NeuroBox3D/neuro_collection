@@ -5688,7 +5688,17 @@ void create_spline_data_for_neurites
 
 		/// save quadrilateral mesh
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements.ugx");
-		
+
+		/// Write with projection handler
+		std::string outFileName = "after_selecting_boundary_elements_with_projector.ugx";
+		GridWriterUGX ugxWriter;
+		ugxWriter.add_grid(g, "defGrid", aPosition);
+		ugxWriter.add_subset_handler(sh, "defSH", 0);
+		ugxWriter.add_subset_handler(psh, "projSH", 0);
+		ugxWriter.add_projection_handler(projHandler, "defPH", 0);
+		if (!ugxWriter.write_to_file(outFileName.c_str()))
+			UG_THROW("Grid could not be written to file '" << outFileName << "'.");
+
 		Triangulate(g, g.begin<ug::Quadrilateral>(), g.end<ug::Quadrilateral>());
 		/// apply a hint of laplacian smoothing for soma region
 		LaplacianSmooth(g, sh.begin<Vertex>(1), sh.end<Vertex>(1), aaPos, 0.1, 10);
@@ -5702,6 +5712,9 @@ void create_spline_data_for_neurites
 		/// } catch (CylinderCylinderOverlap) {
         ///  error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_CYLINDER_CYLINDER_OVERLAP
 		/// }
+
+
+
 		return error_code;
 	}
 

@@ -169,7 +169,9 @@ namespace ug {
             AssignSubsetColors(sh2);
             sh2.subset_info(0).name = "Neurite";
             sh2.subset_info(1).name = "Soma";
-            SaveGridToFile(g, sh2, "1dmesh.ugx");
+            std::stringstream ss;
+            ss << "1dmesh" << "_" << gridLevel << ".ugx";
+            SaveGridToFile(g, sh2, ss.str().c_str());
         }
 
         ///////////////////////////////////////////////////////////////////////
@@ -295,20 +297,28 @@ namespace ug {
 
             /// Get velocity of vertex
          	vector3 vel;
-			const auto h = secIt->endParam;
-			vel[0] = -3.0 * secIt->splineParamsX[0] * h * h
-					- 2.0 * secIt->splineParamsX[1] * h - secIt->splineParamsX[2];
-			vel[1] = -3.0 * secIt->splineParamsY[0] * h * h
-					- 2.0 * secIt->splineParamsY[1] * h - secIt->splineParamsY[2];
-			vel[2] = -3.0 * secIt->splineParamsZ[0] * h * h
-					- 2.0 * secIt->splineParamsZ[1] * h - secIt->splineParamsZ[2];
+			const auto h = neurite.vSec[0].endParam;
+			vel[0] = -3.0 * neurite.vSec[0].splineParamsX[0] * h * h
+					- 2.0 * neurite.vSec[0].splineParamsX[1] * h - neurite.vSec[0].splineParamsX[2];
+			vel[1] = -3.0 * neurite.vSec[0].splineParamsY[0] * h * h
+					- 2.0 * neurite.vSec[0].splineParamsY[1] * h - neurite.vSec[0].splineParamsY[2];
+			vel[2] = -3.0 * neurite.vSec[0].splineParamsZ[0] * h * h
+					- 2.0 * neurite.vSec[0].splineParamsZ[1] * h - neurite.vSec[0].splineParamsZ[2];
 			VecNormalize(vel, vel);
 
+           	number segAxPos = t;
+			for (size_t curSec = 0; curSec < neurite.vSec.size(); ++curSec) {
+				const NeuriteProjector::Section& sec = neurite.vSec[curSec];
+				if (sec.endParam >= segAxPos) {
+                    break;
+                }
+            }
+        
             /// Get center of vertex
-            vector3 center;
-            const auto monom = secIt->endParam;
+            vector3 curPos;
+            const auto monom = secIt->endParam - segAxPos;
             const auto* sp = &secIt->splineParamsX[0];
-            auto& p0 = center[0];
+            auto& p0 = curPos[0];
             auto& v0 = vel[0];
             p0 = sp[0] * monom + sp[1];
             p0 = p0 * monom + sp[2];
@@ -317,7 +327,7 @@ namespace ug {
             v0 = v0 * monom - sp[2];
 
             sp = &secIt->splineParamsY[0];
-            auto& p1 = center[1];
+            auto& p1 = curPos[1];
             auto& v1 = vel[1];
             p1 = sp[0] * monom + sp[1];
             p1 = p1 * monom + sp[2];
@@ -326,7 +336,7 @@ namespace ug {
             v1 = v1 * monom - sp[2];
 
             sp = &secIt->splineParamsZ[0];
-            auto& p2 = center[2];
+            auto& p2 = curPos[2];
             auto& v2 = vel[2];
             p2 = sp[0] * monom + sp[1];
             p2 = p2 * monom + sp[2];
@@ -334,7 +344,7 @@ namespace ug {
             v2 = -3.0 * sp[0] * monom - 2.0 * sp[1];
             v2 = v2 * monom - sp[2];
             
-            return center;
+            return curPos;
         }
     } // end namespace neuro_collection
 } // end namespace ug

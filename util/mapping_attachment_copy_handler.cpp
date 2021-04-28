@@ -41,6 +41,7 @@
 #include "lib_grid/global_attachments.h" 
 #include "vr_util.h"
 
+extern ug::DebugID NC_TNP;
 namespace ug
 {
         namespace neuro_collection
@@ -56,40 +57,43 @@ namespace ug
                             return;
                         }
 
-                        // v_1^' ..... v_1 (parentEdge(0)) ------------------ v_2^' (parentEdge(1)) ..... v_2
+                        // v_1^' ..... v_1 (parentEdge(0)) --------(child vertex)---------- v_2^' (parentEdge(1)) ..... v_2
                         auto& mFrom = m_aa[(*parentEdge)[0]];
                         auto& mTo = m_aa[(*parentEdge)[1]];
 
                         /// Refine edge in axial direction: New vertex must be in the center
                         UG_COND_THROW(!spDom.valid(), "Domain not set up for MappingAttachmentHandler.");
 
-                        /// Calculate center
-                        /// TODO: Add correct position by using
-                        /// center = GetCenter(vertex, spDom)
-                        vector3 center;
-                        VecScaleAdd(center, 0.5, mTo.v1, 0.5, mFrom.v1);
+                        /// Calculate (refined) child vertex center
+                        auto center = GetCenter(child, spDom);
 
-                        /// parentEdge(0) attachment (first new smaller edge)
-                        auto v_1_p = mFrom.v1; // vertex of ring polygon where the edge starts from 
-                        auto center_0 = center; // new vertex in the middle (creating 2 new edges / split edge)
+                        /// parentEdge's mapping attachment to the first vertex (parentEdge(0))
+                        auto v_1_p = mFrom.v1; // start vertex of parent edge
+                        auto center_0 = center; // new vertex in the middle of the parent edge (creating two new edges by split edge)
 
-                        /// child attachment (second new smaller edge)
-                        auto v_1 = center; // a new edge (smaller edge) from center to mTo.v1 in 1d geometry
-                        auto v_2_p = mTo.v1; // the old vertex
+                        /// child attachment 
+                        auto v_1 = center; // center of the refined coarse edge: start vertex of refined edge
+                        auto v_2_p = mTo.v1; // end vertex of the refined edge: end vertex of (coarse) parent edge
 
                         /// populate attachments
                         NeuriteProjector::Mapping mCenter;
                         mCenter.v1 = v_1;
                         mCenter.v2 = v_2_p;
 
-                        /// Orientation of edge not known a-priori, override best guess if not correct
+                        /// Orientation of edge not known a-priori, override the best guess
                         if (std::fabs(VecDistance(mCenter.v1, mCenter.v2)) < SMALL) {
-                                mCenter.v2 = mTo.v2;
+                           mCenter.v2 = mTo.v2;
                         }
 
-                        UG_LOGN("v1: " << mCenter.v1);
-                        UG_LOGN("v2: " << mCenter.v2);
-                        UG_LOGN("center: " << center);
+                        /// Debug coordinates
+                        IF_DEBUG(NC_TNP, 0) {
+                           UG_LOGN("v1: " << mCenter.v1); UG_LOGN("v2: " << mCenter.v2)
+                           UG_LOGN("v_1: " << v_1); UG_LOGN("center_0:" << center_0)
+                           UG_LOGN("v_1_p:" << v_1_p); UG_LOGN("v_2_p: " << v_2_p)
+                           UG_LOGN("center: " << center)
+                        }
+
+                        /// Set child mapping attachment at center (between parent edge's vertices)
                         mCenter.lambda = 0.5;
                         m_aa[child] = mCenter;
                 }
@@ -101,11 +105,10 @@ namespace ug
 		{
                         auto& mappingParent = m_aa[parent];
                         auto& mappingChild = m_aa[child];
-                        vector3 center;
-                        VecScaleAdd(center, 0.5, mappingParent.v1, 0.5, mappingParent.v2);
-                        /// Orientation of edge not known a-priori, best guess here, might be overriden later
-                        mappingChild.v1 = mappingParent.v1;
-                        mappingChild.v2 = center;
+                        auto center = GetCenter(parent, spDom);
+                        /// Orientation of edge not known a-priori, make a best guess
+                        mappingChild.v2 = mappingParent.v1;
+                        mappingChild.v1 = center;
 		}
 
                 ///////////////////////////////////////////////////////////////
