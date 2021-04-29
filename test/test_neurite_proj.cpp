@@ -5685,6 +5685,15 @@ void create_spline_data_for_neurites
 		EraseEmptySubsets(sh);
 		set_somata_mapping_parameters(g, sh, aaMapping, 1, 1, vSomaPoints.front(), vPos, vRootNeuriteIndsOut, aaPos);
 
+		std::string outputFileName = "after_selecting_boundary_elements_with_projector.ugx";
+		GridWriterUGX ugxWriter;
+		ugxWriter.add_grid(g, "defGrid", aPosition);
+		ugxWriter.add_subset_handler(sh, "defSH", 0);
+		ugxWriter.add_subset_handler(psh, "projSH", 0);
+		ugxWriter.add_projection_handler(projHandler, "defPH", 0);
+		if (!ugxWriter.write_to_file(outputFileName.c_str()))
+			UG_THROW("Grid could not be written to file '" << outputFileName << "'.");
+
 		/// save quadrilateral mesh
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements.ugx");
 		Triangulate(g, g.begin<ug::Quadrilateral>(), g.end<ug::Quadrilateral>());
