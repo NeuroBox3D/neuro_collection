@@ -5906,7 +5906,7 @@ void create_spline_data_for_neurites
 
 		// if no refinement then only one level in grid
 		if (numRefs == 0) {
-			SaveGridToFile(g, sh, outFileName.c_str());
+			//SaveGridToFile(g, sh, outFileName.c_str());
 			return;
 		}
 
