@@ -1029,6 +1029,7 @@ static void Common(Registry& reg, string grp)
 #endif
 			.add_constructor<void (*)(SmartPtr<Domain3d>)>("domain")
 			.add_method("mark", &T::mark, "", "refiner", "Marks neurites for axial refinement.")
+			.add_method("mark_exclusive_one", &T::mark_exclusive_one, "", "refiner#subset name", "Marks neurites for axial refinement if not in subset")
 			.set_construct_as_smart_pointer(true);
 	}
 
@@ -1051,6 +1052,7 @@ static void Common(Registry& reg, string grp)
 	// misc util
 	{
 		reg.add_function("GetCoordinatesFromVertexByIndex", &GetCoordinatesFromVertexByIndex, grp.c_str(), "coordinates", "grid#index", "");
+		reg.add_function("PostProcessMesh", &PostProcessMesh, grp.c_str(), "", "filename", "");
 	}
 
 	// vr util and copy attachment handlers

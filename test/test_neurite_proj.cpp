@@ -5641,16 +5641,6 @@ void create_spline_data_for_neurites
 			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_BP_ITERATION_FAILURE;
 		}
 
-		/// Write with projection handler
-		std::string outFileName = "after_selecting_boundary_elements_with_projector.ugx";
-		GridWriterUGX ugxWriter;
-		ugxWriter.add_grid(g, "defGrid", aPosition);
-		ugxWriter.add_subset_handler(sh, "defSH", 0);
-		ugxWriter.add_subset_handler(psh, "projSH", 0);
-		ugxWriter.add_projection_handler(projHandler, "defPH", 0);
-		if (!ugxWriter.write_to_file(outFileName.c_str()))
-			UG_THROW("Grid could not be written to file '" << outFileName << "'.");
-
 		/// Capping of neurites: Note, that this could be improved obviously
 		// assign subsets
 		sel.clear();
@@ -5659,23 +5649,20 @@ void create_spline_data_for_neurites
 		while (ite != subsets.edges.end()) {
 			sel.clear();
 			sel.select(ite->begin()+12, ite->end(), true);
-			CloseSelection(sel);
+			//CloseSelection(sel);
 			AssignSelectionToSubset(sel, sh, sh.num_subsets()+counter);
 			ite++;
 			counter++;
 		}
-
-		SelectSubset(sel, sh, 0, true);
-		SelectSubset(sel, sh, 1, true);
-		SelectSubset(sel, sh, 3, true);
-		EraseSelectedObjects(sel);
+		sel.clear();  /// was missing before: prevented in the past that last neurite from being not capped
 		EraseEmptySubsets(sh);
 
 		for (int i = 0; i < counter-1; i++) {
 			sel.clear();
 			SelectSubset(sel, sh, sh.num_subsets()-i-1, true);
 			// Neurite caps go to neurites subset
-			AssignSelectionToSubset(sel, sh, 0);
+			// AssignSelectionToSubset(sel, sh, 0);
+			/// Neurite caps stay in extra subset, then are triangulated for visualization
 			TriangleFill(g, sel.edges_begin(), sel.edges_end());
 		}
 
@@ -5692,10 +5679,22 @@ void create_spline_data_for_neurites
 		create_soma(vSomaPoints, g, aaPos, sh, 1);
 		sh.subset_info(0).name = "Neurites";
 		sh.subset_info(1).name = "Soma";
+		/// All following subsets are neurite caps (2, 3, ... sh.num_subsets())
 		AssignSubsetColors(sh);
 		EraseEmptySubsets(sh);
 		set_somata_mapping_parameters(g, sh, aaMapping, 1, 1, vSomaPoints.front());
 
+		/// Write with projection handler
+		std::string outFileName = "after_selecting_boundary_elements_with_projector.ugx";
+		GridWriterUGX ugxWriter;
+		ugxWriter.add_grid(g, "defGrid", aPosition);
+		ugxWriter.add_subset_handler(sh, "defSH", 0);
+		ugxWriter.add_subset_handler(psh, "projSH", 0);
+		ugxWriter.add_projection_handler(projHandler, "defPH", 0);
+		if (!ugxWriter.write_to_file(outFileName.c_str()))
+			UG_THROW("Grid could not be written to file '" << outFileName << "'.");
+
+		/// Compatibility to old pipeline script
 		/// save quadrilateral mesh
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements.ugx");
 
@@ -5706,14 +5705,13 @@ void create_spline_data_for_neurites
 		SaveGridToFile(g, sh, "after_selecting_boundary_elements_tris.ugx");
 		/// Use to warn if triangles intersect and correct triangle intersections
 		RemoveDoubles<3>(g, g.begin<Vertex>(), g.end<Vertex>(), aPosition, SMALL);
+
 		/// TODO: Commented since fails in current ug head revision: Is this fixed now in ugcore?!
 		/// try {
 		/// ResolveTriangleIntersections(g, g.begin<Triangle>(), g.end<Triangle>(), 0.1, aPosition);
 		/// } catch (CylinderCylinderOverlap) {
         ///  error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_CYLINDER_CYLINDER_OVERLAP
 		/// }
-
-
 
 		return error_code;
 	}

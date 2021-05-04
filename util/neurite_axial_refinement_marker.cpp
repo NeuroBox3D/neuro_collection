@@ -85,28 +85,41 @@ NeuriteAxialRefinementMarker::~NeuriteAxialRefinementMarker()
 	mg->detach_from_volumes(m_aBP);
 }
 
+void NeuriteAxialRefinementMarker::mark(SmartPtr<IRefiner> refiner) {
+	mark_exclusive(refiner, std::set<int>());
+}
 
-void NeuriteAxialRefinementMarker::mark(SmartPtr<IRefiner> refiner)
+void NeuriteAxialRefinementMarker::mark_exclusive_one(SmartPtr<IRefiner> refiner, const std::string& subsetName) {
+	std::set<int> subsetIndices;
+	subsetIndices.insert(m_spDom->subset_handler()->get_subset_index(subsetName.c_str()));
+	mark_exclusive(refiner, subsetIndices);
+}
+
+void NeuriteAxialRefinementMarker::mark_exclusive(SmartPtr<IRefiner> refiner, const std::set<int>& subsetIndices)
 {
 	// identify BP edges
 	find_bp_volumes();
 
+
 	// get surface view and grid
 	SurfaceView sv(m_spDom->subset_handler());
 	SmartPtr<MultiGrid> mg = m_spDom->grid();
+	ConstSmartPtr<MGSubsetHandler> m_spSh = m_spDom->subset_handler();
 
 	// mark all volumes and faces RM_CLOSURE
 	typedef SurfaceView::traits<Volume>::const_iterator const_vol_it;
 	const_vol_it itVol = sv.begin<Volume>(GridLevel(), SurfaceView::ALL_BUT_SHADOW_COPY);
 	const_vol_it itVolEnd = sv.end<Volume>(GridLevel(), SurfaceView::ALL_BUT_SHADOW_COPY);
 	for (; itVol != itVolEnd; ++itVol)
-		refiner->mark(*itVol, RM_CLOSURE);
+		if (subsetIndices.find(m_spSh->get_subset_index(*itVol)) == subsetIndices.end())
+			refiner->mark(*itVol, RM_CLOSURE);
 
 	typedef SurfaceView::traits<Face>::const_iterator const_face_it;
 	const_face_it itFace = sv.begin<Face>(GridLevel(), SurfaceView::ALL_BUT_SHADOW_COPY);
 	const_face_it itFaceEnd = sv.end<Face>(GridLevel(), SurfaceView::ALL_BUT_SHADOW_COPY);
 	for (; itFace != itFaceEnd; ++itFace)
-		refiner->mark(*itFace, RM_CLOSURE);
+		if (subsetIndices.find(m_spSh->get_subset_index(*itFace)) == subsetIndices.end())
+			refiner->mark(*itFace, RM_CLOSURE);
 
 	// mark all axial edges RM_REFINE
 	std::vector<EdgeDescriptor> edgeDescs1(4);
@@ -122,6 +135,9 @@ void NeuriteAxialRefinementMarker::mark(SmartPtr<IRefiner> refiner)
 		Volume* vol = *itVol;
 
 		if (is_bp_volume(vol))
+			continue;
+
+		if (subsetIndices.find(m_spSh->get_subset_index(*itVol)) != subsetIndices.end())
 			continue;
 
 		// find the axial edges

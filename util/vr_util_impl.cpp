@@ -48,6 +48,50 @@
 
 namespace ug {
     namespace neuro_collection {
+        void PostProcessMesh
+        (
+            const std::string& fileName
+        )
+        {
+           	Domain3d dom;
+		    try {LoadDomain(dom, fileName.c_str());}
+	    	UG_CATCH_THROW("Failed loading domain from '" << fileName << "'.");
+         
+            auto sh = dom.subset_handler();
+            auto grid = dom.grid();
+            Selector sel(*grid.get());
+            /// Remove all volumes and ER from mesh and clear subsets
+            SelectSubset(sel, *sh.get(), 3, true);
+            SelectAssociatedEdges(sel, sel.begin<Vertex>(), sel.end<Vertex>());
+            SelectAssociatedFaces(sel, sel.begin<Edge>(), sel.end<Edge>());             
+            SelectAssociatedVolumes(sel, sel.begin<Face>(), sel.end<Face>());
+            EraseSelectedObjects(sel);
+            EraseEmptySubsets(*sh.get());
+
+            typedef NeuriteProjector::Mapping NPMapping;
+	        UG_COND_THROW(!GlobalAttachments::is_declared("npMapping"),
+	    		"GlobalAttachment 'npMapping' was not declared.");
+	        Attachment<NPMapping> aNPMapping = GlobalAttachments::attachment<Attachment<NPMapping> >("npMapping");
+	        if (!grid->has_vertex_attachment(aNPMapping)) {
+	          	grid->attach_to_vertices(aNPMapping);
+	        } 
+
+            Grid::VertexAttachmentAccessor<Attachment<NPMapping> > aaMapping;
+	        aaMapping.access(*grid.get(), aNPMapping);
+
+            /// Assign all neurite caps to neurite set
+            for (size_t i = 2; i < sh->num_subsets(); i++) {
+                SelectSubset(sel, *sh.get(), i, true);
+            }
+            AssignSelectionToSubset(sel, *sh.get(), 0);
+            EraseEmptySubsets(*sh.get());
+
+            /// Save regular (quad surface mesh) and triangulated surface mesh
+            SaveGridToFile(*grid.get(), *sh.get(), "test_new.ugx");
+		    Triangulate(*grid.get(), grid->begin<ug::Quadrilateral>(), grid->end<ug::Quadrilateral>());
+            SaveGridToFile(*grid.get(), *sh.get(), "test_new_tri.ugx");
+        }
+
         ///////////////////////////////////////////////////////////////////////
         /// Write3dMeshTo1d
         ///////////////////////////////////////////////////////////////////////

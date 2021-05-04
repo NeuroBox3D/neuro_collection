@@ -92,6 +92,11 @@ class NeuriteAxialRefinementMarker
 		virtual ~NeuriteAxialRefinementMarker();
 
 		void mark(SmartPtr<IRefiner> refiner);
+		/*!
+		 * \brief mark the elements but exclude the subset with below name
+		 * \param[in] subsetName
+		 */
+		void mark_exclusive_one(SmartPtr<IRefiner> refiner, const std::string& subsetName);
 
 #ifdef NC_WITH_PARMETIS
 		typedef Volume::side side_t;
@@ -118,6 +123,7 @@ class NeuriteAxialRefinementMarker
 	private:
 		void mark_bp_volumes(MultiGrid* mg, int lvl) const;
 		bool is_central_bp_vol(Volume*) const;
+		void mark_exclusive(SmartPtr<IRefiner> refiner, const std::set<int>& subsetIndices);
 
 	protected:
 		Attachment<bool> m_aBP;
@@ -127,6 +133,7 @@ class NeuriteAxialRefinementMarker
 		Grid::VertexAttachmentAccessor<Attachment<NPSP> > m_aaSurfParams;
 
 		SmartPtr<Domain3d> m_spDom;
+		std::vector<int> excludedSubsets;
 
 };
 

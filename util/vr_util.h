@@ -46,6 +46,15 @@
 namespace ug {
     namespace neuro_collection {
         /*!
+         * \brief Input file name for VR mesh
+         * \param[in] filename output file name
+         */
+        void PostProcessMesh
+        (
+            const std::string& fileName
+        );
+
+        /*!
          * \brief Write a 1d mesh from the corresponding 3d mesh in the domain
          * \param[in] dom domain
          * \param[in] gridLevel level of (refined) grid hierarchy
