@@ -62,53 +62,6 @@ namespace neuro_collection {
 ///@{
 
 
-/// Mark all surface elements for refinement.
-template <typename TDomain>
-void mark_global(SmartPtr<IRefiner> refiner, SmartPtr<TDomain> domain);
-
-
-/// Mark all surface elements of specific subsets for refinement.
-template <typename TDomain>
-void MarkSubsets
-(
-	SmartPtr<IRefiner> refiner,
-	SmartPtr<TDomain> domain,
-	const std::vector<std::string>& vSubset
-);
-
-
-/**
- * @brief Mark all anisotropic elements of the surface grid for ansiotropic refinement
- *
- * Whether an element is isotropic or not is decided using the is_anisotropic() functions
- * from lib_grid's anisotropy_util and the given threshold ratio.
- */
-template <typename TDomain>
-void mark_anisotropic
-(
-	SmartPtr<IRefiner> refiner,
-	SmartPtr<TDomain> domain,
-	number thresholdRatio
-);
-
-
-/**
- * @brief Mark all elements that are anisotropic in direction of the x-axis for ansiotropic refinement
- *
- * Whether an element is isotropic or not is decided using the is_anisotropic() functions
- * from lib_grid's anisotropy_util and the given threshold ratio.
- *
- * "Anisotropic in direction of the x-axis" means that the long edges (only the first one is checked)
- * point more or less in x-direction, to be precise: the normalized vector connecting this edge's
- * vertices has an x-entry of more than 0.9.
- */
-template <typename TDomain>
-void mark_anisotropic_onlyX
-(
-	SmartPtr<IRefiner> refiner,
-	SmartPtr<TDomain> domain,
-	number thresholdRatio
-);
 
 template <typename TDomain>
 void adjust_attachments
@@ -151,46 +104,10 @@ void mark_anisotropic_in_local_neurite_direction
 void MarkNeuriteForAxialRefinement(SmartPtr<IRefiner> refiner, SmartPtr<Domain3d> domain);
 
 
-/**
- *	Marks for refinement all (full-dim) elements neighboring grid elements
- *	that contain a degree of freedom (Lagrangian) whose value is outside a
- *	given range.
- *
- *	This function can be used to adaptively refine geometries with Q1 shape
- *	functions, which can become negative, e.g., in diffusion problems.
- *
- * @param refiner     refiner for hanging node refinement
- * @param u           solution grid function
- * @param cmp         component to check
- * @param lowerBnd    lower bound
- * @param upperBnd    upper bound
- */
-template <typename TGridFunction>
-void MarkOutOfRangeElems
-(
-	SmartPtr<IRefiner> refiner,
-	ConstSmartPtr<TGridFunction> u,
-	size_t cmp,
-	number lowerBnd,
-	number upperBnd
-);
-
 
 template <typename TDomain>
 void RemoveAllNonDefaultRefinementProjectors(SmartPtr<TDomain> dom);
 
-/*!
- * \brief Save grid to file with filename as standard string
- * \param[in] grid
- * \param[in] sh
- * \param[in] fileName
- */
-bool SaveGridToFile
-(
-	const Grid& grid,
-	const ISubsetHandler& sh,
-	const std::string& fileName
-);
 
 /*!
  * \brief Get the coordinates of a grid vertex by its index
@@ -210,7 +127,5 @@ const vector3* GetCoordinatesFromVertexByIndex
 } // namespace ug
 } // namespace neuro_collection
 
-
-#include "misc_util_impl.h"
 
 #endif // UG__PLUGINS__NEURO_COLLECTION__UTIL__MISC_UTIL_H

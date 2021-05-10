@@ -191,31 +191,31 @@ class HHSpecies
 	// inheritances from IMembraneTransporter
 	public:
 		/// @copydoc IMembraneTransporter::prep_timestep()
-		virtual void prep_timestep(number future_time, const number time, VectorProxyBase* upb);
+		virtual void prepare_timestep(number future_time, const number time, VectorProxyBase* upb) override;
 
 		/// @copydoc IMembraneTransporter::calc_flux()
-		virtual void calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const;
+		virtual void calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const override;
 
 		/// @copydoc IMembraneTransporter::calc_flux_deriv()
-		virtual void calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
+		virtual void calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const override;
 
 		/// @copydoc IMembraneTransporter::n_dependencies()
-		virtual size_t n_dependencies() const;
+		virtual size_t n_dependencies() const override;
 
 		/// @copydoc IMembraneTransporter::n_fluxes()
-		virtual size_t n_fluxes() const;
+		virtual size_t n_fluxes() const override;
 
 		/// @copydoc IMembraneTransporter::flux_from_to()
-		virtual const std::pair<size_t,size_t> flux_from_to(size_t flux_i) const;
+		virtual const std::pair<size_t,size_t> flux_from_to(size_t flux_i) const override;
 
 		/// @copydoc IMembraneTransporter::name()
-		virtual const std::string name() const;
+		virtual const std::string name() const override;
 
 		/// @copydoc IMembraneTransporter::check_supplied_functions()
-		virtual void check_supplied_functions() const;
+		virtual void check_supplied_functions() const override;
 
 		/// @copydoc IMembraneTransporter::print_units()
-		virtual void print_units() const;
+		virtual void print_units() const override;
 
 
 	protected:

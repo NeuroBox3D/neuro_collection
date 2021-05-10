@@ -81,7 +81,6 @@ namespace ug {
 			}
 
 			/// create edges
-			std::vector<Vertex*>::const_iterator vit = vertices.begin();
 			for (size_t i = 0; i < vertices.size()-1; i++) {
 				*g.create<RegularEdge>(EdgeDescriptor(vertices[i], vertices[i+1]));
 			}

@@ -47,6 +47,7 @@
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
 
+#undef UG_ASSERT
 #define UG_ASSERT(expr, msg) {}
 
 namespace ug {
@@ -2610,8 +2611,6 @@ number calculate_length_over_radius_variant
                                                number segLength
                                        )
                                        {
-                                       const size_t nSeg = segAxPosOut.size();
-
                                        GaussLegendre gl(50);
                                        size_t nPts = gl.size();
 
@@ -2680,7 +2679,7 @@ number calculate_length_over_radius_variant
                                            ++seg;
                                         }
 
-                                       UG_ASSERT(seg == nSeg, "seg = " << seg << " != " << nSeg << " = nSeg");
+                                       UG_ASSERT(seg == segAxPosOut.size(), "seg = " << seg << " != " << segAxPosOut.size() << " = nSeg");
                                        }
 
 

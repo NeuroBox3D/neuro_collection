@@ -9,6 +9,7 @@ This plugin aims at collecting and unifying any neuro-related functionality that
 [![Build Status (OSX/Linux)](https://travis-ci.org/NeuroBox3D/neuro_collection.svg?branch=master)](https://travis-ci.org/NeuroBox3D/neuro_collection)
 [![Build status (Windows)](https://ci.appveyor.com/api/projects/status/di4nw042lggbyah8?svg=true)](https://ci.appveyor.com/project/stephanmg/neuro-collection)
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
+[![CodeQL](https://github.com/NeuroBox3D/neuro_collection/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/NeuroBox3D/neuro_collection/actions/workflows/codeql-analysis.yml)
 
 Travis CI is used to trigger the build of downstream projects (Which depend on neuro_collection). See `.travis.yml` for details.
-Currently two downstream projects are triggered (The latter project triggers another downstream project https://github.com/stephanmg/non-vr-grids): https://github.com/stephanmg/vr-grids and https://github.com/stephanmg/BranchGenerator
+Currently two downstream projects are triggered (The latter project triggers other downstream project [https://github.com/stephanmg/non-vr-grids](non-vr-grids), [https://github.com/stephanmg/vr-grids](vr-grids) and [https://github.com/stephanmg/BranchGenerator](BranchGenerator)).
