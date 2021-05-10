@@ -759,7 +759,6 @@ void convert_pointlist_to_neuritelist
 					else
 					{
 						vRootNeuriteIndsOut.push_back(curNeuriteInd);
-						*/
 					}
 				}
 			}
@@ -2086,7 +2085,6 @@ static void create_neurite
 			VecScaleAdd(projRefDir, 1.0, neurite.refDir, -fac, vel);
 			VecNormalize(projRefDir, projRefDir);
 			VecCross(thirdDir, vel, projRefDir);
-			 */
 			vector2 relCoord(VecProd(childDir, projRefDir), VecProd(childDir, thirdDir));
 			VecNormalize(relCoord, relCoord);
 
@@ -2276,7 +2274,6 @@ static void create_neurite
 				g.create<Hexahedron>(HexahedronDescriptor(vVrt[0], vVrt[1], vVrt[2], vVrt[3],
 					vNewVrt[0], vNewVrt[1], vNewVrt[2], vNewVrt[3]));
 
-				 */
 				vVrt.swap(vNewVrt);
 			}
 
@@ -2300,7 +2297,6 @@ static void create_neurite
 		else
 			++brit;
 	}
-	 */
 	}
 
 ////////////////////////////////////////////////////////////////////////
