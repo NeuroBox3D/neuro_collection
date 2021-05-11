@@ -467,8 +467,8 @@ namespace ug {
 		/// number of segments we want to create
 		size_t nSeg;
 
-		/// segment length
-		number segLength;
+		/// segment length (if not chosen otherwise)
+		number segLength = 8;
 
 		/// Segment positions
 		std::vector<number> vSegAxPos;
