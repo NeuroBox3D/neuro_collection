@@ -825,7 +825,7 @@ void convert_pointlist_to_neuritelist_variant
 		try {
 			UG_COND_THROW(i == nPts, "No soma contained in (non-empty) list of unprocessed SWC points, \n"
 			"i.e., there is at least one SWC point not connected to any soma.");
-		} catch (UGError) {
+		} catch (const UGError& error) {
 			throw NoSomaContainedInSWCFile("No soma contained in (non-empty) list of unprocessed SWC points, \n"
 				"i.e., there is at least one SWC point not connected to any soma.");
 		}
@@ -5514,9 +5514,9 @@ int test_import_swc_general_var_for_vr_var_benchmark(
 	std::vector<size_t> vRootNeuriteIndsOut;
 		try {
 			convert_pointlist_to_neuritelist(vPoints, vSomaPoints, vPos, vRad, vBPInfo, vRootNeuriteIndsOut);
-		} catch (InvalidBranches) {
+		} catch (const InvalidBranches& err) {
 			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_INVALID_BRANCHES;
-		} catch (NoSomaContainedInSWCFile) {
+		} catch (const NoSomaContainedInSWCFile& err) {
 			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_NO_SOMA_CONTAINED_IN_SWC;
 		}
 
@@ -5535,7 +5535,7 @@ int test_import_swc_general_var_for_vr_var_benchmark(
 		/// Check for cycle
 		try {
 		    UG_COND_THROW(ContainsCycle(vPoints), "1d grid contains at least one cycle. This is not permitted!");
-		} catch (ContainsCycles) {
+		} catch (const ContainsCycles& err) {
 			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_CONTAINS_CYCLES;
 		}
 
@@ -5599,7 +5599,7 @@ int test_import_swc_general_var_for_vr_var_benchmark(
 	vector<NeuriteProjector::Neurite>& vNeurites = neuriteProj->neurites();
 		try {
 			create_spline_data_for_neurites(vNeurites, vPos, vRad, &vBPInfo);
-		} catch (RegularizationIncomplete) {
+		} catch (const RegularizationIncomplete& err) {
 			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_REGULARIZATION_INCOMPLETE;
 		}
 
@@ -5608,28 +5608,28 @@ int test_import_swc_general_var_for_vr_var_benchmark(
 		/// A high-angle (20 deg) local render vector should effectively avoid twisting
 		try {
 			//set_permissible_render_vector(vPos, vNeurites);
-		} catch (NoPermissibleRenderVector) {
+		} catch (const NoPermissibleRenderVector& err) {
 			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_NO_PERMISSIBLE_RENDER_VECTOR_FOUND;
 		}
 
 		/// Checks diameter variabilility
 		try {
 			check_diameter_variability(make_pair(vPos, vRad));
-		} catch (HighDiameterVariability) {
+		} catch (const HighDiameterVariability& err) {
 			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_HIGH_DIAMETER_VARIABILITY;
 		}
 
 		/// Checks close by branching points
 		try {
 			check_for_close_branching_points(make_pair(vPos, vRad));
-		} catch (BranchingPointClustering) {
+		} catch (const BranchingPointClustering& err) {
 			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_BRANCHING_POINT_CLUSTERING;
 		}
 
 		/// Checks for small or negative radii
 		try {
 			check_for_small_radii(make_pair(vPos, vRad));
-		} catch (SmallOrNegativeRadius) {
+		} catch (const SmallOrNegativeRadius& err) {
 			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_SMALL_OR_NEGATIVE_RADIUS;
 		}
 
