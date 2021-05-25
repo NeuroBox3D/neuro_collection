@@ -88,7 +88,7 @@ RyRImplicit<TDomain>::~RyRImplicit()
 
 #if 0
 template <typename TDomain>
-void RyRImplicit<TDomain>::prep_timestep(number future_time, const number time, VectorProxyBase* upb)
+void RyRImplicit<TDomain>::prepare_timestep(number future_time, const number time, VectorProxyBase* upb)
 {
 	// get solution u with which to prepare time step (this code only accepts CPUAlgebra type)
 	typedef CPUAlgebra::vector_type v_type;

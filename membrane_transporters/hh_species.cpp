@@ -638,7 +638,7 @@ static bool vector_from_algebra_type(VectorProxyBase* upb)
 
 
 template <typename TDomain>
-void HHSpecies<TDomain>::prep_timestep(number future_time, const number time, VectorProxyBase* upb)
+void HHSpecies<TDomain>::prepare_timestep(number future_time, const number time, VectorProxyBase* upb)
 {
 	// as long as we cannot template this method, we have to find out the algebra type ourselves
 #ifdef UG_CPU_1

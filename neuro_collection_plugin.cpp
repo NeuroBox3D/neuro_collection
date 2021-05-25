@@ -56,7 +56,6 @@
 #include "nc_config.h"
 
 #include "buffer_fv1.h"
-#include "surface_marking.h"                                 // for SurfaceMarking
 #include "membrane_transport_fv1.h"
 #include "user_flux_bnd_fv1.h"
 #include "membrane_transporters/membrane_transporter_interface.h"
@@ -198,11 +197,6 @@ static void DomainAlgebra(Registry& reg, string grp)
 		"from the given file to the given solution vector "
 		"(using the value of the nearest neighbor for each vertex)");
 
-	// MarkOutOfRangeElems
-	reg.add_function("MarkOutOfRangeElems", static_cast<void (*) (SmartPtr<IRefiner>, ConstSmartPtr<TGridFunction>, size_t, number, number)>(MarkOutOfRangeElems<TGridFunction>),
-		grp.c_str(), "", "refiner # grid function # component # lower bound # upper bound",
-		"Marks elements next to out-of-range DoFs for refinement");
-
 
 	// export all template realizations of RyRImplicit::calculate_steady_state()
 	{
@@ -331,31 +325,6 @@ static void Domain(Registry& reg, string grp)
 				 "add a new reaction definition")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "BufferFV1", tag);
-	}
-
-	// SurfaceMarking
-	{
-		typedef SurfaceMarking<TDomain> T;
-		typedef IElementMarkingStrategy<TDomain> TBase;
-		string name = string("SurfaceMarking").append(suffix);
-		reg.add_class_<T, TBase>(name, grp)
-			.template add_constructor<void (*)(ConstSmartPtr<TDomain>)>("domain")
-			.template add_constructor<void (*)(number, size_t)>("tolerance#maximal level of refinement")
-			.template add_constructor<void (*)(ConstSmartPtr<TDomain>, number, size_t)>("domain#tolerance#maximal level of refinement")
-			.add_method("set_tolerance", &T::set_tolerance, "", "tolerance", "", "")
-			.add_method("set_max_level", &T::set_max_level, "", "maximal refinement level", "", "")
-			.add_method("add_surface", static_cast<void (T::*) (int, int)>(&T::add_surface),
-				"", "surface subset index # adjacent element subset index to be refined", "", "")
-			.add_method("remove_surface", static_cast<void (T::*) (int, int)>(&T::remove_surface),
-				"", "surface subset index # adjacent element subset index to be refined", "", "")
-			.add_method("add_surface", static_cast<void (T::*) (const std::string&, const std::string&)>(&T::add_surface),
-				"", "surface subset name # adjacent element subset name to be refined", "", "")
-			.add_method("remove_surface", static_cast<void (T::*) (const std::string&, const std::string&)>(&T::remove_surface),
-				"", "surface subset name # adjacent element subset name to be refined", "", "")
-			//.add_method("add_interface", &T::add_interface, "", "interfaces to take into account", "")
-			.add_method("mark_without_error", &T::mark_without_error, "", "refiner#approximation space", "", "")
-			.set_construct_as_smart_pointer(true);
-		reg.add_class_to_group(name, "SurfaceMarking", tag);
 	}
 
 	// implementation of two-sided membrane transport systems
@@ -634,10 +603,6 @@ static void Domain(Registry& reg, string grp)
 
 	// mark for refinement functions
 	{
-		reg.add_function("mark_global", &mark_global<TDomain>, grp.c_str(), "", "refiner#domain", "");
-		reg.add_function("MarkSubsets", &MarkSubsets<TDomain>, grp.c_str(), "", "refiner#domain#subset names (as vector of string)", "");
-		reg.add_function("mark_anisotropic", &mark_anisotropic<TDomain>, grp.c_str(), "", "refiner#domain#anisotropy threshold (<=1)", "");
-		reg.add_function("mark_anisotropic_x", &mark_anisotropic_onlyX<TDomain>, grp.c_str(), "", "refiner#domain#anisotropy threshold (<=1)", "");
 		reg.add_function("adjust_attachments", &adjust_attachments<TDomain>, grp.c_str(), "", "domain", "");
 		reg.add_function("mark_anisotropic_in_local_neurite_direction", &mark_anisotropic_in_local_neurite_direction<TDomain>, grp.c_str(), "", "refiner#domain#anisotropy threshold (<=1)", "");
 		reg.add_function("unmark_ranvier_areas", &unmark_ranvier_areas<TDomain>, grp.c_str(), "", "refiner#approx space#ranvier node subsets#unmark", "");

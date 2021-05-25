@@ -123,32 +123,32 @@ class RyRImplicit
 	// inheritances from IMembraneTransporter
 	public:
 #if 0
-		/// @copydoc IMembraneTransporter::prep_timestep()
-		virtual void prep_timestep(number future_time, const number time, VectorProxyBase* upb);
+		/// @copydoc IMembraneTransporter::prepare_timestep()
+		virtual void prepare_timestep(number future_time, const number time, VectorProxyBase* upb) override;
 #endif
 		/// @copydoc IMembraneTransporter::calc_flux()
-		virtual void calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const;
+		virtual void calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const override;
 
 		/// @copydoc IMembraneTransporter::calc_flux_deriv()
-		virtual void calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
+		virtual void calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const override;
 
 		/// @copydoc IMembraneTransporter::n_dependencies()
-		virtual size_t n_dependencies() const;
+		virtual size_t n_dependencies() const override;
 
 		/// @copydoc IMembraneTransporter::n_fluxes()
-		virtual size_t n_fluxes() const;
+		virtual size_t n_fluxes() const override;
 
 		/// @copydoc IMembraneTransporter::flux_from_to()
-		virtual const std::pair<size_t,size_t> flux_from_to(size_t flux_i) const;
+		virtual const std::pair<size_t,size_t> flux_from_to(size_t flux_i) const override;
 
 		/// @copydoc IMembraneTransporter::name()
-		virtual const std::string name() const;
+		virtual const std::string name() const override;
 
 		/// @copydoc IMembraneTransporter::check_supplied_functions()
-		virtual void check_supplied_functions() const;
+		virtual void check_supplied_functions() const override;
 
 		/// @copydoc IMembraneTransporter::print_units()
-		virtual void print_units() const;
+		virtual void print_units() const override;
 
 	public:
 		/// init gating variables to equilibrium
@@ -158,13 +158,13 @@ class RyRImplicit
 	// inheritances from IElemDisc
 	public:
 		/// type of trial space for each function used
-		virtual void prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid);
+		virtual void prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid) override;
 
 		/// returns if hanging nodes are used
-		virtual bool use_hanging() const;
+		virtual bool use_hanging() const override;
 #if 0
 		/// @copydoc IElemDisc::approximation_space_changed()
-		virtual void approximation_space_changed();
+		virtual void approximation_space_changed() override;
 #endif
 
 	// assembling functions

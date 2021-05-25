@@ -100,7 +100,7 @@ void NMDAR::set_temperature(number temp)
 
 
 
-void NMDAR::prep_timestep(number future_time, const number time, VectorProxyBase* upb)
+void NMDAR::prepare_timestep(number future_time, const number time, VectorProxyBase* upb)
 {
 	m_time = future_time;
 }
