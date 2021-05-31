@@ -198,11 +198,6 @@ static void DomainAlgebra(Registry& reg, string grp)
 		"from the given file to the given solution vector "
 		"(using the value of the nearest neighbor for each vertex)");
 
-	// MarkOutOfRangeElems
-	reg.add_function("MarkOutOfRangeElems", static_cast<void (*) (SmartPtr<IRefiner>, ConstSmartPtr<TGridFunction>, size_t, number, number)>(MarkOutOfRangeElems<TGridFunction>),
-		grp.c_str(), "", "refiner # grid function # component # lower bound # upper bound",
-		"Marks elements next to out-of-range DoFs for refinement");
-
 
 	// export all template realizations of RyRImplicit::calculate_steady_state()
 	{
@@ -635,7 +630,6 @@ static void Domain(Registry& reg, string grp)
 	// mark for refinement functions
 	{
 		reg.add_function("mark_global", &mark_global<TDomain>, grp.c_str(), "", "refiner#domain", "");
-		reg.add_function("MarkSubsets", &MarkSubsets<TDomain>, grp.c_str(), "", "refiner#domain#subset names (as vector of string)", "");
 		reg.add_function("mark_anisotropic", &mark_anisotropic<TDomain>, grp.c_str(), "", "refiner#domain#anisotropy threshold (<=1)", "");
 		reg.add_function("mark_anisotropic_x", &mark_anisotropic_onlyX<TDomain>, grp.c_str(), "", "refiner#domain#anisotropy threshold (<=1)", "");
 		reg.add_function("adjust_attachments", &adjust_attachments<TDomain>, grp.c_str(), "", "domain", "");
@@ -644,9 +638,9 @@ static void Domain(Registry& reg, string grp)
 	}
 
 	// extra commands for this plugin
-	reg.add_function("compute_volume", static_cast<void (*) (ConstSmartPtr<ApproximationSpace<TDomain> >, const char*)>(&computeVolume<TDomain>), grp.c_str(),
+	reg.add_function("compute_volume", static_cast<void (*)(ConstSmartPtr<ApproximationSpace<TDomain>>, const char *)>(&computeVolume<TDomain>), grp.c_str(),
 					 "", "approxSpace#subsetNames", "outputs subset volumes");
-	reg.add_function("compute_volume_of_subset", static_cast<number (*) (ConstSmartPtr<ApproximationSpace<TDomain> >, int)>(&computeVolume<TDomain>), grp.c_str(),
+	reg.add_function("compute_volume_of_subset", static_cast<number (*)(ConstSmartPtr<ApproximationSpace<TDomain>>, int)>(&computeVolume<TDomain>), grp.c_str(),
 					 "volume of the subset", "approxSpace # subset index", "calculates subset volume");
 
 	reg.add_function("RemoveAllNonDefaultRefinementProjectors", &RemoveAllNonDefaultRefinementProjectors<TDomain>);
