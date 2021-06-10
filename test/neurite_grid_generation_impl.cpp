@@ -79,7 +79,9 @@ namespace ug {
 		int bip,
 		const std::string& option,
 		number desiredSegLength,
-		const bool onlyCaps
+		const bool onlyCaps,
+		Grid* grid1d,
+		Grid::VertexAttachmentAccessor<AInt>* aaInt
 	) {
 	const NeuriteProjector::Neurite& neurite = vNeurites[nid];
 	const std::vector<vector3>& pos = vPos[nid];
@@ -193,6 +195,19 @@ namespace ug {
 							0.5 * PI * i + angleOffset :
 							0.5 * PI * i + angleOffset - 2 * PI;
 			aaSurfParams[(*connectingVrts)[i]].radial = erScaleFactor;
+
+			////////////////////////////////////////////////////////////////////////////
+			/// Store indices of 1D mesh vertices in attachment as well
+			////////////////////////////////////////////////////////////////////////////
+			if ( (grid1d != NULL) && (aaInt != NULL) ) {
+ 			 	Grid::VertexAttachmentAccessor<APosition> aaPos2(*grid1d, aPosition);
+ 	                   	Vertex* v1 = FindClosestByCoordinate<Vertex>(pos[0], grid1d->vertices_begin(), grid1d->vertices_end(), aaPos2);
+ 	                   	Vertex* v2 = FindClosestByCoordinate<Vertex>(pos[1], grid1d->vertices_begin(), grid1d->vertices_end(), aaPos2);
+				aaMappingParams[(*connectingVrts)[i]].v1i = (*aaInt)[v1];
+				aaMappingParams[(*connectingVrts)[i]].v2i = (*aaInt)[v2];
+			}
+			////////////////////////////////////////////////////////////////////////////
+
 			aaMappingParams[(*connectingVrts)[i]].v1 = pos[0];
 			aaMappingParams[(*connectingVrts)[i]].v2 = pos[1];
 			vector3 vOut;
@@ -230,6 +245,7 @@ namespace ug {
 			aaMappingParams[v].v1 = pos[0];
 			aaMappingParams[v].v2 = pos[1];
 			vector3 vOut;
+			/// TODO: Add changes for indices here as well...
 			aaMappingParams[v].lambda = ProjectPointToLine(vOut, aaPos[v], pos[0], pos[1]);
       UG_LOGN(aaMappingParams[v].lambda);
       UG_ASSERT(IsBetween(aaMappingParams[v].lambda), "Lambda needs to be in range [0,1].");
@@ -257,6 +273,7 @@ namespace ug {
 			aaSurfParams[v].angular = angle;
 			aaSurfParams[v].radial = 1.0;
 			// 1d<->2d mapping params
+			/// TODO: Add changes for indices here as well...
 			aaMappingParams[v].v1 = pos[0];
 			aaMappingParams[v].v2 = pos[1];
 			vector3 vOut;
@@ -702,6 +719,7 @@ namespace ug {
 					aaSurfParams[v].radial = erScaleFactor;
 
 					// 1d<->2d mapping params
+			/// TODO: Add changes for indices here as well...
 					aaMappingParams[v].v1 = pos[curSec+1];
 					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;
@@ -730,6 +748,7 @@ namespace ug {
 					aaSurfParams[v].radial = blowUpFactor;
 
 					// 1d<->2d mapping params
+			/// TODO: Add changes for indices here as well...
 					aaMappingParams[v].v1 = pos[curSec+1];
 					aaMappingParams[v].v2 = pos[curSec+1];
 
@@ -869,6 +888,7 @@ namespace ug {
 					aaSurfParams[v].radial = erScaleFactor;
 
 					// 1d<->2d mapping params
+			/// TODO: Add changes for indices here as well...
 					aaMappingParams[v].v1 = pos[curSec+1];
 					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;
@@ -894,6 +914,7 @@ namespace ug {
 					aaSurfParams[v].radial = 1.0;
 
 					// 1d<->2d mapping params
+			/// TODO: Add changes for indices here as well...
 					aaMappingParams[v].v1 = pos[curSec+1];
 					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;
@@ -1029,6 +1050,7 @@ namespace ug {
 					aaSurfParams[v].radial = erScaleFactor;
 
 					// 1d<->2d mapping params
+			/// TODO: Add changes for indices here as well...
 					aaMappingParams[v].v1 = pos[curSec+1];
 					aaMappingParams[v].v2 = pos[curSec+1];
 					vector3 vOut;
@@ -1053,6 +1075,7 @@ namespace ug {
 					aaSurfParams[v].angular = angle;
 					aaSurfParams[v].radial = 1.0;
 					// 1d<->2d mapping params
+			/// TODO: Add changes for indices here as well...
 					aaMappingParams[v].v1 = pos[curSec+1];
 					aaMappingParams[v].v2 = pos[curSec+1];
           std::cout << "pos: " << pos[curSec+1];
@@ -1187,6 +1210,7 @@ namespace ug {
 					aaSurfParams[v].angular = angle;
 					aaSurfParams[v].radial = erScaleFactor;
 					// 1d<->2d mapping params
+			/// TODO: Add changes for indices here as well...
 					aaMappingParams[v].v1 = pos[curSec+1];
 					aaMappingParams[v].v2 = pos[curSec+1];
           std::cout << "pos: " << pos[curSec+1];
@@ -1215,6 +1239,7 @@ namespace ug {
 					aaSurfParams[v].angular = angle;
 					aaSurfParams[v].radial = blowUpFactor;
 					// 1d<->2d mapping params
+			/// TODO: Add changes for indices here as well...
 					aaMappingParams[v].v1 = pos[curSec+1];
 					aaMappingParams[v].v2 = pos[curSec+1];
           std::cout << "pos: " << pos[curSec+1];
@@ -2647,13 +2672,15 @@ number calculate_length_over_radius_variant
                         int bip,
                         const std::string& option,
                         number segLength,
-                        const bool onlyCaps
+                        const bool onlyCaps,
+			Grid* grid1d,
+			Grid::VertexAttachmentAccessor<AInt>* aaInt
                 )
                 {
                         create_neurite_with_er(vNeurites, vPos, vR, nid, erScaleFactor,
                         		anisotropy, g, aaPos, aaSurfParams, aaMappingParams, sh,
                         		blowUpFactor, NULL, NULL, NULL, 0, outVerts, outVertsInner,
-                        		outRads, outRadsInner, points, subsets, bip, option, segLength, onlyCaps);
+                        		outRads, outRadsInner, points, subsets, bip, option, segLength, onlyCaps, grid1d, aaInt);
                 }
 
                 ////////////////////////////////////////////////////////////////////////

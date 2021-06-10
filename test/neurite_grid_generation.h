@@ -141,7 +141,9 @@ namespace ug {
 			int bid,
 			const std::string& option,
 			number segLength,
-			bool onlyCaps
+			bool onlyCaps,
+			Grid* grid1d,
+			Grid::VertexAttachmentAccessor<AInt>* aaInt
 		);
 
 

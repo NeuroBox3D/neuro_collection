@@ -117,7 +117,7 @@ namespace ug {
 
             /// Some room for optimization below
             auto sh = dom->subset_handler();
-            
+
             std::map<vector3, std::vector<vector3> > edgePairs;
             std::map<vector3, std::vector<number> > fromDiam;
             std::map<vector3, std::vector<number> > toDiam;
@@ -152,6 +152,7 @@ namespace ug {
                     }
                 }
 	    	}
+
 
             /// Generate 1d mesh from 3d mesh
             Grid g;

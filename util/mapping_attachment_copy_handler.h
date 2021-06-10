@@ -85,6 +85,7 @@ namespace ug
 
         private:
              SmartPtr<Domain3d> spDom;
+             int counter = 0; /// counts the number of 1d vertices
         };
 
         /**

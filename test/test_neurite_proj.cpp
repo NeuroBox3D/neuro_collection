@@ -3651,7 +3651,7 @@ void create_spline_data_for_neurites
 	    	if (withER) {
 	    		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 	    			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh, 1.0, &outVerts,
-	    			&outVertsInner, &outRads, &outRadsInner, &swcPoints, NULL, -1, option, segLength, false);
+	    			&outVertsInner, &outRads, &outRadsInner, &swcPoints, NULL, -1, option, segLength, false, NULL, NULL);
 	    	} else {
 	    		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 	    				anisotropy, g, aaPos, aaSurfParams);
@@ -4281,7 +4281,7 @@ void create_spline_data_for_neurites
 		 	if (withER) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh, blowUpFactor,
-		   			&outVerts, &outVertsInner, &outRads, &outRadsInner, &newPoints, NULL, -1, option, segLength, false);
+		   			&outVerts, &outVertsInner, &outRads, &outRadsInner, &newPoints, NULL, -1, option, segLength, false, NULL, NULL);
 
 		   	} else {
 		   		create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
@@ -5604,13 +5604,27 @@ void create_spline_data_for_neurites
 			error_code |= 1 << NEURITE_RUNTIME_ERROR_CODE_SMALL_OR_NEGATIVE_RADIUS;
 		}
 
+		Grid grid1d;
+		LoadGridFromFile(grid1d, "1d_grid.ugx");
+		AInt aInt;
+		grid1d.attach_to_vertices(aInt);
+		Grid::VertexAttachmentAccessor<AInt> aaInt(grid1d, aInt);
+
+		int counter = 0;
+		for (auto vit = grid1d.begin<Vertex>(); vit != grid1d.end<Vertex>(); ++vit) {
+			aaInt[*vit] = counter;
+			counter++;
+		}
+
+		/// TODO: Populate grid1d with aInt indices here and pass aInt attachment in addition
+
 		MeasuringSubsetCollection subsets;
 		// create the actual geometry
 		std::vector<SWCPoint> newPoints;
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh,
-		   			blowUpFactor, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1, option, segLength, true);
+		   			blowUpFactor, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1, option, segLength, true, &grid1d, &aaInt);
 		}
 
 		/*
@@ -5645,7 +5659,7 @@ void create_spline_data_for_neurites
 		// assign subsets
 		sel.clear();
 		std::vector<std::vector<ug::Edge*> >::const_iterator ite = subsets.edges.begin();
-		int counter = 0;
+		counter = 0;
 		while (ite != subsets.edges.end()) {
 			sel.clear();
 			sel.select(ite->begin()+12, ite->end(), true);
@@ -5813,7 +5827,7 @@ void create_spline_data_for_neurites
 		for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 		   		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 		   			erScaleFactor, 1.0, g, aaPos, aaSurfParams, aaMapping, sh,
-		   			1.0, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1, "identity", -1, false);
+		   			1.0, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1, "identity", -1, false, NULL, NULL);
 		}
 		SaveGridToFile(g, sh, "unprojected.ugx");
 

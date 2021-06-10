@@ -71,18 +71,25 @@ namespace ug
                         auto v_1_p = mFrom.v1; // start vertex of parent edge
                         auto center_0 = center; // new vertex in the middle of the parent edge (creating two new edges by split edge)
 
+                        auto v1i = mFrom.v1i;
+
                         /// child attachment 
                         auto v_1 = center; // center of the refined coarse edge: start vertex of refined edge
                         auto v_2_p = mTo.v1; // end vertex of the refined edge: end vertex of (coarse) parent edge
+
+                        auto v2i = mTo.v1i;
 
                         /// populate attachments
                         NeuriteProjector::Mapping mCenter;
                         mCenter.v1 = v_1;
                         mCenter.v2 = v_2_p;
+                        mCenter.v1i = v1i;
+                        mCenter.v2i = v2i;
 
                         /// Orientation of edge not known a-priori, override the best guess
                         if (std::fabs(VecDistance(mCenter.v1, mCenter.v2)) < SMALL) {
                            mCenter.v2 = mTo.v2;
+                           mCenter.v2i = mTo.v2i;
                         }
 
                         /// Debug coordinates
@@ -103,12 +110,15 @@ namespace ug
                 ///////////////////////////////////////////////////////////////
                 void MappingAttachmentHandler::copy(Vertex* parent, Vertex* child)
 		{
+                        counter++;
                         auto& mappingParent = m_aa[parent];
                         auto& mappingChild = m_aa[child];
                         auto center = GetCenter(parent, spDom);
                         /// Orientation of edge not known a-priori, make a best guess
                         mappingChild.v2 = mappingParent.v1;
                         mappingChild.v1 = center;
+                        mappingChild.v2i = mappingParent.v1i;
+                        mappingChild.v1i = counter;
 		}
 
                 ///////////////////////////////////////////////////////////////
