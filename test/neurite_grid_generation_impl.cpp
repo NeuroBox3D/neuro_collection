@@ -80,7 +80,8 @@ namespace ug {
 		int bip,
 		const std::string& option,
 		number desiredSegLength,
-		const bool onlyCaps
+		const bool onlyCaps,
+		const bool constantER
 	) {
 	const NeuriteProjector::Neurite& neurite = vNeurites[nid];
 	const std::vector<vector3>& pos = vPos[nid];
@@ -217,17 +218,18 @@ namespace ug {
 
 		// ER vertices
 		for (size_t i = 0; i < 4; ++i) {
+			auto normalize = (constantER ? 1.0 / r[0] : 1.0);
 			Vertex* v = *g.create<RegularVertex>();
 			vVrt[i] = v;
 			number angle = 0.5 * PI * i;
 			VecScaleAdd(aaPos[v], 1.0, pos[0],
-					erScaleFactor * r[0] * cos(angle), projRefDir,
-					erScaleFactor * r[0] * sin(angle), thirdDir);
+					normalize * erScaleFactor * r[0] * cos(angle), projRefDir,
+					normalize * erScaleFactor * r[0] * sin(angle), thirdDir);
 
 			aaSurfParams[v].neuriteID = nid;
 			aaSurfParams[v].axial = 0.0;
 			aaSurfParams[v].angular = angle;
-			aaSurfParams[v].radial = erScaleFactor;
+			aaSurfParams[v].radial = (constantER ? r[0] / erScaleFactor : erScaleFactor);
 			// 1d<->2d mapping params
 			aaMappingParams[v].v1 = pos[0];
 			aaMappingParams[v].v2 = pos[1];
@@ -710,20 +712,21 @@ namespace ug {
 
 				// set new positions and param attachments
 				for (size_t j = 0; j < 4; ++j) {
+					auto normalize = (constantER ? 1.0 / r[0] : 1.0);
 					number angle = 0.5 * PI * j + angleOffset;
 					if (angle > 2 * PI)
 						angle -= 2 * PI;
 					Vertex* v = vVrt[j];
 					vector3 radialVec;
-					VecScaleAdd(radialVec, erScaleFactor * radius * cos(angle),
-							projRefDir, erScaleFactor * radius * sin(angle),
+					VecScaleAdd(radialVec, normalize * erScaleFactor * radius * cos(angle),
+							projRefDir, normalize * erScaleFactor * radius * sin(angle),
 							thirdDir);
 					VecAdd(aaPos[v], curPos, radialVec);
 
 					aaSurfParams[v].neuriteID = nid;
 					aaSurfParams[v].axial = segAxPos;
 					aaSurfParams[v].angular = angle;
-					aaSurfParams[v].radial = erScaleFactor;
+					aaSurfParams[v].radial = (constantER ? erScaleFactor / radius : erScaleFactor);
 
 					// 1d<->2d mapping params (Is this mapping correct?)
 					aaMappingParams[v].v1 = pos[curSec+1];
@@ -775,22 +778,23 @@ namespace ug {
 				std::vector<Volume*> vBPVols;
 				vBPVols.reserve(27);
 
+				auto normalize = (constantER ? 1.0 / radius : 1.0);
 				// correct vertex offsets to reflect angle at which child branches
 				VecScaleAppend(aaPos[vVrt[(connFaceInd) % 4]],
-						erScaleFactor * surfBPoffset, vel);
+						normalize * erScaleFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[(connFaceInd + 1) % 4]],
-						erScaleFactor * surfBPoffset, vel);
+						normalize * erScaleFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[(connFaceInd + 2) % 4]],
-						-erScaleFactor * surfBPoffset, vel);
+						-normalize*erScaleFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[(connFaceInd + 3) % 4]],
-						-erScaleFactor * surfBPoffset, vel);
-				aaSurfParams[vVrt[(connFaceInd) % 4]].axial += erScaleFactor
+						-normalize*erScaleFactor * surfBPoffset, vel);
+				aaSurfParams[vVrt[(connFaceInd) % 4]].axial += normalize*erScaleFactor
 						* surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[(connFaceInd + 1) % 4]].axial += erScaleFactor
+				aaSurfParams[vVrt[(connFaceInd + 1) % 4]].axial += normalize*erScaleFactor
 						* surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[(connFaceInd + 2) % 4]].axial -= erScaleFactor
+				aaSurfParams[vVrt[(connFaceInd + 2) % 4]].axial -= normalize*erScaleFactor
 						* surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[(connFaceInd + 3) % 4]].axial -= erScaleFactor
+				aaSurfParams[vVrt[(connFaceInd + 3) % 4]].axial -= normalize*erScaleFactor
 						* surfBPoffset / neurite_length;
 
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd) % 4)]],
@@ -862,11 +866,13 @@ namespace ug {
 				vBranchVrts[15] = vVrt[6 + 3 * ((connFaceInd) % 4)];
 
 				// extrude to first third of BP //
-				segAxPos = 0.5 * (1.0 + erScaleFactor) * vSegAxPos[s - 1]
-				                                                   + 0.5 * (1.0 - erScaleFactor) * vSegAxPos[s];
+	
+				normalize = (constantER ? 1.0 / r[0] : 1.0);
+				segAxPos = 0.5 * (1.0 + normalize*erScaleFactor) * vSegAxPos[s - 1]
+				                                                   + 0.5 * (1.0 -normalize*erScaleFactor) * vSegAxPos[s];
 				vector3 firstPos;
-				VecScaleAdd(firstPos, 0.5 * (1.0 + erScaleFactor), lastPos,
-						0.5 * (1.0 - erScaleFactor), curPos);
+				VecScaleAdd(firstPos, 0.5 * (1.0 + normalize*erScaleFactor), lastPos,
+						0.5 * (1.0 - normalize*erScaleFactor), curPos);
 				vector3 extrudeDir;
 				VecScaleAdd(extrudeDir, 1.0, firstPos, -1.0, lastPos);
 				std::vector<Volume*> vVol;
@@ -877,20 +883,21 @@ namespace ug {
 
 				// set new positions and param attachments
 				for (size_t j = 0; j < 4; ++j) {
+					normalize = (constantER ? 1.0 / r[0] : 1.0);
 					number angle = 0.5 * PI * j + angleOffset;
 					if (angle > 2 * PI)
 						angle -= 2 * PI;
 					Vertex* v = vVrt[j];
 					vector3 radialVec;
-					VecScaleAdd(radialVec, erScaleFactor * radius * cos(angle),
-							projRefDir, erScaleFactor * radius * sin(angle),
+					VecScaleAdd(radialVec, normalize * erScaleFactor * radius * cos(angle),
+							projRefDir, normalize * erScaleFactor * radius * sin(angle),
 							thirdDir);
 					VecAdd(aaPos[v], firstPos, radialVec);
 
 					aaSurfParams[v].neuriteID = nid;
 					aaSurfParams[v].axial = segAxPos;
 					aaSurfParams[v].angular = angle;
-					aaSurfParams[v].radial = erScaleFactor;
+					aaSurfParams[v].radial = (constantER ? erScaleFactor / r[0] : erScaleFactor);
 
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec+1];
@@ -929,21 +936,22 @@ namespace ug {
 				}
 
 				// correct vertex offsets to reflect angle at which child branches
+				normalize = (constantER ? 1.0 / radius : 1.0);
 				VecScaleAppend(aaPos[vVrt[(connFaceInd) % 4]],
-						erScaleFactor * surfBPoffset, vel);
+						normalize * erScaleFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[(connFaceInd + 1) % 4]],
-						erScaleFactor * surfBPoffset, vel);
+						normalize * erScaleFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[(connFaceInd + 2) % 4]],
-						-erScaleFactor * surfBPoffset, vel);
+						-normalize * erScaleFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[(connFaceInd + 3) % 4]],
-						-erScaleFactor * surfBPoffset, vel);
-				aaSurfParams[vVrt[(connFaceInd) % 4]].axial += erScaleFactor
+						-normalize * erScaleFactor * surfBPoffset, vel);
+				aaSurfParams[vVrt[(connFaceInd) % 4]].axial += normalize * erScaleFactor
 						* surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[(connFaceInd + 1) % 4]].axial += erScaleFactor
+				aaSurfParams[vVrt[(connFaceInd + 1) % 4]].axial += normalize * erScaleFactor
 						* surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[(connFaceInd + 2) % 4]].axial -= erScaleFactor
+				aaSurfParams[vVrt[(connFaceInd + 2) % 4]].axial -= normalize * erScaleFactor
 						* surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[(connFaceInd + 3) % 4]].axial -= erScaleFactor
+				aaSurfParams[vVrt[(connFaceInd + 3) % 4]].axial -= normalize * erScaleFactor
 						* surfBPoffset / neurite_length;
 
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd) % 4)]],
@@ -1021,13 +1029,14 @@ namespace ug {
 				vBranchVrts[12] = vVrt[4 + 3 * ((connFaceInd) % 4)];
 
 				// extrude to second third of BP //
-				segAxPos = 0.5 * (1.0 - erScaleFactor) * vSegAxPos[s - 1]
-				                                                   + 0.5 * (1.0 + erScaleFactor) * vSegAxPos[s];
+				normalize = (constantER ? 1.0 / radius : 1.0);
+				segAxPos = 0.5 * (1.0 - normalize * erScaleFactor) * vSegAxPos[s - 1]
+				                                                   + 0.5 * (1.0 + normalize * erScaleFactor) * vSegAxPos[s];
 
 
 				vector3 secondPos;
-				VecScaleAdd(secondPos, 0.5 * (1.0 - erScaleFactor), lastPos,
-						0.5 * (1.0 + erScaleFactor), curPos);
+				VecScaleAdd(secondPos, 0.5 * (1.0 - normalize * erScaleFactor), lastPos,
+						0.5 * (1.0 + normalize * erScaleFactor), curPos);
 				VecScaleAdd(extrudeDir, 1.0, secondPos, -1.0, firstPos);
 				vVol.clear();
 				Extrude(g, &vVrt, &vEdge, &vFace, extrudeDir, aaPos,
@@ -1037,20 +1046,21 @@ namespace ug {
 
 				// set new positions and param attachments
 				for (size_t j = 0; j < 4; ++j) {
+					normalize = (constantER ? 1.0 / radius : 1.0);
 					number angle = 0.5 * PI * j + angleOffset;
 					if (angle > 2 * PI)
 						angle -= 2 * PI;
 					Vertex* v = vVrt[j];
 					vector3 radialVec;
-					VecScaleAdd(radialVec, erScaleFactor * radius * cos(angle),
-							projRefDir, erScaleFactor * radius * sin(angle),
+					VecScaleAdd(radialVec, normalize * erScaleFactor * radius * cos(angle),
+							projRefDir, normalize * erScaleFactor * radius * sin(angle),
 							thirdDir);
 					VecAdd(aaPos[v], secondPos, radialVec);
 
 					aaSurfParams[v].neuriteID = nid;
 					aaSurfParams[v].axial = segAxPos;
 					aaSurfParams[v].angular = angle;
-					aaSurfParams[v].radial = erScaleFactor;
+					aaSurfParams[v].radial = (constantER ? r[0] / erScaleFactor : erScaleFactor);
 
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec+1];
@@ -1094,21 +1104,22 @@ namespace ug {
 
 
 				// correct vertex offsets to reflect angle at which child branches
+				normalize = (constantER ? 1.0 / radius : 1.0);
 				VecScaleAppend(aaPos[vVrt[(connFaceInd) % 4]],
-						erScaleFactor * surfBPoffset, vel);
+						normalize * erScaleFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[(connFaceInd + 1) % 4]],
-						erScaleFactor * surfBPoffset, vel);
+						normalize * erScaleFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[(connFaceInd + 2) % 4]],
-						-erScaleFactor * surfBPoffset, vel);
+						-normalize * erScaleFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[(connFaceInd + 3) % 4]],
-						-erScaleFactor * surfBPoffset, vel);
-				aaSurfParams[vVrt[(connFaceInd) % 4]].axial += erScaleFactor
+						-normalize * erScaleFactor * surfBPoffset, vel);
+				aaSurfParams[vVrt[(connFaceInd) % 4]].axial += normalize * erScaleFactor
 						* surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[(connFaceInd + 1) % 4]].axial += erScaleFactor
+				aaSurfParams[vVrt[(connFaceInd + 1) % 4]].axial += normalize * erScaleFactor
 						* surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[(connFaceInd + 2) % 4]].axial -= erScaleFactor
+				aaSurfParams[vVrt[(connFaceInd + 2) % 4]].axial -= normalize * erScaleFactor
 						* surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[(connFaceInd + 3) % 4]].axial -= erScaleFactor
+				aaSurfParams[vVrt[(connFaceInd + 3) % 4]].axial -= normalize * erScaleFactor
 						* surfBPoffset / neurite_length;
 
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd) % 4)]],
@@ -1195,21 +1206,22 @@ namespace ug {
 					vBPVols.push_back(vVol[j]);
 
 				// set new positions and param attachments
-				for (size_t j = 0; j < 4; ++j) {
+				for (size_t j = 0; j < 4; ++j) {	
+					normalize = (constantER ? 1.0 / radius : 1.0);
 					number angle = 0.5 * PI * j + angleOffset;
 					if (angle > 2 * PI)
 						angle -= 2 * PI;
 					Vertex* v = vVrt[j];
 					vector3 radialVec;
-					VecScaleAdd(radialVec, erScaleFactor * radius * cos(angle),
-							projRefDir, erScaleFactor * radius * sin(angle),
+					VecScaleAdd(radialVec, normalize * erScaleFactor * radius * cos(angle),
+							projRefDir, normalize * erScaleFactor * radius * sin(angle),
 							thirdDir);
 					VecAdd(aaPos[v], curPos, radialVec);
 
 					aaSurfParams[v].neuriteID = nid;
 					aaSurfParams[v].axial = segAxPos;
 					aaSurfParams[v].angular = angle;
-					aaSurfParams[v].radial = erScaleFactor;
+					aaSurfParams[v].radial = (constantER ? erScaleFactor / radius : erScaleFactor);
 					// 1d<->2d mapping params
 					aaMappingParams[v].v1 = pos[curSec+1];
 					aaMappingParams[v].v2 = pos[curSec+1];
@@ -1253,21 +1265,22 @@ namespace ug {
 
 
 				// correct vertex offsets to reflect angle at which child branches
+				normalize = (constantER ? 1.0 / radius : 1.0);
 				VecScaleAppend(aaPos[vVrt[(connFaceInd) % 4]],
-						erScaleFactor * surfBPoffset, vel);
+						normalize * erScaleFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[(connFaceInd + 1) % 4]],
-						erScaleFactor * surfBPoffset, vel);
+						normalize * erScaleFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[(connFaceInd + 2) % 4]],
-						-erScaleFactor * surfBPoffset, vel);
+						-normalize * erScaleFactor * surfBPoffset, vel);
 				VecScaleAppend(aaPos[vVrt[(connFaceInd + 3) % 4]],
-						-erScaleFactor * surfBPoffset, vel);
-				aaSurfParams[vVrt[(connFaceInd) % 4]].axial += erScaleFactor
+						-normalize * erScaleFactor * surfBPoffset, vel);
+				aaSurfParams[vVrt[(connFaceInd) % 4]].axial += normalize * erScaleFactor
 						* surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[(connFaceInd + 1) % 4]].axial += erScaleFactor
+				aaSurfParams[vVrt[(connFaceInd + 1) % 4]].axial += normalize * erScaleFactor
 						* surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[(connFaceInd + 2) % 4]].axial -= erScaleFactor
+				aaSurfParams[vVrt[(connFaceInd + 2) % 4]].axial -= normalize * erScaleFactor
 						* surfBPoffset / neurite_length;
-				aaSurfParams[vVrt[(connFaceInd + 3) % 4]].axial -= erScaleFactor
+				aaSurfParams[vVrt[(connFaceInd + 3) % 4]].axial -= normalize * erScaleFactor
 						* surfBPoffset / neurite_length;
 
 				VecScaleAppend(aaPos[vVrt[4 + 3 * ((connFaceInd) % 4)]],

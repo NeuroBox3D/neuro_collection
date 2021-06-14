@@ -3656,7 +3656,7 @@ void test_import_swc_general(
 			if (withER) {
 				create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 					erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh, 1.0, &outVerts,
-					&outVertsInner, &outRads, &outRadsInner, &swcPoints, NULL, -1, option, segLength, false);
+					&outVertsInner, &outRads, &outRadsInner, &swcPoints, NULL, -1, option, segLength, false, false);
 			} else {
 				create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 					anisotropy, g, aaPos, aaSurfParams);
@@ -3877,7 +3877,7 @@ int test_statistics(
 ) {
 	try {
 		/// Surface/volume grid generate the 2D/3D geometry
-		create_branches_from_swc(fileName, erScaleFactor, 0, false);
+		create_branches_from_swc(fileName, erScaleFactor, 0, false, false);
 	} catch (const ContainsCycles& err) {
 		return NEURITE_RUNTIME_ERROR_CODE_CONTAINS_CYCLES;
 	} catch (const SomaConnectionOverlap& err) {
@@ -4286,7 +4286,7 @@ void test_import_swc_general_var(
 		if (withER) {
 			create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 				erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh, blowUpFactor,
-				&outVerts, &outVertsInner, &outRads, &outRadsInner, &newPoints, NULL, -1, option, segLength, false);
+				&outVerts, &outVertsInner, &outRads, &outRadsInner, &newPoints, NULL, -1, option, segLength, false, false);
 
 		} else {
 			create_neurite(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
@@ -5639,7 +5639,7 @@ int test_import_swc_general_var_for_vr_var_benchmark(
 	for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 			erScaleFactor, anisotropy, g, aaPos, aaSurfParams, aaMapping, sh,
-			blowUpFactor, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1, option, segLength, true);
+			blowUpFactor, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1, option, segLength, true, false);
 	}
 
 		/// TODO: Remove debug output
@@ -5745,7 +5745,18 @@ void create_branches_from_swc(
 	number erScaleFactor,
 	size_t numRefs
 ) {
-	create_branches_from_swc(fileName, erScaleFactor, numRefs, true);
+	create_branches_from_swc(fileName, erScaleFactor, numRefs, true, false);
+}
+
+////////////////////////////////////////////////////////////////////////////
+/// create_branches_from_swc_constant_ER
+////////////////////////////////////////////////////////////////////////////
+void create_branches_from_swc_constant_ER(
+	const std::string& fileName,
+	number erSize,
+	size_t numRefs
+) {
+	create_branches_from_swc(fileName, erSize, numRefs, true, true);
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -5755,7 +5766,8 @@ void create_branches_from_swc(
 	const std::string& fileName,
 	number erScaleFactor,
 	size_t numRefs,
-	const bool assignMeasurementSubsets
+	const bool assignMeasurementSubsets,
+	const bool constantER
 ) {
 	using namespace std;
 
@@ -5833,7 +5845,7 @@ void create_branches_from_swc(
 	for (size_t i = 0; i < vRootNeuriteIndsOut.size(); ++i) {
 		create_neurite_with_er(vNeurites, vPos, vRad, vRootNeuriteIndsOut[i],
 			erScaleFactor, 1.0, g, aaPos, aaSurfParams, aaMapping, sh,
-			1.0, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1, "identity", -1, false);
+			1.0, NULL, NULL, NULL, NULL, &newPoints, &subsets, -1, "identity", -1, false, false);
 	}
 	SaveGridToFile(g, sh, "unprojected.ugx");
 

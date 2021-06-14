@@ -959,8 +959,9 @@ static void Common(Registry& reg, string grp)
 		reg.add_function("test_import_swc_vr", &test_import_swc_vr, "Filename # anisotropy # numRefs");
 		reg.add_function("test_import_swc_general_var_for_vr_var", &test_import_swc_general_var_for_vr_var, "");
 		reg.add_function("test_import_swc_general_var_for_vr_var_benchmark", &test_import_swc_general_var_for_vr_var_benchmark, "");
-		reg.add_function("create_branches_from_swc", static_cast<void (*)(const std::string&, number, size_t, bool)>(&create_branches_from_swc), "", "input file name # ER scale factor # number of refinements # create measurement subsets", "");
+		reg.add_function("create_branches_from_swc", static_cast<void (*)(const std::string&, number, size_t, bool, bool)>(&create_branches_from_swc), "", "input file name # ER scale factor # number of refinements # create measurement subsets", "");
 		reg.add_function("create_branches_from_swc", static_cast<void (*)(const std::string&, number, size_t)>(&create_branches_from_swc), "", "input file name # ER scale factor # number of refinements", "");
+		reg.add_function("create_branches_from_swc_constant_ER", static_cast<void (*)(const std::string&, number, size_t)>(&create_branches_from_swc_constant_ER), "", "input file name # ER scale factor # number of refinements", "");
 		reg.add_function("test_import_swc_and_regularize", static_cast<void (*)(const std::string&, number, const std::string&, const size_t, const bool, const bool)>(&test_import_swc_and_regularize), "", "file name # desired segment length", "");
 		reg.add_function("test_import_swc_and_regularize", static_cast<void (*)(const std::string&, number, const std::string&, const size_t, const bool, const bool, const number)>(&test_import_swc_and_regularize), "", "file name # desired segment length", "");
 		reg.add_function("test_import_swc_and_regularize", static_cast<void (*)(const std::string&)>(&test_import_swc_and_regularize), "", "file name # desired segment length", "");

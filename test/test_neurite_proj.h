@@ -582,12 +582,14 @@ std::multimap<B,A> flip_map(const std::map<A,B> &src)
  * \param[in] erScaleFactor
  * \param[in] numRefs
  * \param[in] assignMeasurementSubsets
+ * \param[in] constantER
  */
 void create_branches_from_swc(
 	const std::string& fileName,
 	number erScaleFactor,
 	size_t numRefs,
-	bool assignMeasurementSubsets
+	bool assignMeasurementSubsets,
+	bool constanER
 );
 
 /*!
@@ -597,6 +599,17 @@ void create_branches_from_swc(
 void create_branches_from_swc(
 	const std::string& fileName,
 	number erScaleFactor,
+	size_t numRefs
+);
+
+/*!
+ * \brief delegate 
+ * Create a constant radius ER geometry (but PM radius are variable)
+ *  \see create_branches_from_swc
+ */
+void create_branches_from_swc_constant_ER(
+	const std::string& fileName,
+	number erSize,
 	size_t numRefs
 );
 

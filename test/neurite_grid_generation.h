@@ -97,7 +97,8 @@ namespace ug {
 			int bid = -1,
 			const std::string& option = "user",
 			number desiredSegLength = -1,
-			bool onlyCaps = false
+			bool onlyCaps = false,
+			bool constantER =  false
 		);
 
 		/*!
@@ -141,7 +142,8 @@ namespace ug {
 			int bid,
 			const std::string& option,
 			number segLength,
-			bool onlyCaps
+			bool onlyCaps,
+			bool constantER
 		);
 
 
