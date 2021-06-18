@@ -2722,13 +2722,14 @@ number calculate_length_over_radius_variant
                         int bip,
                         const std::string& option,
                         number segLength,
-                        const bool onlyCaps
+                        const bool onlyCaps,
+			const bool constantER
                 )
                 {
                         create_neurite_with_er(vNeurites, vPos, vR, nid, erScaleFactor,
                         		anisotropy, g, aaPos, aaSurfParams, aaMappingParams, sh,
                         		blowUpFactor, NULL, NULL, NULL, 0, outVerts, outVertsInner,
-                        		outRads, outRadsInner, points, subsets, bip, option, segLength, onlyCaps);
+                        		outRads, outRadsInner, points, subsets, bip, option, segLength, onlyCaps, constantER);
                 }
 
                 ////////////////////////////////////////////////////////////////////////

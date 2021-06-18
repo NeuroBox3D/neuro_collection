@@ -98,7 +98,7 @@ namespace ug {
 			const std::string& option = "user",
 			number desiredSegLength = -1,
 			bool onlyCaps = false,
-			bool constantER =  false
+			bool constantER = false
 		);
 
 		/*!
