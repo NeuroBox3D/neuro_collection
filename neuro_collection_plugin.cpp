@@ -67,6 +67,7 @@
 #include "membrane_transporters/ryr.h"
 #include "membrane_transporters/ryr_discrete.h"
 #include "membrane_transporters/ryr_implicit.h"
+#include "membrane_transporters/ryr_linearized.h"
 #include "membrane_transporters/serca.h"
 #include "membrane_transporters/leak.h"
 #include "membrane_transporters/pmca.h"
@@ -163,6 +164,10 @@ static void DomainAlgebra(Registry& reg, string grp)
 						 "", "solution # function names for ca_cyt, ca_er, c1, c2 as c-style string #"
 							 "RyR-carrying membrane subset names as c-style string # RyR channel",
 						 "maximal flux density through RyR channel (mol/(m^2*s))");
+	reg.add_function("max_ryr_flux_density", &maxRyRFluxDensity<TGridFunction, RyRLinearized<TDomain> >, grp.c_str(),
+						 "", "solution # function names for ca_cyt, ca_er, c1, c2 as c-style string #"
+							 "RyR-carrying membrane subset names as c-style string # RyR channel",
+						 "maximal flux density through RyR channel (mol/(m^2*s))");
 	reg.add_function("wave_front_x", &waveFrontX<TGridFunction>, grp.c_str(),
 					 "", "solution # function names for c1, c2 as c-style string #"
 						 "RyR-carrying membrane subset names as c-style string # threshold open probability",
@@ -243,6 +248,29 @@ static void DomainAlgebra(Registry& reg, string grp)
 		}
 		UG_COND_THROW(i == numClasses, "No class with domain tag '" << GetDomainTag<TDomain>()
 			<< "' found in RyRImplicit_1drotsym class group to add algebra-dependent functionality to.");
+
+
+		typedef RyRLinearized<TDomain> T2;
+		cgd = reg.get_class_group(std::string("RyRLinearized"));
+		numClasses = cgd->num_classes();
+		i = 0;
+		for (; i < numClasses; ++i)
+		{
+			std::string classTag = cgd->get_class_tag(i);
+			if (classTag == GetDomainTag<TDomain>())
+			{
+				ExportedClass<T2>* expClass = dynamic_cast<ExportedClass<T2>* >(cgd->get_class(i));
+				UG_COND_THROW(!expClass, "Exported class can not be cast to the correct type.");
+
+				expClass->add_method("calculate_steady_state",
+					&T2::template calculate_steady_state<TGridFunction>, "", "", "");
+
+				break;
+			}
+		}
+		UG_COND_THROW(i == numClasses, "No class with domain tag '" << GetDomainTag<TDomain>()
+			<< "' found in RyRLinearized class group to add algebra-dependent functionality to.");
+
 	}
 
 	// export all template realizations of VDCC_BG::calculate_steady_state()
@@ -324,6 +352,7 @@ static void Domain(Registry& reg, string grp)
 				 "association rate | default | value=27.0e06D # "
 				 "dissociation rate | default | value=19.0D",
 				 "add a new reaction definition")
+			.add_method("set_linearized_assembling", &T::set_linearized_assembling)
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "BufferFV1", tag);
 	}
@@ -530,6 +559,25 @@ static void Domain(Registry& reg, string grp)
 			.add_method("set_calcium_scale", &T::set_calcium_scale, "", "cytosolic calcium scale", "")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "RyRImplicit_1drotsym", tag);
+	}
+
+	// linearized RyR
+	{
+		typedef RyRLinearized<TDomain> T;
+		typedef IMembraneTransporter TBase1;
+		typedef IElemDisc<TDomain> TBase2;
+		std::string name = std::string("RyRLinearized").append(suffix);
+		reg.add_class_<T, TBase1, TBase2>(name, grp)
+			.template add_constructor<void (*)(const char*, const char*)>
+				("Functions as comma-separated string with the order: "
+				 "{\"cytosolic calcium\", \"endoplasmic calcium\", \"O2 channel state\", \"C1 channel state\", \"C2 channel state\"} # "
+				 "subsets as comma-separated string")
+			.template add_constructor<void (*)(const std::vector<std::string>&, const std::vector<std::string>&)>
+				("Function vector with the order: "
+				 "{\"cytosolic calcium\", \"endoplasmic calcium\", \"O2 channel state\", \"C1 channel state\", \"C2 channel state\"} # "
+				 "subsets vector,")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "RyRLinearized", tag);
 	}
 
 	// VDCC base type
@@ -771,6 +819,7 @@ static void Common(Registry& reg, string grp)
 			.add_constructor<void (*)(const std::vector<std::string>&)>
 				("Function vector with the following order: "
 				 "{\"cytosolic calcium\", \"endoplasmic calcium\"}")
+			.add_method("set_linearized_assembling", &T::set_linearized_assembling)
 			.set_construct_as_smart_pointer(true);
 	}
 	{
@@ -802,6 +851,7 @@ static void Common(Registry& reg, string grp)
 			.add_constructor<void (*)(const std::vector<std::string>&)>
 				("Function vector with the following order: "
 				 "{\"cytosolic calcium\", \"extracellular calcium\"}")
+			.add_method("set_linearized_assembling", &T::set_linearized_assembling)
 			.set_construct_as_smart_pointer(true);
 	}
 	{
@@ -815,6 +865,7 @@ static void Common(Registry& reg, string grp)
 			.add_constructor<void (*)(const std::vector<std::string>&)>
 				("Function vector with the following order: "
 				 "{\"cytosolic calcium\", \"extracellular calcium\"}")
+			.add_method("set_linearized_assembling", &T::set_linearized_assembling)
 			.set_construct_as_smart_pointer(true);
 	}
 	{

@@ -44,13 +44,13 @@ namespace neuro_collection {
 
 
 NCX::NCX(const std::vector<std::string>& fcts) : IMembraneTransporter(fcts),
-KD_N(1.8e-3), IMAX_N(2.5e-21)	// TODO: Graupner says 4.8, not 2.5!? (Tab. 4.2, p. 85)
+KD_N(1.8e-3), IMAX_N(2.5e-21), m_bLinearizedAssembling(false)// TODO: Graupner says 4.8, not 2.5!? (Tab. 4.2, p. 85)
 {
 	// nothing to do
 }
 
 NCX::NCX(const char* fcts) : IMembraneTransporter(fcts),
-KD_N(1.8e-3), IMAX_N(2.5e-21)	// TODO: Graupner says 4.8, not 2.5!? (Tab. 4.2, p. 85)
+KD_N(1.8e-3), IMAX_N(2.5e-21), m_bLinearizedAssembling(false) // TODO: Graupner says 4.8, not 2.5!? (Tab. 4.2, p. 85)
 {
 	// nothing to do
 }
@@ -77,12 +77,49 @@ void NCX::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<num
 }
 
 
+void NCX::calc_flux
+(
+	const std::vector<number>& u,
+	const std::vector<number>& uOld,
+	GridObject* e,
+	std::vector<number>& flux
+) const
+{
+	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
+	number caCytOld = uOld[_CCYT_];	// previous cytosolic Ca2+ concentration
+
+	number gatingFactor = caCyt / (KD_N + caCytOld);
+
+	flux[0] = gatingFactor * IMAX_N;
+}
+
+
 void NCX::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
 	// get values of the unknowns in associated node
 	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
 
 	number dGating_dCyt = KD_N / std::pow(KD_N + caCyt, 2);
+
+	if (!has_constant_value(_CCYT_))
+	{
+		flux_derivs[0][0].first = local_fct_index(_CCYT_);
+		flux_derivs[0][0].second = dGating_dCyt * IMAX_N;
+	}
+}
+
+
+void NCX::calc_flux_deriv
+(
+	const std::vector<number>& u,
+	const std::vector<number>& uOld,
+	GridObject* e,
+	std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs
+) const
+{
+	number caCytOld = uOld[_CCYT_];	// cytosolic Ca2+ concentration
+
+	number dGating_dCyt = 1.0 / (KD_N + caCytOld);
 
 	if (!has_constant_value(_CCYT_))
 	{
@@ -120,6 +157,12 @@ const std::string NCX::name() const
 };
 
 
+bool NCX::needsPreviousSolution() const
+{
+	return m_bLinearizedAssembling;
+}
+
+
 void NCX::check_supplied_functions() const
 {
 	// Check that not both, inner and outer calcium concentrations are not supplied;
@@ -149,6 +192,12 @@ void NCX::print_units() const
 	UG_LOG("|      Ca flux   mol/s                                                         |"<< std::endl);
 	UG_LOG("+------------------------------------------------------------------------------+"<< std::endl);
 	UG_LOG(std::endl);
+}
+
+
+void NCX::set_linearized_assembling()
+{
+	m_bLinearizedAssembling = true;
 }
 
 

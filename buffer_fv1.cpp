@@ -45,7 +45,7 @@ namespace neuro_collection {
 
 template<typename TDomain>
 BufferFV1<TDomain>::BufferFV1(const char* subsets)
-: IElemDisc<TDomain>(NULL, subsets), m_bNonRegularGrid(false)
+: IElemDisc<TDomain>(NULL, subsets), m_bNonRegularGrid(false), m_bLinearizedAssembling(false)
 {
 	m_reactions.reserve(1);
 }
@@ -183,6 +183,33 @@ add_reaction(const char* fct1, const char* fct2, number tbc, number k1, number k
 }
 
 
+template <typename TDomain>
+void BufferFV1<TDomain>::set_linearized_assembling()
+{
+	m_bLinearizedAssembling = true;
+}
+
+
+template <typename TDomain>
+template <typename TAlgebra>
+void BufferFV1<TDomain>::prep_timestep
+(
+	number future_time,
+	number time,
+	VectorProxyBase* upb
+)
+{
+	if (!m_bLinearizedAssembling)
+		return;
+
+	// the proxy provided here will not survive, but the vector it wraps will,
+	// so we re-wrap it in a new proxy for ourselves
+	typedef VectorProxy<typename TAlgebra::vector_type> tProxy;
+	tProxy* proxy = static_cast<tProxy*>(upb);
+	m_spOldSolutionProxy = make_sp(new tProxy(proxy->m_v));
+}
+
+
 template<typename TDomain>
 template<typename TElem, typename TFVGeom>
 void BufferFV1<TDomain>::
@@ -247,6 +274,23 @@ prep_elem(const LocalVector& u, GridObject* elem, const ReferenceObjectID roid, 
 		m_reactions[i].k_bind.set_global_ips(vSCVip, numSCVip);
 		m_reactions[i].k_unbind.set_global_ips(vSCVip, numSCVip);
 	}
+
+	// create a local vector with values of the previous solution
+	if (!m_bLinearizedAssembling)
+		return;
+
+	// copy local vector of current solution to get indices and map access right,
+	// then copy correct values
+	m_locUOld = u;
+	const LocalIndices& ind = m_locUOld.get_indices();
+	for (size_t fct = 0; fct < m_locUOld.num_all_fct(); ++fct)
+	{
+		for(size_t dof = 0; dof < m_locUOld.num_all_dof(fct); ++dof)
+		{
+			const DoFIndex di = ind.multi_index(fct, dof);
+			m_locUOld.value(fct, dof) = m_spOldSolutionProxy->evaluate(di);
+		}
+	}
 }
 
 
@@ -274,12 +318,26 @@ add_def_A_elem(LocalVector& d, const LocalVector& u, GridObject* elem, const Mat
 			const struct ReactionInfo<dim>& r = m_reactions[j];
 			UG_ASSERT(r.k_bind.data_given() && r.k_unbind.data_given() &&  r.tot_buffer.data_given(),
 					  "Data import for buffering reaction has no data.");
-			number def =   r.k_bind[ip] * u(r.buffer, co) * u(r.buffered, co)
-						 - r.k_unbind[ip] * (r.tot_buffer[ip] - u(r.buffer, co));
 
-			// scale with scv volume and add to defect
-			d(r.buffer, co) +=	def * scv.volume();
-			d(r.buffered, co) += def * scv.volume();
+			if (!m_bLinearizedAssembling)
+			{
+				number def =   r.k_bind[ip] * u(r.buffer, co) * u(r.buffered, co)
+							 - r.k_unbind[ip] * (r.tot_buffer[ip] - u(r.buffer, co));
+
+				// scale with scv volume and add to defect
+				d(r.buffer, co) +=	def * scv.volume();
+				d(r.buffered, co) += def * scv.volume();
+			}
+			else
+			{
+				number def_buffered = r.k_bind[ip] * m_locUOld(r.buffer, co) * u(r.buffered, co)
+								 - r.k_unbind[ip] * (r.tot_buffer[ip] - m_locUOld(r.buffer, co));
+				d(r.buffered, co) += def_buffered * scv.volume();
+
+				number def_buffer = r.k_bind[ip] * u(r.buffer, co) * m_locUOld(r.buffered, co)
+								 - r.k_unbind[ip] * (r.tot_buffer[ip] - u(r.buffer, co));
+				d(r.buffer, co) += def_buffer * scv.volume();
+			}
 		}
 	}
 }
@@ -316,14 +374,27 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u, GridObject* elem, const Mat
 			// compute local derivatives
 			const struct ReactionInfo<dim>& r = m_reactions[j];
 			UG_ASSERT(r.k_bind.data_given() && r.k_unbind.data_given(), "Data import for buffering reaction has no data.");
-			number d_dBuff  = r.k_bind[ip] * u(r.buffered, co) + r.k_unbind[ip];
-			number d_dBuffd = r.k_bind[ip] * u(r.buffer, co);
 
-			// scale with scv volume and add to Jacobian
-			J(r.buffer, co, r.buffer, co)     += d_dBuff * scv.volume();
-			J(r.buffer, co, r.buffered, co)   += d_dBuffd * scv.volume();
-			J(r.buffered, co, r.buffer, co)   += d_dBuff * scv.volume();
-			J(r.buffered, co, r.buffered, co) += d_dBuffd * scv.volume();
+			if (!m_bLinearizedAssembling)
+			{
+				number d_dBuff  = r.k_bind[ip] * u(r.buffered, co) + r.k_unbind[ip];
+				number d_dBuffd = r.k_bind[ip] * u(r.buffer, co);
+
+				// scale with scv volume and add to Jacobian
+				J(r.buffer, co, r.buffer, co)     += d_dBuff * scv.volume();
+				J(r.buffer, co, r.buffered, co)   += d_dBuffd * scv.volume();
+				J(r.buffered, co, r.buffer, co)   += d_dBuff * scv.volume();
+				J(r.buffered, co, r.buffered, co) += d_dBuffd * scv.volume();
+			}
+			else
+			{
+				number dBuffered = r.k_bind[ip] * m_locUOld(r.buffer, co);
+				number dBuffer = r.k_bind[ip] * m_locUOld(r.buffered, co) + r.k_unbind[ip];
+
+				// scale with scv volume and add to Jacobian
+				J(r.buffered, co, r.buffered, co) += dBuffered * scv.volume();
+				J(r.buffer, co, r.buffer, co)     += dBuffer * scv.volume();
+			}
 		}
 	}
 }
@@ -640,6 +711,10 @@ template<typename TDomain>
 template <typename TElem, typename TFVGeom>
 void BufferFV1<TDomain>::register_fv1_func()
 {
+	// register prep_timestep function for all known algebra types
+	RegisterPrepTimestep<bridge::CompileAlgebraList>(this);
+
+	// register assembling functions for all element types
 	ReferenceObjectID id = geometry_traits<TElem>::REFERENCE_OBJECT_ID;
 
 	this->clear_add_fct(id);

@@ -177,6 +177,10 @@ class BufferFV1
         void add_reaction(const char* fct1, const char* fct2, number tbc, number k1, number k2);
 
 
+        /// set linearized assembling mode
+        void set_linearized_assembling();
+
+
 	private:
 		/// reactions information
 		std::vector<ReactionInfo<dim> > m_reactions;
@@ -192,6 +196,9 @@ class BufferFV1
 
 
 	private:
+
+		template <typename TAlgebra>
+		void prep_timestep(number future_time, number time, VectorProxyBase* upb);
 
 		///	prepares the loop over all elements
 		/**
@@ -277,6 +284,38 @@ class BufferFV1
 
 	private:
 		bool m_bNonRegularGrid;
+
+
+
+		template <typename List>
+		struct RegisterPrepTimestep
+		{
+			RegisterPrepTimestep(this_type* p)
+			{
+				static const bool isEmpty = boost::mpl::empty<List>::value;
+				(typename boost::mpl::if_c<isEmpty, RegEnd, RegNext>::type(p));
+			}
+			struct RegEnd
+			{
+				RegEnd(this_type*) {}
+			};
+			struct RegNext
+			{
+				RegNext(this_type* p)
+				{
+					typedef typename boost::mpl::front<List>::type AlgebraType;
+					typedef typename boost::mpl::pop_front<List>::type NextList;
+
+					size_t aid = bridge::AlgebraTypeIDProvider::instance().id<AlgebraType>();
+					p->set_prep_timestep_fct(aid, &this_type::template prep_timestep<AlgebraType>);
+					(RegisterPrepTimestep<NextList>(p));
+				}
+			};
+		};
+
+		bool m_bLinearizedAssembling;
+		LocalVector m_locUOld;
+		SmartPtr<VectorProxyBase> m_spOldSolutionProxy;
 };
 
 ///@}

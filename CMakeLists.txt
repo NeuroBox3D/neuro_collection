@@ -76,6 +76,7 @@ set(SOURCES neuro_collection_plugin.cpp
             membrane_transporters/ryr_instat.cpp
             membrane_transporters/ryr_discrete.cpp
             membrane_transporters/ryr_implicit.cpp
+            membrane_transporters/ryr_linearized.cpp
             membrane_transporters/serca.cpp
             membrane_transporters/leak.cpp
             membrane_transporters/pmca.cpp

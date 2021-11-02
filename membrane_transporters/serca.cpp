@@ -44,14 +44,14 @@ namespace neuro_collection {
 
 
 SERCA::SERCA(const std::vector<std::string>& fcts) : IMembraneTransporter(fcts),
-VS(6.5e-24), KS(1.8e-4)
+VS(6.5e-24), KS(1.8e-4), m_bLinearizedAssembling(false)
 {
 	// nothing to do
 }
 
 
 SERCA::SERCA(const char* fcts) : IMembraneTransporter(fcts),
-VS(6.5e-24), KS(1.8e-4)
+VS(6.5e-24), KS(1.8e-4), m_bLinearizedAssembling(false)
 {
 	// nothing to do
 }
@@ -76,6 +76,18 @@ void SERCA::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<n
 }
 
 
+void SERCA::calc_flux
+(
+	const std::vector<number>& u,
+	const std::vector<number>& uOld,
+	GridObject* e,
+	std::vector<number>& flux
+) const
+{
+	flux[0] = VS * u[_CCYT_] / ((KS + uOld[_CCYT_]) * uOld[_CER_]);
+}
+
+
 void SERCA::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
 	// get values of the unknowns in associated node
@@ -94,6 +106,30 @@ void SERCA::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::ve
 		flux_derivs[0][i].first = local_fct_index(_CER_);
 		flux_derivs[0][i].second = - VS*caCyt / ((KS+caCyt)*caER*caER);
 		i++;
+	}
+}
+
+
+void SERCA::calc_flux_deriv
+(
+	const std::vector<number>& u,
+	const std::vector<number>& uOld,
+	GridObject* e,
+	std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs
+) const
+{
+	size_t i = 0;
+	if (!has_constant_value(_CCYT_))
+	{
+		flux_derivs[0][0].first = local_fct_index(_CCYT_);
+		flux_derivs[0][0].second = VS / ((KS + uOld[_CCYT_]) * uOld[_CER_]);
+		++i;
+	}
+	if (!has_constant_value(_CER_))
+	{
+		flux_derivs[0][i].first = local_fct_index(_CER_);
+		flux_derivs[0][i].second = 0.0;
+		++i;
 	}
 }
 
@@ -132,6 +168,12 @@ const std::string SERCA::name() const
 }
 
 
+bool SERCA::needsPreviousSolution() const
+{
+	return m_bLinearizedAssembling;
+}
+
+
 void SERCA::check_supplied_functions() const
 {
 	// Check that not both, inner and outer calcium concentrations are not supplied;
@@ -162,7 +204,15 @@ void SERCA::print_units() const
 	UG_LOG("+------------------------------------------------------------------------------+"<< std::endl);
 	UG_LOG(std::endl);
 }
-    
-    
+
+
+void SERCA::set_linearized_assembling()
+{
+	m_bLinearizedAssembling = true;
+}
+
+
+
+
 } // namespace neuro_collection
 } // namespace ug

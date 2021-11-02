@@ -45,13 +45,13 @@ namespace neuro_collection {
 
 
 PMCA::PMCA(const std::vector<std::string>& fcts) : IMembraneTransporter(fcts),
-KD_P(6.0e-5), IMAX_P(1.7e-23)
+KD_P(6.0e-5), IMAX_P(1.7e-23), m_bLinearizedAssembling(false)
 {
 	// nothing to do
 }
 
 PMCA::PMCA(const char* fcts) : IMembraneTransporter(fcts),
-KD_P(6.0e-5), IMAX_P(1.7e-23)
+KD_P(6.0e-5), IMAX_P(1.7e-23), m_bLinearizedAssembling(false)
 {
 	// nothing to do
 }
@@ -78,12 +78,49 @@ void PMCA::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<nu
 }
 
 
+void PMCA::calc_flux
+(
+	const std::vector<number>& u,
+	const std::vector<number>& uOld,
+	GridObject* e,
+	std::vector<number>& flux
+) const
+{
+	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
+	number caCytOld = uOld[_CCYT_];	// previous cytosolic Ca2+ concentration
+
+	number gatingFactor = caCyt*caCytOld / (KD_P*KD_P + caCytOld*caCytOld);
+
+	flux[0] = gatingFactor * IMAX_P;
+}
+
+
 void PMCA::calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
 	// get values of the unknowns in associated node
 	number caCyt = u[_CCYT_];	// cytosolic Ca2+ concentration
 
 	number dGating_dCyt = 2*KD_P*KD_P*caCyt / std::pow(KD_P*KD_P + caCyt*caCyt, 2);
+
+	if (!has_constant_value(_CCYT_))
+	{
+		flux_derivs[0][0].first = local_fct_index(_CCYT_);
+		flux_derivs[0][0].second = dGating_dCyt * IMAX_P;
+	}
+}
+
+
+void PMCA::calc_flux_deriv
+(
+	const std::vector<number>& u,
+	const std::vector<number>& uOld,
+	GridObject* e,
+	std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs
+) const
+{
+	number caCytOld = uOld[_CCYT_];	// cytosolic Ca2+ concentration
+
+	number dGating_dCyt = caCytOld / (KD_P*KD_P + caCytOld*caCytOld);
 
 	if (!has_constant_value(_CCYT_))
 	{
@@ -121,6 +158,12 @@ const std::string PMCA::name() const
 };
 
 
+bool PMCA::needsPreviousSolution() const
+{
+	return m_bLinearizedAssembling;
+}
+
+
 void PMCA::check_supplied_functions() const
 {
 	// Check that not both, inner and outer calcium concentrations are not supplied;
@@ -150,6 +193,12 @@ void PMCA::print_units() const
 	UG_LOG("|      Ca flux   mol/s                                                         |"<< std::endl);
 	UG_LOG("+------------------------------------------------------------------------------+"<< std::endl);
 	UG_LOG(std::endl);
+}
+
+
+void PMCA::set_linearized_assembling()
+{
+	m_bLinearizedAssembling = true;
 }
 
 
