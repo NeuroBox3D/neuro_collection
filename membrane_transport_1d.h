@@ -73,8 +73,8 @@ class MembraneTransport1d
 		///	world dimension
 		static const int dim = IElemDisc<TDomain>::dim;
 
-		typedef typename FV1InnerBoundaryElemDisc<TDomain>::FluxCond FluxCond;
-		typedef typename FV1InnerBoundaryElemDisc<TDomain>::FluxDerivCond FluxDerivCond;
+		typedef InnerBoundaryFluxCond FluxCond;
+		typedef InnerBoundaryFluxDerivCond FluxDerivCond;
 
 	public:
 		/// constructor with c-string
@@ -104,7 +104,6 @@ class MembraneTransport1d
 		/// the flux function
 		/**	This is the actual flux function defining the flux density over the boundary
 		 *	depending on the unknowns on the boundary;
-		 *	shall be defined in a specialized class that is derived from FV1InnerBoundaryElemDisc.
 		 */
 		bool fluxDensityFct
 		(
@@ -117,7 +116,6 @@ class MembraneTransport1d
 
 		/**	This is the flux derivative function defining the flux density derivatives over the boundary
 		 *	depending on the unknowns on the boundary;
-		 *	shall be defined in a specialized class that is derived from FV1InnerBoundaryElemDisc.
 		 */
 		bool fluxDensityDerivFct
 		(

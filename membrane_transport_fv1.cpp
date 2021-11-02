@@ -38,6 +38,7 @@
  */
 
 #include "membrane_transport_fv1.h"
+#include "lib_disc/spatial_disc/elem_disc/inner_boundary/inner_boundary_impl.h"
 #include "bindings/lua/lua_user_data.h"
 
 
@@ -47,8 +48,8 @@ namespace neuro_collection {
 
 template<typename TDomain>
 MembraneTransportFV1<TDomain>::MembraneTransportFV1(const char* subsets, SmartPtr<IMembraneTransporter> mt)
-: FV1InnerBoundaryElemDisc<TDomain>(),
-  R(8.314), T(310.0), F(96485.0), m_spMembraneTransporter(mt), m_bNonRegularGrid(false)
+: base_type(),
+  R(8.314), T(310.0), F(96485.0), m_spMembraneTransporter(mt)
 {
 	// check validity of transporter setup and then lock
 	mt->check_and_lock();
@@ -60,8 +61,8 @@ MembraneTransportFV1<TDomain>::MembraneTransportFV1(const char* subsets, SmartPt
 
 template<typename TDomain>
 MembraneTransportFV1<TDomain>::MembraneTransportFV1(const std::vector<std::string>& subsets, SmartPtr<IMembraneTransporter> mt)
-: FV1InnerBoundaryElemDisc<TDomain>(),
-  R(8.314), T(310.0), F(96485.0), m_spMembraneTransporter(mt), m_bNonRegularGrid(false)
+: base_type(),
+  R(8.314), T(310.0), F(96485.0), m_spMembraneTransporter(mt)
 {
 	// check validity of transporter setup and then lock
 	mt->check_and_lock();
@@ -200,11 +201,8 @@ bool MembraneTransportFV1<TDomain>::fluxDensityDerivFct
 template<typename TDomain>
 void MembraneTransportFV1<TDomain>::prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid)
 {
-	// remember
-	m_bNonRegularGrid = bNonRegularGrid;
-
 	// set assembling functions from base class first
-	this->FV1InnerBoundaryElemDisc<TDomain>::prepare_setting(vLfeID, bNonRegularGrid);
+	this->base_type::prepare_setting(vLfeID, bNonRegularGrid);
 
 	// update assemble functions
 	register_all_fv1_funcs();

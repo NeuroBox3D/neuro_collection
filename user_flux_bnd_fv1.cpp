@@ -38,6 +38,7 @@
  */
 
 #include "user_flux_bnd_fv1.h"
+#include "lib_disc/spatial_disc/elem_disc/inner_boundary/inner_boundary_impl.h"
 
 
 namespace ug {
@@ -45,7 +46,7 @@ namespace neuro_collection {
 
 template <typename TDomain>
 UserFluxBoundaryFV1<TDomain>::UserFluxBoundaryFV1(const char* functions, const char* subsets)
-: FV1InnerBoundaryElemDisc<TDomain>(functions, subsets)
+: base_type(functions, subsets)
 {}
 
 
@@ -55,7 +56,7 @@ UserFluxBoundaryFV1<TDomain>::UserFluxBoundaryFV1
 	const std::vector<std::string>& functions,
 	const std::vector<std::string>& subsets
 )
-: FV1InnerBoundaryElemDisc<TDomain>(functions, subsets)
+: base_type(functions, subsets)
 {}
 
 

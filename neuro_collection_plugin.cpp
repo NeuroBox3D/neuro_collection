@@ -110,6 +110,7 @@
 #include "util/neurite_axial_refinement_marker.h"
 #include "util/solution_impexp_util.h"
 #include "lib_disc/function_spaces/grid_function.h"
+#include "lib_disc/spatial_disc/elem_disc/inner_boundary/inner_boundary_impl.h"
 
 #include "test/neurite_math_util.h"
 
@@ -330,7 +331,7 @@ static void Domain(Registry& reg, string grp)
 	// implementation of two-sided membrane transport systems
 	{
 		typedef MembraneTransportFV1<TDomain> T;
-		typedef FV1InnerBoundaryElemDisc<TDomain> TBase;
+		typedef IElemDisc<TDomain> TBase;
 		string name = string("MembraneTransportFV1").append(suffix);
 		reg.add_class_<T, TBase >(name, grp)
 			.template add_constructor<void (*)(const char*, SmartPtr<IMembraneTransporter>)>("Subset(s) as comma-separated c-string#MembraneTransporter")
@@ -343,6 +344,14 @@ static void Domain(Registry& reg, string grp)
 #endif
 			.add_method("set_density_function", static_cast<void (T::*) (SmartPtr<CplUserData<number,dim> >)>
 					(&T::set_density_function), "", "", "add a density function")
+			.add_method("set_flux_scale", static_cast<void (T::*)(number)>(&T::set_flux_scale),
+						"", "scale", "Set scale to scale (all) fluxes with.")
+			.add_method("set_flux_scale", static_cast<void (T::*)(SmartPtr<CplUserData<number, dim> >)>(&T::set_flux_scale),
+						"", "scale", "Set scale to scale (all) fluxes with.")
+#ifdef UG_FOR_LUA
+			.add_method("set_flux_scale", static_cast<void (T::*)(const char*)>(&T::set_flux_scale),
+						"", "scale", "Set scale to scale (all) fluxes with.")
+#endif
 			.add_method("set_membrane_transporter", &T::set_membrane_transporter, "", "", "sets the membrane transport mechanism")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "MembraneTransportFV1", tag);
@@ -375,7 +384,7 @@ static void Domain(Registry& reg, string grp)
 	// user flux boundary
 	{
 		typedef UserFluxBoundaryFV1<TDomain> T;
-		typedef FV1InnerBoundaryElemDisc<TDomain> TBase;
+		typedef IElemDisc<TDomain> TBase;
 		string name = string("UserFluxBoundaryFV1").append(suffix);
 		reg.add_class_<T, TBase>(name, grp)
 			.template add_constructor<void (*)(const char*, const char*)>("Function(s) as comma-separated c-string#Subset(s) as comma-separated c-string")
@@ -384,8 +393,10 @@ static void Domain(Registry& reg, string grp)
 					"", "", "add a flux density function")
 			.add_method("set_flux_function", static_cast<void (T::*) (number)> (&T::set_flux_function),
 					"", "", "add a flux density function")
+#ifdef UG_FOR_LUA
 			.add_method("set_flux_function", static_cast<void (T::*) (const char*)> (&T::set_flux_function),
 					"", "", "add a flux density function")
+#endif
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "UserFluxBoundaryFV1", tag);
 	}

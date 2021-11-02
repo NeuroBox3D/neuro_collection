@@ -70,7 +70,7 @@ class IMembraneTransporter;
  */
 template<typename TDomain>
 class MembraneTransportFV1
-: public FV1InnerBoundaryElemDisc<TDomain>
+: public FV1InnerBoundaryElemDisc<MembraneTransportFV1<TDomain>, TDomain>
 {
 	protected:
 		const number R;			// universal gas constant
@@ -78,10 +78,13 @@ class MembraneTransportFV1
 		const number F;			// Faraday constant
 
 		typedef MembraneTransportFV1<TDomain> this_type;
-		typedef typename FV1InnerBoundaryElemDisc<TDomain>::FluxCond FluxCond;
-		typedef typename FV1InnerBoundaryElemDisc<TDomain>::FluxDerivCond FluxDerivCond;
+		typedef FV1InnerBoundaryElemDisc<this_type, TDomain> base_type;
+		typedef typename base_type::FluxCond FluxCond;
+		typedef typename base_type::FluxDerivCond FluxDerivCond;
 
 	public:
+		typedef TDomain domain_type;
+
 	///	world dimension
 		static const int dim = TDomain::dim;
 
@@ -108,8 +111,12 @@ class MembraneTransportFV1
 	/// set transport mechanism
 		void set_membrane_transporter(SmartPtr<IMembraneTransporter> mt);
 
-	/// @copydoc FV1InnerBoundary<TDomain>::fluxDensityFct()
-		virtual bool fluxDensityFct
+		// functions needed by FV1InnerBoundaryElemDisc
+
+		/**	This is the actual flux function defining the flux density over the boundary
+		 *	depending on the unknowns on the boundary;
+		 */
+		bool fluxDensityFct
 		(
 			const std::vector<LocalVector::value_type>& u,
 			GridObject* e,
@@ -118,7 +125,9 @@ class MembraneTransportFV1
 			FluxCond& fc
 		);
 
-	/// @copydoc FV1InnerBoundary<TDomain>::fluxDensityDerivFct()
+		/**	This is the flux derivative function defining the flux density derivatives over the boundary
+		 *	depending on the unknowns on the boundary;
+		 */
 		bool fluxDensityDerivFct
 		(
 			const std::vector<LocalVector::value_type>& u,
@@ -129,10 +138,10 @@ class MembraneTransportFV1
 		);
 
 	/// @copydoc IElemDisc<TDomain>::prepare_setting()
-		virtual void prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid);
+		void prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid) override;
 
 	/// @copydoc IElemDisc<TDomain>::prep_timestep()
-		void prep_timestep(number future_time, number time, VectorProxyBase* upb);
+		void prep_timestep(number future_time, number time, VectorProxyBase* upb) override;
 
 	protected:
 		SmartPtr<CplUserData<number,dim> > m_spDensityFct;
@@ -170,9 +179,6 @@ class MembraneTransportFV1
 
 
 		void register_all_fv1_funcs();
-
-	private:
-		bool m_bNonRegularGrid;
 };
 
 ///@}

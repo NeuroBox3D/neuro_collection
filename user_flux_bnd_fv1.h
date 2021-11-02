@@ -61,14 +61,20 @@ namespace neuro_collection {
 
 template<typename TDomain>
 class UserFluxBoundaryFV1
-: public FV1InnerBoundaryElemDisc<TDomain>
+: public FV1InnerBoundaryElemDisc<UserFluxBoundaryFV1<TDomain>, TDomain>
 {
-	private:
-		typedef typename FV1InnerBoundaryElemDisc<TDomain>::FluxCond FluxCond;
-		typedef typename FV1InnerBoundaryElemDisc<TDomain>::FluxDerivCond FluxDerivCond;
+	public:
+		/// domain type
+		typedef TDomain domain_type;
 
 		///	world dimension
-		static const int dim = TDomain::dim;
+		static const int dim = domain_type::dim;
+
+	private:
+		typedef UserFluxBoundaryFV1<domain_type> this_type;
+		typedef FV1InnerBoundaryElemDisc<this_type, domain_type> base_type;
+		typedef typename base_type::FluxCond FluxCond;
+		typedef typename base_type::FluxDerivCond FluxDerivCond;
 
 	public:
 		/// constructor with c-strings
@@ -92,7 +98,7 @@ class UserFluxBoundaryFV1
 		void set_flux_function(const char* name);
 
 
-		// virtual functions inherited from FV1InnerBoundaryElemDisc
+		// functions needed by FV1InnerBoundaryElemDisc
 		/// calculates the flux density
 		bool fluxDensityFct
 		(
