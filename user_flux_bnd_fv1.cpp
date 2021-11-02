@@ -128,9 +128,41 @@ bool UserFluxBoundaryFV1<TDomain>::fluxDensityFct
 
 
 template <typename TDomain>
+bool UserFluxBoundaryFV1<TDomain>::fluxDensityFct
+(
+	const std::vector<LocalVector::value_type>& u,
+	const std::vector<LocalVector::value_type>& uOld,
+	GridObject* e,
+	const MathVector<dim>& coords,
+	int si,
+	FluxCond& fc
+)
+{
+	return fluxDensityFct(u, e, coords, si, fc);
+}
+
+
+template <typename TDomain>
 bool UserFluxBoundaryFV1<TDomain>::fluxDensityDerivFct
 (
 	const std::vector<LocalVector::value_type>& u,
+	GridObject* e,
+	const MathVector<dim>& coords,
+	int si,
+	FluxDerivCond& fdc
+)
+{
+	// nothing to compute here, since the flux does not depend on any variables
+	return true;
+}
+
+
+
+template <typename TDomain>
+bool UserFluxBoundaryFV1<TDomain>::fluxDensityDerivFct
+(
+	const std::vector<LocalVector::value_type>& u,
+	const std::vector<LocalVector::value_type>& uOld,
 	GridObject* e,
 	const MathVector<dim>& coords,
 	int si,

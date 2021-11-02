@@ -127,6 +127,40 @@ bool MembraneTransportFV1<TDomain>::fluxDensityFct
 	FluxCond& fc
 )
 {
+	return fluxDensityFctImpl(
+		[&u, this](GridObject* e, FluxCond& fc) {m_spMembraneTransporter->flux(u, e, fc.flux);},
+		e, coords, si, fc);
+}
+
+
+template <typename TDomain>
+bool MembraneTransportFV1<TDomain>::fluxDensityFct
+(
+	const std::vector<LocalVector::value_type>& u,
+	const std::vector<LocalVector::value_type>& uOld,
+	GridObject* e,
+	const MathVector<dim>& coords,
+	int si,
+	FluxCond& fc
+)
+{
+	return fluxDensityFctImpl(
+		[&u, &uOld, this](GridObject* e, FluxCond& fc) {m_spMembraneTransporter->flux(u, uOld, e, fc.flux);},
+		e, coords, si, fc);
+}
+
+
+template <typename TDomain>
+template <typename CallToMemTransporter>
+bool MembraneTransportFV1<TDomain>::fluxDensityFctImpl
+(
+	const CallToMemTransporter& call,
+	GridObject* e,
+	const MathVector<dim>& coords,
+	int si,
+	FluxCond& fc
+)
+{
 	size_t n_flux = m_spMembraneTransporter->n_fluxes();
 
 	// calculate single-channel flux
@@ -134,7 +168,8 @@ bool MembraneTransportFV1<TDomain>::fluxDensityFct
 	fc.from.resize(n_flux);
 	fc.to.resize(n_flux);
 
-	m_spMembraneTransporter->flux(u, e, fc.flux);
+	// get solution at the corner of the bf
+	call(e, fc);
 
 	// get density in membrane
 	if (!this->m_spDensityFct.valid())
@@ -166,6 +201,40 @@ bool MembraneTransportFV1<TDomain>::fluxDensityDerivFct
 	FluxDerivCond& fdc
 )
 {
+	return fluxDensityDerivFctImpl(
+		[&u, this](GridObject* e, FluxDerivCond& fdc) {m_spMembraneTransporter->flux_deriv(u, e, fdc.fluxDeriv);},
+		e, coords, si, fdc);
+}
+
+
+template<typename TDomain>
+bool MembraneTransportFV1<TDomain>::fluxDensityDerivFct
+(
+	const std::vector<LocalVector::value_type>& u,
+	const std::vector<LocalVector::value_type>& uOld,
+	GridObject* e,
+	const MathVector<dim>& coords,
+	int si,
+	FluxDerivCond& fdc
+)
+{
+	return fluxDensityDerivFctImpl(
+		[&u, &uOld, this](GridObject* e, FluxDerivCond& fdc) {m_spMembraneTransporter->flux_deriv(u, uOld, e, fdc.fluxDeriv);},
+		e, coords, si, fdc);
+}
+
+
+template <typename TDomain>
+template <typename CallToMemTransporter>
+bool MembraneTransportFV1<TDomain>::fluxDensityDerivFctImpl
+(
+	const CallToMemTransporter& call,
+	GridObject* e,
+	const MathVector<dim>& coords,
+	int si,
+	FluxDerivCond& fdc
+)
+{
 	size_t n_dep = m_spMembraneTransporter->n_dependencies();
 	size_t n_flux = m_spMembraneTransporter->n_fluxes();
 
@@ -176,7 +245,7 @@ bool MembraneTransportFV1<TDomain>::fluxDensityDerivFct
 	for (size_t i = 0; i < n_flux; i++)
 		fdc.fluxDeriv[i].resize(n_dep);
 
-	m_spMembraneTransporter->flux_deriv(u, e, fdc.fluxDeriv);
+	call(e, fdc);
 
 	number density;
 	if (this->m_spDensityFct.valid())
@@ -198,6 +267,7 @@ bool MembraneTransportFV1<TDomain>::fluxDensityDerivFct
 	return true;
 }
 
+
 template<typename TDomain>
 void MembraneTransportFV1<TDomain>::prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid)
 {
@@ -209,7 +279,8 @@ void MembraneTransportFV1<TDomain>::prepare_setting(const std::vector<LFEID>& vL
 }
 
 
-template<typename TDomain>
+template <typename TDomain>
+template <typename TAlgebra>
 void MembraneTransportFV1<TDomain>::prep_timestep
 (
     number future_time,
@@ -217,6 +288,9 @@ void MembraneTransportFV1<TDomain>::prep_timestep
     VectorProxyBase* upb
 )
 {
+	this->previous_solution_required(m_spMembraneTransporter->needsPreviousSolution());
+	this->base_type::template prep_timestep<TAlgebra>(future_time, time, upb);
+
 	m_spMembraneTransporter->prepare_timestep(future_time, time, upb);
 }
 
@@ -225,7 +299,7 @@ template<typename TDomain>
 void MembraneTransportFV1<TDomain>::register_all_fv1_funcs()
 {
 	// register prep_timestep function for all known algebra types
-	Register<bridge::CompileAlgebraList>(this);
+	RegisterPrepTimestep<bridge::CompileAlgebraList>(this);
 }
 
 

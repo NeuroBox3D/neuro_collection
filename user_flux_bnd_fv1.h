@@ -108,12 +108,30 @@ class UserFluxBoundaryFV1
 			int si,
 			FluxCond& fc
 		);
+		bool fluxDensityFct
+		(
+			const std::vector<LocalVector::value_type>& u,
+			const std::vector<LocalVector::value_type>& uOld,
+			GridObject* e,
+			const MathVector<dim>& coords,
+			int si,
+			FluxCond& fc
+		);
 
 
 		/// calculates the flux density derivatives
 		bool fluxDensityDerivFct
 		(
 			const std::vector<LocalVector::value_type>& u,
+			GridObject* e,
+			const MathVector<dim>& coords,
+			int si,
+			FluxDerivCond& fdc
+		);
+		bool fluxDensityDerivFct
+		(
+			const std::vector<LocalVector::value_type>& u,
+			const std::vector<LocalVector::value_type>& uOld,
 			GridObject* e,
 			const MathVector<dim>& coords,
 			int si,

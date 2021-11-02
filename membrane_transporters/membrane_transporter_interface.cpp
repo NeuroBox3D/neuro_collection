@@ -126,6 +126,37 @@ void IMembraneTransporter::flux(const std::vector<number>& u, GridObject* e, std
 }
 
 
+void IMembraneTransporter::flux
+(
+	const std::vector<number>& u,
+	const std::vector<number>& uOld,
+	GridObject* e,
+	std::vector<number>& flux
+) const
+{
+	// construct input vector for flux calculation with constant values
+	std::vector<number> u_with_consts(n_fct);
+	create_local_vector_with_constants(u, u_with_consts);
+
+	std::vector<number> uOld_with_consts(n_fct);
+	create_local_vector_with_constants(uOld, uOld_with_consts);
+
+	// scale each entry
+	for (size_t i = 0; i < n_fct; ++i)
+	{
+		u_with_consts[i] *= m_vScaleInputs[i];
+		uOld_with_consts[i] *= m_vScaleInputs[i];
+	}
+
+	// calculate fluxes
+	calc_flux(u_with_consts, uOld_with_consts, e, flux);
+
+	// scale each flux
+	for (size_t i = 0; i < flux.size(); ++i)
+		flux[i] *= m_vScaleFluxes[i];
+}
+
+
 void IMembraneTransporter::flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
 {
 	// construct input vector for flux derivative calculation with constant values
@@ -152,6 +183,82 @@ void IMembraneTransporter::flux_deriv(const std::vector<number>& u, GridObject* 
 }
 
 
+void IMembraneTransporter::flux_deriv(const std::vector<number>& u, const std::vector<number>& uOld, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const
+{
+	// construct input vector for flux derivative calculation with constant values
+	std::vector<number> u_with_consts(n_fct);
+	create_local_vector_with_constants(u, u_with_consts);
+	std::vector<number> uOld_with_consts(n_fct);
+	create_local_vector_with_constants(uOld, uOld_with_consts);
+
+	// scale each entry
+	for (size_t i = 0; i < n_fct; ++i)
+	{
+		u_with_consts[i] *= m_vScaleInputs[i];
+		uOld_with_consts[i] *= m_vScaleInputs[i];
+	}
+
+	// calculate flux derivatives
+	calc_flux_deriv(u_with_consts, uOld_with_consts, e, flux_derivs);
+
+	// scale each flux deriv
+	for (size_t i = 0; i < flux_derivs.size(); ++i)
+	{
+		for (size_t j = 0; j < flux_derivs[i].size(); ++j)
+		{
+			UG_COND_THROW(flux_derivs[i][j].first >= m_vfIndInv.size(),
+				"Supplied function index " << flux_derivs[i][j].first << " does not exist.");
+			flux_derivs[i][j].second *= m_vScaleFluxes[i] * m_vScaleInputs[m_vfIndInv[flux_derivs[i][j].first]];
+		}
+	}
+}
+
+
+void IMembraneTransporter::calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const
+{
+	UG_COND_THROW(needsPreviousSolution(), "The membrane transporter does not implement calc_flux.")
+}
+
+
+void IMembraneTransporter::calc_flux
+(
+	const std::vector<number>& u,
+	const std::vector<number>& uOld,
+	GridObject* e,
+	std::vector<number>& flux
+) const
+{
+	UG_COND_THROW(needsPreviousSolution(), "The membrane transporter claims to require the previous solution,\n"
+		"but does not implement calc_flux with an additional argument for the old solution.")
+	return calc_flux(u, e, flux);
+}
+
+
+void IMembraneTransporter::calc_flux_deriv
+(
+	const std::vector<number>& u,
+	GridObject* e,
+	std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs
+) const
+{
+	UG_COND_THROW(needsPreviousSolution(), "The membrane transporter does not implement calc_flux_deriv.")
+}
+
+
+void IMembraneTransporter::calc_flux_deriv
+(
+	const std::vector<number>& u,
+	const std::vector<number>& uOld,
+	GridObject* e,
+	std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs
+) const
+{
+	UG_COND_THROW(needsPreviousSolution(), "The membrane transporter claims to require the previous solution,\n"
+		"but does not implement calc_flux_deriv with an additional argument for the old solution.")
+	return calc_flux_deriv(u, e, flux_derivs);
+}
+
+
 void IMembraneTransporter::create_local_vector_with_constants(const std::vector<number>& u, std::vector<number>& u_wc) const
 {
 	for (size_t i = 0; i < n_fct; i++)
@@ -167,10 +274,18 @@ void IMembraneTransporter::create_local_vector_with_constants(const std::vector<
 	}
 }
 
+
 const std::vector<std::string>& IMembraneTransporter::symb_fcts() const
 {
 	return m_vFct;
 }
+
+
+bool IMembraneTransporter::needsPreviousSolution() const
+{
+	return false;
+}
+
 
 size_t IMembraneTransporter::local_fct_index(const size_t i) const
 {

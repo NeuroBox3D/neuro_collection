@@ -68,7 +68,7 @@ class IMembraneTransporter;
  * set_membrane_transporter(). The density of the corresponding channels or pumps needs
  * to be set using set_density_function().
  */
-template<typename TDomain>
+template <typename TDomain>
 class MembraneTransportFV1
 : public FV1InnerBoundaryElemDisc<MembraneTransportFV1<TDomain>, TDomain>
 {
@@ -124,6 +124,24 @@ class MembraneTransportFV1
 			int si,
 			FluxCond& fc
 		);
+		bool fluxDensityFct
+		(
+			const std::vector<LocalVector::value_type>& u,
+			const std::vector<LocalVector::value_type>& uOld,
+			GridObject* e,
+			const MathVector<dim>& coords,
+			int si,
+			FluxCond& fc
+		);
+		template <typename CallToMemTransporter>
+		bool fluxDensityFctImpl
+		(
+			const CallToMemTransporter& call,
+			GridObject* e,
+			const MathVector<dim>& coords,
+			int si,
+			FluxCond& fc
+		);
 
 		/**	This is the flux derivative function defining the flux density derivatives over the boundary
 		 *	depending on the unknowns on the boundary;
@@ -136,12 +154,32 @@ class MembraneTransportFV1
 			int si,
 			FluxDerivCond& fdc
 		);
+		bool fluxDensityDerivFct
+		(
+			const std::vector<LocalVector::value_type>& u,
+			const std::vector<LocalVector::value_type>& uOld,
+			GridObject* e,
+			const MathVector<dim>& coords,
+			int si,
+			FluxDerivCond& fdc
+		);
+		template <typename CallToMemTransporter>
+		bool fluxDensityDerivFctImpl
+		(
+			const CallToMemTransporter& call,
+			GridObject* e,
+			const MathVector<dim>& coords,
+			int si,
+			FluxDerivCond& fdc
+		);
 
 	/// @copydoc IElemDisc<TDomain>::prepare_setting()
 		void prepare_setting(const std::vector<LFEID>& vLfeID, bool bNonRegularGrid) override;
 
 	/// @copydoc IElemDisc<TDomain>::prep_timestep()
-		void prep_timestep(number future_time, number time, VectorProxyBase* upb) override;
+		template <typename TAlgebra>
+		void prep_timestep(number future_time, number time, VectorProxyBase* upb);
+
 
 	protected:
 		SmartPtr<CplUserData<number,dim> > m_spDensityFct;
@@ -149,19 +187,17 @@ class MembraneTransportFV1
 
 	private:
 		template <typename List>
-		struct Register
+		struct RegisterPrepTimestep
 		{
-			Register(this_type* p)
+			RegisterPrepTimestep(this_type* p)
 			{
 				static const bool isEmpty = boost::mpl::empty<List>::value;
-				(typename boost::mpl::if_c<isEmpty, RegEnd, RegNext>::type (p));
+				(typename boost::mpl::if_c<isEmpty, RegEnd, RegNext>::type(p));
 			}
-
 			struct RegEnd
 			{
 				RegEnd(this_type*) {}
 			};
-
 			struct RegNext
 			{
 				RegNext(this_type* p)
@@ -170,9 +206,8 @@ class MembraneTransportFV1
 					typedef typename boost::mpl::pop_front<List>::type NextList;
 
 					size_t aid = bridge::AlgebraTypeIDProvider::instance().id<AlgebraType>();
-					p->set_prep_timestep_fct(aid, &this_type::prep_timestep);
-
-					(Register<NextList> (p));
+					p->set_prep_timestep_fct(aid, &this_type::template prep_timestep<AlgebraType>);
+					(RegisterPrepTimestep<NextList>(p));
 				}
 			};
 		};

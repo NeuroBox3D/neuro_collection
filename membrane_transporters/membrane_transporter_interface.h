@@ -164,6 +164,7 @@ class IMembraneTransporter
 		 * @param flux   output vector containing the calculated fluxes
 		 */
 		void flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const;
+		void flux(const std::vector<number>& u, const std::vector<number>& uOld, GridObject* e, std::vector<number>& flux) const;
 
 		/**
 		 * @brief Calculates the derivatives of the fluxes through this mechanism (same for all mechanisms)
@@ -189,6 +190,7 @@ class IMembraneTransporter
 		 *                      derivative
 		 */
 		void flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
+		void flux_deriv(const std::vector<number>& u, const std::vector<number>& uOld, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
 
 		/**
 		 * @brief Calculates the flux through a membrane transport system (system-specific)
@@ -197,18 +199,9 @@ class IMembraneTransporter
 		 * @param e      element this flux is assembled on
 		 * @param flux   output vector containing the calculated fluxes (not yet scaled)
 		 */
-		virtual void calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const = 0;
+		virtual void calc_flux(const std::vector<number>& u, GridObject* e, std::vector<number>& flux) const;
+		virtual void calc_flux(const std::vector<number>& u, const std::vector<number>& uOld, GridObject* e, std::vector<number>& flux) const;
 
-#if 0
-		/**
-		 * @brief Calculates a specific flux through a membrane transport system
-		 *
-		 * @param u      vector with values for all involved unknowns (created by flux())
-		 * @param index  index of the flux to be calculated
-		 * @param flux   output vector containing the calculated fluxes (not yet scaled)
-		 */
-		virtual number calc_flux(const std::vector<number>& u, size_t index) const {return 0.0;};
-#endif
 
 		/**
 		 * @brief Calculates the flux derivatives through a membrane transport system (system-specific)
@@ -220,7 +213,8 @@ class IMembraneTransporter
 		 *                      to which unknown the derivative is taken and value is the
 		 *                      derivative (not yet scaled)
 		 */
-		virtual void calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const = 0;
+		virtual void calc_flux_deriv(const std::vector<number>& u, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
+		virtual void calc_flux_deriv(const std::vector<number>& u, const std::vector<number>& uOld, GridObject* e, std::vector<std::vector<std::pair<size_t, number> > >& flux_derivs) const;
 
 		/**
 		 * @brief Gives information about how many variables the flux depends on
@@ -271,6 +265,16 @@ class IMembraneTransporter
 		 * @return supplied function names
 		 */
 		const std::vector<std::string>& symb_fcts() const;
+
+		/**
+		 * @brief Whether the membrane transporter discretization needs access to the previous solution
+		 * Some discretizations may need function values not only from the current solution (being computed),
+		 * but from the previous time step at the same time (in not purely implicit schemes).
+		 * When the membrane transporter indicates this, its corresponding flux and flux deriv functions
+		 * will be called by MembraneTransportFV1.
+		 * @return
+		 */
+		virtual bool needsPreviousSolution() const;
 
 		/**
 		 * @brief Information on the local function index of the given unknown.
